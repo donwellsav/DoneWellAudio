@@ -178,7 +178,7 @@ public class DetectorTests
     private static FeedbackCandidate FakeCandidate(double freq, double conf, double q, double promDb)
     {
         var tracked = new TrackedPeak(Guid.NewGuid(), freq, -10, promDb, TotalHits: 20, ConsecutiveHits: 20, FrequencyStdDevHz: 0.5);
-        var comps = new ConfidenceComponents(1,1,1,1);
+        var comps = new ConfidenceComponents(1, 1, 1, 1);
         return new FeedbackCandidate(tracked, q, conf, comps);
     }
 }
