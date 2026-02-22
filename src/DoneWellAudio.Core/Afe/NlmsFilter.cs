@@ -176,10 +176,10 @@ public sealed class NlmsFilter : IAdaptiveFilter, IDisposable
         }
 
         // Apply solved weights
-        for(int i=0; i<P; i++)
+        for (int i = 0; i < P; i++)
         {
-             if (i < _gldW.Length) _weights[i] = _gldW[i+1]; // Shift?
-             else _weights[i] = 0;
+            if (i < _gldW.Length) _weights[i] = _gldW[i + 1]; // Shift?
+            else _weights[i] = 0;
         }
 
         // Or simply Zero out if unstable/NaN

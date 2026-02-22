@@ -80,7 +80,7 @@ public sealed class FeedbackSuppressionEngine : IAudioPipeline
 
         if (feedbackFound && mag > 100.0f) // Arbitrary high threshold for "Rampant"
         {
-             _layer4Afc.TriggerRescue();
+            _layer4Afc.TriggerRescue();
         }
 
         // Apply Rescue Gain (Broadband attenuation)

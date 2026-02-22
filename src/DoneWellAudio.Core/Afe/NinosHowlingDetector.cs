@@ -183,7 +183,7 @@ public sealed class NinosHowlingDetector : IHowlingDetector, IDisposable
             Avx.Store(tempSq, vSumSq);
             Avx.Store(tempP4, vSumPow4);
 
-            for(int k=0; k<8; k++)
+            for (int k = 0; k < 8; k++)
             {
                 sumSq += tempSq[k];
                 sumPow4 += tempP4[k];
