@@ -4,7 +4,7 @@ namespace DoneWellAudio.Core;
 
 public sealed class FeedbackAnalyzer
 {
-    private readonly DetectorSettings _settings;
+    private DetectorSettings _settings;
     private readonly EqProfile _eq;
     private readonly IFft _fft;
     private readonly PeakTracker _tracker = new();
@@ -25,6 +25,17 @@ public sealed class FeedbackAnalyzer
         _fft = fft;
     }
 
+    public void UpdateSettings(DetectorSettings settings)
+    {
+        _settings = settings;
+        // If switching to continuous mode while frozen, unfreeze
+        if (_settings.ContinuousMode && _frozen)
+        {
+            _frozen = false;
+            _freezeStreak = 0;
+        }
+    }
+
     public void SetSampleRate(int sampleRate) => _sampleRate = sampleRate;
 
     public void Reset()
@@ -41,7 +52,7 @@ public sealed class FeedbackAnalyzer
     {
         if (_sampleRate <= 0) throw new InvalidOperationException("SampleRate not set.");
 
-        if (_frozen)
+        if (_frozen && !_settings.ContinuousMode)
         {
             return new AnalysisSnapshot(DateTimeOffset.UtcNow, true, _lastCandidates, _lastRecs);
         }
@@ -91,7 +102,15 @@ public sealed class FeedbackAnalyzer
 
             if (q < _settings.Detection.MinEstimatedQ) continue;
             if (q > _settings.Detection.MaxEstimatedQ) continue;
-            if (t.TotalHits < _settings.Detection.MinPersistenceFrames) continue;
+
+            int minHits = _settings.Detection.MinPersistenceFrames;
+            switch (_settings.ResponseSpeed)
+            {
+                case ResponseSpeed.Fast: minHits = Math.Max(2, minHits / 2); break;
+                case ResponseSpeed.Slow: minHits = minHits * 2; break;
+            }
+
+            if (t.TotalHits < minHits) continue;
 
             var comps = FeedbackScoring.ScoreComponents(t, q, _settings);
             double conf = FeedbackScoring.Combine(comps, _settings);

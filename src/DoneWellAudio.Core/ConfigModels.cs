@@ -83,10 +83,17 @@ public sealed record UiSettings(
     int UpdateHz
 );
 
+public enum SensitivityLevel { Low, Medium, High }
+public enum ResponseSpeed { Slow, Medium, Fast }
+
 public sealed record DetectorSettings(
     int Version,
     AudioSettings Audio,
     DetectionSettings Detection,
     FreezePolicy FreezePolicy,
-    UiSettings Ui
+    UiSettings Ui,
+    bool ContinuousMode = false,
+    SensitivityLevel Sensitivity = SensitivityLevel.Medium,
+    ResponseSpeed ResponseSpeed = ResponseSpeed.Medium,
+    bool SpectralWhitening = true // Pink noise compensation
 );

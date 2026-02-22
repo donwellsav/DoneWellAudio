@@ -1,7 +1,7 @@
 <Window x:Class="DoneWellAudio.Gui.Wpf.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Settings" Height="350" Width="400"
+        Title="Settings" Height="500" Width="450"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
         Background="{StaticResource AppBackgroundBrush}">
     <StackPanel Margin="20">
@@ -15,12 +15,30 @@
             <TextBlock x:Name="FontSizeValueText" Text="18" Margin="10,0,0,0" VerticalAlignment="Center" FontWeight="Bold"/>
         </StackPanel>
 
-        <TextBlock Text="Preview:" Margin="0,0,0,5"/>
         <Border BorderBrush="{StaticResource AppBorderBrush}" BorderThickness="1" Padding="10" Margin="0,0,0,20" Background="{StaticResource AppPanelBrush}">
-            <TextBlock x:Name="PreviewText" Text="The quick brown fox jumps over the lazy dog."/>
+            <TextBlock x:Name="PreviewText" Text="Preview: The quick brown fox jumps over the lazy dog." TextWrapping="Wrap"/>
         </Border>
 
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+        <Separator Margin="0,0,0,20" Background="{StaticResource AppBorderBrush}"/>
+
+        <TextBlock Text="Detector Settings" FontWeight="Bold" Margin="0,0,0,20"/>
+
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+            <TextBlock Text="Continuous Mode:" Width="140" VerticalAlignment="Center"/>
+            <CheckBox x:Name="ContinuousCheck" Content="Don't stop on feedback" VerticalAlignment="Center" Click="ContinuousCheck_Click"/>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+            <TextBlock Text="Sensitivity:" Width="140" VerticalAlignment="Center"/>
+            <ComboBox x:Name="SensitivityCombo" Width="150" SelectionChanged="SensitivityCombo_SelectionChanged"/>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+            <TextBlock Text="Response Speed:" Width="140" VerticalAlignment="Center"/>
+            <ComboBox x:Name="ResponseCombo" Width="150" SelectionChanged="ResponseCombo_SelectionChanged"/>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
             <Button x:Name="ResetButton" Content="Reset" Width="80" Click="Reset_Click"/>
             <Button x:Name="CloseButton" Content="Close" Width="80" Margin="10,0,0,0" Background="{StaticResource AppAccentBrush}" Foreground="Black" Click="Close_Click"/>
         </StackPanel>
