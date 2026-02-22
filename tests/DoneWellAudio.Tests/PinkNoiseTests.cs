@@ -19,7 +19,7 @@ public class PinkNoiseTests
                 MaxEstimatedQ: 1000,
                 MaxFrequencyDriftHz: 10,
                 MinPersistenceFrames: 0,
-                ConfidenceWeights: new ConfidenceWeights(1,1,1,1)
+                ConfidenceWeights: new ConfidenceWeights(1, 1, 1, 1)
             ),
             FreezePolicy: new FreezePolicy(false, 0, 0, false),
             Ui: new UiSettings(10),
@@ -49,7 +49,7 @@ public class PinkNoiseTests
         int i1 = (int)(100 / binHz);
         int i2 = (int)(1000 / binHz);
 
-        for(int i=0; i<n; i++) mag[i] = 1e-9; // noise floor
+        for (int i = 0; i < n; i++) mag[i] = 1e-9; // noise floor
 
         mag[i1] = 1.0 / Math.Sqrt(i1 * binHz);
         mag[i2] = 1.0 / Math.Sqrt(i2 * binHz);
@@ -57,8 +57,8 @@ public class PinkNoiseTests
         // 1. Run WITHOUT whitening
         var settingsNo = CreateSettings(false);
         var peaksNo = PeakDetection.FindPeaksDb(mag, (int)sampleRate, settingsNo);
-        var p1No = peaksNo.FirstOrDefault(p => Math.Abs(p.FrequencyHz - i1*binHz) < 1);
-        var p2No = peaksNo.FirstOrDefault(p => Math.Abs(p.FrequencyHz - i2*binHz) < 1);
+        var p1No = peaksNo.FirstOrDefault(p => Math.Abs(p.FrequencyHz - i1 * binHz) < 1);
+        var p2No = peaksNo.FirstOrDefault(p => Math.Abs(p.FrequencyHz - i2 * binHz) < 1);
 
         Assert.NotNull(p1No);
         Assert.NotNull(p2No);
@@ -72,8 +72,8 @@ public class PinkNoiseTests
         // 2. Run WITH whitening
         var settingsYes = CreateSettings(true);
         var peaksYes = PeakDetection.FindPeaksDb(mag, (int)sampleRate, settingsYes);
-        var p1Yes = peaksYes.FirstOrDefault(p => Math.Abs(p.FrequencyHz - i1*binHz) < 1);
-        var p2Yes = peaksYes.FirstOrDefault(p => Math.Abs(p.FrequencyHz - i2*binHz) < 1);
+        var p1Yes = peaksYes.FirstOrDefault(p => Math.Abs(p.FrequencyHz - i1 * binHz) < 1);
+        var p2Yes = peaksYes.FirstOrDefault(p => Math.Abs(p.FrequencyHz - i2 * binHz) < 1);
 
         Assert.NotNull(p1Yes);
         Assert.NotNull(p2Yes);
