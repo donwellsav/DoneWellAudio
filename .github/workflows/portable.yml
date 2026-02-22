@@ -2,7 +2,7 @@ name: Portable Release ZIP
 
 on:
   push:
-    branches: [ "**" ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 permissions:
