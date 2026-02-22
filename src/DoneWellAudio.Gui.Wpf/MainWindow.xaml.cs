@@ -21,12 +21,14 @@ public partial class MainWindow : Window
     private FeedbackAnalyzer? _analyzer;
     private DetectorSettings? _settings;
     private EqProfile? _eq;
+    private UserSettings? _userSettings;
 
     private bool _manualFrozen;
     private DispatcherTimer? _uiTimer;
 
     private volatile int _targetBellBands = 3;
     private volatile bool _filterHarmonics = true;
+    private volatile float _currentLevel = 0f;
 
     public MainWindow()
     {
@@ -45,6 +47,10 @@ public partial class MainWindow : Window
         var configDir = AppPaths.FindConfigDirectory();
         _eq = ConfigLoader.LoadEqProfile(configDir);
         _settings = ConfigLoader.LoadDetectorSettings(configDir);
+        _userSettings = UserSettings.Load();
+
+        // Apply User Settings
+        Application.Current.Resources["BaseFontSize"] = _userSettings.FontSize;
 
         // Populate bell band dropdown 1..7
         BellBandsCombo.ItemsSource = Enumerable.Range(_eq.BellBandsUi.Min, _eq.BellBandsUi.Max - _eq.BellBandsUi.Min + 1);
@@ -118,6 +124,12 @@ public partial class MainWindow : Window
             if (_analyzer is null || _settings is null) return;
 
             var mono = AudioConversion.ToMonoFloat(args.Buffer, args.BytesRecorded, _capture.WaveFormat);
+
+            // Calculate Level (RMS)
+            float sum = 0;
+            for(int i=0; i<mono.Length; i++) sum += mono[i] * mono[i];
+            _currentLevel = (float)Math.Sqrt(sum / mono.Length);
+
             var snap = _analyzer.ProcessSamples(mono, _targetBellBands, _filterHarmonics);
 
             lock (_snapLock) _latest = snap;
@@ -131,7 +143,11 @@ public partial class MainWindow : Window
 
         _capture.RecordingStopped += (_, __) =>
         {
-            Dispatcher.Invoke(() => StatusText.Text = "Capture stopped.");
+            Dispatcher.Invoke(() =>
+            {
+                StatusText.Text = "Capture stopped.";
+                InputLevelMeter.Value = 0;
+            });
         };
 
         _capture.StartRecording();
@@ -159,6 +175,14 @@ public partial class MainWindow : Window
         StatusText.Text = "Stopped.";
     }
 
+    private void Settings_Click(object sender, RoutedEventArgs e)
+    {
+        if (_userSettings == null) _userSettings = new UserSettings();
+        var dlg = new SettingsWindow(_userSettings);
+        dlg.Owner = this;
+        dlg.ShowDialog();
+    }
+
     private void StopCapture()
     {
         try
@@ -178,6 +202,15 @@ public partial class MainWindow : Window
 
     private void RenderLatest()
     {
+        // Update Level Meter
+        InputLevelMeter.Value = _currentLevel;
+
+        // Clipping indicator
+        if (_currentLevel > 0.98)
+             InputLevelMeter.Foreground = (System.Windows.Media.Brush)Application.Current.Resources["AppUrgentBrush"]; // Red
+        else
+             InputLevelMeter.Foreground = (System.Windows.Media.Brush)Application.Current.Resources["AppAccentHighlightBrush"]; // Orange
+
         AnalysisSnapshot snap;
         lock (_snapLock) snap = _latest;
 
@@ -187,13 +220,34 @@ public partial class MainWindow : Window
         _candidateRows.Clear();
         foreach (var c in snap.Candidates.Take(20))
         {
+            // Urgency Logic
+            // High (Red): Confidence > 0.8 OR Prominence > 10dB
+            // Medium (Orange): Confidence > 0.5 OR Prominence > 5dB
+            // Low (Yellow): Default
+
+            string color = "White"; // Default fallback
+            if (Application.Current.Resources["AppUrgentBrush"] is System.Windows.Media.SolidColorBrush red) color = red.Color.ToString();
+            if (Application.Current.Resources["AppWarningBrush"] is System.Windows.Media.SolidColorBrush orange) color = orange.Color.ToString();
+            if (Application.Current.Resources["AppSafeBrush"] is System.Windows.Media.SolidColorBrush yellow) color = yellow.Color.ToString();
+
+            // Re-eval
+            string finalColor = "#FFF0F0F0"; // Default Text
+
+            if (c.Confidence > 0.8 || c.Tracked.ProminenceDb > 10.0)
+                finalColor = "#FFFF5555"; // Red
+            else if (c.Confidence > 0.5 || c.Tracked.ProminenceDb > 5.0)
+                finalColor = "#FFFFAA00"; // Orange
+            else
+                finalColor = "#FFFFEEAA"; // Yellow-ish
+
             _candidateRows.Add(new CandidateRow(
                 FrequencyHz: $"{c.Tracked.FrequencyHz:0}",
                 Confidence: $"{c.Confidence:0.00}",
                 EstimatedQ: $"{c.EstimatedQ:0.0}",
                 ProminenceDb: $"{c.Tracked.ProminenceDb:0.0}",
                 TotalHits: $"{c.Tracked.TotalHits}",
-                FrequencyStdDevHz: $"{c.Tracked.FrequencyStdDevHz:0.0}"
+                FrequencyStdDevHz: $"{c.Tracked.FrequencyStdDevHz:0.0}",
+                RowColor: finalColor
             ));
         }
 
@@ -241,6 +295,6 @@ public partial class MainWindow : Window
         public override string ToString() => $"[{Index}] {Device.FriendlyName}";
     }
 
-    public sealed record CandidateRow(string FrequencyHz, string Confidence, string EstimatedQ, string ProminenceDb, string TotalHits, string FrequencyStdDevHz);
+    public sealed record CandidateRow(string FrequencyHz, string Confidence, string EstimatedQ, string ProminenceDb, string TotalHits, string FrequencyStdDevHz, string RowColor);
     public sealed record RecRow(string BandIndex, string FrequencyHz, string GainDb, string Q);
 }
