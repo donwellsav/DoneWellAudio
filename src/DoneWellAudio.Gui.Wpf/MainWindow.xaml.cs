@@ -127,7 +127,7 @@ public partial class MainWindow : Window
 
             // Calculate Level (RMS)
             float sum = 0;
-            for(int i=0; i<mono.Length; i++) sum += mono[i] * mono[i];
+            for (int i = 0; i < mono.Length; i++) sum += mono[i] * mono[i];
             _currentLevel = (float)Math.Sqrt(sum / mono.Length);
 
             var snap = _analyzer.ProcessSamples(mono, _targetBellBands, _filterHarmonics);
@@ -207,9 +207,9 @@ public partial class MainWindow : Window
 
         // Clipping indicator
         if (_currentLevel > 0.98)
-             InputLevelMeter.Foreground = (System.Windows.Media.Brush)Application.Current.Resources["AppUrgentBrush"]; // Red
+            InputLevelMeter.Foreground = (System.Windows.Media.Brush)Application.Current.Resources["AppUrgentBrush"]; // Red
         else
-             InputLevelMeter.Foreground = (System.Windows.Media.Brush)Application.Current.Resources["AppAccentHighlightBrush"]; // Orange
+            InputLevelMeter.Foreground = (System.Windows.Media.Brush)Application.Current.Resources["AppAccentHighlightBrush"]; // Orange
 
         AnalysisSnapshot snap;
         lock (_snapLock) snap = _latest;
