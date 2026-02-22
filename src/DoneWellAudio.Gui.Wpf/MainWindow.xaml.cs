@@ -51,6 +51,7 @@ public partial class MainWindow : Window
 
         // Apply User Settings
         Application.Current.Resources["BaseFontSize"] = _userSettings.FontSize;
+        ApplyDetectorOverrides();
 
         // Populate bell band dropdown 1..7
         BellBandsCombo.ItemsSource = Enumerable.Range(_eq.BellBandsUi.Min, _eq.BellBandsUi.Max - _eq.BellBandsUi.Min + 1);
@@ -178,9 +179,26 @@ public partial class MainWindow : Window
     private void Settings_Click(object sender, RoutedEventArgs e)
     {
         if (_userSettings == null) _userSettings = new UserSettings();
-        var dlg = new SettingsWindow(_userSettings);
+        var dlg = new SettingsWindow(_userSettings, ApplyDetectorOverrides);
         dlg.Owner = this;
         dlg.ShowDialog();
+
+        ApplyDetectorOverrides();
+    }
+
+    private void ApplyDetectorOverrides()
+    {
+        if (_settings == null || _userSettings == null) return;
+
+        _settings = _settings with
+        {
+            ContinuousMode = _userSettings.ContinuousMode,
+            Sensitivity = _userSettings.Sensitivity,
+            ResponseSpeed = _userSettings.ResponseSpeed
+        };
+
+        if (_analyzer != null)
+            _analyzer.UpdateSettings(_settings);
     }
 
     private void StopCapture()

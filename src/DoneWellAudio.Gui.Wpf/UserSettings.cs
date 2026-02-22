@@ -8,7 +8,10 @@ public class UserSettings
 {
     public double FontSize { get; set; } = 18.0;
 
-    // Future settings can go here (e.g. ThemeName)
+    // Detector Overrides
+    public bool ContinuousMode { get; set; } = false;
+    public SensitivityLevel Sensitivity { get; set; } = SensitivityLevel.Medium;
+    public ResponseSpeed ResponseSpeed { get; set; } = ResponseSpeed.Medium;
 
     private static string GetPath()
     {

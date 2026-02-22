@@ -10,13 +10,28 @@ public static class PeakDetection
         // Convert to dB with small floor to avoid log(0).
         var magDb = new double[magnitudeLinear.Length];
         const double floor = 1e-12;
-        for (int i = 0; i < magnitudeLinear.Length; i++)
-        {
-            magDb[i] = 20.0 * Math.Log10(Math.Max(floor, magnitudeLinear[i]));
-        }
-
         int nFft = (magnitudeLinear.Length - 1) * 2;
         double binHz = sampleRate / (double)nFft;
+
+        for (int i = 0; i < magnitudeLinear.Length; i++)
+        {
+            double valDb = 20.0 * Math.Log10(Math.Max(floor, magnitudeLinear[i]));
+
+            // Pink Noise Compensation (+3dB/octave slope)
+            if (settings.SpectralWhitening && i > 0)
+            {
+                // Add 10 * log10(f) to flatten 1/f power spectrum
+                // We use a normalized frequency relative to 1Hz or just raw Hz.
+                // Since we care about slope, absolute offset doesn't matter for peak prominence relative to neighbor,
+                // BUT it matters for overall shape.
+                // Using frequency in Hz:
+                double f = i * binHz;
+                if (f > 1.0)
+                    valDb += 10.0 * Math.Log10(f);
+            }
+
+            magDb[i] = valDb;
+        }
 
         int minBin = (int)Math.Max(1, Math.Floor(settings.Audio.MinFrequencyHz / binHz));
         int maxBin = (int)Math.Min(magDb.Length - 2, Math.Ceiling(settings.Audio.MaxFrequencyHz / binHz));
@@ -46,7 +61,14 @@ public static class PeakDetection
             double baseline = sum / count;
             double prominence = magDb[i] - baseline;
 
-            if (prominence < settings.Detection.MinProminenceDb) continue;
+            double threshold = settings.Detection.MinProminenceDb;
+            switch (settings.Sensitivity)
+            {
+                case SensitivityLevel.High: threshold -= 3.0; break;
+                case SensitivityLevel.Low: threshold += 3.0; break;
+            }
+
+            if (prominence < threshold) continue;
 
             double freq = i * binHz;
             peaks.Add(new Peak(freq, magDb[i], prominence));
