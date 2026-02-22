@@ -26,6 +26,7 @@
                     <ComboBox x:Name="DeviceCombo" Width="520" Margin="0,0,16,0"/>
                     <TextBlock Text="Bell bands:" Foreground="White" Margin="0,0,8,0" VerticalAlignment="Center"/>
                     <ComboBox x:Name="BellBandsCombo" Width="80"/>
+                    <CheckBox x:Name="HarmonicFilterCheck" Content="Filter Harmonics" Foreground="White" IsChecked="True" VerticalAlignment="Center" Margin="16,0,0,0"/>
                 </StackPanel>
 
                 <Button Grid.Column="1" x:Name="StartButton" Content="Start" Margin="10,0" Padding="14,8" Click="Start_Click"/>
