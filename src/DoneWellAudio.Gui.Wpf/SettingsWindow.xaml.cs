@@ -25,7 +25,6 @@ public partial class SettingsWindow : Window
         ResponseCombo.ItemsSource = Enum.GetValues(typeof(ResponseSpeed));
 
         // Set Values
-        ContinuousCheck.IsChecked = _settings.ContinuousMode;
         SensitivityCombo.SelectedItem = _settings.Sensitivity;
         ResponseCombo.SelectedItem = _settings.ResponseSpeed;
 
@@ -54,14 +53,6 @@ public partial class SettingsWindow : Window
             FontSizeValueText.Text = size.ToString("0");
     }
 
-    private void ContinuousCheck_Click(object sender, RoutedEventArgs e)
-    {
-        if (!_initialized) return;
-        _settings.ContinuousMode = ContinuousCheck.IsChecked ?? false;
-        _settings.Save();
-        _onSettingsChanged?.Invoke();
-    }
-
     private void SensitivityCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!_initialized) return;
@@ -87,9 +78,6 @@ public partial class SettingsWindow : Window
     private void Reset_Click(object sender, RoutedEventArgs e)
     {
         FontSizeSlider.Value = 18.0;
-
-        ContinuousCheck.IsChecked = false;
-        _settings.ContinuousMode = false;
 
         SensitivityCombo.SelectedItem = SensitivityLevel.Medium;
         ResponseCombo.SelectedItem = ResponseSpeed.Medium;

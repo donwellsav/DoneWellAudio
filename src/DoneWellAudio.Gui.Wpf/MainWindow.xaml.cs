@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Threading;
 using DoneWellAudio.Core;
 using NAudio.CoreAudioApi;
@@ -50,6 +51,7 @@ public partial class MainWindow : Window
         _userSettings = UserSettings.Load();
 
         // Apply User Settings
+        ContinuousToggle.IsChecked = _userSettings.ContinuousMode;
         Application.Current.Resources["BaseFontSize"] = _userSettings.FontSize;
         ApplyDetectorOverrides();
 
@@ -174,6 +176,37 @@ public partial class MainWindow : Window
     {
         StopCapture();
         StatusText.Text = "Stopped.";
+    }
+
+    private void ContinuousToggle_Click(object sender, RoutedEventArgs e)
+    {
+        if (_userSettings != null)
+        {
+            _userSettings.ContinuousMode = ContinuousToggle.IsChecked ?? false;
+            _userSettings.Save();
+            ApplyDetectorOverrides();
+        }
+    }
+
+    private void Window_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Handled) return;
+
+        switch (e.Key)
+        {
+            case Key.Space:
+                if (_capture == null)
+                    Start_Click(sender, new RoutedEventArgs());
+                else
+                    Stop_Click(sender, new RoutedEventArgs());
+                break;
+            case Key.F:
+                Freeze_Click(sender, new RoutedEventArgs());
+                break;
+            case Key.R:
+                Rescan_Click(sender, new RoutedEventArgs());
+                break;
+        }
     }
 
     private void Settings_Click(object sender, RoutedEventArgs e)
