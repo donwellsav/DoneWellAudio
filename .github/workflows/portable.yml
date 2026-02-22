@@ -1,18 +1,55 @@
 name: Portable Release ZIP
 
 on:
+  push:
+    branches: [ "**" ]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  build-portable:
+  build-and-release:
     runs-on: windows-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Increment Version
+        shell: pwsh
+        run: |
+          if (Test-Path Directory.Build.props) {
+            $content = Get-Content Directory.Build.props -Raw
+            $versionMatch = [regex]::Match($content, "<Version>(.*?)</Version>")
+            if ($versionMatch.Success) {
+                $v = [version]$versionMatch.Groups[1].Value
+                $newVersion = "{0}.{1}.{2}" -f $v.Major, $v.Minor, ($v.Build + 1)
+                $content = $content -replace "<Version>.*?</Version>", "<Version>$newVersion</Version>"
+                Set-Content Directory.Build.props $content
+                echo "NEW_VERSION=$newVersion" >> $env:GITHUB_ENV
+                Write-Host "Bumped version to $newVersion"
+            } else {
+                Write-Error "Could not find <Version> in Directory.Build.props"
+                exit 1
+            }
+          } else {
+             Write-Error "Directory.Build.props not found"
+             exit 1
+          }
+
+      - name: Commit and Push Version Bump
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Directory.Build.props
+          git commit -m "Bump version to ${{ env.NEW_VERSION }} [skip ci]"
+          git tag v${{ env.NEW_VERSION }}
+          git push origin HEAD:${{ github.ref_name }} --tags
 
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
@@ -30,18 +67,20 @@ jobs:
 
       - name: Copy Config Files
         run: |
-          New-Item -ItemType Directory -Force -Path ./publish/config
-          Copy-Item ./config/*.json -Destination ./publish/config
+          if (Test-Path ./config) {
+            New-Item -ItemType Directory -Force -Path ./publish/config
+            Copy-Item ./config/*.json -Destination ./publish/config
+          }
 
       - name: Prepare Artifact Directory
-        run: Rename-Item -Path ./publish -NewName DoneWellAudio-Portable
+        run: Rename-Item -Path ./publish -NewName "DoneWellAudio-Portable-v${{ env.NEW_VERSION }}"
 
       - name: Create Portable ZIP
-        run: Compress-Archive -Path ./DoneWellAudio-Portable -DestinationPath ./DoneWellAudio-Portable.zip
+        run: Compress-Archive -Path "./DoneWellAudio-Portable-v${{ env.NEW_VERSION }}" -DestinationPath "./DoneWellAudio-Portable-v${{ env.NEW_VERSION }}.zip"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: DoneWellAudio-Portable
-          path: ./DoneWellAudio-Portable.zip
+          name: DoneWellAudio-Portable-v${{ env.NEW_VERSION }}
+          path: ./DoneWellAudio-Portable-v${{ env.NEW_VERSION }}.zip
           retention-days: 5

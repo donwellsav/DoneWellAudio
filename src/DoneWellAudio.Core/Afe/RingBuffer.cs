@@ -11,7 +11,6 @@ public sealed class RingBuffer : IDisposable
 {
     private readonly float[] _buffer;
     private int _head;
-    private int _tail;
     private readonly int _mask;
 
     public RingBuffer(int capacity)
@@ -22,7 +21,6 @@ public sealed class RingBuffer : IDisposable
         _buffer = ArrayPool<float>.Shared.Rent(powerOf2);
         _mask = powerOf2 - 1;
         _head = 0;
-        _tail = 0;
     }
 
     public void Write(ReadOnlySpan<float> input)
