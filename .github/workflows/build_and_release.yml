@@ -1,0 +1,70 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore Dependencies
+        run: dotnet restore DoneWellAudio.sln
+
+      - name: Format Code (Auto-fix)
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          # Check formatting
+          if ! dotnet format --verify-no-changes; then
+            echo "Formatting issues detected. Applying fixes..."
+            dotnet format
+
+            # Configure git for commit
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+
+            # Stage changes
+            git add .
+
+            # Commit and push if there are changes
+            if ! git diff-index --quiet HEAD --; then
+              git commit -m "style: automated formatting fixes [skip ci]"
+              # Try to push, but don't fail the build if we can't (e.g. from fork)
+              git push || echo "Warning: Could not push formatting changes. Continuing with local build."
+            else
+              echo "No changes to commit after formatting."
+            fi
+          else
+            echo "Code is already formatted."
+          fi
+
+      - name: Build and Test
+        run: |
+          dotnet build DoneWellAudio.sln -c Release --no-restore
+          dotnet test DoneWellAudio.sln -c Release --no-build --verbosity normal
+
+      - name: Publish Windows App
+        run: dotnet publish src/DoneWellAudio.Gui.Wpf/DoneWellAudio.Gui.Wpf.csproj -c Release -r win-x64 --self-contained false -o ./publish
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DoneWellAudio-Windows-${{ github.sha }}
+          path: ./publish
+          retention-days: 5
