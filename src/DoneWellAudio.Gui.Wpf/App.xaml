@@ -4,8 +4,9 @@
              StartupUri="MainWindow.xaml">
     <Application.Resources>
         <!-- Color Palette: Dark Fire -->
+        <Color x:Key="AppPanelColor">#FF2D2D2D</Color>
         <SolidColorBrush x:Key="AppBackgroundBrush" Color="#FF1E1E1E"/>
-        <SolidColorBrush x:Key="AppPanelBrush" Color="#FF2D2D2D"/>
+        <SolidColorBrush x:Key="AppPanelBrush" Color="{StaticResource AppPanelColor}"/>
         <SolidColorBrush x:Key="AppBorderBrush" Color="#FF3E3E3E"/>
         <SolidColorBrush x:Key="AppForegroundBrush" Color="#FFF0F0F0"/>
         <SolidColorBrush x:Key="AppAccentBrush" Color="#FFFFAA00"/> <!-- Orange -->
@@ -98,7 +99,7 @@
 
         <Style TargetType="ComboBox">
             <Style.Resources>
-                <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#FF2D2D2D"/>
+                <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="{StaticResource AppPanelColor}"/>
                 <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#FFFFAA00"/>
                 <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="Black"/>
 
