@@ -1,0 +1,52 @@
+name: Feature request
+description: Propose a feature with clear acceptance criteria.
+title: "[Feature]: "
+labels: ["feature"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What user-visible outcome do you want?
+      placeholder: "Example: The app can freeze detection and show 1–7 band suggestions."
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Bullet-list exact behaviors required to consider this done.
+      placeholder: |
+        - Given ..., when ..., then ...
+        - Performance: ...
+        - Error handling: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: Non-goals
+      description: Explicitly list what will NOT be built in this issue.
+    validations:
+      required: true
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks and edge cases
+      description: What could go wrong? What inputs are tricky?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: ai_scope
+    attributes:
+      label: AI delegation allowed?
+      options:
+        - "Yes: Jules may implement in a PR"
+        - "Partial: Jules may scaffold only"
+        - "No: human-only changes"
+    validations:
+      required: true

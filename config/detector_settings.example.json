@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "audio": {
+    "frameSize": 4096,
+    "hopSize": 1024,
+    "minFrequencyHz": 50,
+    "maxFrequencyHz": 12000
+  },
+  "detection": {
+    "localNeighborhoodBins": 12,
+    "minProminenceDb": 6.0,
+    "minEstimatedQ": 4.0,
+    "maxEstimatedQ": 150.0,
+    "maxFrequencyDriftHz": 8.0,
+    "minPersistenceFrames": 10,
+    "confidenceWeights": {
+      "prominence": 0.35,
+      "narrowness": 0.35,
+      "persistence": 0.2,
+      "stability": 0.1
+    }
+  },
+  "freezePolicy": {
+    "enabled": true,
+    "confidenceThreshold": 0.72,
+    "consecutiveFramesAboveThreshold": 12,
+    "stopCaptureOnFreeze": false
+  },
+  "ui": {
+    "updateHz": 15
+  }
+}

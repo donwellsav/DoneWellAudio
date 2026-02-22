@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+
+jobs:
+  build_and_test:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore DoneWellAudio.sln
+
+      - name: Build
+        run: dotnet build DoneWellAudio.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test DoneWellAudio.sln -c Release --no-build --verbosity normal
