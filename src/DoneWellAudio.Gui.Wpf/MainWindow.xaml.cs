@@ -359,6 +359,46 @@ public partial class MainWindow : Window
         }
     }
 
+    private void Snapshot_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            // Get DPI
+            var dpi = System.Windows.Media.VisualTreeHelper.GetDpi(this);
+            int width = (int)(this.ActualWidth * dpi.DpiScaleX);
+            int height = (int)(this.ActualHeight * dpi.DpiScaleY);
+
+            // Render the window client area
+            var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(
+                width,
+                height,
+                dpi.PixelsPerInchX,
+                dpi.PixelsPerInchY,
+                System.Windows.Media.PixelFormats.Pbgra32);
+
+            rtb.Render(this);
+
+            var encoder = new System.Windows.Media.Imaging.JpegBitmapEncoder();
+            encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtb));
+            encoder.QualityLevel = 90;
+
+            string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            string filename = $"DoneWell_Snapshot_{DateTime.Now:yyyyMMdd_HHmmss}.jpg";
+            string path = System.IO.Path.Combine(desktop, filename);
+
+            using (var fs = new System.IO.FileStream(path, System.IO.FileMode.Create))
+            {
+                encoder.Save(fs);
+            }
+
+            StatusText.Text = $"Snapshot saved to Desktop: {filename}";
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"Snapshot failed: {ex.Message}";
+        }
+    }
+
     private sealed record DeviceItem(int Index, MMDevice Device)
     {
         public override string ToString() => $"[{Index}] {Device.FriendlyName}";
