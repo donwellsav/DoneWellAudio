@@ -82,7 +82,7 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <TextBlock Grid.Column="1" Text="DONEWELL AUDIO" FontSize="24" FontWeight="Bold" Foreground="{StaticResource AppAccentBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Opacity="0.8" Effect="{x:Null}">
+                    <TextBlock Grid.Column="1" Text="DONEWELL AUDIO" FontSize="24" FontWeight="Bold" Foreground="{StaticResource AppAccentBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Opacity="0.8">
                         <TextBlock.Effect>
                             <DropShadowEffect Color="#FFFF5500" BlurRadius="10" ShadowDepth="0" Opacity="0.5"/>
                         </TextBlock.Effect>
