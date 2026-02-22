@@ -25,6 +25,9 @@ public partial class MainWindow : Window
     private bool _manualFrozen;
     private DispatcherTimer? _uiTimer;
 
+    private volatile int _targetBellBands = 3;
+    private volatile bool _filterHarmonics = true;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -46,6 +49,18 @@ public partial class MainWindow : Window
         // Populate bell band dropdown 1..7
         BellBandsCombo.ItemsSource = Enumerable.Range(_eq.BellBandsUi.Min, _eq.BellBandsUi.Max - _eq.BellBandsUi.Min + 1);
         BellBandsCombo.SelectedItem = Math.Clamp(3, _eq.BellBandsUi.Min, _eq.BellBandsUi.Max);
+
+        // Init fields
+        if (BellBandsCombo.SelectedItem is int b) _targetBellBands = b;
+        _filterHarmonics = HarmonicFilterCheck.IsChecked ?? true;
+
+        // Events
+        BellBandsCombo.SelectionChanged += (_, __) =>
+        {
+            if (BellBandsCombo.SelectedItem is int v) _targetBellBands = v;
+        };
+        HarmonicFilterCheck.Checked += (_, __) => _filterHarmonics = true;
+        HarmonicFilterCheck.Unchecked += (_, __) => _filterHarmonics = false;
 
         // Populate device dropdown
         RefreshDevices();
@@ -70,11 +85,6 @@ public partial class MainWindow : Window
         var items = devices.Select((d, i) => new DeviceItem(i, d)).ToList();
         DeviceCombo.ItemsSource = items;
         DeviceCombo.SelectedIndex = items.Count > 0 ? 0 : -1;
-    }
-
-    private int GetBellBands()
-    {
-        return BellBandsCombo.SelectedItem is int v ? v : 3;
     }
 
     private MMDevice? GetSelectedDevice()
@@ -108,7 +118,7 @@ public partial class MainWindow : Window
             if (_analyzer is null || _settings is null) return;
 
             var mono = AudioConversion.ToMonoFloat(args.Buffer, args.BytesRecorded, _capture.WaveFormat);
-            var snap = _analyzer.ProcessSamples(mono, GetBellBands());
+            var snap = _analyzer.ProcessSamples(mono, _targetBellBands, _filterHarmonics);
 
             lock (_snapLock) _latest = snap;
 
@@ -189,14 +199,28 @@ public partial class MainWindow : Window
 
         // Recommendations
         _recRows.Clear();
-        foreach (var r in snap.Recommendations)
+        int n = _targetBellBands;
+        for (int i = 0; i < n; i++)
         {
-            _recRows.Add(new RecRow(
-                BandIndex: $"{r.BandIndex}",
-                FrequencyHz: $"{r.FrequencyHz:0}",
-                GainDb: $"{r.GainDb:0.0}",
-                Q: r.Q is null ? "" : $"{r.Q:0.0}"
-            ));
+            if (i < snap.Recommendations.Length)
+            {
+                var r = snap.Recommendations[i];
+                _recRows.Add(new RecRow(
+                    BandIndex: $"{r.BandIndex}",
+                    FrequencyHz: $"{r.FrequencyHz:0}",
+                    GainDb: $"{r.GainDb:0.0}",
+                    Q: r.Q is null ? "" : $"{r.Q:0.0}"
+                ));
+            }
+            else
+            {
+                _recRows.Add(new RecRow(
+                    BandIndex: $"{i + 1}",
+                    FrequencyHz: "--",
+                    GainDb: "--",
+                    Q: ""
+                ));
+            }
         }
     }
 

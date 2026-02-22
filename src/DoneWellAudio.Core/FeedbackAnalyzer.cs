@@ -37,7 +37,7 @@ public sealed class FeedbackAnalyzer
         _lastRecs = ImmutableArray<EqRecommendation>.Empty;
     }
 
-    public AnalysisSnapshot ProcessSamples(ReadOnlySpan<float> monoSamples, int bellBandsRequested)
+    public AnalysisSnapshot ProcessSamples(ReadOnlySpan<float> monoSamples, int bellBandsRequested, bool filterHarmonics = true)
     {
         if (_sampleRate <= 0) throw new InvalidOperationException("SampleRate not set.");
 
@@ -66,7 +66,7 @@ public sealed class FeedbackAnalyzer
             var peaks = PeakDetection.FindPeaksDb(mag, _sampleRate, _settings);
             var tracked = _tracker.Update(peaks, _settings);
 
-            _lastCandidates = BuildCandidates(tracked, magDb);
+            _lastCandidates = BuildCandidates(tracked, magDb, filterHarmonics);
             _lastRecs = RecommendationEngine.Recommend(_lastCandidates, _eq, bellBandsRequested);
 
             UpdateFreeze(_lastCandidates);
@@ -75,7 +75,7 @@ public sealed class FeedbackAnalyzer
         return new AnalysisSnapshot(DateTimeOffset.UtcNow, _frozen, _lastCandidates, _lastRecs);
     }
 
-    private ImmutableArray<FeedbackCandidate> BuildCandidates(IReadOnlyList<TrackedPeak> tracked, double[] magDb)
+    private ImmutableArray<FeedbackCandidate> BuildCandidates(IReadOnlyList<TrackedPeak> tracked, double[] magDb, bool filterHarmonics)
     {
         int nFft = (magDb.Length - 1) * 2;
         double binHz = _sampleRate / (double)nFft;
@@ -103,7 +103,7 @@ public sealed class FeedbackAnalyzer
         // Harmonic-series penalty:
         // If multiple peaks appear at near-integer multiples, treat them as more likely "program material" than isolated feedback.
         // This is a tunable heuristic: adjust or disable once you have real-world calibration data.
-        if (list.Count >= 3)
+        if (filterHarmonics && list.Count >= 3)
         {
             const double ratioTol = 0.015; // 1.5% tolerance
             var adjusted = new List<FeedbackCandidate>(list.Count);

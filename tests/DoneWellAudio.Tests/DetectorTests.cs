@@ -116,6 +116,30 @@ public class DetectorTests
     }
 
     [Fact]
+    public void Harmonic_FilterToggle_Works()
+    {
+        var (settings, eq) = CreateTestConfig();
+        int sr = 48000;
+        var harm = SignalGen.HarmonicStackWithNoise(sr, seconds: 1.2, f0: 200, harmonics: 4, amp: 0.55f, noiseAmp: 0.02f, seed: 12);
+
+        // Run with harmonic filter ENABLED
+        var a1 = new FeedbackAnalyzer(settings, eq, new MathNetFft());
+        a1.SetSampleRate(sr);
+        var snap1 = RunInChunks(a1, harm, chunk: 512, bellBands: 3, filterHarmonics: true);
+        double confPenalized = snap1.Candidates.Length > 0 ? snap1.Candidates[0].Confidence : 0;
+
+        // Run with harmonic filter DISABLED
+        var a2 = new FeedbackAnalyzer(settings, eq, new MathNetFft());
+        a2.SetSampleRate(sr);
+        var snap2 = RunInChunks(a2, harm, chunk: 512, bellBands: 3, filterHarmonics: false);
+        double confRaw = snap2.Candidates.Length > 0 ? snap2.Candidates[0].Confidence : 0;
+
+        // Assert Raw > Penalized
+        Assert.True(confRaw > confPenalized + 0.1,
+            $"Expected raw confidence ({confRaw:0.00}) to be significantly higher than penalized ({confPenalized:0.00}).");
+    }
+
+    [Fact]
     public void Recommendations_RespectBellBandCount()
     {
         var (settings, eq) = CreateTestConfig();
@@ -136,7 +160,7 @@ public class DetectorTests
         Assert.Equal(4, recs2.Length); // can't exceed candidate count
     }
 
-    private static AnalysisSnapshot RunInChunks(FeedbackAnalyzer analyzer, float[] samples, int chunk, int bellBands)
+    private static AnalysisSnapshot RunInChunks(FeedbackAnalyzer analyzer, float[] samples, int chunk, int bellBands, bool filterHarmonics = true)
     {
         AnalysisSnapshot snap = new(DateTimeOffset.UtcNow, false,
             System.Collections.Immutable.ImmutableArray<FeedbackCandidate>.Empty,
@@ -145,7 +169,7 @@ public class DetectorTests
         for (int i = 0; i < samples.Length; i += chunk)
         {
             int len = Math.Min(chunk, samples.Length - i);
-            snap = analyzer.ProcessSamples(samples.AsSpan(i, len), bellBands);
+            snap = analyzer.ProcessSamples(samples.AsSpan(i, len), bellBands, filterHarmonics);
         }
 
         return snap;
