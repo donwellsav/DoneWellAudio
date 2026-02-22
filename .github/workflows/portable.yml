@@ -1,0 +1,47 @@
+name: Portable Release ZIP
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-portable:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore Dependencies
+        run: dotnet restore DoneWellAudio.sln
+
+      - name: Publish Windows App (Self-Contained)
+        run: dotnet publish src/DoneWellAudio.Gui.Wpf/DoneWellAudio.Gui.Wpf.csproj -c Release -r win-x64 --self-contained true -o ./publish
+
+      - name: Publish CLI Tool (Self-Contained)
+        run: dotnet publish src/DoneWellAudio.Cli/DoneWellAudio.Cli.csproj -c Release -r win-x64 --self-contained true -o ./publish
+
+      - name: Copy Config Files
+        run: |
+          New-Item -ItemType Directory -Force -Path ./publish/config
+          Copy-Item ./config/*.json -Destination ./publish/config
+
+      - name: Prepare Artifact Directory
+        run: Rename-Item -Path ./publish -NewName DoneWellAudio-Portable
+
+      - name: Create Portable ZIP
+        run: Compress-Archive -Path ./DoneWellAudio-Portable -DestinationPath ./DoneWellAudio-Portable.zip
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DoneWellAudio-Portable
+          path: ./DoneWellAudio-Portable.zip
+          retention-days: 5
