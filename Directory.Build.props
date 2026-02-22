@@ -1,10 +1,11 @@
 <Project>
   <PropertyGroup>
-    <Version>0.42.2</Version>
+    <Version>0.42.3</Version>
     <Authors>DoneWell Audio</Authors>
     <Product>DoneWell Audio Feedback Detector</Product>
     <Copyright>Copyright © 2024 DoneWell Audio</Copyright>
   </PropertyGroup>
 </Project>
+
 
 
