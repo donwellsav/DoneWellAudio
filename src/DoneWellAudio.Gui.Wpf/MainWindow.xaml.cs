@@ -44,51 +44,59 @@ public partial class MainWindow : Window
 
     private void Initialize()
     {
-        // Load configs
-        var configDir = AppPaths.FindConfigDirectory();
-        _eq = ConfigLoader.LoadEqProfile(configDir);
-        _settings = ConfigLoader.LoadDetectorSettings(configDir);
-        _userSettings = UserSettings.Load();
-
-        // Apply User Settings
-        ContinuousToggle.IsChecked = _userSettings.ContinuousMode;
-        Application.Current.Resources["BaseFontSize"] = _userSettings.FontSize;
-        ApplyDetectorOverrides();
-
-        // Populate bell band dropdown 1..7
-        BellBandsCombo.ItemsSource = Enumerable.Range(_eq.BellBandsUi.Min, _eq.BellBandsUi.Max - _eq.BellBandsUi.Min + 1);
-        BellBandsCombo.SelectedItem = Math.Clamp(3, _eq.BellBandsUi.Min, _eq.BellBandsUi.Max);
-
-        // Init fields
-        if (BellBandsCombo.SelectedItem is int b) _targetBellBands = b;
-        _filterHarmonics = HarmonicFilterCheck.IsChecked ?? true;
-
-        // Events
-        BellBandsCombo.SelectionChanged += (_, __) =>
+        try
         {
-            if (BellBandsCombo.SelectedItem is int v) _targetBellBands = v;
-        };
-        HarmonicFilterCheck.Checked += (_, __) => _filterHarmonics = true;
-        HarmonicFilterCheck.Unchecked += (_, __) => _filterHarmonics = false;
+            // Load configs
+            var configDir = AppPaths.FindConfigDirectory();
+            _eq = ConfigLoader.LoadEqProfile(configDir);
+            _settings = ConfigLoader.LoadDetectorSettings(configDir);
+            _userSettings = UserSettings.Load();
 
-        // Populate device dropdown
-        RefreshDevices();
+            // Apply User Settings
+            ContinuousToggle.IsChecked = _userSettings.ContinuousMode;
+            Application.Current.Resources["BaseFontSize"] = _userSettings.FontSize;
+            ApplyDetectorOverrides();
 
-        // Analyzer
-        _analyzer = new FeedbackAnalyzer(_settings, _eq, new MathNetFft());
+            // Populate bell band dropdown 1..7
+            BellBandsCombo.ItemsSource = Enumerable.Range(_eq.BellBandsUi.Min, _eq.BellBandsUi.Max - _eq.BellBandsUi.Min + 1);
+            BellBandsCombo.SelectedItem = Math.Clamp(3, _eq.BellBandsUi.Min, _eq.BellBandsUi.Max);
 
-        // UI timer (throttled)
-        _uiTimer = new DispatcherTimer();
-        _uiTimer.Interval = TimeSpan.FromMilliseconds(1000.0 / Math.Max(1, _settings.Ui.UpdateHz));
-        _uiTimer.Tick += (_, __) => RenderLatest();
-        _uiTimer.Start();
+            // Init fields
+            if (BellBandsCombo.SelectedItem is int b) _targetBellBands = b;
+            _filterHarmonics = HarmonicFilterCheck.IsChecked ?? true;
 
-        StatusText.Text = "Ready.";
+            // Events
+            BellBandsCombo.SelectionChanged += (_, __) =>
+            {
+                if (BellBandsCombo.SelectedItem is int v) _targetBellBands = v;
+            };
+            HarmonicFilterCheck.Checked += (_, __) => _filterHarmonics = true;
+            HarmonicFilterCheck.Unchecked += (_, __) => _filterHarmonics = false;
 
-        var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-        if (version != null)
+            // Populate device dropdown
+            RefreshDevices();
+
+            // Analyzer
+            _analyzer = new FeedbackAnalyzer(_settings, _eq, new MathNetFft());
+
+            // UI timer (throttled)
+            _uiTimer = new DispatcherTimer();
+            _uiTimer.Interval = TimeSpan.FromMilliseconds(1000.0 / Math.Max(1, _settings.Ui.UpdateHz));
+            _uiTimer.Tick += (_, __) => RenderLatest();
+            _uiTimer.Start();
+
+            StatusText.Text = "Ready.";
+
+            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+            if (version != null)
+            {
+                VersionText.Text = $"v{version.Major}.{version.Minor}.{version.Build}";
+            }
+        }
+        catch (Exception ex)
         {
-            VersionText.Text = $"v{version.Major}.{version.Minor}.{version.Build}";
+            CustomMessageBox.Show($"Failed to initialize application:\n{ex.Message}\n\nPlease ensure you have extracted all files from the ZIP archive, including the 'config' folder.", "Startup Error");
+            Close();
         }
     }
 
