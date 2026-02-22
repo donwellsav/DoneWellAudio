@@ -11,7 +11,7 @@
         <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
             <Slider x:Name="FontSizeSlider" Minimum="12" Maximum="32" Width="240"
                     TickPlacement="BottomRight" TickFrequency="2" IsSnapToTickEnabled="True"
-                    ValueChanged="FontSizeSlider_ValueChanged"/>
+                    ValueChanged="FontSizeSlider_ValueChanged" AutomationProperties.Name="Font Size"/>
             <TextBlock x:Name="FontSizeValueText" Text="18" Margin="10,0,0,0" VerticalAlignment="Center" FontWeight="Bold"/>
         </StackPanel>
 
@@ -25,12 +25,12 @@
 
         <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
             <TextBlock Text="Sensitivity:" Width="140" VerticalAlignment="Center"/>
-            <ComboBox x:Name="SensitivityCombo" Width="150" SelectionChanged="SensitivityCombo_SelectionChanged"/>
+            <ComboBox x:Name="SensitivityCombo" Width="150" SelectionChanged="SensitivityCombo_SelectionChanged" AutomationProperties.Name="Sensitivity"/>
         </StackPanel>
 
         <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
             <TextBlock Text="Response Speed:" Width="140" VerticalAlignment="Center"/>
-            <ComboBox x:Name="ResponseCombo" Width="150" SelectionChanged="ResponseCombo_SelectionChanged"/>
+            <ComboBox x:Name="ResponseCombo" Width="150" SelectionChanged="ResponseCombo_SelectionChanged" AutomationProperties.Name="Response Speed"/>
         </StackPanel>
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">

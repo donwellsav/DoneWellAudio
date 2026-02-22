@@ -54,7 +54,7 @@
 
                     <StackPanel Orientation="Horizontal">
                          <TextBlock Text="Level:" VerticalAlignment="Center" Margin="0,0,10,0" Width="40"/>
-                         <ProgressBar x:Name="InputLevelMeter" Width="300" Height="8" Maximum="1.0" Value="0.0" Foreground="{StaticResource AppAccentHighlightBrush}" Background="{StaticResource AppBorderBrush}" BorderThickness="0"/>
+                         <ProgressBar x:Name="InputLevelMeter" Width="300" Height="8" Maximum="1.0" Value="0.0" Foreground="{StaticResource AppAccentHighlightBrush}" Background="{StaticResource AppBorderBrush}" BorderThickness="0" AutomationProperties.Name="Input Level"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
@@ -71,19 +71,19 @@
                             <TextBlock Text="LOOP"/>
                         </StackPanel>
                     </ToggleButton>
-                    <Button x:Name="StartButton" Style="{StaticResource IconButton}" Click="Start_Click" ToolTip="Start Scanning">
+                    <Button x:Name="StartButton" Style="{StaticResource IconButton}" Click="Start_Click" ToolTip="Start Scanning (Space)">
                         <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource IconPlay}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="12" Height="12" Stretch="Uniform" Margin="0,0,8,0"/>
                             <TextBlock Text="START"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="FreezeButton" Style="{StaticResource IconButton}" Click="Freeze_Click" ToolTip="Freeze Analysis">
+                    <Button x:Name="FreezeButton" Style="{StaticResource IconButton}" Click="Freeze_Click" ToolTip="Freeze Analysis (F)">
                         <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource IconPause}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="12" Height="12" Stretch="Uniform" Margin="0,0,8,0"/>
                             <TextBlock Text="FREEZE"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="RescanButton" Style="{StaticResource IconButton}" Click="Rescan_Click" ToolTip="Reset &amp; Rescan">
+                    <Button x:Name="RescanButton" Style="{StaticResource IconButton}" Click="Rescan_Click" ToolTip="Reset &amp; Rescan (R)">
                          <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource IconRefresh}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="12" Height="12" Stretch="Uniform" Margin="0,0,8,0"/>
                             <TextBlock Text="RESCAN"/>
@@ -97,7 +97,7 @@
                     </Button>
                 </StackPanel>
 
-                <Button Grid.Column="3" x:Name="SettingsButton" Click="Settings_Click" Margin="20,0,0,0" VerticalAlignment="Top" Background="Transparent" BorderThickness="0" ToolTip="Settings">
+                <Button Grid.Column="3" x:Name="SettingsButton" Click="Settings_Click" Margin="20,0,0,0" VerticalAlignment="Top" Background="Transparent" BorderThickness="0" ToolTip="Settings" AutomationProperties.Name="Settings">
                     <Path Data="{StaticResource IconSettings}" Fill="{StaticResource AppForegroundBrush}" Width="20" Height="20" Stretch="Uniform"/>
                 </Button>
             </Grid>
@@ -113,7 +113,7 @@
 
             <!-- Feedback Candidates List -->
             <GroupBox Grid.Column="0" Header="Live Feedback Candidates" Margin="0,0,5,0">
-                <ListView x:Name="CandidatesList" BorderThickness="0" Background="Transparent">
+                <ListView x:Name="CandidatesList" BorderThickness="0" Background="Transparent" AutomationProperties.Name="Candidates List">
                     <ListView.ItemContainerStyle>
                         <Style TargetType="ListViewItem">
                             <Setter Property="Foreground" Value="{Binding RowColor}"/>
@@ -140,7 +140,7 @@
             <GroupBox Grid.Column="2" Header="EQ Suggestions" Margin="5,0,0,0">
                 <DockPanel>
                     <TextBlock Text="Apply to EQ:" DockPanel.Dock="Top" Margin="5,0,0,5" FontSize="14" Foreground="{StaticResource AppForegroundBrush}"/>
-                    <ListView x:Name="RecsList" BorderThickness="0" Background="Transparent">
+                    <ListView x:Name="RecsList" BorderThickness="0" Background="Transparent" AutomationProperties.Name="EQ Recommendations">
                         <ListView.ItemContainerStyle>
                             <Style TargetType="ListViewItem">
                                 <!-- Ensure visibility with Fire Theme colors -->
