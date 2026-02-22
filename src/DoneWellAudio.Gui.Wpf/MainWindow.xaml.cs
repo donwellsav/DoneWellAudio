@@ -84,6 +84,12 @@ public partial class MainWindow : Window
         _uiTimer.Start();
 
         StatusText.Text = "Ready.";
+
+        var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+        if (version != null)
+        {
+             VersionText.Text = $"v{version.Major}.{version.Minor}.{version.Build}";
+        }
     }
 
     private void RefreshDevices()
@@ -112,7 +118,7 @@ public partial class MainWindow : Window
         var device = GetSelectedDevice();
         if (device is null)
         {
-            MessageBox.Show("No capture device selected.");
+            CustomMessageBox.Show("No capture device selected.", "Error");
             return;
         }
 
@@ -217,6 +223,18 @@ public partial class MainWindow : Window
         dlg.ShowDialog();
 
         ApplyDetectorOverrides();
+    }
+
+    private void Exit_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
+    private void About_Click(object sender, RoutedEventArgs e)
+    {
+        var about = new AboutWindow();
+        about.Owner = this;
+        about.ShowDialog();
     }
 
     private void ApplyDetectorOverrides()
