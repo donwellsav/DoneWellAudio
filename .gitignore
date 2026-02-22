@@ -1,0 +1,21 @@
+# Build outputs
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.log
+
+# VS
+.vs/
+
+# Rider
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Config overrides
+config/eq_profile.json
+config/detector_settings.json

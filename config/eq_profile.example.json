@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "productName": "DoneWellAudio",
+  "analogEqProfileName": "Example Analog EQ (edit me)",
+  "bell": {
+    "enabled": true,
+    "frequencyHz": {
+      "min": 40,
+      "max": 16000,
+      "continuous": true
+    },
+    "gainDb": {
+      "min": -12.0,
+      "max": 0.0,
+      "step": 0.5
+    },
+    "q": {
+      "adjustable": true,
+      "min": 1.0,
+      "max": 12.0,
+      "step": 0.1
+    }
+  },
+  "lowShelf": {
+    "enabled": true,
+    "frequencyHz": {
+      "min": 40,
+      "max": 400,
+      "continuous": true
+    },
+    "gainDb": {
+      "min": -12.0,
+      "max": 12.0,
+      "step": 0.5
+    }
+  },
+  "highShelf": {
+    "enabled": true,
+    "frequencyHz": {
+      "min": 4000,
+      "max": 16000,
+      "continuous": true
+    },
+    "gainDb": {
+      "min": -12.0,
+      "max": 12.0,
+      "step": 0.5
+    }
+  },
+  "lowCut": {
+    "enabled": true,
+    "mode": "unknown",
+    "variable": {
+      "minHz": 20,
+      "maxHz": 200,
+      "continuous": true
+    },
+    "fixed": {
+      "positionsHz": [
+        20,
+        25,
+        31.5,
+        40,
+        50,
+        63,
+        80,
+        100,
+        125,
+        160,
+        200
+      ]
+    }
+  },
+  "bellBandsUi": {
+    "min": 1,
+    "max": 7
+  },
+  "suggestedDefaults": {
+    "maxRecommendations": 7,
+    "prominenceDbToCutDb": [
+      {
+        "prominenceDbAtLeast": 6.0,
+        "cutDb": -3.0
+      },
+      {
+        "prominenceDbAtLeast": 12.0,
+        "cutDb": -6.0
+      },
+      {
+        "prominenceDbAtLeast": 18.0,
+        "cutDb": -9.0
+      }
+    ],
+    "fallbackCutDb": -3.0
+  }
+}
