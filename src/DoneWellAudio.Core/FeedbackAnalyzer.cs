@@ -132,7 +132,7 @@ public sealed class FeedbackAnalyzer
 
         if (_frozen && !_settings.ContinuousMode)
         {
-            return new AnalysisSnapshot(DateTimeOffset.UtcNow, true, _lastCandidates, _lastRecs, _lastSpectrum);
+            return new AnalysisSnapshot(DateTimeOffset.UtcNow, true, _lastCandidates, _lastRecs, _lastSpectrum, _sampleRate);
         }
 
         // Ensure buffers are ready
@@ -249,7 +249,7 @@ public sealed class FeedbackAnalyzer
             }
         }
 
-        return new AnalysisSnapshot(DateTimeOffset.UtcNow, _frozen, _lastCandidates, _lastRecs, _lastSpectrum);
+        return new AnalysisSnapshot(DateTimeOffset.UtcNow, _frozen, _lastCandidates, _lastRecs, _lastSpectrum, _sampleRate);
     }
 
     private ImmutableArray<FeedbackCandidate> BuildCandidates(IReadOnlyList<TrackedPeak> tracked, double[] magDb, bool filterHarmonics)

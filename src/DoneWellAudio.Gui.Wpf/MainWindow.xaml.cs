@@ -264,24 +264,6 @@ public partial class MainWindow : Window
         dlg.ShowDialog();
     }
 
-    private void RoomPanelToggle_Changed(object sender, RoutedEventArgs e)
-    {
-        if (RoomPredictionPanel == null || MainSplitter == null) return;
-
-        bool show = RoomPanelToggle.IsChecked ?? true;
-        if (show)
-        {
-            RoomPredictionPanel.Visibility = Visibility.Visible;
-            MainSplitter.Visibility = Visibility.Visible;
-            RoomPredictionPanel.Width = double.NaN; // Auto
-        }
-        else
-        {
-            RoomPredictionPanel.Visibility = Visibility.Collapsed;
-            MainSplitter.Visibility = Visibility.Collapsed;
-        }
-    }
-
     private void Exit_Click(object sender, RoutedEventArgs e)
     {
         Close();
