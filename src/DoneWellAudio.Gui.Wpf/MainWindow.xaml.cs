@@ -106,12 +106,10 @@ public partial class MainWindow : Window
                 }
                 else
                 {
-                    RoomProfileNameText.Text = "Not Found";
                 }
             }
             catch (Exception)
             {
-                RoomProfileNameText.Text = "Error Loading";
                 // Log silently or show warning
             }
         }
@@ -246,6 +244,16 @@ public partial class MainWindow : Window
                 Rescan_Click(sender, new RoutedEventArgs());
                 break;
         }
+    }
+
+    private void LiveAnalysis_Click(object sender, RoutedEventArgs e)
+    {
+        if (MainTabs != null) MainTabs.SelectedIndex = 0;
+    }
+
+    private void RoomAnalysis_Click(object sender, RoutedEventArgs e)
+    {
+        if (MainTabs != null) MainTabs.SelectedIndex = 1;
     }
 
     private void Settings_Click(object sender, RoutedEventArgs e)
@@ -455,8 +463,6 @@ public partial class MainWindow : Window
         var result = calc.Calculate(profile);
 
         if (_analyzer != null) _analyzer.SetRoomPrediction(result);
-
-        RoomProfileNameText.Text = profile.Name;
 
         bool imperial = _userSettings?.UseImperialUnits ?? true;
 
