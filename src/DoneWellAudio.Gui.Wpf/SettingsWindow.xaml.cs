@@ -16,10 +16,6 @@ public partial class SettingsWindow : Window
         _settings = settings;
         _onSettingsChanged = onSettingsChanged;
 
-        // Apply current
-        FontSizeSlider.Value = _settings.FontSize;
-        UpdateDisplay(_settings.FontSize);
-
         // Populate Combos
         SensitivityCombo.ItemsSource = Enum.GetValues(typeof(SensitivityLevel));
         ResponseCombo.ItemsSource = Enum.GetValues(typeof(ResponseSpeed));
@@ -29,28 +25,6 @@ public partial class SettingsWindow : Window
         ResponseCombo.SelectedItem = _settings.ResponseSpeed;
 
         _initialized = true;
-    }
-
-    private void FontSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (!_initialized) return;
-
-        double newVal = e.NewValue;
-        _settings.FontSize = newVal;
-
-        UpdateDisplay(newVal);
-
-        // Update global resource
-        Application.Current.Resources["BaseFontSize"] = newVal;
-
-        // Auto-save
-        _settings.Save();
-    }
-
-    private void UpdateDisplay(double size)
-    {
-        if (FontSizeValueText != null)
-            FontSizeValueText.Text = size.ToString("0");
     }
 
     private void SensitivityCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -77,8 +51,6 @@ public partial class SettingsWindow : Window
 
     private void Reset_Click(object sender, RoutedEventArgs e)
     {
-        FontSizeSlider.Value = 18.0;
-
         SensitivityCombo.SelectedItem = SensitivityLevel.Medium;
         ResponseCombo.SelectedItem = ResponseSpeed.Medium;
 

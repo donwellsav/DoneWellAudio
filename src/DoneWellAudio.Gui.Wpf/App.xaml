@@ -16,7 +16,7 @@
         <SolidColorBrush x:Key="AppSafeBrush" Color="#FFFFFF55"/> <!-- Yellow -->
 
         <!-- Base Font Size -->
-        <sys:Double x:Key="BaseFontSize" xmlns:sys="clr-namespace:System;assembly=mscorlib">18</sys:Double>
+        <sys:Double x:Key="BaseFontSize" xmlns:sys="clr-namespace:System;assembly=mscorlib">14</sys:Double>
 
         <!-- Default Control Styles -->
         <Style TargetType="Window">
