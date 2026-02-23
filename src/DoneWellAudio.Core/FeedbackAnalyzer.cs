@@ -30,10 +30,23 @@ public sealed class FeedbackAnalyzer
 
     public FeedbackAnalyzer(DetectorSettings settings, EqProfile eqProfile, IFft fft)
     {
+        ValidateSettings(settings);
         _settings = settings;
         _eq = eqProfile;
         _fft = fft;
         EnsureBuffers();
+    }
+
+    private static void ValidateSettings(DetectorSettings settings)
+    {
+        if (settings.Audio.FrameSize <= 0)
+        {
+            throw new ArgumentException("FrameSize must be greater than zero.", nameof(settings));
+        }
+        if (settings.Audio.HopSize <= 0)
+        {
+            throw new ArgumentException("HopSize must be greater than zero.", nameof(settings));
+        }
     }
 
     private void EnsureBuffers()
@@ -67,6 +80,7 @@ public sealed class FeedbackAnalyzer
 
     public void UpdateSettings(DetectorSettings settings)
     {
+        ValidateSettings(settings);
         _settings = settings;
         EnsureBuffers();
         // If switching to continuous mode while frozen, unfreeze
