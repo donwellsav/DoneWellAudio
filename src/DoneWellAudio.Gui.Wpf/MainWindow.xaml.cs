@@ -109,7 +109,7 @@ public partial class MainWindow : Window
                     RoomProfileNameText.Text = "Not Found";
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 RoomProfileNameText.Text = "Error Loading";
                 // Log silently or show warning
@@ -535,7 +535,7 @@ public partial class MainWindow : Window
             }
 
             // Color based on warnings
-            string rowColor = band.Warnings.Length > 0 ? colorRed : colorGreen;
+            string rowColor = band.Warnings.Count > 0 ? colorRed : colorGreen;
 
             _roomRows.Add(new RoomAcousticResultUi(
                 band.FrequencyHz,
