@@ -5,22 +5,6 @@
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
         Background="{StaticResource AppBackgroundBrush}">
     <StackPanel Margin="20">
-        <TextBlock Text="Interface Settings" FontWeight="Bold" Margin="0,0,0,20"/>
-
-        <TextBlock Text="Font Size:" Margin="0,0,0,5"/>
-        <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
-            <Slider x:Name="FontSizeSlider" Minimum="12" Maximum="32" Width="240"
-                    TickPlacement="BottomRight" TickFrequency="2" IsSnapToTickEnabled="True"
-                    ValueChanged="FontSizeSlider_ValueChanged" AutomationProperties.Name="Font Size"/>
-            <TextBlock x:Name="FontSizeValueText" Text="18" Margin="10,0,0,0" VerticalAlignment="Center" FontWeight="Bold"/>
-        </StackPanel>
-
-        <Border BorderBrush="{StaticResource AppBorderBrush}" BorderThickness="1" Padding="10" Margin="0,0,0,20" Background="{StaticResource AppPanelBrush}">
-            <TextBlock x:Name="PreviewText" Text="Preview: The quick brown fox jumps over the lazy dog." TextWrapping="Wrap"/>
-        </Border>
-
-        <Separator Margin="0,0,0,20" Background="{StaticResource AppBorderBrush}"/>
-
         <TextBlock Text="Detector Settings" FontWeight="Bold" Margin="0,0,0,20"/>
 
         <StackPanel Orientation="Horizontal" Margin="0,0,0,15">

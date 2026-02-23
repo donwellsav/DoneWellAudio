@@ -27,6 +27,7 @@ public partial class MainWindow : Window
     private DetectorSettings? _originalSettings;
     private EqProfile? _eq;
     private UserSettings? _userSettings;
+    private RoomProfile? _currentRoomProfile;
 
     private bool _manualFrozen;
     private DispatcherTimer? _uiTimer;
@@ -61,7 +62,6 @@ public partial class MainWindow : Window
 
             // Apply User Settings
             ContinuousToggle.IsChecked = _userSettings.ContinuousMode;
-            Application.Current.Resources["BaseFontSize"] = _userSettings.FontSize;
             ApplyDetectorOverrides();
 
             // Populate bell band dropdown 1..7
@@ -109,34 +109,10 @@ public partial class MainWindow : Window
 
                 if (System.IO.File.Exists(profilePath))
                 {
-                    var profile = RoomProfileLoader.Load(profilePath);
-                    if (profile != null)
+                    _currentRoomProfile = RoomProfileLoader.Load(profilePath);
+                    if (_currentRoomProfile != null)
                     {
-                        var calc = new RoomAcousticsCalculator();
-                        var result = calc.Calculate(profile);
-
-                        if (_analyzer != null) _analyzer.SetRoomPrediction(result);
-
-                        RoomProfileNameText.Text = profile.Name;
-                        RoomDimensionsText.Text = $"{profile.Dimensions.Length}x{profile.Dimensions.Width}x{profile.Dimensions.Height}m";
-
-                        foreach (var band in result.BandResults)
-                        {
-                            _roomRows.Add(new RoomAcousticResultUi(
-                                band.FrequencyHz,
-                                band.Rt60Sabine,
-                                band.RoomConstant,
-                                band.CriticalDistance,
-                                band.SystemGainInUse,
-                                string.Join(", ", band.Warnings)
-                            ));
-                        }
-
-                        foreach (var mode in result.ModesBelowSchroeder)
-                        {
-                            string type = mode.IsAxial ? "Axial" : mode.IsTangential ? "Tangential" : "Oblique";
-                            _modeRows.Add(new RoomModeUi(mode.FrequencyHz, mode.CouplingWeight, type));
-                        }
+                        UpdateRoomPredictionUi(_currentRoomProfile);
                     }
                 }
                 else
@@ -262,6 +238,9 @@ public partial class MainWindow : Window
     private void Window_KeyDown(object sender, KeyEventArgs e)
     {
         if (e.Handled) return;
+
+        // Ignore shortcuts if a text box is focused
+        if (e.OriginalSource is System.Windows.Controls.TextBox) return;
 
         switch (e.Key)
         {
@@ -437,6 +416,81 @@ public partial class MainWindow : Window
             _latest = new AnalysisSnapshot(DateTimeOffset.UtcNow, false,
                 System.Collections.Immutable.ImmutableArray<FeedbackCandidate>.Empty,
                 System.Collections.Immutable.ImmutableArray<EqRecommendation>.Empty);
+        }
+    }
+
+    private void UpdateRoomPredictionUi(RoomProfile profile)
+    {
+        var calc = new RoomAcousticsCalculator();
+        var result = calc.Calculate(profile);
+
+        if (_analyzer != null) _analyzer.SetRoomPrediction(result);
+
+        RoomProfileNameText.Text = profile.Name;
+        RoomLengthInput.Text = profile.Dimensions.Length.ToString();
+        RoomWidthInput.Text = profile.Dimensions.Width.ToString();
+        RoomHeightInput.Text = profile.Dimensions.Height.ToString();
+
+        _roomRows.Clear();
+        foreach (var band in result.BandResults)
+        {
+            _roomRows.Add(new RoomAcousticResultUi(
+                band.FrequencyHz,
+                band.Rt60Sabine,
+                band.RoomConstant,
+                band.CriticalDistance,
+                band.SystemGainInUse,
+                string.Join(", ", band.Warnings)
+            ));
+        }
+
+        _modeRows.Clear();
+        foreach (var mode in result.ModesBelowSchroeder)
+        {
+            string type = mode.IsAxial ? "Axial" : mode.IsTangential ? "Tangential" : "Oblique";
+            _modeRows.Add(new RoomModeUi(mode.FrequencyHz, mode.CouplingWeight, type));
+        }
+    }
+
+    private void CalculateRoomButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_currentRoomProfile == null)
+        {
+             CustomMessageBox.Show("No room profile loaded to edit.", "Error");
+             return;
+        }
+
+        if (double.TryParse(RoomLengthInput.Text, out double l) &&
+            double.TryParse(RoomWidthInput.Text, out double w) &&
+            double.TryParse(RoomHeightInput.Text, out double h))
+        {
+            if (l <= 0 || w <= 0 || h <= 0)
+            {
+                CustomMessageBox.Show("Dimensions must be positive numbers.", "Error");
+                return;
+            }
+
+            try
+            {
+                // Update Profile
+                var newDims = new RoomDimensions(l, w, h);
+                _currentRoomProfile = _currentRoomProfile with { Dimensions = newDims };
+
+                UpdateRoomPredictionUi(_currentRoomProfile);
+
+                // Save
+                var configDir = AppPaths.FindConfigDirectory();
+                var savePath = System.IO.Path.Combine(configDir, "room_profile.json");
+                RoomProfileLoader.Save(savePath, _currentRoomProfile);
+            }
+            catch (Exception ex)
+            {
+                 CustomMessageBox.Show($"Failed to save profile: {ex.Message}", "Error");
+            }
+        }
+        else
+        {
+            CustomMessageBox.Show("Invalid dimensions. Please enter numbers.", "Error");
         }
     }
 
