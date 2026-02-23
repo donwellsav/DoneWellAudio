@@ -12,6 +12,7 @@ public sealed class NinosHowlingDetector : IHowlingDetector, IDisposable
     private readonly float[] _window;
     private readonly RingBuffer _historyBuffer;
     private readonly float[][] _stftHistory;
+    private readonly float[] _sparsityBuffer;
     private int _stftHistoryHead;
 
     private readonly int _fftSize;
@@ -33,6 +34,8 @@ public sealed class NinosHowlingDetector : IHowlingDetector, IDisposable
         {
             _stftHistory[i] = new float[_halfFft];
         }
+
+        _sparsityBuffer = new float[config.HistoryFrames];
     }
 
     public bool Detect(ReadOnlySpan<float> audioFrame, out float frequency, out float magnitude)
@@ -132,10 +135,10 @@ public sealed class NinosHowlingDetector : IHowlingDetector, IDisposable
     private float CalculateSparsity(int binIndex)
     {
         int q = _config.HistoryFrames;
-        Span<float> timeSeries = stackalloc float[q];
+        Span<float> timeSeries = _sparsityBuffer.AsSpan(0, q);
 
         // This loop is cache-unfriendly but unavoidable without transpose.
-        // Copying to contiguous stack buffer allows SIMD below.
+        // Copying to contiguous buffer allows SIMD below.
         for (int t = 0; t < q; t++)
         {
             // Calculate correct cyclic index
