@@ -25,14 +25,14 @@ public static class RecommendationEngine
         for (int i = 0; i < top.Length; i++)
         {
             var c = top[i];
-            var freq = Clamp(c.Tracked.FrequencyHz, eq.Bell.FrequencyHz.Min, eq.Bell.FrequencyHz.Max);
+            var freq = Math.Clamp(c.Tracked.FrequencyHz, eq.Bell.FrequencyHz.Min, eq.Bell.FrequencyHz.Max);
 
             double cut = MapProminenceToCutDb(c.Tracked.ProminenceDb, eq.SuggestedDefaults);
-            cut = Clamp(cut, eq.Bell.GainDb.Min, eq.Bell.GainDb.Max);
+            cut = Math.Clamp(cut, eq.Bell.GainDb.Min, eq.Bell.GainDb.Max);
             if (eq.Bell.GainDb.Step is double step && step > 0)
                 cut = RoundToStep(cut, step);
 
-            double q = Clamp(c.EstimatedQ, eq.Bell.Q.Min, eq.Bell.Q.Max);
+            double q = Math.Clamp(c.EstimatedQ, eq.Bell.Q.Min, eq.Bell.Q.Max);
             if (eq.Bell.Q.Step is double qStep && qStep > 0)
                 q = RoundToStep(q, qStep);
 
@@ -65,8 +65,6 @@ public static class RecommendationEngine
         }
         return best;
     }
-
-    private static double Clamp(double x, double min, double max) => x < min ? min : (x > max ? max : x);
 
     private static double RoundToStep(double x, double step)
     {
