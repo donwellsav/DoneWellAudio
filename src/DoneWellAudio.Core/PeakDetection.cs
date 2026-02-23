@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace DoneWellAudio.Core;
 
 public static class PeakDetection
@@ -5,40 +7,40 @@ public static class PeakDetection
     public static double[] ConvertToDb(double[] magnitudeLinear)
     {
         var magDb = new double[magnitudeLinear.Length];
-        const double floor = 1e-12;
-        for (int i = 0; i < magnitudeLinear.Length; i++)
-        {
-            magDb[i] = 20.0 * Math.Log10(Math.Max(floor, magnitudeLinear[i]));
-        }
+        ConvertToDb(magnitudeLinear, magDb);
         return magDb;
     }
 
-    public static IReadOnlyList<Peak> FindPeaksDb(
-        double[] magnitudeLinear,
+    public static void ConvertToDb(double[] magnitudeLinear, double[] destinationDb)
+    {
+        if (destinationDb.Length < magnitudeLinear.Length)
+            throw new ArgumentException("Destination array too small.", nameof(destinationDb));
+
+        const double floor = 1e-12;
+        for (int i = 0; i < magnitudeLinear.Length; i++)
+        {
+            destinationDb[i] = 20.0 * Math.Log10(Math.Max(floor, magnitudeLinear[i]));
+        }
+    }
+
+    public static void ApplyWhitening(double[] magDb, double binHz)
+    {
+        for (int i = 1; i < magDb.Length; i++)
+        {
+            // Add 10 * log10(f) to flatten 1/f power spectrum
+            double f = i * binHz;
+            if (f > 1.0)
+                magDb[i] += 10.0 * Math.Log10(f);
+        }
+    }
+
+    public static IReadOnlyList<Peak> FindPeaks(
+        double[] magDb,
         int sampleRate,
         DetectorSettings settings)
     {
-        // Convert to dB with small floor to avoid log(0).
-        var magDb = ConvertToDb(magnitudeLinear);
-
-        int nFft = (magnitudeLinear.Length - 1) * 2;
+        int nFft = (magDb.Length - 1) * 2;
         double binHz = sampleRate / (double)nFft;
-
-        // Pink Noise Compensation (+3dB/octave slope)
-        if (settings.SpectralWhitening)
-        {
-            for (int i = 1; i < magDb.Length; i++)
-            {
-                // Add 10 * log10(f) to flatten 1/f power spectrum
-                // We use a normalized frequency relative to 1Hz or just raw Hz.
-                // Since we care about slope, absolute offset doesn't matter for peak prominence relative to neighbor,
-                // BUT it matters for overall shape.
-                // Using frequency in Hz:
-                double f = i * binHz;
-                if (f > 1.0)
-                    magDb[i] += 10.0 * Math.Log10(f);
-            }
-        }
 
         int minBin = (int)Math.Max(1, Math.Floor(settings.Audio.MinFrequencyHz / binHz));
         int maxBin = (int)Math.Min(magDb.Length - 2, Math.Ceiling(settings.Audio.MaxFrequencyHz / binHz));

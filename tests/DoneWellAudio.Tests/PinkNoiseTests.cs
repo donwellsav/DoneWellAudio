@@ -54,9 +54,12 @@ public class PinkNoiseTests
         mag[i1] = 1.0 / Math.Sqrt(i1 * binHz);
         mag[i2] = 1.0 / Math.Sqrt(i2 * binHz);
 
+        // Convert to dB
+        var magDb = PeakDetection.ConvertToDb(mag);
+
         // 1. Run WITHOUT whitening
         var settingsNo = CreateSettings(false);
-        var peaksNo = PeakDetection.FindPeaksDb(mag, (int)sampleRate, settingsNo);
+        var peaksNo = PeakDetection.FindPeaks(magDb, (int)sampleRate, settingsNo);
         var p1No = peaksNo.FirstOrDefault(p => Math.Abs(p.FrequencyHz - i1 * binHz) < 1);
         var p2No = peaksNo.FirstOrDefault(p => Math.Abs(p.FrequencyHz - i2 * binHz) < 1);
 
@@ -71,7 +74,10 @@ public class PinkNoiseTests
 
         // 2. Run WITH whitening
         var settingsYes = CreateSettings(true);
-        var peaksYes = PeakDetection.FindPeaksDb(mag, (int)sampleRate, settingsYes);
+        // Create copy for whitening
+        var magDbWhite = magDb.ToArray();
+        PeakDetection.ApplyWhitening(magDbWhite, binHz);
+        var peaksYes = PeakDetection.FindPeaks(magDbWhite, (int)sampleRate, settingsYes);
         var p1Yes = peaksYes.FirstOrDefault(p => Math.Abs(p.FrequencyHz - i1 * binHz) < 1);
         var p2Yes = peaksYes.FirstOrDefault(p => Math.Abs(p.FrequencyHz - i2 * binHz) < 1);
 
