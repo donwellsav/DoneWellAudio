@@ -47,8 +47,8 @@ public partial class FeedbackGraphControl : UserControl
 
     private const double MinFreq = 20.0;
     private double MaxFreq = 24000.0; // Updated from snapshot
-    private const double MinDb = -120.0;
-    private const double MaxDb = 0.0;
+    private const double MinDb = -80.0;
+    private const double MaxDb = 5.0;
 
     public FeedbackGraphControl()
     {
@@ -114,8 +114,22 @@ public partial class FeedbackGraphControl : UserControl
 
     private double DbToY(double db, double height)
     {
-         double range = MaxDb - MinDb;
-         return height - ((db - MinDb) / range * height);
+        if (height <= 0) return 0;
+        double min = MinDb;
+        double max = MaxDb;
+        double range = max - min;
+        double val = db - min;
+
+        // Logarithmic scaling: Y proportional to 1 - log(val+1)/log(range+1)
+        // This compresses the top end (higher dB) and expands the bottom (noise floor).
+        if (val < 0) val = 0;
+
+        double normalized = Math.Log(val + 1.0) / Math.Log(range + 1.0);
+
+        if (normalized > 1.0) normalized = 1.0;
+        if (normalized < 0.0) normalized = 0.0;
+
+        return height * (1.0 - normalized);
     }
 
     private void RenderAxis()
@@ -144,7 +158,8 @@ public partial class FeedbackGraphControl : UserControl
         }
 
         // Amplitude Ticks
-        for (double db = 0; db >= MinDb; db -= 20)
+        double[] dbTicks = { 5, 0, -20, -40, -60, -80 };
+        foreach (var db in dbTicks)
         {
             double y = DbToY(db, h);
             if (y >= 0 && y <= h)
