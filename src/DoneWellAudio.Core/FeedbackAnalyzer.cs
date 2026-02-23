@@ -16,6 +16,10 @@ public sealed class FeedbackAnalyzer
     // Use a fixed array circular buffer instead of List<float> to reduce allocations
     private float[] _ringBuffer = Array.Empty<float>();
     private float[] _analysisBuffer = Array.Empty<float>();
+    // Reusable buffers for spectrum analysis
+    private double[] _magDbBuffer = Array.Empty<double>();
+    private double[] _whitenedBuffer = Array.Empty<double>();
+
     private int _ringHead; // Start of valid data
     private int _ringTail; // End of valid data (write position)
     private int _ringCount;
@@ -55,6 +59,14 @@ public sealed class FeedbackAnalyzer
         if (_analysisBuffer.Length != requiredFrame)
         {
             _analysisBuffer = new float[requiredFrame];
+        }
+
+        // Spectrum buffers size is N/2 + 1
+        int spectrumSize = requiredFrame / 2 + 1;
+        if (_magDbBuffer.Length != spectrumSize)
+        {
+            _magDbBuffer = new double[spectrumSize];
+            _whitenedBuffer = new double[spectrumSize];
         }
 
         // Ring buffer should be large enough to hold at least one frame + hop + incoming chunk.
@@ -195,13 +207,33 @@ public sealed class FeedbackAnalyzer
                 WindowFunctions.ApplyHannInPlace(_analysisBuffer);
                 var mag = _fft.MagnitudeSpectrum(_analysisBuffer);
 
-                // Build dB curve for Q estimation
-                var magDb = PeakDetection.ConvertToDb(mag);
+                // Ensure buffers are correct size (in case FFT implementation changes output size, though FrameSize is fixed)
+                if (mag.Length > _magDbBuffer.Length)
+                {
+                    _magDbBuffer = new double[mag.Length];
+                    _whitenedBuffer = new double[mag.Length];
+                }
 
-                var peaks = PeakDetection.FindPeaksDb(mag, _sampleRate, _settings);
+                // Build dB curve for Q estimation
+                PeakDetection.ConvertToDb(mag, _magDbBuffer);
+
+                // Prepare buffer for peak finding (handle whitening)
+                double[] peaksInput = _magDbBuffer;
+                if (_settings.SpectralWhitening)
+                {
+                    // Copy to whitened buffer to preserve raw magDb for Q estimation
+                    Array.Copy(_magDbBuffer, _whitenedBuffer, mag.Length);
+
+                    int nFft = (mag.Length - 1) * 2;
+                    double binHz = _sampleRate / (double)nFft;
+                    PeakDetection.ApplyWhitening(_whitenedBuffer, binHz);
+                    peaksInput = _whitenedBuffer;
+                }
+
+                var peaks = PeakDetection.FindPeaks(peaksInput, _sampleRate, _settings);
                 var tracked = _tracker.Update(peaks, _settings);
 
-                _lastCandidates = BuildCandidates(tracked, magDb, filterHarmonics);
+                _lastCandidates = BuildCandidates(tracked, _magDbBuffer, filterHarmonics);
                 _lastRecs = RecommendationEngine.Recommend(_lastCandidates, _eq, bellBandsRequested);
 
                 UpdateFreeze(_lastCandidates);
