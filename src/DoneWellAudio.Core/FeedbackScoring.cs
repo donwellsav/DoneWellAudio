@@ -5,7 +5,8 @@ public static class FeedbackScoring
     public static ConfidenceComponents ScoreComponents(
         TrackedPeak tracked,
         double estimatedQ,
-        DetectorSettings settings)
+        DetectorSettings settings,
+        double roomPriorScore = 0.0)
     {
         // Prominence score: normalize around minProminenceDb..(min+18)
         double pMin = settings.Detection.MinProminenceDb;
@@ -26,20 +27,21 @@ public static class FeedbackScoring
         double maxStd = Math.Max(1.0, settings.Detection.MaxFrequencyDriftHz);
         double stabilityScore = Clamp01(1.0 - (tracked.FrequencyStdDevHz / maxStd));
 
-        return new ConfidenceComponents(prominenceScore, narrownessScore, persistenceScore, stabilityScore);
+        return new ConfidenceComponents(prominenceScore, narrownessScore, persistenceScore, stabilityScore, roomPriorScore);
     }
 
     public static double Combine(ConfidenceComponents c, DetectorSettings settings)
     {
         var w = settings.Detection.ConfidenceWeights;
-        double sumW = w.Prominence + w.Narrowness + w.Persistence + w.Stability;
+        double sumW = w.Prominence + w.Narrowness + w.Persistence + w.Stability + w.RoomPrior;
         if (sumW <= 0) sumW = 1;
 
         double score =
             c.ProminenceScore * w.Prominence +
             c.NarrownessScore * w.Narrowness +
             c.PersistenceScore * w.Persistence +
-            c.StabilityScore * w.Stability;
+            c.StabilityScore * w.Stability +
+            c.RoomPriorScore * w.RoomPrior;
 
         return Clamp01(score / sumW);
     }
