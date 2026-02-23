@@ -1,0 +1,30 @@
+{
+  "Name": "Grand Ballroom Example",
+  "Dimensions": {
+    "Length": 20.0,
+    "Width": 15.0,
+    "Height": 6.0
+  },
+  "BandCentersHz": [ 125, 250, 500, 1000, 2000, 4000 ],
+  "SurfaceAbsorption": {
+    "Floor":      [ 0.02, 0.05, 0.10, 0.20, 0.45, 0.65 ],
+    "Ceiling":    [ 0.15, 0.40, 0.75, 0.85, 0.90, 0.90 ],
+    "Walls":      [ 0.05, 0.05, 0.05, 0.08, 0.12, 0.10 ]
+  },
+  "SourcePosition": {
+    "X": 10.0,
+    "Y": 1.0,
+    "Z": 1.5
+  },
+  "MicPosition": {
+    "X": 10.0,
+    "Y": 10.0,
+    "Z": 1.5
+  },
+  "ListenerPosition": {
+    "X": 10.0,
+    "Y": 8.0,
+    "Z": 1.2
+  },
+  "TemperatureCelsius": 20.0
+}

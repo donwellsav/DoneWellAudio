@@ -59,7 +59,8 @@ public sealed record ConfidenceWeights(
     double Prominence,
     double Narrowness,
     double Persistence,
-    double Stability
+    double Stability,
+    double RoomPrior = 0.0
 );
 
 public sealed record DetectionSettings(
@@ -69,7 +70,9 @@ public sealed record DetectionSettings(
     double MaxEstimatedQ,
     double MaxFrequencyDriftHz,
     int MinPersistenceFrames,
-    ConfidenceWeights ConfidenceWeights
+    ConfidenceWeights ConfidenceWeights,
+    double RoomPriorToleranceHz = 5.0,
+    double RoomPriorLowGainThresholdDb = 0.0
 );
 
 public sealed record FreezePolicy(

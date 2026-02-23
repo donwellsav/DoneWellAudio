@@ -16,10 +16,6 @@ public partial class SettingsWindow : Window
         _settings = settings;
         _onSettingsChanged = onSettingsChanged;
 
-        // Apply current
-        FontSizeSlider.Value = _settings.FontSize;
-        UpdateDisplay(_settings.FontSize);
-
         // Populate Combos
         SensitivityCombo.ItemsSource = Enum.GetValues(typeof(SensitivityLevel));
         ResponseCombo.ItemsSource = Enum.GetValues(typeof(ResponseSpeed));
@@ -27,30 +23,26 @@ public partial class SettingsWindow : Window
         // Set Values
         SensitivityCombo.SelectedItem = _settings.Sensitivity;
         ResponseCombo.SelectedItem = _settings.ResponseSpeed;
+        ImperialCheck.IsChecked = _settings.UseImperialUnits;
+        RoomPriorCheck.IsChecked = _settings.UseRoomPrior;
 
         _initialized = true;
     }
 
-    private void FontSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    private void RoomPriorCheck_Changed(object sender, RoutedEventArgs e)
     {
         if (!_initialized) return;
-
-        double newVal = e.NewValue;
-        _settings.FontSize = newVal;
-
-        UpdateDisplay(newVal);
-
-        // Update global resource
-        Application.Current.Resources["BaseFontSize"] = newVal;
-
-        // Auto-save
+        _settings.UseRoomPrior = RoomPriorCheck.IsChecked ?? false;
         _settings.Save();
+        _onSettingsChanged?.Invoke();
     }
 
-    private void UpdateDisplay(double size)
+    private void ImperialCheck_Changed(object sender, RoutedEventArgs e)
     {
-        if (FontSizeValueText != null)
-            FontSizeValueText.Text = size.ToString("0");
+        if (!_initialized) return;
+        _settings.UseImperialUnits = ImperialCheck.IsChecked ?? false;
+        _settings.Save();
+        _onSettingsChanged?.Invoke();
     }
 
     private void SensitivityCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -77,10 +69,10 @@ public partial class SettingsWindow : Window
 
     private void Reset_Click(object sender, RoutedEventArgs e)
     {
-        FontSizeSlider.Value = 18.0;
-
         SensitivityCombo.SelectedItem = SensitivityLevel.Medium;
         ResponseCombo.SelectedItem = ResponseSpeed.Medium;
+        ImperialCheck.IsChecked = true;
+        RoomPriorCheck.IsChecked = false;
 
         _settings.Save();
         _onSettingsChanged?.Invoke();

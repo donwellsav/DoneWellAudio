@@ -2,23 +2,32 @@ namespace DoneWellAudio.Core;
 
 public static class PeakDetection
 {
+    public static double[] ConvertToDb(double[] magnitudeLinear)
+    {
+        var magDb = new double[magnitudeLinear.Length];
+        const double floor = 1e-12;
+        for (int i = 0; i < magnitudeLinear.Length; i++)
+        {
+            magDb[i] = 20.0 * Math.Log10(Math.Max(floor, magnitudeLinear[i]));
+        }
+        return magDb;
+    }
+
     public static IReadOnlyList<Peak> FindPeaksDb(
         double[] magnitudeLinear,
         int sampleRate,
         DetectorSettings settings)
     {
         // Convert to dB with small floor to avoid log(0).
-        var magDb = new double[magnitudeLinear.Length];
-        const double floor = 1e-12;
+        var magDb = ConvertToDb(magnitudeLinear);
+
         int nFft = (magnitudeLinear.Length - 1) * 2;
         double binHz = sampleRate / (double)nFft;
 
-        for (int i = 0; i < magnitudeLinear.Length; i++)
+        // Pink Noise Compensation (+3dB/octave slope)
+        if (settings.SpectralWhitening)
         {
-            double valDb = 20.0 * Math.Log10(Math.Max(floor, magnitudeLinear[i]));
-
-            // Pink Noise Compensation (+3dB/octave slope)
-            if (settings.SpectralWhitening && i > 0)
+            for (int i = 1; i < magDb.Length; i++)
             {
                 // Add 10 * log10(f) to flatten 1/f power spectrum
                 // We use a normalized frequency relative to 1Hz or just raw Hz.
@@ -27,10 +36,8 @@ public static class PeakDetection
                 // Using frequency in Hz:
                 double f = i * binHz;
                 if (f > 1.0)
-                    valDb += 10.0 * Math.Log10(f);
+                    magDb[i] += 10.0 * Math.Log10(f);
             }
-
-            magDb[i] = valDb;
         }
 
         int minBin = (int)Math.Max(1, Math.Floor(settings.Audio.MinFrequencyHz / binHz));

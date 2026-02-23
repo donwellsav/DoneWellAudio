@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using DoneWellAudio.Core;
+using DoneWellAudio.Core.RoomPrediction;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 
@@ -12,6 +13,8 @@ public partial class MainWindow : Window
 {
     private readonly ObservableCollection<CandidateRow> _candidateRows = new();
     private readonly ObservableCollection<RecRow> _recRows = new();
+    private readonly ObservableCollection<RoomAcousticResultUi> _roomRows = new();
+    private readonly ObservableCollection<RoomModeUi> _modeRows = new();
 
     private readonly object _snapLock = new();
     private AnalysisSnapshot _latest = new(DateTimeOffset.UtcNow, false,
@@ -21,8 +24,10 @@ public partial class MainWindow : Window
     private WasapiCapture? _capture;
     private FeedbackAnalyzer? _analyzer;
     private DetectorSettings? _settings;
+    private DetectorSettings? _originalSettings;
     private EqProfile? _eq;
     private UserSettings? _userSettings;
+    private RoomProfile? _currentRoomProfile;
 
     private bool _manualFrozen;
     private DispatcherTimer? _uiTimer;
@@ -37,6 +42,8 @@ public partial class MainWindow : Window
 
         CandidatesList.ItemsSource = _candidateRows;
         RecsList.ItemsSource = _recRows;
+        RoomBandsList.ItemsSource = _roomRows;
+        RoomModesList.ItemsSource = _modeRows;
 
         Loaded += (_, __) => Initialize();
         Closing += (_, __) => StopCapture();
@@ -50,11 +57,11 @@ public partial class MainWindow : Window
             var configDir = AppPaths.FindConfigDirectory();
             _eq = ConfigLoader.LoadEqProfile(configDir);
             _settings = ConfigLoader.LoadDetectorSettings(configDir);
+            _originalSettings = _settings;
             _userSettings = UserSettings.Load();
 
             // Apply User Settings
             ContinuousToggle.IsChecked = _userSettings.ContinuousMode;
-            Application.Current.Resources["BaseFontSize"] = _userSettings.FontSize;
             ApplyDetectorOverrides();
 
             // Populate bell band dropdown 1..7
@@ -91,6 +98,32 @@ public partial class MainWindow : Window
             if (version != null)
             {
                 VersionText.Text = $"v{version.Major}.{version.Minor}.{version.Build}";
+            }
+
+            // Load Room Profile (Best effort)
+            try
+            {
+                var profilePath = System.IO.Path.Combine(configDir, "room_profile.json");
+                if (!System.IO.File.Exists(profilePath))
+                    profilePath = System.IO.Path.Combine(configDir, "room_profile.example.json");
+
+                if (System.IO.File.Exists(profilePath))
+                {
+                    _currentRoomProfile = RoomProfileLoader.Load(profilePath);
+                    if (_currentRoomProfile != null)
+                    {
+                        UpdateRoomPredictionUi(_currentRoomProfile);
+                    }
+                }
+                else
+                {
+                    RoomProfileNameText.Text = "Not Found";
+                }
+            }
+            catch (Exception ex)
+            {
+                RoomProfileNameText.Text = "Error Loading";
+                // Log silently or show warning
             }
         }
         catch (Exception ex)
@@ -206,6 +239,9 @@ public partial class MainWindow : Window
     {
         if (e.Handled) return;
 
+        // Ignore shortcuts if a text box is focused
+        if (e.OriginalSource is System.Windows.Controls.TextBox) return;
+
         switch (e.Key)
         {
             case Key.Space:
@@ -226,11 +262,15 @@ public partial class MainWindow : Window
     private void Settings_Click(object sender, RoutedEventArgs e)
     {
         if (_userSettings == null) _userSettings = new UserSettings();
-        var dlg = new SettingsWindow(_userSettings, ApplyDetectorOverrides);
+        var dlg = new SettingsWindow(_userSettings, () => {
+            ApplyDetectorOverrides();
+            if (_currentRoomProfile != null) UpdateRoomPredictionUi(_currentRoomProfile);
+        });
         dlg.Owner = this;
         dlg.ShowDialog();
 
         ApplyDetectorOverrides();
+        if (_currentRoomProfile != null) UpdateRoomPredictionUi(_currentRoomProfile);
     }
 
     private void Exit_Click(object sender, RoutedEventArgs e)
@@ -247,13 +287,24 @@ public partial class MainWindow : Window
 
     private void ApplyDetectorOverrides()
     {
-        if (_settings == null || _userSettings == null) return;
+        if (_settings == null || _userSettings == null || _originalSettings == null) return;
 
-        _settings = _settings with
+        bool useRoomPrior = _userSettings.UseRoomPrior;
+
+        // Use configured weight or default 0.2 if 0
+        double priorWeight = _originalSettings.Detection.ConfidenceWeights.RoomPrior;
+        if (priorWeight <= 0.0001) priorWeight = 0.2;
+
+        // Rebuild from original to preserve static config values while applying overrides
+        _settings = _originalSettings with
         {
             ContinuousMode = _userSettings.ContinuousMode,
             Sensitivity = _userSettings.Sensitivity,
-            ResponseSpeed = _userSettings.ResponseSpeed
+            ResponseSpeed = _userSettings.ResponseSpeed,
+            Detection = _originalSettings.Detection with
+            {
+                ConfidenceWeights = _originalSettings.Detection.ConfidenceWeights with { RoomPrior = useRoomPrior ? priorWeight : 0.0 }
+            }
         };
 
         if (_analyzer != null)
@@ -367,6 +418,153 @@ public partial class MainWindow : Window
         }
     }
 
+    private void UpdateRoomPredictionUi(RoomProfile profile)
+    {
+        var calc = new RoomAcousticsCalculator();
+        var result = calc.Calculate(profile);
+
+        if (_analyzer != null) _analyzer.SetRoomPrediction(result);
+
+        RoomProfileNameText.Text = profile.Name;
+
+        bool imperial = _userSettings?.UseImperialUnits ?? true;
+
+        // Toggle Input Visibility
+        if (imperial)
+        {
+            MetricInputPanel.Visibility = Visibility.Collapsed;
+            ImperialInputPanel.Visibility = Visibility.Visible;
+
+            // Populate Imperial Fields (Meters -> Feet/Inches)
+            void SetFtIn(double meters, System.Windows.Controls.TextBox txtFt, System.Windows.Controls.TextBox txtIn)
+            {
+                double totalFeet = meters * 3.28084;
+                int feet = (int)totalFeet;
+                double inches = (totalFeet - feet) * 12.0;
+                txtFt.Text = feet.ToString();
+                txtIn.Text = $"{inches:F1}";
+            }
+
+            SetFtIn(profile.Dimensions.Length, RoomLengthFt, RoomLengthIn);
+            SetFtIn(profile.Dimensions.Width, RoomWidthFt, RoomWidthIn);
+            SetFtIn(profile.Dimensions.Height, RoomHeightFt, RoomHeightIn);
+        }
+        else
+        {
+            MetricInputPanel.Visibility = Visibility.Visible;
+            ImperialInputPanel.Visibility = Visibility.Collapsed;
+
+            RoomLengthInput.Text = profile.Dimensions.Length.ToString();
+            RoomWidthInput.Text = profile.Dimensions.Width.ToString();
+            RoomHeightInput.Text = profile.Dimensions.Height.ToString();
+        }
+
+        // Update List Headers
+        if (RoomBandsList.View is System.Windows.Controls.GridView gridView)
+        {
+            gridView.Columns[2].Header = imperial ? "R (ft²)" : "R";
+            gridView.Columns[3].Header = imperial ? "Dc (ft)" : "Dc (m)";
+        }
+
+        _roomRows.Clear();
+        foreach (var band in result.BandResults)
+        {
+            double r = band.RoomConstant;
+            double dc = band.CriticalDistance;
+
+            if (imperial)
+            {
+                r *= 10.7639; // m² to ft²
+                dc *= 3.28084; // m to ft
+            }
+
+            _roomRows.Add(new RoomAcousticResultUi(
+                band.FrequencyHz,
+                band.Rt60Sabine,
+                r,
+                dc,
+                band.SystemGainInUse,
+                string.Join(", ", band.Warnings)
+            ));
+        }
+
+        _modeRows.Clear();
+        foreach (var mode in result.ModesBelowSchroeder)
+        {
+            string type = mode.IsAxial ? "Axial" : mode.IsTangential ? "Tangential" : "Oblique";
+            _modeRows.Add(new RoomModeUi(mode.FrequencyHz, mode.CouplingWeight, type));
+        }
+    }
+
+    private void CalculateRoomButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_currentRoomProfile == null)
+        {
+             CustomMessageBox.Show("No room profile loaded to edit.", "Error");
+             return;
+        }
+
+        double l = 0, w = 0, h = 0;
+        bool valid = false;
+        bool imperial = _userSettings?.UseImperialUnits ?? true;
+
+        if (imperial)
+        {
+            // Parse Feet/Inches
+            double ParseFtIn(string ftStr, string inStr)
+            {
+                double ft = double.TryParse(ftStr, out var f) ? f : 0;
+                double inch = double.TryParse(inStr, out var i) ? i : 0;
+                return (ft + inch / 12.0) / 3.28084; // Convert back to meters
+            }
+
+            l = ParseFtIn(RoomLengthFt.Text, RoomLengthIn.Text);
+            w = ParseFtIn(RoomWidthFt.Text, RoomWidthIn.Text);
+            h = ParseFtIn(RoomHeightFt.Text, RoomHeightIn.Text);
+            valid = true; // ParseFtIn handles emptiness safely
+        }
+        else
+        {
+            if (double.TryParse(RoomLengthInput.Text, out l) &&
+                double.TryParse(RoomWidthInput.Text, out w) &&
+                double.TryParse(RoomHeightInput.Text, out h))
+            {
+                valid = true;
+            }
+        }
+
+        if (valid)
+        {
+            if (l <= 0 || w <= 0 || h <= 0)
+            {
+                CustomMessageBox.Show("Dimensions must be positive numbers.", "Error");
+                return;
+            }
+
+            try
+            {
+                // Update Profile
+                var newDims = new RoomDimensions(l, w, h);
+                _currentRoomProfile = _currentRoomProfile with { Dimensions = newDims };
+
+                UpdateRoomPredictionUi(_currentRoomProfile);
+
+                // Save
+                var configDir = AppPaths.FindConfigDirectory();
+                var savePath = System.IO.Path.Combine(configDir, "room_profile.json");
+                RoomProfileLoader.Save(savePath, _currentRoomProfile);
+            }
+            catch (Exception ex)
+            {
+                 CustomMessageBox.Show($"Failed to save profile: {ex.Message}", "Error");
+            }
+        }
+        else
+        {
+            CustomMessageBox.Show("Invalid dimensions. Please enter numbers.", "Error");
+        }
+    }
+
     private void Snapshot_Click(object sender, RoutedEventArgs e)
     {
         try
@@ -414,4 +612,19 @@ public partial class MainWindow : Window
 
     public sealed record CandidateRow(string FrequencyHz, string Confidence, string EstimatedQ, string ProminenceDb, string TotalHits, string FrequencyStdDevHz, string RowColor);
     public sealed record RecRow(string BandIndex, string FrequencyHz, string GainDb, string Q);
+
+    public sealed record RoomAcousticResultUi(
+        double FrequencyHz,
+        double Rt60Sabine,
+        double RoomConstant,
+        double CriticalDistance,
+        double SystemGainInUse,
+        string WarningsString
+    );
+
+    public sealed record RoomModeUi(
+        double FrequencyHz,
+        double CouplingWeight,
+        string TypeString
+    );
 }
