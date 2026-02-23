@@ -15,6 +15,7 @@ public class UserSettings
 
     // Room Prediction
     public bool UseImperialUnits { get; set; } = true;
+    public bool UseRoomPrior { get; set; } = false;
 
     private static string GetPath()
     {
