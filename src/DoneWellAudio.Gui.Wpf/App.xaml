@@ -14,6 +14,7 @@
         <SolidColorBrush x:Key="AppUrgentBrush" Color="#FFFF5555"/> <!-- Red -->
         <SolidColorBrush x:Key="AppWarningBrush" Color="#FFFFAA00"/> <!-- Orange -->
         <SolidColorBrush x:Key="AppSafeBrush" Color="#FFFFFF55"/> <!-- Yellow -->
+        <SolidColorBrush x:Key="AppSuccessBrush" Color="#FF44FF44"/> <!-- Green -->
 
         <!-- Base Font Size -->
         <sys:Double x:Key="BaseFontSize" xmlns:sys="clr-namespace:System;assembly=mscorlib">14</sys:Double>

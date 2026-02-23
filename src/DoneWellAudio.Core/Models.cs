@@ -54,5 +54,6 @@ public sealed record AnalysisSnapshot(
     DateTimeOffset Timestamp,
     bool IsFrozen,
     ImmutableArray<FeedbackCandidate> Candidates,
-    ImmutableArray<EqRecommendation> Recommendations
+    ImmutableArray<EqRecommendation> Recommendations,
+    ImmutableArray<double> SpectrumDb = default
 );

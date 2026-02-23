@@ -164,7 +164,8 @@ public class DetectorTests
     {
         AnalysisSnapshot snap = new(DateTimeOffset.UtcNow, false,
             System.Collections.Immutable.ImmutableArray<FeedbackCandidate>.Empty,
-            System.Collections.Immutable.ImmutableArray<EqRecommendation>.Empty);
+            System.Collections.Immutable.ImmutableArray<EqRecommendation>.Empty,
+            System.Collections.Immutable.ImmutableArray<double>.Empty);
 
         for (int i = 0; i < samples.Length; i += chunk)
         {
