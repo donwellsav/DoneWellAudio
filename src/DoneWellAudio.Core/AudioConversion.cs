@@ -1,15 +1,25 @@
-using NAudio.Wave;
+using System;
 
-namespace DoneWellAudio.Gui.Wpf;
+namespace DoneWellAudio.Core;
 
-internal static class AudioConversion
+public static class AudioConversion
 {
-    public static float[] ToMonoFloat(byte[] buffer, int bytesRecorded, WaveFormat format)
+    /// <summary>
+    ///     Converts a byte array of audio samples (PCM or IEEE Float) into a mono float array.
+    /// </summary>
+    /// <param name="buffer">The raw byte buffer containing audio data.</param>
+    /// <param name="bytesRecorded">The number of valid bytes in the buffer.</param>
+    /// <param name="channels">Number of channels (e.g., 1 for Mono, 2 for Stereo).</param>
+    /// <param name="bitsPerSample">Bit depth (e.g., 16 or 32).</param>
+    /// <param name="isFloat">True if the format is IEEE Float, False if PCM (Integer).</param>
+    /// <returns>A float array containing the mono mix of the audio.</returns>
+    /// <exception cref="NotSupportedException">Thrown if the format is not supported.</exception>
+    public static float[] ToMonoFloat(byte[] buffer, int bytesRecorded, int channels, int bitsPerSample, bool isFloat)
     {
-        int channels = format.Channels;
         if (channels <= 0) channels = 1;
 
-        if (format.Encoding == WaveFormatEncoding.IeeeFloat && format.BitsPerSample == 32)
+        // Handle 32-bit Float
+        if (isFloat && bitsPerSample == 32)
         {
             int samples = bytesRecorded / 4;
             int frames = samples / channels;
@@ -28,7 +38,8 @@ internal static class AudioConversion
             return mono;
         }
 
-        if (format.Encoding == WaveFormatEncoding.Pcm && format.BitsPerSample == 16)
+        // Handle 16-bit PCM
+        if (!isFloat && bitsPerSample == 16)
         {
             int samples = bytesRecorded / 2;
             int frames = samples / channels;
@@ -49,6 +60,7 @@ internal static class AudioConversion
             return mono;
         }
 
-        throw new NotSupportedException($"Unsupported input format: {format.Encoding}, {format.BitsPerSample} bits.");
+        // Fallback
+        throw new NotSupportedException($"Unsupported input format: {(isFloat ? "Float" : "PCM")}, {bitsPerSample} bits.");
     }
 }
