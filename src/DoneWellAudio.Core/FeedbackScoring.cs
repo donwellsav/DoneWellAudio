@@ -12,23 +12,23 @@ public static class FeedbackScoring
         double pMin = settings.Detection.MinProminenceDb;
         double pMax = pMin + 18.0;
         double pRange = Math.Max(pMax - pMin, 1e-9);
-        double prominenceScore = Clamp01((tracked.ProminenceDb - pMin) / pRange);
+        double prominenceScore = Math.Clamp((tracked.ProminenceDb - pMin) / pRange, 0.0, 1.0);
 
         // Narrowness score: Q normalized between minEstimatedQ..maxEstimatedQ
         double qMin = settings.Detection.MinEstimatedQ;
         double qMax = settings.Detection.MaxEstimatedQ;
         double qRange = Math.Max(qMax - qMin, 1e-9);
-        double narrownessScore = Clamp01((estimatedQ - qMin) / qRange);
+        double narrownessScore = Math.Clamp((estimatedQ - qMin) / qRange, 0.0, 1.0);
 
         // Persistence score: total hits normalized to minPersistenceFrames..(min+20)
         double hitsMin = settings.Detection.MinPersistenceFrames;
         double hitsMax = hitsMin + 20.0;
         double hitsRange = Math.Max(hitsMax - hitsMin, 1e-9);
-        double persistenceScore = Clamp01((tracked.TotalHits - hitsMin) / hitsRange);
+        double persistenceScore = Math.Clamp((tracked.TotalHits - hitsMin) / hitsRange, 0.0, 1.0);
 
         // Stability score: frequency stddev inverted; 0..maxDrift
         double maxStd = Math.Max(1.0, settings.Detection.MaxFrequencyDriftHz);
-        double stabilityScore = Clamp01(1.0 - (tracked.FrequencyStdDevHz / maxStd));
+        double stabilityScore = Math.Clamp(1.0 - (tracked.FrequencyStdDevHz / maxStd), 0.0, 1.0);
 
         return new ConfidenceComponents(prominenceScore, narrownessScore, persistenceScore, stabilityScore, roomPriorScore);
     }
@@ -46,8 +46,6 @@ public static class FeedbackScoring
             c.StabilityScore * w.Stability +
             c.RoomPriorScore * w.RoomPrior;
 
-        return Clamp01(score / sumW);
+        return Math.Clamp(score / sumW, 0.0, 1.0);
     }
-
-    private static double Clamp01(double x) => x < 0 ? 0 : x > 1 ? 1 : x;
 }
