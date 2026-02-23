@@ -42,12 +42,10 @@ public class NinosHowlingDetectorTests
         }
 
         // Run multiple times to fill buffer and trigger detection
-        bool detected = false;
         for (int i = 0; i < 200; i++)
         {
             if (detector.Detect(frame, out float freq, out float mag))
             {
-                detected = true;
                 Assert.InRange(freq, 980, 1020);
                 break;
             }

@@ -78,9 +78,7 @@
                         </DockPanel>
 
                         <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                             <TextBlock Text="Bands:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                             <ComboBox x:Name="BellBandsCombo" Width="80" AutomationProperties.Name="Number of bell bands"/>
-                             <CheckBox x:Name="HarmonicFilterCheck" Content="Filter Harmonics" IsChecked="True" VerticalAlignment="Center" Margin="20,0,0,0"/>
+                             <TextBlock Text="Advanced controls moved to Settings" Foreground="Gray" FontStyle="Italic" VerticalAlignment="Center"/>
                         </StackPanel>
                     </StackPanel>
 
@@ -123,9 +121,12 @@
                         </Button>
                     </StackPanel>
 
-                    <Button Grid.Column="2" x:Name="SettingsButton" Click="Settings_Click" Margin="20,0,0,0" VerticalAlignment="Top" Background="Transparent" BorderThickness="0" ToolTip="Settings" AutomationProperties.Name="Settings">
-                        <Path Data="{StaticResource IconSettings}" Fill="{StaticResource AppForegroundBrush}" Width="20" Height="20" Stretch="Uniform"/>
-                    </Button>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right">
+                        <ToggleButton x:Name="RoomPanelToggle" IsChecked="True" Content="Room Panel" Height="30" Width="80" Margin="0,0,10,0" Checked="RoomPanelToggle_Changed" Unchecked="RoomPanelToggle_Changed" Background="{StaticResource AppPanelBrush}" BorderBrush="{StaticResource AppBorderBrush}" Foreground="{StaticResource AppForegroundBrush}"/>
+                        <Button x:Name="SettingsButton" Click="Settings_Click" Margin="0,0,0,0" Background="Transparent" BorderThickness="0" ToolTip="Settings" AutomationProperties.Name="Settings">
+                            <Path Data="{StaticResource IconSettings}" Fill="{StaticResource AppForegroundBrush}" Width="20" Height="20" Stretch="Uniform"/>
+                        </Button>
+                    </StackPanel>
                 </Grid>
             </Border>
 
@@ -196,10 +197,10 @@
                     </GroupBox>
                 </Grid>
 
-                <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Center" VerticalAlignment="Stretch" Background="Transparent" ShowsPreview="True"/>
+                <GridSplitter Grid.Column="1" x:Name="MainSplitter" Width="5" HorizontalAlignment="Center" VerticalAlignment="Stretch" Background="Transparent" ShowsPreview="True"/>
 
                 <!-- Right Column: Room Prediction -->
-                <Grid Grid.Column="2" Margin="10,10,0,0">
+                <Grid Grid.Column="2" x:Name="RoomPredictionPanel" Margin="10,10,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>

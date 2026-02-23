@@ -13,9 +13,19 @@ public class UserSettings
     public SensitivityLevel Sensitivity { get; set; } = SensitivityLevel.Medium;
     public ResponseSpeed ResponseSpeed { get; set; } = ResponseSpeed.Medium;
 
+    // Moved from MainWindow
+    public int BellBands { get; set; } = 3;
+    public bool FilterHarmonics { get; set; } = true;
+
     // Room Prediction
     public bool UseImperialUnits { get; set; } = true;
     public bool UseRoomPrior { get; set; } = false;
+
+    // Advanced Settings
+    public bool SpectralWhitening { get; set; } = true;
+    public double MinProminenceDb { get; set; } = 6.0;
+    public double ConfidenceThreshold { get; set; } = 0.72;
+    public double MaxFrequencyDriftHz { get; set; } = 8.0;
 
     private static string GetPath()
     {
