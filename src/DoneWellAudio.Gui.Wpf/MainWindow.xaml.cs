@@ -160,7 +160,13 @@ public partial class MainWindow : Window
             if (_manualFrozen) return;
             if (_analyzer is null || _settings is null) return;
 
-            var mono = AudioConversion.ToMonoFloat(args.Buffer, args.BytesRecorded, _capture.WaveFormat);
+            var mono = AudioConversion.ToMonoFloat(
+                args.Buffer,
+                args.BytesRecorded,
+                _capture.WaveFormat.Channels,
+                _capture.WaveFormat.BitsPerSample,
+                _capture.WaveFormat.Encoding == WaveFormatEncoding.IeeeFloat
+            );
 
             // Calculate Level (RMS)
             float sum = 0;

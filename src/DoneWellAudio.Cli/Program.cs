@@ -71,7 +71,13 @@ internal static class Program
 
             capture.DataAvailable += (_, e) =>
             {
-                var mono = AudioConversion.ToMonoFloat(e.Buffer, e.BytesRecorded, capture.WaveFormat);
+                var mono = AudioConversion.ToMonoFloat(
+                    e.Buffer,
+                    e.BytesRecorded,
+                    capture.WaveFormat.Channels,
+                    capture.WaveFormat.BitsPerSample,
+                    capture.WaveFormat.Encoding == WaveFormatEncoding.IeeeFloat
+                );
                 var snap = analyzer.ProcessSamples(mono, bellBands);
 
                 if (sw.Elapsed.TotalMilliseconds >= nextPrint)
