@@ -86,7 +86,7 @@ public sealed record UiSettings(
     int UpdateHz
 );
 
-public enum SensitivityLevel { Low, Medium, High }
+public enum SensitivityLevel { Low, Medium, High, Custom }
 public enum ResponseSpeed { Slow, Medium, Fast }
 
 public sealed record DetectorSettings(

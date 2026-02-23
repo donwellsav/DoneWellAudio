@@ -64,21 +64,9 @@ public partial class MainWindow : Window
             ContinuousToggle.IsChecked = _userSettings.ContinuousMode;
             ApplyDetectorOverrides();
 
-            // Populate bell band dropdown 1..7
-            BellBandsCombo.ItemsSource = Enumerable.Range(_eq.BellBandsUi.Min, _eq.BellBandsUi.Max - _eq.BellBandsUi.Min + 1);
-            BellBandsCombo.SelectedItem = Math.Clamp(3, _eq.BellBandsUi.Min, _eq.BellBandsUi.Max);
-
-            // Init fields
-            if (BellBandsCombo.SelectedItem is int b) _targetBellBands = b;
-            _filterHarmonics = HarmonicFilterCheck.IsChecked ?? true;
-
-            // Events
-            BellBandsCombo.SelectionChanged += (_, __) =>
-            {
-                if (BellBandsCombo.SelectedItem is int v) _targetBellBands = v;
-            };
-            HarmonicFilterCheck.Checked += (_, __) => _filterHarmonics = true;
-            HarmonicFilterCheck.Unchecked += (_, __) => _filterHarmonics = false;
+            // Init fields (Now controlled via Settings)
+            _targetBellBands = Math.Clamp(_userSettings.BellBands, _eq.BellBandsUi.Min, _eq.BellBandsUi.Max);
+            _filterHarmonics = _userSettings.FilterHarmonics;
 
             // Populate device dropdown
             RefreshDevices();
@@ -262,15 +250,35 @@ public partial class MainWindow : Window
     private void Settings_Click(object sender, RoutedEventArgs e)
     {
         if (_userSettings == null) _userSettings = new UserSettings();
-        var dlg = new SettingsWindow(_userSettings, () => {
+        if (_eq == null) return;
+
+        // Callback wrapper to handle nullable parameter warning if necessary
+        Action cb = () => {
             ApplyDetectorOverrides();
             if (_currentRoomProfile != null) UpdateRoomPredictionUi(_currentRoomProfile);
-        });
+        };
+
+        var dlg = new SettingsWindow(_userSettings, _eq.BellBandsUi.Min, _eq.BellBandsUi.Max, cb);
         dlg.Owner = this;
         dlg.ShowDialog();
+    }
 
-        ApplyDetectorOverrides();
-        if (_currentRoomProfile != null) UpdateRoomPredictionUi(_currentRoomProfile);
+    private void RoomPanelToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (RoomPredictionPanel == null || MainSplitter == null) return;
+
+        bool show = RoomPanelToggle.IsChecked ?? true;
+        if (show)
+        {
+            RoomPredictionPanel.Visibility = Visibility.Visible;
+            MainSplitter.Visibility = Visibility.Visible;
+            RoomPredictionPanel.Width = double.NaN; // Auto
+        }
+        else
+        {
+            RoomPredictionPanel.Visibility = Visibility.Collapsed;
+            MainSplitter.Visibility = Visibility.Collapsed;
+        }
     }
 
     private void Exit_Click(object sender, RoutedEventArgs e)
@@ -301,11 +309,22 @@ public partial class MainWindow : Window
             ContinuousMode = _userSettings.ContinuousMode,
             Sensitivity = _userSettings.Sensitivity,
             ResponseSpeed = _userSettings.ResponseSpeed,
+            SpectralWhitening = _userSettings.SpectralWhitening,
             Detection = _originalSettings.Detection with
             {
+                MinProminenceDb = _userSettings.MinProminenceDb,
+                MaxFrequencyDriftHz = _userSettings.MaxFrequencyDriftHz,
                 ConfidenceWeights = _originalSettings.Detection.ConfidenceWeights with { RoomPrior = useRoomPrior ? priorWeight : 0.0 }
+            },
+            FreezePolicy = _originalSettings.FreezePolicy with
+            {
+                ConfidenceThreshold = _userSettings.ConfidenceThreshold
             }
         };
+
+        // Update local fields
+        _targetBellBands = _userSettings.BellBands;
+        _filterHarmonics = _userSettings.FilterHarmonics;
 
         if (_analyzer != null)
             _analyzer.UpdateSettings(_settings);

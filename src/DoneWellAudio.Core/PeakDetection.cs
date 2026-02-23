@@ -87,6 +87,7 @@ public static class PeakDetection
             {
                 case SensitivityLevel.High: threshold -= 3.0; break;
                 case SensitivityLevel.Low: threshold += 3.0; break;
+                case SensitivityLevel.Custom: /* Use raw settings.Detection.MinProminenceDb */ break;
             }
 
             if (prominence < threshold) continue;
