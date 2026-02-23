@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using DoneWellAudio.Core.RoomPrediction;
@@ -19,6 +20,7 @@ public sealed class FeedbackAnalyzer
     // Reusable buffers for spectrum analysis
     private double[] _magDbBuffer = Array.Empty<double>();
     private double[] _whitenedBuffer = Array.Empty<double>();
+    private readonly List<Peak> _peakBuffer = new();
 
     private int _ringHead; // Start of valid data
     private int _ringTail; // End of valid data (write position)
@@ -230,8 +232,8 @@ public sealed class FeedbackAnalyzer
                     peaksInput = _whitenedBuffer;
                 }
 
-                var peaks = PeakDetection.FindPeaks(peaksInput, _sampleRate, _settings);
-                var tracked = _tracker.Update(peaks, _settings);
+                PeakDetection.FindPeaks(peaksInput, _sampleRate, _settings, _peakBuffer);
+                var tracked = _tracker.Update(_peakBuffer, _settings);
 
                 _lastCandidates = BuildCandidates(tracked, _magDbBuffer, filterHarmonics);
                 _lastRecs = RecommendationEngine.Recommend(_lastCandidates, _eq, bellBandsRequested);
