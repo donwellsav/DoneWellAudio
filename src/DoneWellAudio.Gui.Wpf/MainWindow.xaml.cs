@@ -262,11 +262,15 @@ public partial class MainWindow : Window
     private void Settings_Click(object sender, RoutedEventArgs e)
     {
         if (_userSettings == null) _userSettings = new UserSettings();
-        var dlg = new SettingsWindow(_userSettings, ApplyDetectorOverrides);
+        var dlg = new SettingsWindow(_userSettings, () => {
+            ApplyDetectorOverrides();
+            if (_currentRoomProfile != null) UpdateRoomPredictionUi(_currentRoomProfile);
+        });
         dlg.Owner = this;
         dlg.ShowDialog();
 
         ApplyDetectorOverrides();
+        if (_currentRoomProfile != null) UpdateRoomPredictionUi(_currentRoomProfile);
     }
 
     private void Exit_Click(object sender, RoutedEventArgs e)
@@ -427,18 +431,63 @@ public partial class MainWindow : Window
         if (_analyzer != null) _analyzer.SetRoomPrediction(result);
 
         RoomProfileNameText.Text = profile.Name;
-        RoomLengthInput.Text = profile.Dimensions.Length.ToString();
-        RoomWidthInput.Text = profile.Dimensions.Width.ToString();
-        RoomHeightInput.Text = profile.Dimensions.Height.ToString();
+
+        bool imperial = _userSettings?.UseImperialUnits ?? true;
+
+        // Toggle Input Visibility
+        if (imperial)
+        {
+            MetricInputPanel.Visibility = Visibility.Collapsed;
+            ImperialInputPanel.Visibility = Visibility.Visible;
+
+            // Populate Imperial Fields (Meters -> Feet/Inches)
+            void SetFtIn(double meters, System.Windows.Controls.TextBox txtFt, System.Windows.Controls.TextBox txtIn)
+            {
+                double totalFeet = meters * 3.28084;
+                int feet = (int)totalFeet;
+                double inches = (totalFeet - feet) * 12.0;
+                txtFt.Text = feet.ToString();
+                txtIn.Text = $"{inches:F1}";
+            }
+
+            SetFtIn(profile.Dimensions.Length, RoomLengthFt, RoomLengthIn);
+            SetFtIn(profile.Dimensions.Width, RoomWidthFt, RoomWidthIn);
+            SetFtIn(profile.Dimensions.Height, RoomHeightFt, RoomHeightIn);
+        }
+        else
+        {
+            MetricInputPanel.Visibility = Visibility.Visible;
+            ImperialInputPanel.Visibility = Visibility.Collapsed;
+
+            RoomLengthInput.Text = profile.Dimensions.Length.ToString();
+            RoomWidthInput.Text = profile.Dimensions.Width.ToString();
+            RoomHeightInput.Text = profile.Dimensions.Height.ToString();
+        }
+
+        // Update List Headers
+        if (RoomBandsList.View is System.Windows.Controls.GridView gridView)
+        {
+            gridView.Columns[2].Header = imperial ? "R (ft²)" : "R";
+            gridView.Columns[3].Header = imperial ? "Dc (ft)" : "Dc (m)";
+        }
 
         _roomRows.Clear();
         foreach (var band in result.BandResults)
         {
+            double r = band.RoomConstant;
+            double dc = band.CriticalDistance;
+
+            if (imperial)
+            {
+                r *= 10.7639; // m² to ft²
+                dc *= 3.28084; // m to ft
+            }
+
             _roomRows.Add(new RoomAcousticResultUi(
                 band.FrequencyHz,
                 band.Rt60Sabine,
-                band.RoomConstant,
-                band.CriticalDistance,
+                r,
+                dc,
                 band.SystemGainInUse,
                 string.Join(", ", band.Warnings)
             ));
@@ -460,9 +509,36 @@ public partial class MainWindow : Window
              return;
         }
 
-        if (double.TryParse(RoomLengthInput.Text, out double l) &&
-            double.TryParse(RoomWidthInput.Text, out double w) &&
-            double.TryParse(RoomHeightInput.Text, out double h))
+        double l = 0, w = 0, h = 0;
+        bool valid = false;
+        bool imperial = _userSettings?.UseImperialUnits ?? true;
+
+        if (imperial)
+        {
+            // Parse Feet/Inches
+            double ParseFtIn(string ftStr, string inStr)
+            {
+                double ft = double.TryParse(ftStr, out var f) ? f : 0;
+                double inch = double.TryParse(inStr, out var i) ? i : 0;
+                return (ft + inch / 12.0) / 3.28084; // Convert back to meters
+            }
+
+            l = ParseFtIn(RoomLengthFt.Text, RoomLengthIn.Text);
+            w = ParseFtIn(RoomWidthFt.Text, RoomWidthIn.Text);
+            h = ParseFtIn(RoomHeightFt.Text, RoomHeightIn.Text);
+            valid = true; // ParseFtIn handles emptiness safely
+        }
+        else
+        {
+            if (double.TryParse(RoomLengthInput.Text, out l) &&
+                double.TryParse(RoomWidthInput.Text, out w) &&
+                double.TryParse(RoomHeightInput.Text, out h))
+            {
+                valid = true;
+            }
+        }
+
+        if (valid)
         {
             if (l <= 0 || w <= 0 || h <= 0)
             {

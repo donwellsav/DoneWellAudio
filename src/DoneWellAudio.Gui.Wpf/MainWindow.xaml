@@ -202,16 +202,51 @@
                             <TextBlock Text="Room Profile:" FontWeight="Bold" Margin="0,0,10,0" VerticalAlignment="Center"/>
                             <TextBlock x:Name="RoomProfileNameText" Text="Loading..." Margin="0,0,20,0" VerticalAlignment="Center"/>
 
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <!-- Metric Input Panel -->
+                            <StackPanel x:Name="MetricInputPanel" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed">
                                 <TextBox x:Name="RoomLengthInput" Width="60" Margin="0,0,5,0" VerticalContentAlignment="Center"/>
                                 <TextBlock Text="x" VerticalAlignment="Center" Margin="0,0,5,0"/>
                                 <TextBox x:Name="RoomWidthInput" Width="60" Margin="0,0,5,0" VerticalContentAlignment="Center"/>
                                 <TextBlock Text="x" VerticalAlignment="Center" Margin="0,0,5,0"/>
                                 <TextBox x:Name="RoomHeightInput" Width="60" Margin="0,0,5,0" VerticalContentAlignment="Center"/>
                                 <TextBlock Text="m" VerticalAlignment="Center" Margin="0,0,10,0"/>
-
-                                <Button x:Name="CalculateRoomButton" Content="Calculate" Click="CalculateRoomButton_Click" Padding="10,2" VerticalAlignment="Center"/>
                             </StackPanel>
+
+                            <!-- Imperial Input Panel (Grid Layout) -->
+                            <StackPanel x:Name="ImperialInputPanel" Orientation="Vertical" VerticalAlignment="Center" Margin="0,-5,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/> <!-- Label Col -->
+                                        <ColumnDefinition Width="Auto"/> <!-- Length Col -->
+                                        <ColumnDefinition Width="Auto"/> <!-- Width Col -->
+                                        <ColumnDefinition Width="Auto"/> <!-- Height Col -->
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/> <!-- Header -->
+                                        <RowDefinition Height="Auto"/> <!-- Feet -->
+                                        <RowDefinition Height="Auto"/> <!-- Inches -->
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Headers -->
+                                    <TextBlock Text="Length" Grid.Column="1" HorizontalAlignment="Center" Margin="0,0,5,2" FontSize="10" Foreground="Gray"/>
+                                    <TextBlock Text="Width" Grid.Column="2" HorizontalAlignment="Center" Margin="0,0,5,2" FontSize="10" Foreground="Gray"/>
+                                    <TextBlock Text="Height" Grid.Column="3" HorizontalAlignment="Center" Margin="0,0,5,2" FontSize="10" Foreground="Gray"/>
+
+                                    <!-- Row 1: Feet -->
+                                    <TextBlock Text="ft" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                    <TextBox x:Name="RoomLengthFt" Grid.Row="1" Grid.Column="1" Width="50" Margin="0,0,5,2"/>
+                                    <TextBox x:Name="RoomWidthFt" Grid.Row="1" Grid.Column="2" Width="50" Margin="0,0,5,2"/>
+                                    <TextBox x:Name="RoomHeightFt" Grid.Row="1" Grid.Column="3" Width="50" Margin="0,0,5,2"/>
+
+                                    <!-- Row 2: Inches -->
+                                    <TextBlock Text="in" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                    <TextBox x:Name="RoomLengthIn" Grid.Row="2" Grid.Column="1" Width="50" Margin="0,0,5,0"/>
+                                    <TextBox x:Name="RoomWidthIn" Grid.Row="2" Grid.Column="2" Width="50" Margin="0,0,5,0"/>
+                                    <TextBox x:Name="RoomHeightIn" Grid.Row="2" Grid.Column="3" Width="50" Margin="0,0,5,0"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <Button x:Name="CalculateRoomButton" Content="Calculate" Click="CalculateRoomButton_Click" Padding="10,2" VerticalAlignment="Center" Margin="10,0,0,0"/>
                         </StackPanel>
 
                         <Grid Grid.Row="1">

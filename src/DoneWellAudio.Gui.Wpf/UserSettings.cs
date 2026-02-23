@@ -13,6 +13,9 @@ public class UserSettings
     public SensitivityLevel Sensitivity { get; set; } = SensitivityLevel.Medium;
     public ResponseSpeed ResponseSpeed { get; set; } = ResponseSpeed.Medium;
 
+    // Room Prediction
+    public bool UseImperialUnits { get; set; } = true;
+
     private static string GetPath()
     {
         var configDir = AppPaths.FindConfigDirectory();
