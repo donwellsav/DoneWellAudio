@@ -182,10 +182,7 @@ public sealed class FeedbackAnalyzer
                 var mag = _fft.MagnitudeSpectrum(_analysisBuffer);
 
                 // Build dB curve for Q estimation
-                var magDb = new double[mag.Length];
-                const double floor = 1e-12;
-                for (int i = 0; i < mag.Length; i++)
-                    magDb[i] = 20.0 * Math.Log10(Math.Max(floor, mag[i]));
+                var magDb = PeakDetection.ConvertToDb(mag);
 
                 var peaks = PeakDetection.FindPeaksDb(mag, _sampleRate, _settings);
                 var tracked = _tracker.Update(peaks, _settings);
