@@ -11,17 +11,20 @@ public static class FeedbackScoring
         // Prominence score: normalize around minProminenceDb..(min+18)
         double pMin = settings.Detection.MinProminenceDb;
         double pMax = pMin + 18.0;
-        double prominenceScore = Clamp01((tracked.ProminenceDb - pMin) / (pMax - pMin));
+        double pRange = Math.Max(pMax - pMin, 1e-9);
+        double prominenceScore = Clamp01((tracked.ProminenceDb - pMin) / pRange);
 
         // Narrowness score: Q normalized between minEstimatedQ..maxEstimatedQ
         double qMin = settings.Detection.MinEstimatedQ;
         double qMax = settings.Detection.MaxEstimatedQ;
-        double narrownessScore = Clamp01((estimatedQ - qMin) / (qMax - qMin));
+        double qRange = Math.Max(qMax - qMin, 1e-9);
+        double narrownessScore = Clamp01((estimatedQ - qMin) / qRange);
 
         // Persistence score: total hits normalized to minPersistenceFrames..(min+20)
         double hitsMin = settings.Detection.MinPersistenceFrames;
         double hitsMax = hitsMin + 20.0;
-        double persistenceScore = Clamp01((tracked.TotalHits - hitsMin) / (hitsMax - hitsMin));
+        double hitsRange = Math.Max(hitsMax - hitsMin, 1e-9);
+        double persistenceScore = Clamp01((tracked.TotalHits - hitsMin) / hitsRange);
 
         // Stability score: frequency stddev inverted; 0..maxDrift
         double maxStd = Math.Max(1.0, settings.Detection.MaxFrequencyDriftHz);
