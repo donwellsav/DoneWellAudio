@@ -33,6 +33,7 @@ public sealed class FeedbackAnalyzer
 
     private ImmutableArray<FeedbackCandidate> _lastCandidates = ImmutableArray<FeedbackCandidate>.Empty;
     private ImmutableArray<EqRecommendation> _lastRecs = ImmutableArray<EqRecommendation>.Empty;
+    private ImmutableArray<double> _lastSpectrum = ImmutableArray<double>.Empty;
 
     public FeedbackAnalyzer(DetectorSettings settings, EqProfile eqProfile, IFft fft)
     {
@@ -122,6 +123,7 @@ public sealed class FeedbackAnalyzer
         _freezeStreak = 0;
         _lastCandidates = ImmutableArray<FeedbackCandidate>.Empty;
         _lastRecs = ImmutableArray<EqRecommendation>.Empty;
+        _lastSpectrum = ImmutableArray<double>.Empty;
     }
 
     public AnalysisSnapshot ProcessSamples(ReadOnlySpan<float> monoSamples, int bellBandsRequested, bool filterHarmonics = true)
@@ -130,7 +132,7 @@ public sealed class FeedbackAnalyzer
 
         if (_frozen && !_settings.ContinuousMode)
         {
-            return new AnalysisSnapshot(DateTimeOffset.UtcNow, true, _lastCandidates, _lastRecs);
+            return new AnalysisSnapshot(DateTimeOffset.UtcNow, true, _lastCandidates, _lastRecs, _lastSpectrum);
         }
 
         // Ensure buffers are ready
@@ -237,6 +239,7 @@ public sealed class FeedbackAnalyzer
 
                 _lastCandidates = BuildCandidates(tracked, _magDbBuffer, filterHarmonics);
                 _lastRecs = RecommendationEngine.Recommend(_lastCandidates, _eq, bellBandsRequested);
+                _lastSpectrum = _magDbBuffer.ToImmutableArray();
 
                 UpdateFreeze(_lastCandidates);
 
@@ -246,7 +249,7 @@ public sealed class FeedbackAnalyzer
             }
         }
 
-        return new AnalysisSnapshot(DateTimeOffset.UtcNow, _frozen, _lastCandidates, _lastRecs);
+        return new AnalysisSnapshot(DateTimeOffset.UtcNow, _frozen, _lastCandidates, _lastRecs, _lastSpectrum);
     }
 
     private ImmutableArray<FeedbackCandidate> BuildCandidates(IReadOnlyList<TrackedPeak> tracked, double[] magDb, bool filterHarmonics)

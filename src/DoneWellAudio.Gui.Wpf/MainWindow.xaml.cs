@@ -19,7 +19,8 @@ public partial class MainWindow : Window
     private readonly object _snapLock = new();
     private AnalysisSnapshot _latest = new(DateTimeOffset.UtcNow, false,
         System.Collections.Immutable.ImmutableArray<FeedbackCandidate>.Empty,
-        System.Collections.Immutable.ImmutableArray<EqRecommendation>.Empty);
+        System.Collections.Immutable.ImmutableArray<EqRecommendation>.Empty,
+        System.Collections.Immutable.ImmutableArray<double>.Empty);
 
     private WasapiCapture? _capture;
     private FeedbackAnalyzer? _analyzer;
@@ -108,7 +109,7 @@ public partial class MainWindow : Window
                     RoomProfileNameText.Text = "Not Found";
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 RoomProfileNameText.Text = "Error Loading";
                 // Log silently or show warning
@@ -363,6 +364,19 @@ public partial class MainWindow : Window
 
         StatusText.Text = snap.IsFrozen ? "Frozen (auto). Adjust analog EQ, then Rescan." : (_manualFrozen ? "Frozen (manual)." : "Scanning…");
 
+        // Update Graph
+        FeedbackGraph.Render(snap);
+
+        // Colors
+        string colorRed = "#FFFF5555";
+        string colorOrange = "#FFFFAA00";
+        string colorGreen = "#FF44FF44"; // New Safe/Success color
+        string colorDefault = "#FFF0F0F0";
+
+        if (Application.Current.Resources["AppUrgentBrush"] is System.Windows.Media.SolidColorBrush bRed) colorRed = bRed.Color.ToString();
+        if (Application.Current.Resources["AppWarningBrush"] is System.Windows.Media.SolidColorBrush bOrange) colorOrange = bOrange.Color.ToString();
+        if (Application.Current.Resources["AppSuccessBrush"] is System.Windows.Media.SolidColorBrush bGreen) colorGreen = bGreen.Color.ToString();
+
         // Candidates
         _candidateRows.Clear();
         foreach (var c in snap.Candidates.Take(20))
@@ -370,22 +384,14 @@ public partial class MainWindow : Window
             // Urgency Logic
             // High (Red): Confidence > 0.8 OR Prominence > 10dB
             // Medium (Orange): Confidence > 0.5 OR Prominence > 5dB
-            // Low (Yellow): Default
+            // Low (Green): Default
 
-            string color = "White"; // Default fallback
-            if (Application.Current.Resources["AppUrgentBrush"] is System.Windows.Media.SolidColorBrush red) color = red.Color.ToString();
-            if (Application.Current.Resources["AppWarningBrush"] is System.Windows.Media.SolidColorBrush orange) color = orange.Color.ToString();
-            if (Application.Current.Resources["AppSafeBrush"] is System.Windows.Media.SolidColorBrush yellow) color = yellow.Color.ToString();
-
-            // Re-eval
-            string finalColor = "#FFF0F0F0"; // Default Text
+            string finalColor = colorGreen;
 
             if (c.Confidence > 0.8 || c.Tracked.ProminenceDb > 10.0)
-                finalColor = "#FFFF5555"; // Red
+                finalColor = colorRed;
             else if (c.Confidence > 0.5 || c.Tracked.ProminenceDb > 5.0)
-                finalColor = "#FFFFAA00"; // Orange
-            else
-                finalColor = "#FFFFEEAA"; // Yellow-ish
+                finalColor = colorOrange;
 
             _candidateRows.Add(new CandidateRow(
                 FrequencyHz: $"{c.Tracked.FrequencyHz:0}",
@@ -406,11 +412,21 @@ public partial class MainWindow : Window
             if (i < snap.Recommendations.Length)
             {
                 var r = snap.Recommendations[i];
+
+                // Color Logic for EQ
+                // Red > 6dB cut (GainDb < -6)
+                // Orange > 3dB cut (GainDb < -3)
+                // Green otherwise
+                string eqColor = colorGreen;
+                if (r.GainDb < -6.0) eqColor = colorRed;
+                else if (r.GainDb < -3.0) eqColor = colorOrange;
+
                 _recRows.Add(new RecRow(
                     BandIndex: $"{r.BandIndex}",
                     FrequencyHz: $"{r.FrequencyHz:0}",
                     GainDb: $"{r.GainDb:0.0}",
-                    Q: r.Q is null ? "" : $"{r.Q:0.0}"
+                    Q: r.Q is null ? "" : $"{r.Q:0.0}",
+                    RowColor: eqColor
                 ));
             }
             else
@@ -419,8 +435,21 @@ public partial class MainWindow : Window
                     BandIndex: $"{i + 1}",
                     FrequencyHz: "--",
                     GainDb: "--",
-                    Q: ""
+                    Q: "",
+                    RowColor: colorDefault
                 ));
+            }
+        }
+    }
+
+    private void GraphModeCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (FeedbackGraph == null) return;
+        if (GraphModeCombo.SelectedItem is System.Windows.Controls.ComboBoxItem item && item.Tag is string tag)
+        {
+            if (Enum.TryParse<GraphMode>(tag, out var mode))
+            {
+                FeedbackGraph.Mode = mode;
             }
         }
     }
@@ -433,7 +462,8 @@ public partial class MainWindow : Window
         {
             _latest = new AnalysisSnapshot(DateTimeOffset.UtcNow, false,
                 System.Collections.Immutable.ImmutableArray<FeedbackCandidate>.Empty,
-                System.Collections.Immutable.ImmutableArray<EqRecommendation>.Empty);
+                System.Collections.Immutable.ImmutableArray<EqRecommendation>.Empty,
+                System.Collections.Immutable.ImmutableArray<double>.Empty);
         }
     }
 
@@ -485,6 +515,13 @@ public partial class MainWindow : Window
             gridView.Columns[3].Header = imperial ? "Dc (ft)" : "Dc (m)";
         }
 
+        string colorRed = "#FFFF5555";
+        string colorGreen = "#FF44FF44";
+        string colorDefault = "#FFF0F0F0";
+
+        if (Application.Current.Resources["AppUrgentBrush"] is System.Windows.Media.SolidColorBrush bRed) colorRed = bRed.Color.ToString();
+        if (Application.Current.Resources["AppSuccessBrush"] is System.Windows.Media.SolidColorBrush bGreen) colorGreen = bGreen.Color.ToString();
+
         _roomRows.Clear();
         foreach (var band in result.BandResults)
         {
@@ -497,13 +534,17 @@ public partial class MainWindow : Window
                 dc *= 3.28084; // m to ft
             }
 
+            // Color based on warnings
+            string rowColor = band.Warnings.Count > 0 ? colorRed : colorGreen;
+
             _roomRows.Add(new RoomAcousticResultUi(
                 band.FrequencyHz,
                 band.Rt60Sabine,
                 r,
                 dc,
                 band.SystemGainInUse,
-                string.Join(", ", band.Warnings)
+                string.Join(", ", band.Warnings),
+                rowColor
             ));
         }
 
@@ -511,7 +552,8 @@ public partial class MainWindow : Window
         foreach (var mode in result.ModesBelowSchroeder)
         {
             string type = mode.IsAxial ? "Axial" : mode.IsTangential ? "Tangential" : "Oblique";
-            _modeRows.Add(new RoomModeUi(mode.FrequencyHz, mode.CouplingWeight, type));
+            // Color modes? Maybe just safe green/white.
+            _modeRows.Add(new RoomModeUi(mode.FrequencyHz, mode.CouplingWeight, type, colorDefault));
         }
     }
 
@@ -630,7 +672,7 @@ public partial class MainWindow : Window
     }
 
     public sealed record CandidateRow(string FrequencyHz, string Confidence, string EstimatedQ, string ProminenceDb, string TotalHits, string FrequencyStdDevHz, string RowColor);
-    public sealed record RecRow(string BandIndex, string FrequencyHz, string GainDb, string Q);
+    public sealed record RecRow(string BandIndex, string FrequencyHz, string GainDb, string Q, string RowColor);
 
     public sealed record RoomAcousticResultUi(
         double FrequencyHz,
@@ -638,12 +680,14 @@ public partial class MainWindow : Window
         double RoomConstant,
         double CriticalDistance,
         double SystemGainInUse,
-        string WarningsString
+        string WarningsString,
+        string RowColor
     );
 
     public sealed record RoomModeUi(
         double FrequencyHz,
         double CouplingWeight,
-        string TypeString
+        string TypeString,
+        string RowColor
     );
 }
