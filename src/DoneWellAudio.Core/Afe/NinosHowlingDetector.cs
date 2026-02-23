@@ -1,5 +1,7 @@
 using System;
 using System.Buffers;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 
@@ -149,7 +151,7 @@ public sealed class NinosHowlingDetector : IHowlingDetector, IDisposable
         return ComputeNinosScore(timeSeries);
     }
 
-    private unsafe float ComputeNinosScore(ReadOnlySpan<float> y)
+    private float ComputeNinosScore(ReadOnlySpan<float> y)
     {
         float sumSq = 0; // L2^2
         float sumPow4 = 0; // L4^4
@@ -157,40 +159,31 @@ public sealed class NinosHowlingDetector : IHowlingDetector, IDisposable
         int i = 0;
         int len = y.Length;
 
-        // AVX2 Implementation
-        if (Avx.IsSupported && len >= 8)
+        // Modern SIMD Implementation (Safe)
+        if (Vector256.IsHardwareAccelerated && len >= Vector256<float>.Count)
         {
             Vector256<float> vSumSq = Vector256<float>.Zero;
             Vector256<float> vSumPow4 = Vector256<float>.Zero;
 
-            // Process 8 floats at a time
-            fixed (float* ptr = y)
-            {
-                for (; i <= len - 8; i += 8)
-                {
-                    var v = Avx.LoadVector256(ptr + i);
-                    var v2 = Avx.Multiply(v, v);      // v^2
-                    var v4 = Avx.Multiply(v2, v2);    // v^4
+            ref float searchSpace = ref MemoryMarshal.GetReference(y);
+            int vectorCount = Vector256<float>.Count;
 
-                    vSumSq = Avx.Add(vSumSq, v2);
-                    vSumPow4 = Avx.Add(vSumPow4, v4);
-                }
+            // Process vector chunks
+            for (; i <= len - vectorCount; i += vectorCount)
+            {
+                // Safe load using ref + Unsafe.Add (standard performant pattern in .NET)
+                var v = Vector256.LoadUnsafe(ref Unsafe.Add(ref searchSpace, i));
+
+                var v2 = v * v;      // v^2
+                var v4 = v2 * v2;    // v^4
+
+                vSumSq += v2;
+                vSumPow4 += v4;
             }
 
             // Reduce Vector to Scalar
-            // Since we lack efficient HADD in AVX for floats easily available without multiple shuffles,
-            // we'll just extract to array.
-            float* tempSq = stackalloc float[8];
-            float* tempP4 = stackalloc float[8];
-
-            Avx.Store(tempSq, vSumSq);
-            Avx.Store(tempP4, vSumPow4);
-
-            for (int k = 0; k < 8; k++)
-            {
-                sumSq += tempSq[k];
-                sumPow4 += tempP4[k];
-            }
+            sumSq += Vector256.Sum(vSumSq);
+            sumPow4 += Vector256.Sum(vSumPow4);
         }
 
         // Process remaining elements
@@ -213,7 +206,7 @@ public sealed class NinosHowlingDetector : IHowlingDetector, IDisposable
         return (float)((1.0 / denom) * (ratio - 1.0));
     }
 
-    private unsafe bool VerifyEntrainment(int binIndex, int frameIndex)
+    private bool VerifyEntrainment(int binIndex, int frameIndex)
     {
         float currentPower = GetPowerDb(binIndex, frameIndex);
 
