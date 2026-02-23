@@ -24,8 +24,17 @@ public partial class SettingsWindow : Window
         SensitivityCombo.SelectedItem = _settings.Sensitivity;
         ResponseCombo.SelectedItem = _settings.ResponseSpeed;
         ImperialCheck.IsChecked = _settings.UseImperialUnits;
+        RoomPriorCheck.IsChecked = _settings.UseRoomPrior;
 
         _initialized = true;
+    }
+
+    private void RoomPriorCheck_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!_initialized) return;
+        _settings.UseRoomPrior = RoomPriorCheck.IsChecked ?? false;
+        _settings.Save();
+        _onSettingsChanged?.Invoke();
     }
 
     private void ImperialCheck_Changed(object sender, RoutedEventArgs e)
@@ -63,6 +72,7 @@ public partial class SettingsWindow : Window
         SensitivityCombo.SelectedItem = SensitivityLevel.Medium;
         ResponseCombo.SelectedItem = ResponseSpeed.Medium;
         ImperialCheck.IsChecked = true;
+        RoomPriorCheck.IsChecked = false;
 
         _settings.Save();
         _onSettingsChanged?.Invoke();

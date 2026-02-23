@@ -285,16 +285,11 @@ public partial class MainWindow : Window
         about.ShowDialog();
     }
 
-    private void UseRoomPriorCheck_Changed(object sender, RoutedEventArgs e)
-    {
-        ApplyDetectorOverrides();
-    }
-
     private void ApplyDetectorOverrides()
     {
         if (_settings == null || _userSettings == null || _originalSettings == null) return;
 
-        bool useRoomPrior = UseRoomPriorCheck.IsChecked ?? false;
+        bool useRoomPrior = _userSettings.UseRoomPrior;
 
         // Use configured weight or default 0.2 if 0
         double priorWeight = _originalSettings.Detection.ConfidenceWeights.RoomPrior;
