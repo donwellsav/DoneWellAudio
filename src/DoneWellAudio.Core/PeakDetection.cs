@@ -39,13 +39,25 @@ public static class PeakDetection
         int sampleRate,
         DetectorSettings settings)
     {
+        var peaks = new List<Peak>();
+        FindPeaks(magDb, sampleRate, settings, peaks);
+        return peaks;
+    }
+
+    public static void FindPeaks(
+        double[] magDb,
+        int sampleRate,
+        DetectorSettings settings,
+        List<Peak> destination)
+    {
+        if (destination == null) throw new ArgumentNullException(nameof(destination));
+        destination.Clear();
+
         int nFft = (magDb.Length - 1) * 2;
         double binHz = sampleRate / (double)nFft;
 
         int minBin = (int)Math.Max(1, Math.Floor(settings.Audio.MinFrequencyHz / binHz));
         int maxBin = (int)Math.Min(magDb.Length - 2, Math.Ceiling(settings.Audio.MaxFrequencyHz / binHz));
-
-        var peaks = new List<Peak>();
 
         int nb = Math.Max(2, settings.Detection.LocalNeighborhoodBins);
 
@@ -80,12 +92,11 @@ public static class PeakDetection
             if (prominence < threshold) continue;
 
             double freq = i * binHz;
-            peaks.Add(new Peak(freq, magDb[i], prominence));
+            destination.Add(new Peak(freq, magDb[i], prominence));
         }
 
         // Sort by prominence (desc)
-        peaks.Sort((a, b) => b.ProminenceDb.CompareTo(a.ProminenceDb));
-        return peaks;
+        destination.Sort((a, b) => b.ProminenceDb.CompareTo(a.ProminenceDb));
     }
 
     public static double EstimateQFromDbCurve(double[] magDb, int peakIndex, double binHz, double dropDb = 6.0)
