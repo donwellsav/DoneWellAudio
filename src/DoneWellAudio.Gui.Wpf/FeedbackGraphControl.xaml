@@ -6,14 +6,24 @@
              xmlns:local="clr-namespace:DoneWellAudio.Gui.Wpf"
              mc:Ignorable="d"
              d:DesignHeight="200" d:DesignWidth="400">
-    <Grid Background="Black">
+    <Grid Background="Black" MouseMove="Grid_MouseMove" MouseLeave="Grid_MouseLeave">
         <!-- Waterfall Image -->
         <Image x:Name="WaterfallImage" Stretch="Fill" RenderOptions.BitmapScalingMode="NearestNeighbor" Visibility="Collapsed"/>
 
-        <!-- Canvas for Spectrum and Confidence -->
-        <Canvas x:Name="MainCanvas" ClipToBounds="True"/>
+        <!-- Grid Lines / Axes -->
+        <Canvas x:Name="AxisCanvas" ClipToBounds="True" IsHitTestVisible="False"/>
 
-        <!-- Grid Lines / Axes could go here -->
-        <TextBlock x:Name="ModeText" Text="Mode" Foreground="Gray" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="5" FontSize="10" Opacity="0.5"/>
+        <!-- Spectrum / Confidence -->
+        <Canvas x:Name="MainCanvas" ClipToBounds="True" IsHitTestVisible="False"/>
+
+        <!-- Cursor Overlay -->
+        <Canvas x:Name="CursorCanvas" ClipToBounds="True" IsHitTestVisible="False"/>
+
+        <!-- Settings & Data Text -->
+        <StackPanel Orientation="Vertical" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="5" IsHitTestVisible="False">
+             <TextBlock x:Name="ModeText" Text="Mode" Foreground="Gray" FontSize="10" Opacity="0.8" HorizontalAlignment="Right"/>
+             <TextBlock x:Name="SettingsText" Text="Log 20Hz-20kHz | Range: -120dB" Foreground="Gray" FontSize="10" Opacity="0.5" HorizontalAlignment="Right"/>
+             <TextBlock x:Name="DataText" Text="" Foreground="#00FF00" FontSize="12" FontWeight="Bold" HorizontalAlignment="Right" Margin="0,5,0,0"/>
+        </StackPanel>
     </Grid>
 </UserControl>

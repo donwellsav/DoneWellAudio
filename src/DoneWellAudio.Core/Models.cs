@@ -55,5 +55,6 @@ public sealed record AnalysisSnapshot(
     bool IsFrozen,
     ImmutableArray<FeedbackCandidate> Candidates,
     ImmutableArray<EqRecommendation> Recommendations,
-    ImmutableArray<double> SpectrumDb = default
+    ImmutableArray<double> SpectrumDb = default,
+    double SampleRate = 48000.0
 );
