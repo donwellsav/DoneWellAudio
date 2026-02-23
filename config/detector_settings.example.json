@@ -17,8 +17,11 @@
       "prominence": 0.35,
       "narrowness": 0.35,
       "persistence": 0.2,
-      "stability": 0.1
-    }
+      "stability": 0.1,
+      "roomPrior": 0.0
+    },
+    "roomPriorToleranceHz": 5.0,
+    "roomPriorLowGainThresholdDb": 0.0
   },
   "freezePolicy": {
     "enabled": true,

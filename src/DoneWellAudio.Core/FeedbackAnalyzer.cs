@@ -1,4 +1,6 @@
 using System.Collections.Immutable;
+using System.Linq;
+using DoneWellAudio.Core.RoomPrediction;
 
 namespace DoneWellAudio.Core;
 
@@ -8,6 +10,8 @@ public sealed class FeedbackAnalyzer
     private readonly EqProfile _eq;
     private readonly IFft _fft;
     private readonly PeakTracker _tracker = new();
+
+    private RoomPriorLookup? _roomPrior;
 
     private readonly List<float> _buffer = new();
     private int _sampleRate;
@@ -37,6 +41,11 @@ public sealed class FeedbackAnalyzer
     }
 
     public void SetSampleRate(int sampleRate) => _sampleRate = sampleRate;
+
+    public void SetRoomPrediction(RoomPredictionResult result)
+    {
+        _roomPrior = new RoomPriorLookup(result);
+    }
 
     public void Reset()
     {
@@ -112,7 +121,13 @@ public sealed class FeedbackAnalyzer
 
             if (t.TotalHits < minHits) continue;
 
-            var comps = FeedbackScoring.ScoreComponents(t, q, _settings);
+            double roomScore = 0.0;
+            if (_settings.Detection.ConfidenceWeights.RoomPrior > 0 && _roomPrior != null)
+            {
+                roomScore = _roomPrior.Evaluate(t.FrequencyHz, _settings.Detection.RoomPriorToleranceHz, _settings.Detection.RoomPriorLowGainThresholdDb);
+            }
+
+            var comps = FeedbackScoring.ScoreComponents(t, q, _settings, roomScore);
             double conf = FeedbackScoring.Combine(comps, _settings);
 
             list.Add(new FeedbackCandidate(t, q, conf, comps));
@@ -166,5 +181,65 @@ public sealed class FeedbackAnalyzer
 
         if (_freezeStreak >= _settings.FreezePolicy.ConsecutiveFramesAboveThreshold)
             _frozen = true;
+    }
+
+    private sealed class RoomPriorLookup
+    {
+        private readonly double[] _modeFreqs;
+        private readonly (double Center, double Sg)[] _bandGains;
+
+        public RoomPriorLookup(RoomPredictionResult result)
+        {
+            _modeFreqs = result.ModesBelowSchroeder.Select(m => m.FrequencyHz).OrderBy(f => f).ToArray();
+            _bandGains = result.BandResults
+                .Select(b => (b.FrequencyHz, b.SystemGainInUse))
+                .OrderBy(b => b.FrequencyHz)
+                .ToArray();
+        }
+
+        public double Evaluate(double freq, double tolHz, double lowGainThresh)
+        {
+            double score = 0.0;
+
+            // 1. Mode Match
+            // Binary search for closest mode
+            int idx = Array.BinarySearch(_modeFreqs, freq);
+            if (idx < 0) idx = ~idx;
+
+            // Check neighbors
+            bool match = false;
+            if (idx < _modeFreqs.Length && Math.Abs(_modeFreqs[idx] - freq) <= tolHz) match = true;
+            if (!match && idx > 0 && Math.Abs(_modeFreqs[idx - 1] - freq) <= tolHz) match = true;
+
+            if (match) score += 0.5; // Base score for mode match
+
+            // 2. Low Gain Penalty (High Risk)
+            // Find band
+            // Simple linear scan or assume octaves? Bands are few (6-10).
+            double bandSg = 100.0;
+            // Find closest band center
+            double minDist = double.MaxValue;
+            foreach (var (center, sg) in _bandGains)
+            {
+                 // Check if freq is within this band (approx octave or 1/3 octave)
+                 // Or just interpolation?
+                 // Prompt: "If band SG_in_use is low, add small score."
+                 // Let's assume if freq is near band center.
+                 // Octave bands cover range.
+                 // Let's find nearest center.
+                 double dist = Math.Abs(Math.Log2(freq / center));
+                 if (dist < minDist)
+                 {
+                     minDist = dist;
+                     bandSg = sg;
+                 }
+            }
+
+            // If SG is low (e.g. < 0 or < threshold), boost score
+            // If SG < threshold (e.g. 0dB), add 0.5
+            if (bandSg < lowGainThresh) score += 0.5;
+
+            return Math.Clamp(score, 0.0, 1.0);
+        }
     }
 }

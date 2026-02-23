@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using DoneWellAudio.Core;
+using DoneWellAudio.Core.RoomPrediction;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 
@@ -12,6 +13,8 @@ public partial class MainWindow : Window
 {
     private readonly ObservableCollection<CandidateRow> _candidateRows = new();
     private readonly ObservableCollection<RecRow> _recRows = new();
+    private readonly ObservableCollection<RoomAcousticResultUi> _roomRows = new();
+    private readonly ObservableCollection<RoomModeUi> _modeRows = new();
 
     private readonly object _snapLock = new();
     private AnalysisSnapshot _latest = new(DateTimeOffset.UtcNow, false,
@@ -21,6 +24,7 @@ public partial class MainWindow : Window
     private WasapiCapture? _capture;
     private FeedbackAnalyzer? _analyzer;
     private DetectorSettings? _settings;
+    private DetectorSettings? _originalSettings;
     private EqProfile? _eq;
     private UserSettings? _userSettings;
 
@@ -37,6 +41,8 @@ public partial class MainWindow : Window
 
         CandidatesList.ItemsSource = _candidateRows;
         RecsList.ItemsSource = _recRows;
+        RoomBandsList.ItemsSource = _roomRows;
+        RoomModesList.ItemsSource = _modeRows;
 
         Loaded += (_, __) => Initialize();
         Closing += (_, __) => StopCapture();
@@ -50,6 +56,7 @@ public partial class MainWindow : Window
             var configDir = AppPaths.FindConfigDirectory();
             _eq = ConfigLoader.LoadEqProfile(configDir);
             _settings = ConfigLoader.LoadDetectorSettings(configDir);
+            _originalSettings = _settings;
             _userSettings = UserSettings.Load();
 
             // Apply User Settings
@@ -91,6 +98,56 @@ public partial class MainWindow : Window
             if (version != null)
             {
                 VersionText.Text = $"v{version.Major}.{version.Minor}.{version.Build}";
+            }
+
+            // Load Room Profile (Best effort)
+            try
+            {
+                var profilePath = System.IO.Path.Combine(configDir, "room_profile.json");
+                if (!System.IO.File.Exists(profilePath))
+                    profilePath = System.IO.Path.Combine(configDir, "room_profile.example.json");
+
+                if (System.IO.File.Exists(profilePath))
+                {
+                    var profile = RoomProfileLoader.Load(profilePath);
+                    if (profile != null)
+                    {
+                        var calc = new RoomAcousticsCalculator();
+                        var result = calc.Calculate(profile);
+
+                        if (_analyzer != null) _analyzer.SetRoomPrediction(result);
+
+                        RoomProfileNameText.Text = profile.Name;
+                        RoomDimensionsText.Text = $"{profile.Dimensions.Length}x{profile.Dimensions.Width}x{profile.Dimensions.Height}m";
+
+                        foreach (var band in result.BandResults)
+                        {
+                            _roomRows.Add(new RoomAcousticResultUi(
+                                band.FrequencyHz,
+                                band.Rt60Sabine,
+                                band.RoomConstant,
+                                band.CriticalDistance,
+                                band.SystemGainInUse,
+                                string.Join(", ", band.Warnings)
+                            ));
+                        }
+
+                        foreach (var mode in result.ModesBelowSchroeder)
+                        {
+                            string type = mode.IsAxial ? "Axial" : mode.IsTangential ? "Tangential" : "Oblique";
+                            _modeRows.Add(new RoomModeUi(mode.FrequencyHz, mode.CouplingWeight, type));
+                        }
+                    }
+                }
+                else
+                {
+                    RoomProfileNameText.Text = "Not Found";
+                }
+            }
+            catch (Exception ex)
+            {
+                RoomProfileNameText.Text = "Error Loading";
+                // Log silently or show warning
             }
         }
         catch (Exception ex)
@@ -245,15 +302,31 @@ public partial class MainWindow : Window
         about.ShowDialog();
     }
 
+    private void UseRoomPriorCheck_Changed(object sender, RoutedEventArgs e)
+    {
+        ApplyDetectorOverrides();
+    }
+
     private void ApplyDetectorOverrides()
     {
-        if (_settings == null || _userSettings == null) return;
+        if (_settings == null || _userSettings == null || _originalSettings == null) return;
 
-        _settings = _settings with
+        bool useRoomPrior = UseRoomPriorCheck.IsChecked ?? false;
+
+        // Use configured weight or default 0.2 if 0
+        double priorWeight = _originalSettings.Detection.ConfidenceWeights.RoomPrior;
+        if (priorWeight <= 0.0001) priorWeight = 0.2;
+
+        // Rebuild from original to preserve static config values while applying overrides
+        _settings = _originalSettings with
         {
             ContinuousMode = _userSettings.ContinuousMode,
             Sensitivity = _userSettings.Sensitivity,
-            ResponseSpeed = _userSettings.ResponseSpeed
+            ResponseSpeed = _userSettings.ResponseSpeed,
+            Detection = _originalSettings.Detection with
+            {
+                ConfidenceWeights = _originalSettings.Detection.ConfidenceWeights with { RoomPrior = useRoomPrior ? priorWeight : 0.0 }
+            }
         };
 
         if (_analyzer != null)
@@ -414,4 +487,19 @@ public partial class MainWindow : Window
 
     public sealed record CandidateRow(string FrequencyHz, string Confidence, string EstimatedQ, string ProminenceDb, string TotalHits, string FrequencyStdDevHz, string RowColor);
     public sealed record RecRow(string BandIndex, string FrequencyHz, string GainDb, string Q);
+
+    public sealed record RoomAcousticResultUi(
+        double FrequencyHz,
+        double Rt60Sabine,
+        double RoomConstant,
+        double CriticalDistance,
+        double SystemGainInUse,
+        string WarningsString
+    );
+
+    public sealed record RoomModeUi(
+        double FrequencyHz,
+        double CouplingWeight,
+        string TypeString
+    );
 }

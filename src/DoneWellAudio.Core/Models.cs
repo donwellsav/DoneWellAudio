@@ -37,7 +37,8 @@ public sealed record ConfidenceComponents(
     double ProminenceScore,
     double NarrownessScore,
     double PersistenceScore,
-    double StabilityScore
+    double StabilityScore,
+    double RoomPriorScore = 0.0
 );
 
 public sealed record EqRecommendation(
