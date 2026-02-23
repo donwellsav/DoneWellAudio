@@ -33,37 +33,55 @@ public sealed class PeakTracker
     public IReadOnlyList<TrackedPeak> Update(IEnumerable<Peak> peaks, DetectorSettings settings)
     {
         double toleranceHz = settings.Detection.MaxFrequencyDriftHz;
+        var peakList = peaks.ToList();
 
-        // mark all tracks as not updated
-        var updated = new HashSet<Guid>();
-
-        foreach (var p in peaks)
+        // 1. Calculate all valid distances between peaks and existing tracks
+        var matches = new List<(int PeakIndex, int TrackIndex, double Distance)>();
+        for (int i = 0; i < peakList.Count; i++)
         {
-            // find nearest track
-            TrackState? best = null;
-            double bestDist = double.MaxValue;
-
-            foreach (var t in _tracks)
+            for (int j = 0; j < _tracks.Count; j++)
             {
-                double dist = Math.Abs(t.FrequencyHz - p.FrequencyHz);
-                if (dist < bestDist)
+                double dist = Math.Abs(peakList[i].FrequencyHz - _tracks[j].FrequencyHz);
+                if (dist <= toleranceHz)
                 {
-                    bestDist = dist;
-                    best = t;
+                    matches.Add((i, j, dist));
                 }
             }
+        }
 
-            if (best is not null && bestDist <= toleranceHz)
+        // 2. Sort matches by distance (ascending) for greedy assignment
+        matches.Sort((a, b) => a.Distance.CompareTo(b.Distance));
+
+        var usedPeaks = new bool[peakList.Count];
+        var usedTracks = new bool[_tracks.Count];
+        var updatedTrackIds = new HashSet<Guid>();
+
+        // 3. Assign peaks to tracks greedily
+        foreach (var (pIdx, tIdx, _) in matches)
+        {
+            if (!usedPeaks[pIdx] && !usedTracks[tIdx])
             {
-                best.FrequencyHz = p.FrequencyHz;
-                best.MagnitudeDb = p.MagnitudeDb;
-                best.ProminenceDb = p.ProminenceDb;
-                best.ConsecutiveHits += 1;
-                best.UpdateFrequencyStats(p.FrequencyHz);
-                updated.Add(best.Id);
+                usedPeaks[pIdx] = true;
+                usedTracks[tIdx] = true;
+
+                var track = _tracks[tIdx];
+                var peak = peakList[pIdx];
+
+                track.FrequencyHz = peak.FrequencyHz;
+                track.MagnitudeDb = peak.MagnitudeDb;
+                track.ProminenceDb = peak.ProminenceDb;
+                track.ConsecutiveHits++;
+                track.UpdateFrequencyStats(peak.FrequencyHz);
+                updatedTrackIds.Add(track.Id);
             }
-            else
+        }
+
+        // 4. Create new tracks for any unassigned peaks
+        for (int i = 0; i < peakList.Count; i++)
+        {
+            if (!usedPeaks[i])
             {
+                var p = peakList[i];
                 var t = new TrackState
                 {
                     FrequencyHz = p.FrequencyHz,
@@ -74,18 +92,18 @@ public sealed class PeakTracker
                 };
                 t.UpdateFrequencyStats(p.FrequencyHz);
                 _tracks.Add(t);
-                updated.Add(t.Id);
+                updatedTrackIds.Add(t.Id);
             }
         }
 
-        // decay tracks not updated this frame
+        // 5. Decay tracks not updated this frame
         foreach (var t in _tracks)
         {
-            if (!updated.Contains(t.Id))
+            if (!updatedTrackIds.Contains(t.Id))
                 t.ConsecutiveHits = 0;
         }
 
-        // prune very old/weak tracks (simple)
+        // 6. Prune very old/weak tracks (simple)
         _tracks.RemoveAll(t => t.TotalHits == 0);
 
         return _tracks
