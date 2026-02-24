@@ -294,32 +294,9 @@ public sealed class FeedbackAnalyzer
         // Harmonic-series penalty:
         // If multiple peaks appear at near-integer multiples, treat them as more likely "program material" than isolated feedback.
         // This is a tunable heuristic: adjust or disable once you have real-world calibration data.
-        if (filterHarmonics && list.Count >= 3)
+        if (filterHarmonics)
         {
-            const double ratioTol = 0.015; // 1.5% tolerance
-            var adjusted = new List<FeedbackCandidate>(list.Count);
-
-            foreach (var c in list)
-            {
-                int harmonicCount = 0;
-                foreach (var other in list)
-                {
-                    if (ReferenceEquals(c, other)) continue;
-                    double r = other.Tracked.FrequencyHz / c.Tracked.FrequencyHz;
-                    if (r < 1.8 || r > 6.2) continue;
-                    int k = (int)Math.Round(r);
-                    if (k < 2 || k > 6) continue;
-                    if (Math.Abs(r - k) <= ratioTol) harmonicCount++;
-                }
-
-                double conf = c.Confidence;
-                if (harmonicCount >= 2)
-                    conf *= 0.75;
-
-                adjusted.Add(conf == c.Confidence ? c : c with { Confidence = conf });
-            }
-
-            list = adjusted;
+            list = HarmonicFilter.Apply(list);
         }
 
         list.Sort((a, b) => b.Confidence.CompareTo(a.Confidence));
