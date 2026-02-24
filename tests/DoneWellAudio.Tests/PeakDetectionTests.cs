@@ -186,4 +186,76 @@ public class PeakDetectionTests
         // Q = (10 * 1e-6) / (2 * 1e-6) = 5.
         Assert.Equal(5.0, q, 6);
     }
+
+    [Fact]
+    public void ApplyWhitening_CalculatesCorrectly()
+    {
+        int length = 100;
+        double binHz = 10.0;
+        double[] magDb = new double[length];
+
+        // Fill with 0
+        Array.Fill(magDb, 0.0);
+
+        // Expected
+        double[] expected = new double[length];
+        Array.Fill(expected, 0.0);
+        for (int i = 1; i < length; i++)
+        {
+            double f = i * binHz;
+            if (f > 1.0)
+                expected[i] += 10.0 * Math.Log10(f);
+        }
+
+        PeakDetection.ApplyWhitening(magDb, binHz);
+
+        for (int i = 0; i < length; i++)
+        {
+            Assert.Equal(expected[i], magDb[i], 5);
+        }
+    }
+
+    [Fact]
+    public void ApplyWhitening_WithCurve_CalculatesCorrectly()
+    {
+        int length = 100;
+        double binHz = 10.0;
+        double[] magDb = new double[length];
+        double[] curve = new double[length];
+
+        // Prepare curve
+        for (int i = 1; i < length; i++)
+        {
+            double f = i * binHz;
+            if (f > 1.0)
+                curve[i] = 10.0 * Math.Log10(f);
+        }
+
+        // Fill magDb with 0
+        Array.Fill(magDb, 0.0);
+
+        PeakDetection.ApplyWhitening(magDb, curve);
+
+        for (int i = 0; i < length; i++)
+        {
+            Assert.Equal(curve[i], magDb[i], 5);
+        }
+    }
+
+    [Fact]
+    public void ComputeWhiteningCurve_GeneratesCorrectValues()
+    {
+        int length = 50;
+        double binHz = 2.0;
+        double[] curve = new double[length];
+
+        PeakDetection.ComputeWhiteningCurve(curve, binHz);
+
+        for (int i = 0; i < length; i++)
+        {
+            double f = i * binHz;
+            double expected = (f > 1.0) ? 10.0 * Math.Log10(f) : 0.0;
+            Assert.Equal(expected, curve[i], 5);
+        }
+    }
 }

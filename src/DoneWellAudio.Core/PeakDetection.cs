@@ -34,6 +34,33 @@ public static class PeakDetection
         }
     }
 
+    public static void ApplyWhitening(double[] magDb, double[] curve)
+    {
+        if (curve.Length != magDb.Length)
+            throw new ArgumentException("Curve length must match magnitude array length.", nameof(curve));
+
+        for (int i = 0; i < magDb.Length; i++)
+        {
+            magDb[i] += curve[i];
+        }
+    }
+
+    public static void ComputeWhiteningCurve(double[] destination, double binHz)
+    {
+        if (destination == null) throw new ArgumentNullException(nameof(destination));
+
+        // f = i * binHz. If f <= 1.0, log(f) <= 0.
+        // We only add if f > 1.0. So curve is 0 otherwise.
+        Array.Clear(destination, 0, destination.Length);
+
+        for (int i = 1; i < destination.Length; i++)
+        {
+            double f = i * binHz;
+            if (f > 1.0)
+                destination[i] = 10.0 * Math.Log10(f);
+        }
+    }
+
     public static IReadOnlyList<Peak> FindPeaks(
         double[] magDb,
         int sampleRate,
