@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -374,9 +376,11 @@ public partial class MainWindow : Window
         if (Application.Current.Resources["AppSuccessBrush"] is System.Windows.Media.SolidColorBrush bGreen) colorGreen = bGreen.Color.ToString();
 
         // Candidates
-        _candidateRows.Clear();
-        foreach (var c in snap.Candidates.Take(20))
+        var candidates = snap.Candidates.Take(20).ToList();
+        for (int i = 0; i < candidates.Count; i++)
         {
+            var c = candidates[i];
+
             // Urgency Logic
             // High (Red): Confidence > 0.8 OR Prominence > 10dB
             // Medium (Orange): Confidence > 0.5 OR Prominence > 5dB
@@ -389,22 +393,35 @@ public partial class MainWindow : Window
             else if (c.Confidence > 0.5 || c.Tracked.ProminenceDb > 5.0)
                 finalColor = colorOrange;
 
-            _candidateRows.Add(new CandidateRow(
-                FrequencyHz: $"{c.Tracked.FrequencyHz:0}",
-                Confidence: $"{c.Confidence:0.00}",
-                EstimatedQ: $"{c.EstimatedQ:0.0}",
-                ProminenceDb: $"{c.Tracked.ProminenceDb:0.0}",
-                TotalHits: $"{c.Tracked.TotalHits}",
-                FrequencyStdDevHz: $"{c.Tracked.FrequencyStdDevHz:0.0}",
-                RowColor: finalColor
-            ));
+            string freq = $"{c.Tracked.FrequencyHz:0}";
+            string conf = $"{c.Confidence:0.00}";
+            string estQ = $"{c.EstimatedQ:0.0}";
+            string prom = $"{c.Tracked.ProminenceDb:0.0}";
+            string hits = $"{c.Tracked.TotalHits}";
+            string stdDev = $"{c.Tracked.FrequencyStdDevHz:0.0}";
+
+            if (i < _candidateRows.Count)
+            {
+                _candidateRows[i].Update(freq, conf, estQ, prom, hits, stdDev, finalColor);
+            }
+            else
+            {
+                _candidateRows.Add(new CandidateRow(freq, conf, estQ, prom, hits, stdDev, finalColor));
+            }
+        }
+
+        // Remove excess candidates
+        while (_candidateRows.Count > candidates.Count)
+        {
+            _candidateRows.RemoveAt(_candidateRows.Count - 1);
         }
 
         // Recommendations
-        _recRows.Clear();
         int n = _targetBellBands;
         for (int i = 0; i < n; i++)
         {
+            string bandIndex, freq, gain, q, rowColor;
+
             if (i < snap.Recommendations.Length)
             {
                 var r = snap.Recommendations[i];
@@ -413,28 +430,38 @@ public partial class MainWindow : Window
                 // Red > 6dB cut (GainDb < -6)
                 // Orange > 3dB cut (GainDb < -3)
                 // Green otherwise
-                string eqColor = colorGreen;
-                if (r.GainDb < -6.0) eqColor = colorRed;
-                else if (r.GainDb < -3.0) eqColor = colorOrange;
+                rowColor = colorGreen;
+                if (r.GainDb < -6.0) rowColor = colorRed;
+                else if (r.GainDb < -3.0) rowColor = colorOrange;
 
-                _recRows.Add(new RecRow(
-                    BandIndex: $"{r.BandIndex}",
-                    FrequencyHz: $"{r.FrequencyHz:0}",
-                    GainDb: $"{r.GainDb:0.0}",
-                    Q: r.Q is null ? "" : $"{r.Q:0.0}",
-                    RowColor: eqColor
-                ));
+                bandIndex = $"{r.BandIndex}";
+                freq = $"{r.FrequencyHz:0}";
+                gain = $"{r.GainDb:0.0}";
+                q = r.Q is null ? "" : $"{r.Q:0.0}";
             }
             else
             {
-                _recRows.Add(new RecRow(
-                    BandIndex: $"{i + 1}",
-                    FrequencyHz: "--",
-                    GainDb: "--",
-                    Q: "",
-                    RowColor: colorDefault
-                ));
+                bandIndex = $"{i + 1}";
+                freq = "--";
+                gain = "--";
+                q = "";
+                rowColor = colorDefault;
             }
+
+            if (i < _recRows.Count)
+            {
+                _recRows[i].Update(bandIndex, freq, gain, q, rowColor);
+            }
+            else
+            {
+                _recRows.Add(new RecRow(bandIndex, freq, gain, q, rowColor));
+            }
+        }
+
+        // Remove excess recommendations
+        while (_recRows.Count > n)
+        {
+            _recRows.RemoveAt(_recRows.Count - 1);
         }
     }
 
@@ -665,8 +692,141 @@ public partial class MainWindow : Window
         public override string ToString() => $"[{Index}] {Device.FriendlyName}";
     }
 
-    public sealed record CandidateRow(string FrequencyHz, string Confidence, string EstimatedQ, string ProminenceDb, string TotalHits, string FrequencyStdDevHz, string RowColor);
-    public sealed record RecRow(string BandIndex, string FrequencyHz, string GainDb, string Q, string RowColor);
+    public sealed class CandidateRow : INotifyPropertyChanged
+    {
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        private string _frequencyHz;
+        private string _confidence;
+        private string _estimatedQ;
+        private string _prominenceDb;
+        private string _totalHits;
+        private string _frequencyStdDevHz;
+        private string _rowColor;
+
+        public string FrequencyHz
+        {
+            get => _frequencyHz;
+            set { if (_frequencyHz != value) { _frequencyHz = value; OnPropertyChanged(); } }
+        }
+        public string Confidence
+        {
+            get => _confidence;
+            set { if (_confidence != value) { _confidence = value; OnPropertyChanged(); } }
+        }
+        public string EstimatedQ
+        {
+            get => _estimatedQ;
+            set { if (_estimatedQ != value) { _estimatedQ = value; OnPropertyChanged(); } }
+        }
+        public string ProminenceDb
+        {
+            get => _prominenceDb;
+            set { if (_prominenceDb != value) { _prominenceDb = value; OnPropertyChanged(); } }
+        }
+        public string TotalHits
+        {
+            get => _totalHits;
+            set { if (_totalHits != value) { _totalHits = value; OnPropertyChanged(); } }
+        }
+        public string FrequencyStdDevHz
+        {
+            get => _frequencyStdDevHz;
+            set { if (_frequencyStdDevHz != value) { _frequencyStdDevHz = value; OnPropertyChanged(); } }
+        }
+        public string RowColor
+        {
+            get => _rowColor;
+            set { if (_rowColor != value) { _rowColor = value; OnPropertyChanged(); } }
+        }
+
+        public CandidateRow(string frequencyHz, string confidence, string estimatedQ, string prominenceDb, string totalHits, string frequencyStdDevHz, string rowColor)
+        {
+            _frequencyHz = frequencyHz;
+            _confidence = confidence;
+            _estimatedQ = estimatedQ;
+            _prominenceDb = prominenceDb;
+            _totalHits = totalHits;
+            _frequencyStdDevHz = frequencyStdDevHz;
+            _rowColor = rowColor;
+        }
+
+        public void Update(string frequencyHz, string confidence, string estimatedQ, string prominenceDb, string totalHits, string frequencyStdDevHz, string rowColor)
+        {
+            FrequencyHz = frequencyHz;
+            Confidence = confidence;
+            EstimatedQ = estimatedQ;
+            ProminenceDb = prominenceDb;
+            TotalHits = totalHits;
+            FrequencyStdDevHz = frequencyStdDevHz;
+            RowColor = rowColor;
+        }
+
+        private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+
+    public sealed class RecRow : INotifyPropertyChanged
+    {
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        private string _bandIndex;
+        private string _frequencyHz;
+        private string _gainDb;
+        private string _q;
+        private string _rowColor;
+
+        public string BandIndex
+        {
+            get => _bandIndex;
+            set { if (_bandIndex != value) { _bandIndex = value; OnPropertyChanged(); } }
+        }
+        public string FrequencyHz
+        {
+            get => _frequencyHz;
+            set { if (_frequencyHz != value) { _frequencyHz = value; OnPropertyChanged(); } }
+        }
+        public string GainDb
+        {
+            get => _gainDb;
+            set { if (_gainDb != value) { _gainDb = value; OnPropertyChanged(); } }
+        }
+        public string Q
+        {
+            get => _q;
+            set { if (_q != value) { _q = value; OnPropertyChanged(); } }
+        }
+        public string RowColor
+        {
+            get => _rowColor;
+            set { if (_rowColor != value) { _rowColor = value; OnPropertyChanged(); } }
+        }
+
+        public RecRow(string bandIndex, string frequencyHz, string gainDb, string q, string rowColor)
+        {
+            _bandIndex = bandIndex;
+            _frequencyHz = frequencyHz;
+            _gainDb = gainDb;
+            _q = q;
+            _rowColor = rowColor;
+        }
+
+        public void Update(string bandIndex, string frequencyHz, string gainDb, string q, string rowColor)
+        {
+            BandIndex = bandIndex;
+            FrequencyHz = frequencyHz;
+            GainDb = gainDb;
+            Q = q;
+            RowColor = rowColor;
+        }
+
+        private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
 
     public sealed record RoomAcousticResultUi(
         double FrequencyHz,
