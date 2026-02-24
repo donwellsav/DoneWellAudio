@@ -20,6 +20,7 @@ public sealed class FeedbackAnalyzer
     // Reusable buffers for spectrum analysis
     private double[] _magDbBuffer = Array.Empty<double>();
     private double[] _whitenedBuffer = Array.Empty<double>();
+    private double[] _whiteningCurve = Array.Empty<double>();
     private readonly List<Peak> _peakBuffer = new();
 
     private int _ringHead; // Start of valid data
@@ -70,6 +71,8 @@ public sealed class FeedbackAnalyzer
         {
             _magDbBuffer = new double[spectrumSize];
             _whitenedBuffer = new double[spectrumSize];
+            _whiteningCurve = new double[spectrumSize];
+            UpdateWhiteningCurve();
         }
 
         // Ring buffer should be large enough to hold at least one frame + hop + incoming chunk.
@@ -106,7 +109,11 @@ public sealed class FeedbackAnalyzer
         }
     }
 
-    public void SetSampleRate(int sampleRate) => _sampleRate = sampleRate;
+    public void SetSampleRate(int sampleRate)
+    {
+        _sampleRate = sampleRate;
+        UpdateWhiteningCurve();
+    }
 
     public void SetRoomPrediction(RoomPredictionResult result)
     {
@@ -216,6 +223,8 @@ public sealed class FeedbackAnalyzer
                 {
                     _magDbBuffer = new double[mag.Length];
                     _whitenedBuffer = new double[mag.Length];
+                    _whiteningCurve = new double[mag.Length];
+                    UpdateWhiteningCurve();
                 }
 
                 // Build dB curve for Q estimation
@@ -228,9 +237,8 @@ public sealed class FeedbackAnalyzer
                     // Copy to whitened buffer to preserve raw magDb for Q estimation
                     Array.Copy(_magDbBuffer, _whitenedBuffer, mag.Length);
 
-                    int nFft = (mag.Length - 1) * 2;
-                    double binHz = _sampleRate / (double)nFft;
-                    PeakDetection.ApplyWhitening(_whitenedBuffer, binHz);
+                    // Use pre-calculated curve
+                    PeakDetection.ApplyWhitening(_whitenedBuffer, _whiteningCurve);
                     peaksInput = _whitenedBuffer;
                 }
 
@@ -375,5 +383,25 @@ public sealed class FeedbackAnalyzer
 
             return Math.Clamp(score, 0.0, 1.0);
         }
+    }
+
+    private void UpdateWhiteningCurve()
+    {
+        if (_magDbBuffer.Length == 0 || _sampleRate <= 0) return;
+
+        // Ensure curve buffer is correct size
+        if (_whiteningCurve.Length != _magDbBuffer.Length)
+        {
+            _whiteningCurve = new double[_magDbBuffer.Length];
+        }
+
+        int nFft = (_magDbBuffer.Length - 1) * 2;
+        // Safety for nFft > 0
+        if (nFft <= 0) return;
+
+        double binHz = _sampleRate / (double)nFft;
+
+        // Recompute the curve
+        PeakDetection.ComputeWhiteningCurve(_whiteningCurve, binHz);
     }
 }
