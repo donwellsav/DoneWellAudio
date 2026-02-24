@@ -8,6 +8,7 @@ internal sealed class TrackState
     public double ProminenceDb { get; set; }
     public int TotalHits { get; set; }
     public int ConsecutiveHits { get; set; }
+    public int ConsecutiveMisses { get; set; }
 
     // Online variance for frequency stability
     private double _mean;
@@ -93,6 +94,7 @@ public sealed class PeakTracker
                 track.MagnitudeDb = peak.MagnitudeDb;
                 track.ProminenceDb = peak.ProminenceDb;
                 track.ConsecutiveHits++;
+                track.ConsecutiveMisses = 0;
                 track.UpdateFrequencyStats(peak.FrequencyHz);
                 updatedTrackIds.Add(track.Id);
             }
@@ -122,11 +124,16 @@ public sealed class PeakTracker
         foreach (var t in _tracks)
         {
             if (!updatedTrackIds.Contains(t.Id))
+            {
                 t.ConsecutiveHits = 0;
+                t.ConsecutiveMisses++;
+            }
         }
 
         // 6. Prune very old/weak tracks (simple)
-        _tracks.RemoveAll(t => t.TotalHits == 0);
+        // Allow a small grace period (hysteresis) to bridge transient dropouts
+        const int MaxMissedFrames = 50;
+        _tracks.RemoveAll(t => t.ConsecutiveMisses > MaxMissedFrames);
 
         return _tracks
             .Select(t => new TrackedPeak(

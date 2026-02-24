@@ -26,8 +26,9 @@ public class PeakTrackerTests
     }
 
     [Fact]
-    public void MultiplePeaks_UpdateSameTrack_BugReproduction()
+    public void Update_DistributesPeaksToCorrectTracks_WhenClose()
     {
+        // Regression test for accurate peak assignment
         var tracker = new PeakTracker();
         var settings = CreateSettings(maxFrequencyDriftHz: 20.0);
 
@@ -36,12 +37,8 @@ public class PeakTrackerTests
         var tracks1 = tracker.Update(peaks1, settings);
 
         Assert.Single(tracks1);
-        var originalTrackId = tracks1[0].TrackId;
 
         // Frame 2: Two peaks close to the existing track
-        // Peak A at 995Hz (distance 5Hz)
-        // Peak B at 1005Hz (distance 5Hz)
-        // Both within 20Hz tolerance
         var peaks2 = new[]
         {
             new Peak(995.0, -10.0, 10.0),
@@ -50,22 +47,16 @@ public class PeakTrackerTests
 
         var tracks2 = tracker.Update(peaks2, settings);
 
-        // Current behavior (BUG): Both peaks match the same track sequentially.
-        // Peak 995 matches Track(1000) -> updates Track to 995.
-        // Peak 1005 matches Track(995) (dist 10) -> updates Track to 1005.
-        // Result: 1 track at 1005. Ideally: 2 tracks (one at 995, one at 1005).
-
-        // Assert that we have 2 distinct tracks if logic is correct
+        // Should result in 2 distinct tracks
         Assert.Equal(2, tracks2.Count);
 
-        // Verify frequencies are correct
         var freqs = tracks2.Select(t => t.FrequencyHz).OrderBy(f => f).ToArray();
         Assert.Equal(995.0, freqs[0], 0.1);
         Assert.Equal(1005.0, freqs[1], 0.1);
     }
 
     [Fact]
-    public void GreedyMatching_PicksBestMatch()
+    public void Update_GreedyMatching_PicksBestMatch()
     {
         var tracker = new PeakTracker();
         var settings = CreateSettings(maxFrequencyDriftHz: 20.0);
@@ -95,5 +86,75 @@ public class PeakTrackerTests
         Assert.Equal(1002.0, freqs[0], 0.1);
         Assert.Equal(1010.0, freqs[1], 0.1);
         Assert.Equal(1998.0, freqs[2], 0.1);
+    }
+
+    [Fact]
+    public void Update_RemovesStaleTracks_AfterGracePeriod()
+    {
+        var tracker = new PeakTracker();
+        var settings = CreateSettings();
+
+        // Frame 1: 1 peak
+        tracker.Update(new[] { new Peak(1000.0, -10.0, 10.0) }, settings);
+
+        // Frame 2-51: No peaks (50 frames of grace period)
+        for (int i = 0; i < 50; i++)
+        {
+            var res = tracker.Update(Array.Empty<Peak>(), settings);
+            Assert.Single(res); // Should persist
+            Assert.Equal(0, res[0].ConsecutiveHits); // But consecutive hits reset
+        }
+
+        // Frame 52: Still no peaks -> Should be removed now (Misses > 50)
+        var result = tracker.Update(Array.Empty<Peak>(), settings);
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void Update_RespectsMaxDrift()
+    {
+        var tracker = new PeakTracker();
+        var settings = CreateSettings(maxFrequencyDriftHz: 5.0); // 5Hz tolerance
+
+        // Frame 1: 1000Hz
+        var res1 = tracker.Update(new[] { new Peak(1000.0, -10.0, 10.0) }, settings);
+        var id1 = res1[0].TrackId;
+
+        // Frame 2: 1006Hz (distance 6Hz > 5Hz)
+        // Should create NEW track. The old one (1000) is not updated, so it starts decaying but still exists.
+        var result = tracker.Update(new[] { new Peak(1006.0, -10.0, 10.0) }, settings);
+
+        // Expect: 2 tracks (1000 [decaying], 1006 [new]).
+        Assert.Equal(2, result.Count);
+
+        var freqs = result.Select(t => t.FrequencyHz).OrderBy(f => f).ToArray();
+        Assert.Equal(1000.0, freqs[0], 0.1);
+        Assert.Equal(1006.0, freqs[1], 0.1);
+
+        // Verify new track has new ID
+        var newTrack = result.First(t => t.FrequencyHz > 1005);
+        Assert.NotEqual(id1, newTrack.TrackId);
+    }
+
+    [Fact]
+    public void Update_CalculatesStatistics_Correctly()
+    {
+        var tracker = new PeakTracker();
+        var settings = CreateSettings();
+
+        // Frame 1: 1000Hz
+        tracker.Update(new[] { new Peak(1000.0, -10.0, 10.0) }, settings);
+
+        // Frame 2: 1002Hz
+        var res = tracker.Update(new[] { new Peak(1002.0, -10.0, 10.0) }, settings);
+
+        var track = res[0];
+        Assert.Equal(2, track.TotalHits);
+        // Variance calc: Mean=1001. Delta1=0 (start).
+        // Welford:
+        // 1. x=1000. mean=1000. m2=0.
+        // 2. x=1002. delta=2. mean=1001. delta2=1. m2+=2*1=2.
+        // StdDev = sqrt(2 / 1) = 1.414
+        Assert.Equal(1.414, track.FrequencyStdDevHz, 0.001);
     }
 }
