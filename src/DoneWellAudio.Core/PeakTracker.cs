@@ -33,19 +33,41 @@ public sealed class PeakTracker
     public IReadOnlyList<TrackedPeak> Update(IEnumerable<Peak> peaks, DetectorSettings settings)
     {
         double toleranceHz = settings.Detection.MaxFrequencyDriftHz;
-        var peakList = peaks.ToList();
 
-        // 1. Calculate all valid distances between peaks and existing tracks
+        // Sort peaks by frequency to enable optimized scan
+        var peakList = peaks.OrderBy(p => p.FrequencyHz).ToList();
+
+        // Sort tracks by frequency to enable optimized scan
+        _tracks.Sort((a, b) => a.FrequencyHz.CompareTo(b.FrequencyHz));
+
+        // 1. Calculate all valid distances between peaks and existing tracks (optimized)
         var matches = new List<(int PeakIndex, int TrackIndex, double Distance)>();
+
+        int trackIdxStart = 0;
+        int numTracks = _tracks.Count;
+
         for (int i = 0; i < peakList.Count; i++)
         {
-            for (int j = 0; j < _tracks.Count; j++)
+            double peakFreq = peakList[i].FrequencyHz;
+            double minFreq = peakFreq - toleranceHz;
+            double maxFreq = peakFreq + toleranceHz;
+
+            // Move start pointer forward: find first track >= minFreq
+            while (trackIdxStart < numTracks && _tracks[trackIdxStart].FrequencyHz < minFreq)
             {
-                double dist = Math.Abs(peakList[i].FrequencyHz - _tracks[j].FrequencyHz);
-                if (dist <= toleranceHz)
-                {
-                    matches.Add((i, j, dist));
-                }
+                trackIdxStart++;
+            }
+
+            // Scan from start pointer
+            for (int j = trackIdxStart; j < numTracks; j++)
+            {
+                var track = _tracks[j];
+                if (track.FrequencyHz > maxFreq)
+                    break; // Stop scanning once we exceed maxFreq
+
+                double dist = Math.Abs(peakFreq - track.FrequencyHz);
+                // dist <= toleranceHz is guaranteed by loop bounds and break logic
+                matches.Add((i, j, dist));
             }
         }
 
