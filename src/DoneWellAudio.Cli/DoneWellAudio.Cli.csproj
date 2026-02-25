@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DoneWellAudio.Core\DoneWellAudio.Core.csproj" />
+    <ProjectReference Include="..\DoneWellAudio.AudioAdapters\DoneWellAudio.AudioAdapters.csproj" />
   </ItemGroup>
 
   <ItemGroup>
