@@ -79,7 +79,7 @@ jobs:
         run: Compress-Archive -Path "./DoneWellAudio-Portable-v${{ env.NEW_VERSION }}" -DestinationPath "./DoneWellAudio-Portable-v${{ env.NEW_VERSION }}.zip"
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: DoneWellAudio-Portable-v${{ env.NEW_VERSION }}
           path: ./DoneWellAudio-Portable-v${{ env.NEW_VERSION }}.zip
