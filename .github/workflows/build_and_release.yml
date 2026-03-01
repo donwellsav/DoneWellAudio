@@ -63,7 +63,7 @@ jobs:
         run: dotnet publish src/DoneWellAudio.Gui.Wpf/DoneWellAudio.Gui.Wpf.csproj -c Release -r win-x64 --self-contained false -o ./publish
 
       - name: Upload Build Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: DoneWellAudio-Windows-${{ github.sha }}
           path: ./publish
