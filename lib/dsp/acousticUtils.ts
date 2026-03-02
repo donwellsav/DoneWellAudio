@@ -461,3 +461,166 @@ export function applyFrequencyDependentThreshold(
       return baseThreshold
   }
 }
+
+// ============================================================================
+// UNIT CONVERSIONS
+// ============================================================================
+
+/**
+ * Convert feet to meters
+ */
+export function feetToMeters(feet: number): number {
+  return feet * 0.3048
+}
+
+// ============================================================================
+// ROOM MODE CALCULATION
+// ============================================================================
+
+export interface RoomMode {
+  frequency: number   // Hz
+  label: string       // e.g. "1,0,0"
+  type: 'axial' | 'tangential' | 'oblique'
+}
+
+export interface RoomModesResult {
+  all: RoomMode[]
+  axial: RoomMode[]
+  tangential: RoomMode[]
+  oblique: RoomMode[]
+}
+
+export interface FormattedRoomMode {
+  hz: string
+  label: string
+}
+
+export interface FormattedRoomModesResult {
+  all: FormattedRoomMode[]
+  axial: FormattedRoomMode[]
+  tangential: FormattedRoomMode[]
+  oblique: FormattedRoomMode[]
+}
+
+/**
+ * Calculate axial, tangential, and oblique room modes up to 300 Hz.
+ * Uses the standard formula: f = (c/2) * sqrt((nx/L)² + (ny/W)² + (nz/H)²)
+ * where c = 343 m/s (speed of sound).
+ *
+ * @param lengthM - Room length in meters
+ * @param widthM  - Room width in meters
+ * @param heightM - Room height in meters
+ * @param maxHz   - Upper frequency limit (default 300 Hz)
+ */
+export function calculateRoomModes(
+  lengthM: number,
+  widthM: number,
+  heightM: number,
+  maxHz = 300
+): RoomModesResult {
+  const c = 343 // speed of sound m/s
+  const MAX_ORDER = 6 // check modes up to 6th order per dimension
+  const modes: RoomMode[] = []
+
+  for (let nx = 0; nx <= MAX_ORDER; nx++) {
+    for (let ny = 0; ny <= MAX_ORDER; ny++) {
+      for (let nz = 0; nz <= MAX_ORDER; nz++) {
+        if (nx === 0 && ny === 0 && nz === 0) continue
+
+        const term = (nx / lengthM) ** 2 + (ny / widthM) ** 2 + (nz / heightM) ** 2
+        const freq = (c / 2) * Math.sqrt(term)
+
+        if (freq > maxHz) continue
+
+        // Classify mode type by number of non-zero indices
+        const nonZero = (nx > 0 ? 1 : 0) + (ny > 0 ? 1 : 0) + (nz > 0 ? 1 : 0)
+        const type: RoomMode['type'] =
+          nonZero === 1 ? 'axial' : nonZero === 2 ? 'tangential' : 'oblique'
+
+        modes.push({
+          frequency: freq,
+          label: `${nx},${ny},${nz}`,
+          type,
+        })
+      }
+    }
+  }
+
+  // Sort by frequency
+  modes.sort((a, b) => a.frequency - b.frequency)
+
+  return {
+    all: modes,
+    axial: modes.filter((m) => m.type === 'axial'),
+    tangential: modes.filter((m) => m.type === 'tangential'),
+    oblique: modes.filter((m) => m.type === 'oblique'),
+  }
+}
+
+/**
+ * Format room modes for display in the UI
+ */
+export function formatRoomModesForDisplay(modes: RoomModesResult): FormattedRoomModesResult {
+  const fmt = (m: RoomMode): FormattedRoomMode => ({
+    hz: m.frequency.toFixed(1),
+    label: m.label,
+  })
+  return {
+    all: modes.all.map(fmt),
+    axial: modes.axial.map(fmt),
+    tangential: modes.tangential.map(fmt),
+    oblique: modes.oblique.map(fmt),
+  }
+}
+
+// ============================================================================
+// ROOM PARAMETER ESTIMATION FROM DIMENSIONS
+// ============================================================================
+
+export interface RoomParameters {
+  volume: number    // m³
+  rt60: number      // seconds (estimated)
+  schroederHz: number
+}
+
+/**
+ * Estimate RT60 and calculate room volume from physical dimensions.
+ * Uses a simplified Sabine approximation with preset absorption coefficients.
+ *
+ * @param lengthM        - Room length in meters
+ * @param widthM         - Room width in meters
+ * @param heightM        - Room height in meters
+ * @param absorptionType - Acoustic treatment level
+ */
+export function getRoomParametersFromDimensions(
+  lengthM: number,
+  widthM: number,
+  heightM: number,
+  absorptionType: 'untreated' | 'typical' | 'treated' | 'studio' = 'typical'
+): RoomParameters {
+  // Average absorption coefficient by treatment type (broadband estimate)
+  const absorptionCoeff: Record<typeof absorptionType, number> = {
+    untreated: 0.07,
+    typical:   0.15,
+    treated:   0.25,
+    studio:    0.45,
+  }
+
+  const alpha = absorptionCoeff[absorptionType]
+  const volume = lengthM * widthM * heightM
+
+  // Total surface area
+  const surface =
+    2 * (lengthM * widthM + lengthM * heightM + widthM * heightM)
+
+  // Sabine's formula: RT60 = 0.161 * V / (alpha * S)
+  const rt60 = surface > 0 ? (0.161 * volume) / (alpha * surface) : 1.0
+
+  const schroederHz = calculateSchroederFrequency(rt60, volume)
+
+  return {
+    volume: Math.round(volume * 10) / 10,
+    rt60: Math.round(rt60 * 10) / 10,
+    schroederHz,
+  }
+}

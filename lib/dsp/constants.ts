@@ -410,6 +410,33 @@ export const MSD_SETTINGS = {
   DEFAULT_MIN_FRAMES: 15,
   /** Maximum frames (balance accuracy vs latency) */
   MAX_FRAMES: 50,
+  /** Ring buffer size for MSD magnitude history per bin */
+  HISTORY_SIZE: 64,
+} as const
+
+// Peak Persistence Scoring - Phase 2 Enhancement
+// Feedback is persistent (vertical streak in waterfall), transients are short-lived
+export const PERSISTENCE_SCORING = {
+  /** Maximum frames to track persistence (ring buffer size) */
+  HISTORY_FRAMES: 32,
+  /** dB tolerance for counting a frame as "same peak still present" */
+  AMPLITUDE_TOLERANCE_DB: 6,
+  /** Minimum consecutive frames to consider a peak persistent */
+  MIN_PERSISTENCE_FRAMES: 5,
+  /** Frames for high persistence classification */
+  HIGH_PERSISTENCE_FRAMES: 15,
+  /** Frames for very high persistence classification */
+  VERY_HIGH_PERSISTENCE_FRAMES: 30,
+  /** Confidence boost for minimally persistent peaks */
+  MIN_PERSISTENCE_BOOST: 0.05,
+  /** Confidence boost for highly persistent peaks */
+  HIGH_PERSISTENCE_BOOST: 0.12,
+  /** Confidence boost for very highly persistent peaks */
+  VERY_HIGH_PERSISTENCE_BOOST: 0.20,
+  /** Frame count below which a penalty is applied (transient peak) */
+  LOW_PERSISTENCE_FRAMES: 3,
+  /** Confidence penalty for transient peaks */
+  LOW_PERSISTENCE_PENALTY: 0.05,
 } as const
 
 // Phase coherence from KU Leuven/Nyquist analysis
