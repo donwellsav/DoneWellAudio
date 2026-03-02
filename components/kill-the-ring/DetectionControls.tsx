@@ -142,19 +142,19 @@ export function DetectionControls({ settings, onModeChange, onSettingsChange }: 
 
         {/* Mode selector */}
         <div className="relative" ref={modeRef}>
-          <button
-            onClick={() => { setModeOpen(!modeOpen); setFreqOpen(false); setFocusedModeIndex(-1); setFocusedFreqIndex(-1) }}
-            className="w-full flex items-center justify-between px-2 py-1 rounded border border-border hover:border-primary/40 transition-colors"
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-xs font-medium text-foreground truncate">{currentModeInfo.label}</span>
-              <span className="text-[10px] text-muted-foreground truncate hidden sm:inline">{currentModeInfo.desc}</span>
-            </div>
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <SaveButton settingKey="mode" value={settings.mode} />
+          <div className="flex items-center gap-1 px-2 py-1 rounded border border-border hover:border-primary/40 transition-colors">
+            <button
+              onClick={() => { setModeOpen(!modeOpen); setFreqOpen(false); setFocusedModeIndex(-1); setFocusedFreqIndex(-1) }}
+              className="flex-1 flex items-center justify-between min-w-0"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xs font-medium text-foreground truncate">{currentModeInfo.label}</span>
+                <span className="text-[10px] text-muted-foreground truncate hidden sm:inline">{currentModeInfo.desc}</span>
+              </div>
               <ChevronDown className={`w-3 h-3 text-muted-foreground transition-transform ${modeOpen ? 'rotate-180' : ''}`} />
-            </div>
-          </button>
+            </button>
+            <SaveButton settingKey="mode" value={settings.mode} />
+          </div>
           {modeOpen && (
             <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-background border border-border rounded shadow-lg overflow-hidden">
               {(Object.keys(OPERATION_MODES) as OperationMode[]).map((mode, idx) => {
@@ -186,21 +186,21 @@ export function DetectionControls({ settings, onModeChange, onSettingsChange }: 
 
         {/* Freq range */}
         <div className="relative" ref={freqRef}>
-          <button
-            onClick={() => { setFreqOpen(!freqOpen); setModeOpen(false); setFocusedFreqIndex(-1); setFocusedModeIndex(-1) }}
-            className="w-full flex items-center justify-between px-2 py-1 rounded border border-border hover:border-primary/40 transition-colors"
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-xs font-medium text-foreground">{currentFreqPreset.label}</span>
-              <span className="text-[10px] text-muted-foreground font-mono">
-                {currentFreqPreset.minFrequency}-{currentFreqPreset.maxFrequency}Hz
-              </span>
-            </div>
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <SaveButton settingKey="freqRange" value={{ minFrequency: settings.minFrequency, maxFrequency: settings.maxFrequency }} />
+          <div className="flex items-center gap-1 px-2 py-1 rounded border border-border hover:border-primary/40 transition-colors">
+            <button
+              onClick={() => { setFreqOpen(!freqOpen); setModeOpen(false); setFocusedFreqIndex(-1); setFocusedModeIndex(-1) }}
+              className="flex-1 flex items-center justify-between min-w-0"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xs font-medium text-foreground">{currentFreqPreset.label}</span>
+                <span className="text-[10px] text-muted-foreground font-mono">
+                  {currentFreqPreset.minFrequency}-{currentFreqPreset.maxFrequency}Hz
+                </span>
+              </div>
               <ChevronDown className={`w-3 h-3 text-muted-foreground transition-transform ${freqOpen ? 'rotate-180' : ''}`} />
-            </div>
-          </button>
+            </button>
+            <SaveButton settingKey="freqRange" value={{ minFrequency: settings.minFrequency, maxFrequency: settings.maxFrequency }} />
+          </div>
           {freqOpen && (
             <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-background border border-border rounded shadow-lg overflow-hidden">
               {FREQ_RANGE_PRESETS.map((preset, idx) => {
