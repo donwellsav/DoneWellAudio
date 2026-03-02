@@ -30,9 +30,10 @@ import type { WorkerInboundMessage, WorkerOutboundMessage } from '@/lib/dsp/dspW
 export interface DSPWorkerCallbacks {
   onAdvisory?: (advisory: Advisory) => void
   onAdvisoryCleared?: (advisoryId: string) => void
+  onAdvisoryReplaced?: (replacedId: string, advisory: Advisory) => void
   onTracksUpdate?: (tracks: TrackedPeak[]) => void
-  onError?: (message: string) => void
   onReady?: () => void
+  onError?: (message: string) => void
 }
 
 export interface DSPWorkerHandle {
@@ -89,6 +90,9 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
         case 'advisory':
           callbacksRef.current.onAdvisory?.(msg.advisory)
           break
+        case 'advisoryReplaced':
+          callbacksRef.current.onAdvisoryReplaced?.(msg.replacedId, msg.advisory)
+          break
         case 'advisoryCleared':
           callbacksRef.current.onAdvisoryCleared?.(msg.advisoryId)
           break
@@ -103,6 +107,9 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
 
     worker.onerror = (err) => {
       callbacksRef.current.onError?.(err.message ?? 'DSP worker error')
+      worker.terminate()
+      workerRef.current = null
+      isReadyRef.current = false
     }
 
     workerRef.current = worker
@@ -135,12 +142,14 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
 
   const processPeak = useCallback(
     (peak: DetectedPeak, spectrum: Float32Array, sampleRate: number, fftSize: number) => {
-      // Clone the spectrum buffer so transfer doesn't invalidate it while the
-      // detector's own Float32Array is still in use
+      // Transfer a zero-copy clone to the worker — avoids a 16KB heap allocation per peak
       const clone = spectrum.slice(0)
-      postMessage({ type: 'processPeak', peak, spectrum: clone, sampleRate, fftSize })
+      workerRef.current?.postMessage(
+        { type: 'processPeak', peak, spectrum: clone, sampleRate, fftSize },
+        [clone.buffer]
+      )
     },
-    [postMessage]
+    []
   )
 
   const clearPeak = useCallback(

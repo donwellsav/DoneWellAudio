@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useEffect, useCallback } from 'react'
+import { useRef, useEffect, useCallback, useMemo } from 'react'
 import { useAnimationFrame } from '@/hooks/useAnimationFrame'
 import { ISO_31_BANDS } from '@/lib/dsp/constants'
 import { getSeverityColor } from '@/lib/dsp/eqAdvisor'
@@ -16,20 +16,29 @@ export function GEQBarView({ advisories, graphFontSize = 11 }: GEQBarViewProps) 
   const containerRef = useRef<HTMLDivElement>(null)
   const dimensionsRef = useRef({ width: 0, height: 0 })
 
-  // Build map of band recommendations
-  const bandRecommendations = new Map<number, { suggestedDb: number; color: string; freq: number }>()
-  for (const advisory of advisories) {
-    const bandIndex = advisory.advisory.geq.bandIndex
-    const existing = bandRecommendations.get(bandIndex)
-    // Use deepest cut for this band
-    if (!existing || advisory.advisory.geq.suggestedDb < existing.suggestedDb) {
-      bandRecommendations.set(bandIndex, {
-        suggestedDb: advisory.advisory.geq.suggestedDb,
-        color: getSeverityColor(advisory.severity),
-        freq: advisory.trueFrequencyHz,
-      })
+  // Build map of band recommendations — memoised so it only rebuilds when advisories change
+  const bandRecommendations = useMemo(() => {
+    const map = new Map<number, { suggestedDb: number; color: string; freq: number; clusterCount: number }>()
+    for (const advisory of advisories) {
+      if (!advisory.advisory?.geq) continue
+      const bandIndex = advisory.advisory.geq.bandIndex
+      const existing = map.get(bandIndex)
+      const advisoryCluster = advisory.clusterCount ?? 1
+      // Use deepest cut for this band, accumulate cluster counts
+      if (!existing || advisory.advisory.geq.suggestedDb < existing.suggestedDb) {
+        map.set(bandIndex, {
+          suggestedDb: advisory.advisory.geq.suggestedDb,
+          color: getSeverityColor(advisory.severity),
+          freq: advisory.trueFrequencyHz,
+          clusterCount: existing ? existing.clusterCount + advisoryCluster : advisoryCluster,
+        })
+      } else {
+        // Even if this advisory doesn't win, add its cluster count
+        existing.clusterCount += advisoryCluster
+      }
     }
-  }
+    return map
+  }, [advisories])
 
   useEffect(() => {
     const container = containerRef.current
@@ -141,6 +150,15 @@ export function GEQBarView({ advisories, graphFontSize = 11 }: GEQBarViewProps) 
         ctx.textAlign = 'center'
         const freqLabel = recommendation.freq >= 1000 ? `${(recommendation.freq / 1000).toFixed(1)}k` : `${Math.round(recommendation.freq)}`
         ctx.fillText(freqLabel, x + barWidth / 2, y - 5)
+
+        // Cluster count badge (if > 1 peak merged)
+        if (recommendation.clusterCount > 1) {
+          const badgeText = `+${recommendation.clusterCount - 1}`
+          ctx.font = `bold ${graphFontSize - 3}px system-ui, sans-serif`
+          ctx.fillStyle = '#38bdf8' // sky-400
+          ctx.textAlign = 'left'
+          ctx.fillText(badgeText, x + barWidth + 2, y + 10)
+        }
       } else {
         // Inactive - draw empty bar slot
         ctx.strokeStyle = '#222'
@@ -177,7 +195,7 @@ export function GEQBarView({ advisories, graphFontSize = 11 }: GEQBarViewProps) 
 
   return (
     <div ref={containerRef} className="w-full h-full">
-      <canvas ref={canvasRef} className="w-full h-full" />
+      <canvas ref={canvasRef} className="w-full h-full" role="img" aria-label="Graphic equalizer band view with recommended cuts" />
     </div>
   )
 }

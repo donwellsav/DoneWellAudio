@@ -25,6 +25,9 @@ export async function PATCH(_req: NextRequest, { params }: Params) {
   const { id } = await params
   try {
     const session = await endSession(id)
+    if (!session) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
     return NextResponse.json(session)
   } catch (err) {
     console.error('[sessions/:id] PATCH error:', err)
@@ -42,7 +45,10 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   }
   const { id } = await params
   try {
-    await deleteSession(id)
+    const deletedCount = await deleteSession(id)
+    if (deletedCount === 0) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
     return new NextResponse(null, { status: 204 })
   } catch (err) {
     console.error('[sessions/:id] DELETE error:', err)

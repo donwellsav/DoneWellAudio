@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
+import { Switch } from '@/components/ui/switch'
+import { calculateRoomModes, formatRoomModesForDisplay } from '@/lib/dsp/acousticUtils'
 import {
   Select,
   SelectContent,
@@ -27,10 +29,9 @@ import {
 } from '@/components/ui/tooltip'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ResetConfirmDialog } from './ResetConfirmDialog'
-import { Settings, RotateCcw, HelpCircle, BarChart3, Monitor, Download, FileJson, FileText, Sheet, Trash2, Cpu } from 'lucide-react'
-import { ALGORITHM_MODES } from '@/lib/dsp/constants'
-import type { AlgorithmMode } from '@/types/advisory'
+import { Settings, RotateCcw, HelpCircle, BarChart3, Monitor, Download, FileJson, FileText, Sheet, Trash2, Ruler, X } from 'lucide-react'
 import { getEventLogger, type LogEntry, type FeedbackIssueLog } from '@/lib/logging/eventLogger'
+import { getRoomParametersFromDimensions, feetToMeters } from '@/lib/dsp/acousticUtils'
 import type { DetectorSettings } from '@/types/advisory'
 
 interface SettingsPanelProps {
@@ -39,13 +40,160 @@ interface SettingsPanelProps {
   onReset: () => void
 }
 
+// Room Modes Display Component
+function RoomModesDisplay({ lengthM, widthM, heightM }: { lengthM: number; widthM: number; heightM: number }) {
+  const modes = useMemo(() => {
+    if (lengthM <= 0 || widthM <= 0 || heightM <= 0) return null
+    return calculateRoomModes(lengthM, widthM, heightM)
+  }, [lengthM, widthM, heightM])
+
+  const formatted = useMemo(() => {
+    if (!modes) return null
+    return formatRoomModesForDisplay(modes)
+  }, [modes])
+
+  if (!formatted || formatted.all.length === 0) {
+    return (
+      <p className="text-[9px] text-muted-foreground">
+        Enter valid room dimensions to calculate modes.
+      </p>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[9px] text-muted-foreground">
+        Found {formatted.all.length} room modes below 300Hz:
+      </p>
+      
+      {/* Axial Modes - Strongest */}
+      {formatted.axial.length > 0 && (
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-destructive" />
+            <span className="text-[9px] font-medium text-foreground">Axial (strongest)</span>
+          </div>
+          <div className="flex flex-wrap gap-1 pl-3.5">
+            {formatted.axial.slice(0, 8).map((mode, i) => (
+              <span
+                key={i}
+                className="px-1.5 py-0.5 text-[9px] font-mono bg-destructive/10 text-destructive rounded"
+                title={`Mode ${mode.label}`}
+              >
+                {mode.hz}Hz
+              </span>
+            ))}
+            {formatted.axial.length > 8 && (
+              <span className="text-[9px] text-muted-foreground">+{formatted.axial.length - 8} more</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tangential Modes - Medium */}
+      {formatted.tangential.length > 0 && (
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-yellow-500" />
+            <span className="text-[9px] font-medium text-foreground">Tangential (medium)</span>
+          </div>
+          <div className="flex flex-wrap gap-1 pl-3.5">
+            {formatted.tangential.slice(0, 6).map((mode, i) => (
+              <span
+                key={i}
+                className="px-1.5 py-0.5 text-[9px] font-mono bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded"
+                title={`Mode ${mode.label}`}
+              >
+                {mode.hz}Hz
+              </span>
+            ))}
+            {formatted.tangential.length > 6 && (
+              <span className="text-[9px] text-muted-foreground">+{formatted.tangential.length - 6} more</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Oblique Modes - Weakest */}
+      {formatted.oblique.length > 0 && (
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+            <span className="text-[9px] font-medium text-foreground">Oblique (weakest)</span>
+          </div>
+          <div className="flex flex-wrap gap-1 pl-3.5">
+            {formatted.oblique.slice(0, 4).map((mode, i) => (
+              <span
+                key={i}
+                className="px-1.5 py-0.5 text-[9px] font-mono bg-muted/50 text-muted-foreground rounded"
+                title={`Mode ${mode.label}`}
+              >
+                {mode.hz}Hz
+              </span>
+            ))}
+            {formatted.oblique.length > 4 && (
+              <span className="text-[9px] text-muted-foreground">+{formatted.oblique.length - 4} more</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      <p className="text-[8px] text-muted-foreground/70 pt-1">
+        Tip: If detected feedback matches a room mode, it may be a resonance rather than feedback.
+      </p>
+    </div>
+  )
+}
+
 export function SettingsPanel({
   settings,
   onSettingsChange,
   onReset,
 }: SettingsPanelProps) {
   const [logs, setLogs] = useState<LogEntry[]>([])
+  const [hasSavedDefaults, setHasSavedDefaults] = useState(false)
+  const [savedIndividualKeys, setSavedIndividualKeys] = useState<Set<string>>(new Set())
   const logger = getEventLogger()
+  
+  // Check if custom defaults exist on mount, and load individual saved settings
+  useEffect(() => {
+    const saved = localStorage.getItem('ktr-custom-defaults')
+    setHasSavedDefaults(!!saved)
+    
+    // Load all individual saved settings keys
+    const keys = new Set<string>()
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith('ktr-setting-')) {
+        keys.add(key.replace('ktr-setting-', ''))
+      }
+    })
+    setSavedIndividualKeys(keys)
+  }, [])
+  
+  // Room dimension inputs (in feet for user convenience)
+  const [roomDimensions, setRoomDimensions] = useState({
+    lengthFt: 30,
+    widthFt: 25,
+    heightFt: 12,
+    absorptionType: 'typical' as 'untreated' | 'typical' | 'treated' | 'studio',
+    useMetric: false,
+  })
+  
+  // Calculate room parameters from dimensions
+  const calculateFromDimensions = () => {
+    const lengthM = roomDimensions.useMetric ? roomDimensions.lengthFt : feetToMeters(roomDimensions.lengthFt)
+    const widthM = roomDimensions.useMetric ? roomDimensions.widthFt : feetToMeters(roomDimensions.widthFt)
+    const heightM = roomDimensions.useMetric ? roomDimensions.heightFt : feetToMeters(roomDimensions.heightFt)
+    
+    const params = getRoomParametersFromDimensions(lengthM, widthM, heightM, roomDimensions.absorptionType)
+    
+    // Apply calculated values
+    onSettingsChange({
+      roomRT60: Math.round(params.rt60 * 10) / 10,
+      roomVolume: Math.round(params.volume),
+      roomPreset: 'custom',
+    })
+  }
 
   useEffect(() => {
     setLogs(logger.getLogs())
@@ -75,6 +223,75 @@ export function SettingsPanel({
     if (confirm('Clear all logs? This cannot be undone.')) logger.clearLogs()
   }
 
+  const handleSaveSettingAsDefault = (key: string, value: any) => {
+    localStorage.setItem(`ktr-setting-${key}`, JSON.stringify(value))
+    setSavedIndividualKeys((prev) => new Set(prev).add(key))
+    logger.logSettingsChanged({ action: `save_setting_${key}` })
+  }
+
+  const handleLoadSettingDefault = (key: string) => {
+    const saved = localStorage.getItem(`ktr-setting-${key}`)
+    if (saved) {
+      try {
+        const value = JSON.parse(saved)
+        onSettingsChange({ [key]: value })
+        logger.logSettingsChanged({ action: `load_setting_${key}` })
+      } catch {
+        alert(`Failed to load saved ${key}`)
+      }
+    }
+  }
+
+  const handleClearSettingDefault = (key: string) => {
+    localStorage.removeItem(`ktr-setting-${key}`)
+    setSavedIndividualKeys((prev) => { const n = new Set(prev); n.delete(key); return n })
+    logger.logSettingsChanged({ action: `clear_setting_${key}` })
+  }
+
+  // Helper to render setting-specific save button
+  const renderSettingDefaultButton = (settingKey: string, settingValue: any) => {
+    const isSaved = savedIndividualKeys.has(settingKey)
+    return (
+      <div className="flex gap-1">
+        <button
+          onClick={() => handleSaveSettingAsDefault(settingKey, settingValue)}
+          className="p-1 rounded hover:bg-muted/50 transition-colors"
+          title={isSaved ? 'Update saved default' : 'Save this setting as default'}
+        >
+          <Download className={`w-3.5 h-3.5 ${isSaved ? 'text-primary' : 'text-muted-foreground'}`} />
+        </button>
+        {isSaved && (
+          <button
+            onClick={() => handleClearSettingDefault(settingKey)}
+            className="p-1 rounded hover:bg-muted/50 transition-colors"
+            title="Clear saved default for this setting"
+          >
+            <X className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  const handleSaveAsDefaults = () => {
+    localStorage.setItem('ktr-custom-defaults', JSON.stringify(settings))
+    setHasSavedDefaults(true)
+    logger.logSettingsChanged({ action: 'save_as_defaults' })
+  }
+
+  const handleLoadDefaults = () => {
+    const saved = localStorage.getItem('ktr-custom-defaults')
+    if (saved) {
+      try {
+        const defaults = JSON.parse(saved)
+        onSettingsChange(defaults)
+        logger.logSettingsChanged({ action: 'load_saved_defaults' })
+      } catch {
+        alert('Failed to load saved defaults')
+      }
+    }
+  }
+
   const issueLogs = logs.filter(l => l.type === 'issue_detected')
 
   return (
@@ -97,21 +314,18 @@ export function SettingsPanel({
         </DialogHeader>
 
         <Tabs defaultValue="analysis" className="mt-4">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="analysis" className="gap-1 text-xs px-2">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="analysis" className="gap-1.5 text-xs">
               <BarChart3 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Analysis</span>
+              Analysis
             </TabsTrigger>
-            <TabsTrigger value="algorithms" className="gap-1 text-xs px-2">
-              <Cpu className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Algo</span>
-            </TabsTrigger>
-            <TabsTrigger value="display" className="gap-1 text-xs px-2">
+            <TabsTrigger value="display" className="gap-1.5 text-xs">
               <Monitor className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Display</span>
+              Display
             </TabsTrigger>
-            <TabsTrigger value="export" className="gap-1 text-xs px-2">
+            <TabsTrigger value="export" className="gap-1.5 text-xs">
               <Download className="w-3.5 h-3.5" />
+              Export
               {issueLogs.length > 0 && (
                 <span className="ml-1 px-1 py-px bg-primary/20 text-primary text-[9px] rounded-full font-medium leading-none">
                   {issueLogs.length}
@@ -151,7 +365,10 @@ export function SettingsPanel({
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-muted-foreground">Amount</span>
-                  <span className="text-xs font-mono">{(settings.smoothingTimeConstant * 100).toFixed(0)}%</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono">{(settings.smoothingTimeConstant * 100).toFixed(0)}%</span>
+                    {renderSettingDefaultButton('smoothingTimeConstant', settings.smoothingTimeConstant)}
+                  </div>
                 </div>
                 <Slider
                   value={[settings.smoothingTimeConstant]}
@@ -175,7 +392,10 @@ export function SettingsPanel({
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-muted-foreground">Duration</span>
-                  <span className="text-xs font-mono">{(settings.holdTimeMs / 1000).toFixed(1)}s</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono">{(settings.holdTimeMs / 1000).toFixed(1)}s</span>
+                    {renderSettingDefaultButton('holdTimeMs', settings.holdTimeMs)}
+                  </div>
                 </div>
                 <Slider
                   value={[settings.holdTimeMs]}
@@ -221,7 +441,10 @@ export function SettingsPanel({
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-muted-foreground">Window</span>
-                  <span className="text-xs font-mono">{settings.harmonicToleranceCents}¢</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono">{settings.harmonicToleranceCents}¢</span>
+                    {renderSettingDefaultButton('harmonicToleranceCents', settings.harmonicToleranceCents)}
+                  </div>
                 </div>
                 <Slider
                   value={[settings.harmonicToleranceCents]}
@@ -237,22 +460,45 @@ export function SettingsPanel({
               </div>
             </Section>
 
+            {/* Phase 1: Harmonic Series Filter Toggle */}
+            <Section
+              title="Harmonic Filter"
+              showTooltip={settings.showTooltips}
+              tooltip="When enabled, reduces false positives for instruments like bass guitar by detecting harmonic overtones. Feedback is typically a pure tone (no harmonics), while instruments have rich harmonic content."
+            >
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <span className="text-xs font-medium">Filter Instruments</span>
+                  <p className="text-[9px] text-muted-foreground">
+                    Reduce bass/guitar false positives
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.harmonicFilterEnabled ?? true}
+                  onCheckedChange={(checked) => onSettingsChange({ harmonicFilterEnabled: checked })}
+                />
+              </div>
+            </Section>
+
             <Section
               title="Confidence Threshold"
               showTooltip={settings.showTooltips}
-              tooltip="Minimum confidence to display. LOWER = more alerts (better to catch everything). HIGHER = fewer alerts (may miss real feedback). 55% is aggressive - better safe than sorry!"
+              tooltip="Minimum confidence to display. LOWER = more alerts (better to catch everything). HIGHER = fewer alerts (may miss real feedback). 45% is aggressive - better safe than sorry!"
             >
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-muted-foreground">Min. Confidence</span>
-                  <span className="text-xs font-mono">{Math.round((settings.confidenceThreshold ?? 0.40) * 100)}%</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono">{Math.round((settings.confidenceThreshold ?? 0.40) * 100)}%</span>
+                    {renderSettingDefaultButton('confidenceThreshold', settings.confidenceThreshold ?? 0.40)}
+                  </div>
                 </div>
                 <Slider
                   value={[(settings.confidenceThreshold ?? 0.40) * 100]}
                   onValueChange={([v]) => onSettingsChange({ confidenceThreshold: v / 100 })}
-                  min={40}
-                  max={90}
-                  step={5}
+                  min={0}
+                  max={100}
+                  step={1}
                 />
                 <div className="flex justify-between text-[9px] text-muted-foreground">
                   <span>Catch everything</span>
@@ -318,6 +564,89 @@ export function SettingsPanel({
                 {/* Manual controls - only show for Custom preset */}
                 {(settings.roomPreset ?? 'medium') === 'custom' && (
                   <>
+                    {/* Room Dimensions Calculator */}
+                    <div className="space-y-3 p-2 bg-muted/30 rounded-md border border-muted">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium flex items-center gap-1.5">
+                          <Ruler className="w-3 h-3" />
+                          Room Dimensions
+                        </span>
+                        <button
+                          onClick={() => setRoomDimensions(d => ({ ...d, useMetric: !d.useMetric }))}
+                          className="text-[9px] px-1.5 py-0.5 rounded bg-muted hover:bg-muted/80"
+                        >
+                          {roomDimensions.useMetric ? 'Meters' : 'Feet'}
+                        </button>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="space-y-1">
+                          <label className="text-[9px] text-muted-foreground">Length</label>
+                          <input
+                            type="number"
+                            value={roomDimensions.lengthFt}
+                            onChange={(e) => setRoomDimensions(d => ({ ...d, lengthFt: parseFloat(e.target.value) || 0 }))}
+                            className="w-full h-7 px-2 text-xs rounded border bg-background"
+                            min={1}
+                            max={500}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] text-muted-foreground">Width</label>
+                          <input
+                            type="number"
+                            value={roomDimensions.widthFt}
+                            onChange={(e) => setRoomDimensions(d => ({ ...d, widthFt: parseFloat(e.target.value) || 0 }))}
+                            className="w-full h-7 px-2 text-xs rounded border bg-background"
+                            min={1}
+                            max={500}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] text-muted-foreground">Height</label>
+                          <input
+                            type="number"
+                            value={roomDimensions.heightFt}
+                            onChange={(e) => setRoomDimensions(d => ({ ...d, heightFt: parseFloat(e.target.value) || 0 }))}
+                            className="w-full h-7 px-2 text-xs rounded border bg-background"
+                            min={1}
+                            max={100}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <label className="text-[9px] text-muted-foreground">Room Treatment</label>
+                        <Select
+                          value={roomDimensions.absorptionType}
+                          onValueChange={(v) => setRoomDimensions(d => ({ 
+                            ...d, 
+                            absorptionType: v as 'untreated' | 'typical' | 'treated' | 'studio' 
+                          }))}
+                        >
+                          <SelectTrigger className="h-7 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="untreated">Untreated (hard surfaces)</SelectItem>
+                            <SelectItem value="typical">Typical (some carpet/curtains)</SelectItem>
+                            <SelectItem value="treated">Treated (acoustic panels)</SelectItem>
+                            <SelectItem value="studio">Studio (heavy treatment)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={calculateFromDimensions}
+                        className="w-full h-7 text-xs"
+                      >
+                        Calculate RT60 & Volume
+                      </Button>
+                    </div>
+                    
+                    {/* Manual RT60/Volume sliders */}
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-muted-foreground">RT60 (reverb time)</span>
@@ -363,227 +692,105 @@ export function SettingsPanel({
               </div>
             </Section>
 
-          </TabsContent>
-
-          {/* ==================== ALGORITHMS TAB ==================== */}
-          <TabsContent value="algorithms" className="mt-4 space-y-5">
-            <div className="bg-primary/5 border border-primary/20 rounded-md p-3 mb-4">
-              <p className="text-xs text-primary font-medium">Advanced Detection Algorithms</p>
-              <p className="text-[10px] text-muted-foreground mt-1">
-                Based on DAFx-16, DBX, and KU Leuven research. These algorithms dramatically reduce false positives and improve detection accuracy.
-              </p>
-            </div>
-
+            {/* Phase 4: Room Mode Calculator */}
             <Section
-              title="Algorithm Mode"
+              title="Room Modes"
               showTooltip={settings.showTooltips}
-              tooltip="Select which detection algorithms to use. 'MSD' (Magnitude Slope Deviation) is recommended - 100% accuracy for speech per DAFx-16. Note: Phase coherence is disabled (Web Audio API limitation)."
+              tooltip="Calculate room mode frequencies from dimensions. Room modes are standing waves that can be confused with feedback. Enable to see which frequencies are room resonances vs potential feedback."
             >
-              <div className="space-y-2">
-                {(Object.keys(ALGORITHM_MODES) as AlgorithmMode[]).map((mode) => {
-                  const info = ALGORITHM_MODES[mode]
-                  const isSelected = (settings.algorithmMode ?? 'msd') === mode
-                  return (
-                    <button
-                      key={mode}
-                      onClick={() => onSettingsChange({ algorithmMode: mode })}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-left transition-colors ${
-                        isSelected
-                          ? 'bg-primary/20 border border-primary/50 text-primary'
-                          : 'bg-muted/50 border border-transparent hover:bg-muted'
-                      }`}
-                    >
-                      <div>
-                        <span className="text-xs font-medium">{info.label}</span>
-                        <p className="text-[9px] text-muted-foreground">{info.description}</p>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-medium">Enable Mode Calculator</span>
+                    <p className="text-[9px] text-muted-foreground">
+                      Show room resonance frequencies
+                    </p>
+                  </div>
+                  <Switch
+                    checked={settings.roomModesEnabled ?? false}
+                    onCheckedChange={(checked) => onSettingsChange({ roomModesEnabled: checked })}
+                  />
+                </div>
+
+                {(settings.roomModesEnabled ?? false) && (
+                  <div className="space-y-3 pt-2 border-t border-border/50">
+                    {/* Unit selector */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Unit:</span>
+                      <div className="flex gap-1">
+                        {(['meters', 'feet'] as const).map((unit) => (
+                          <button
+                            key={unit}
+                            onClick={() => onSettingsChange({ roomDimensionsUnit: unit })}
+                            className={`px-2 py-0.5 text-xs rounded ${
+                              (settings.roomDimensionsUnit ?? 'meters') === unit
+                                ? 'bg-primary/20 text-primary'
+                                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                            }`}
+                          >
+                            {unit === 'meters' ? 'm' : 'ft'}
+                          </button>
+                        ))}
                       </div>
-                      {isSelected && (
-                        <span className="text-[9px] font-medium text-primary">ACTIVE</span>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-            </Section>
+                    </div>
 
-            <Section
-              title="MSD History Buffer"
-              showTooltip={settings.showTooltips}
-              tooltip="Number of frames for Magnitude Slope Deviation analysis. More frames = higher accuracy but slower detection. 7-15 for speech, 15-30 for music, 30+ for compressed content."
-            >
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-muted-foreground">Frames</span>
-                  <span className="text-xs font-mono">{settings.msdMinFrames ?? 7}</span>
-                </div>
-                <Slider
-                  value={[settings.msdMinFrames ?? 7]}
-                  onValueChange={([v]) => onSettingsChange({ msdMinFrames: v })}
-                  min={7}
-                  max={50}
-                  step={1}
-                />
-                <div className="flex justify-between text-[9px] text-muted-foreground">
-                  <span>Fast (speech)</span>
-                  <span>Accurate (music)</span>
-                </div>
-              </div>
-            </Section>
+                    {/* Dimension inputs */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-[9px] text-muted-foreground">Length</label>
+                        <input
+                          type="number"
+                          value={settings.roomLengthM ?? 10}
+                          onChange={(e) => onSettingsChange({ roomLengthM: parseFloat(e.target.value) || 10 })}
+                          className="w-full px-2 py-1 text-xs bg-muted/50 border border-border rounded focus:outline-none focus:border-primary"
+                          min={1}
+                          max={100}
+                          step={0.5}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] text-muted-foreground">Width</label>
+                        <input
+                          type="number"
+                          value={settings.roomWidthM ?? 8}
+                          onChange={(e) => onSettingsChange({ roomWidthM: parseFloat(e.target.value) || 8 })}
+                          className="w-full px-2 py-1 text-xs bg-muted/50 border border-border rounded focus:outline-none focus:border-primary"
+                          min={1}
+                          max={100}
+                          step={0.5}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] text-muted-foreground">Height</label>
+                        <input
+                          type="number"
+                          value={settings.roomHeightM ?? 3}
+                          onChange={(e) => onSettingsChange({ roomHeightM: parseFloat(e.target.value) || 3 })}
+                          className="w-full px-2 py-1 text-xs bg-muted/50 border border-border rounded focus:outline-none focus:border-primary"
+                          min={1}
+                          max={30}
+                          step={0.1}
+                        />
+                      </div>
+                    </div>
 
-            {/* Phase Coherence Section - DISABLED
-                Web Audio API AnalyserNode.getFloatFrequencyData() only returns magnitude, not phase.
-                The phase buffer exists but is never populated. Kept for future AudioWorklet implementation.
-            */}
-            <Section
-              title="Phase Coherence (Disabled)"
-              showTooltip={settings.showTooltips}
-              tooltip="DISABLED: Web Audio API doesn't provide phase data. This feature requires AudioWorklet implementation for future support."
-            >
-              <div className="space-y-2 opacity-50 pointer-events-none">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-muted-foreground">Threshold</span>
-                  <span className="text-xs font-mono">{((settings.phaseCoherenceThreshold ?? 0.75) * 100).toFixed(0)}%</span>
-                </div>
-                <Slider
-                  value={[(settings.phaseCoherenceThreshold ?? 0.75) * 100]}
-                  onValueChange={([v]) => onSettingsChange({ phaseCoherenceThreshold: v / 100 })}
-                  min={40}
-                  max={95}
-                  step={5}
-                  disabled
-                />
-                <div className="flex justify-between text-[9px] text-muted-foreground">
-                  <span>Not Available</span>
-                  <span>Web Audio API Limitation</span>
-                </div>
-              </div>
-            </Section>
-
-            <Section
-              title="Fusion Feedback Threshold"
-              showTooltip={settings.showTooltips}
-              tooltip="Combined algorithm probability threshold for positive feedback detection. Lower = more alerts, Higher = fewer but more confident alerts."
-            >
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-muted-foreground">Threshold</span>
-                  <span className="text-xs font-mono">{((settings.fusionFeedbackThreshold ?? 0.55) * 100).toFixed(0)}%</span>
-                </div>
-                <Slider
-                  value={[(settings.fusionFeedbackThreshold ?? 0.55) * 100]}
-                  onValueChange={([v]) => onSettingsChange({ fusionFeedbackThreshold: v / 100 })}
-                  min={40}
-                  max={90}
-                  step={5}
-                />
-                <div className="flex justify-between text-[9px] text-muted-foreground">
-                  <span>Catch all</span>
-                  <span>High confidence</span>
-                </div>
-              </div>
-            </Section>
-
-            <Section
-              title="Detection Features"
-              showTooltip={settings.showTooltips}
-              tooltip="Enable/disable specific detection features. Compression detection adapts thresholds for dynamically compressed content. Comb pattern identifies feedback from acoustic paths."
-            >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-xs text-foreground">Compression Detection</span>
-                    <p className="text-[9px] text-muted-foreground">Adapts thresholds for compressed music</p>
+                    {/* Calculated Room Modes Display */}
+                    <RoomModesDisplay
+                      lengthM={settings.roomDimensionsUnit === 'feet' 
+                        ? (settings.roomLengthM ?? 10) * 0.3048 
+                        : (settings.roomLengthM ?? 10)}
+                      widthM={settings.roomDimensionsUnit === 'feet' 
+                        ? (settings.roomWidthM ?? 8) * 0.3048 
+                        : (settings.roomWidthM ?? 8)}
+                      heightM={settings.roomDimensionsUnit === 'feet' 
+                        ? (settings.roomHeightM ?? 3) * 0.3048 
+                        : (settings.roomHeightM ?? 3)}
+                    />
                   </div>
-                  <button
-                    role="switch"
-                    aria-checked={settings.enableCompressionDetection ?? true}
-                    onClick={() => onSettingsChange({ enableCompressionDetection: !(settings.enableCompressionDetection ?? true) })}
-                    className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
-                      (settings.enableCompressionDetection ?? true) ? 'bg-primary' : 'bg-muted'
-                    }`}
-                  >
-                    <span className={`inline-block h-3 w-3 transform rounded-full bg-background shadow transition-transform ${
-                      (settings.enableCompressionDetection ?? true) ? 'translate-x-3.5' : 'translate-x-0.5'
-                    }`} />
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-xs text-foreground">Comb Pattern Detection</span>
-                    <p className="text-[9px] text-muted-foreground">Identifies feedback acoustic paths</p>
-                  </div>
-                  <button
-                    role="switch"
-                    aria-checked={settings.enableCombPatternDetection ?? true}
-                    onClick={() => onSettingsChange({ enableCombPatternDetection: !(settings.enableCombPatternDetection ?? true) })}
-                    className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
-                      (settings.enableCombPatternDetection ?? true) ? 'bg-primary' : 'bg-muted'
-                    }`}
-                  >
-                    <span className={`inline-block h-3 w-3 transform rounded-full bg-background shadow transition-transform ${
-                      (settings.enableCombPatternDetection ?? true) ? 'translate-x-3.5' : 'translate-x-0.5'
-                    }`} />
-                  </button>
-                </div>
+                )}
               </div>
             </Section>
 
-            <Section
-              title="Display Options"
-              showTooltip={settings.showTooltips}
-              tooltip="Show detailed algorithm scores and phase visualization in the UI. Useful for debugging and understanding detection decisions."
-            >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-xs text-foreground">Show Algorithm Scores</span>
-                    <p className="text-[9px] text-muted-foreground">Display MSD, Phase, Spectral scores</p>
-                  </div>
-                  <button
-                    role="switch"
-                    aria-checked={settings.showAlgorithmScores ?? false}
-                    onClick={() => onSettingsChange({ showAlgorithmScores: !(settings.showAlgorithmScores ?? false) })}
-                    className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
-                      (settings.showAlgorithmScores ?? false) ? 'bg-primary' : 'bg-muted'
-                    }`}
-                  >
-                    <span className={`inline-block h-3 w-3 transform rounded-full bg-background shadow transition-transform ${
-                      (settings.showAlgorithmScores ?? false) ? 'translate-x-3.5' : 'translate-x-0.5'
-                    }`} />
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-xs text-foreground">Show Phase Display</span>
-                    <p className="text-[9px] text-muted-foreground">Visualize phase coherence</p>
-                  </div>
-                  <button
-                    role="switch"
-                    aria-checked={settings.showPhaseDisplay ?? false}
-                    onClick={() => onSettingsChange({ showPhaseDisplay: !(settings.showPhaseDisplay ?? false) })}
-                    className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
-                      (settings.showPhaseDisplay ?? false) ? 'bg-primary' : 'bg-muted'
-                    }`}
-                  >
-                    <span className={`inline-block h-3 w-3 transform rounded-full bg-background shadow transition-transform ${
-                      (settings.showPhaseDisplay ?? false) ? 'translate-x-3.5' : 'translate-x-0.5'
-                    }`} />
-                  </button>
-                </div>
-              </div>
-            </Section>
-
-            <div className="bg-muted/50 rounded-md p-3 text-[10px] text-muted-foreground">
-              <p className="font-medium text-foreground mb-1">Algorithm Summary:</p>
-              <ul className="space-y-1">
-                <li><strong>MSD</strong>: Magnitude Slope Deviation - feedback grows linearly in dB</li>
-                <li><strong>Phase</strong>: Phase coherence - feedback maintains constant phase</li>
-                <li><strong>Spectral</strong>: Flatness + kurtosis - feedback is a pure tone</li>
-                <li><strong>Comb</strong>: Pattern detection - feedback occurs at regular intervals</li>
-              </ul>
-            </div>
           </TabsContent>
 
           <TabsContent value="display" className="mt-4 space-y-5">
@@ -675,7 +882,7 @@ export function SettingsPanel({
               </Select>
             </Section>
 
-            <div className="pt-3 border-t border-border">
+            <div className="pt-3 border-t border-border space-y-2">
               <ResetConfirmDialog
                 onConfirm={onReset}
                 trigger={
@@ -685,8 +892,34 @@ export function SettingsPanel({
                   </Button>
                 }
               />
-              <p className="text-[9px] text-muted-foreground text-center mt-2">
+              <p className="text-[9px] text-muted-foreground text-center">
                 Restores aggressive detection for corporate/conference PA
+              </p>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="flex-1"
+                  onClick={handleSaveAsDefaults}
+                >
+                  <Download className="h-3.5 w-3.5 mr-1.5" />
+                  Save as Default
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="flex-1"
+                  onClick={handleLoadDefaults}
+                  disabled={!hasSavedDefaults}
+                  title={hasSavedDefaults ? 'Load your saved defaults' : 'No saved defaults yet'}
+                >
+                  <FileJson className="h-3.5 w-3.5 mr-1.5" />
+                  Load Saved
+                </Button>
+              </div>
+              <p className="text-[9px] text-muted-foreground text-center">
+                {hasSavedDefaults ? 'Saved defaults available' : 'Save current settings to reuse later'}
               </p>
             </div>
           </TabsContent>

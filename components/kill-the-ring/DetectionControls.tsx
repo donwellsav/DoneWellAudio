@@ -1,13 +1,14 @@
 'use client'
 
-import React, { useState } from 'react'
-import { HelpCircle, ChevronDown } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { HelpCircle, ChevronDown, Download, X } from 'lucide-react'
 import { Slider } from '@/components/ui/slider'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import type { DetectorSettings, OperationMode } from '@/types/advisory'
 import { FREQ_RANGE_PRESETS, OPERATION_MODES } from '@/lib/dsp/constants'
 
-// Mode labels and descriptions for UI display
+const STORAGE_PREFIX = 'ktr-setting-'
+
 const MODE_INFO: Record<OperationMode, { label: string; desc: string }> = {
   feedbackHunt: { label: 'Feedback Hunt', desc: 'Balanced detection' },
   vocalRing: { label: 'Vocal Ring', desc: 'Speech resonance' },
@@ -25,10 +26,112 @@ interface DetectionControlsProps {
 export function DetectionControls({ settings, onModeChange, onSettingsChange }: DetectionControlsProps) {
   const [modeOpen, setModeOpen] = useState(false)
   const [freqOpen, setFreqOpen] = useState(false)
+  const [focusedModeIndex, setFocusedModeIndex] = useState(-1)
+  const [focusedFreqIndex, setFocusedFreqIndex] = useState(-1)
+  const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set())
+  const modeRef = useRef<HTMLDivElement>(null)
+  const freqRef = useRef<HTMLDivElement>(null)
 
-  const currentMode = OPERATION_MODES[settings.mode]
+  useEffect(() => {
+    const keys = new Set<string>()
+    Object.keys(localStorage).forEach((k) => {
+      if (k.startsWith(STORAGE_PREFIX)) keys.add(k.replace(STORAGE_PREFIX, ''))
+    })
+    setSavedKeys(keys)
+  }, [])
+
+  useEffect(() => {
+    const handleMouseDown = (e: MouseEvent) => {
+      if (modeRef.current && !modeRef.current.contains(e.target as Node)) { setModeOpen(false); setFocusedModeIndex(-1) }
+      if (freqRef.current && !freqRef.current.contains(e.target as Node)) { setFreqOpen(false); setFocusedFreqIndex(-1) }
+    }
+    document.addEventListener('mousedown', handleMouseDown)
+    return () => document.removeEventListener('mousedown', handleMouseDown)
+  }, [])
+
+  useEffect(() => {
+    const modeKeys = Object.keys(OPERATION_MODES) as OperationMode[]
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setModeOpen(false)
+        setFreqOpen(false)
+        setFocusedModeIndex(-1)
+        setFocusedFreqIndex(-1)
+        return
+      }
+
+      if (modeOpen) {
+        const count = modeKeys.length
+        if (e.key === 'ArrowDown') {
+          e.preventDefault()
+          setFocusedModeIndex((prev) => (prev + 1) % count)
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault()
+          setFocusedModeIndex((prev) => (prev - 1 + count) % count)
+        } else if (e.key === 'Enter' && focusedModeIndex >= 0) {
+          e.preventDefault()
+          onModeChange(modeKeys[focusedModeIndex])
+          setModeOpen(false)
+          setFocusedModeIndex(-1)
+        }
+      }
+
+      if (freqOpen) {
+        const count = FREQ_RANGE_PRESETS.length
+        if (e.key === 'ArrowDown') {
+          e.preventDefault()
+          setFocusedFreqIndex((prev) => (prev + 1) % count)
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault()
+          setFocusedFreqIndex((prev) => (prev - 1 + count) % count)
+        } else if (e.key === 'Enter' && focusedFreqIndex >= 0) {
+          e.preventDefault()
+          const preset = FREQ_RANGE_PRESETS[focusedFreqIndex]
+          onSettingsChange({ minFrequency: preset.minFrequency, maxFrequency: preset.maxFrequency })
+          setFreqOpen(false)
+          setFocusedFreqIndex(-1)
+        }
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [modeOpen, freqOpen, focusedModeIndex, focusedFreqIndex, onModeChange, onSettingsChange])
+
+  const saveDefault = (key: string, value: unknown) => {
+    localStorage.setItem(`${STORAGE_PREFIX}${key}`, JSON.stringify(value))
+    setSavedKeys((prev) => new Set(prev).add(key))
+  }
+
+  const clearDefault = (key: string) => {
+    localStorage.removeItem(`${STORAGE_PREFIX}${key}`)
+    setSavedKeys((prev) => { const n = new Set(prev); n.delete(key); return n })
+  }
+
+  const SaveButton = ({ settingKey, value }: { settingKey: string; value: unknown }) => {
+    const isSaved = savedKeys.has(settingKey)
+    return (
+      <div className="flex items-center gap-0.5 flex-shrink-0">
+        <button
+          onClick={(e) => { e.stopPropagation(); saveDefault(settingKey, value) }}
+          className="p-0.5 rounded hover:bg-muted/50 transition-colors"
+          title={isSaved ? 'Update saved default' : 'Save as default'}
+        >
+          <Download className={`w-3 h-3 ${isSaved ? 'text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'}`} />
+        </button>
+        {isSaved && (
+          <button
+            onClick={(e) => { e.stopPropagation(); clearDefault(settingKey) }}
+            className="p-0.5 rounded hover:bg-muted/50 transition-colors"
+            title="Clear saved default"
+          >
+            <X className="w-3 h-3 text-muted-foreground/50 hover:text-destructive" />
+          </button>
+        )}
+      </div>
+    )
+  }
+
   const currentModeInfo = MODE_INFO[settings.mode]
-  
   const currentFreqPreset = FREQ_RANGE_PRESETS.find(
     p => p.minFrequency === settings.minFrequency && p.maxFrequency === settings.maxFrequency
   ) || { label: 'Custom', minFrequency: settings.minFrequency, maxFrequency: settings.maxFrequency }
@@ -37,31 +140,34 @@ export function DetectionControls({ settings, onModeChange, onSettingsChange }: 
     <TooltipProvider delayDuration={400}>
       <div className="space-y-1.5">
 
-        {/* Mode selector - collapsible */}
-        <div className="relative">
+        {/* Mode selector */}
+        <div className="relative" ref={modeRef}>
           <button
-            onClick={() => { setModeOpen(!modeOpen); setFreqOpen(false) }}
+            onClick={() => { setModeOpen(!modeOpen); setFreqOpen(false); setFocusedModeIndex(-1); setFocusedFreqIndex(-1) }}
             className="w-full flex items-center justify-between px-2 py-1 rounded border border-border hover:border-primary/40 transition-colors"
           >
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-xs font-medium text-foreground truncate">{currentModeInfo.label}</span>
               <span className="text-[10px] text-muted-foreground truncate hidden sm:inline">{currentModeInfo.desc}</span>
             </div>
-            <ChevronDown className={`w-3 h-3 text-muted-foreground transition-transform flex-shrink-0 ${modeOpen ? 'rotate-180' : ''}`} />
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <SaveButton settingKey="mode" value={settings.mode} />
+              <ChevronDown className={`w-3 h-3 text-muted-foreground transition-transform ${modeOpen ? 'rotate-180' : ''}`} />
+            </div>
           </button>
-          
           {modeOpen && (
             <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-background border border-border rounded shadow-lg overflow-hidden">
-              {(Object.keys(OPERATION_MODES) as OperationMode[]).map((mode) => {
+              {(Object.keys(OPERATION_MODES) as OperationMode[]).map((mode, idx) => {
                 const info = MODE_INFO[mode]
                 const modeSettings = OPERATION_MODES[mode]
                 const isActive = settings.mode === mode
+                const isFocused = focusedModeIndex === idx
                 return (
                   <button
                     key={mode}
-                    onClick={() => { onModeChange(mode); setModeOpen(false) }}
+                    onClick={() => { onModeChange(mode); setModeOpen(false); setFocusedModeIndex(-1) }}
                     className={`w-full flex items-center justify-between px-2 py-1.5 text-left transition-colors ${
-                      isActive ? 'bg-primary/10 text-primary' : 'hover:bg-muted text-foreground'
+                      isActive ? 'bg-primary/10 text-primary' : isFocused ? 'bg-muted text-foreground' : 'hover:bg-muted text-foreground'
                     }`}
                   >
                     <div className="min-w-0">
@@ -78,10 +184,10 @@ export function DetectionControls({ settings, onModeChange, onSettingsChange }: 
           )}
         </div>
 
-        {/* Freq range - collapsible */}
-        <div className="relative">
+        {/* Freq range */}
+        <div className="relative" ref={freqRef}>
           <button
-            onClick={() => { setFreqOpen(!freqOpen); setModeOpen(false) }}
+            onClick={() => { setFreqOpen(!freqOpen); setModeOpen(false); setFocusedFreqIndex(-1); setFocusedModeIndex(-1) }}
             className="w-full flex items-center justify-between px-2 py-1 rounded border border-border hover:border-primary/40 transition-colors"
           >
             <div className="flex items-center gap-2 min-w-0">
@@ -90,19 +196,22 @@ export function DetectionControls({ settings, onModeChange, onSettingsChange }: 
                 {currentFreqPreset.minFrequency}-{currentFreqPreset.maxFrequency}Hz
               </span>
             </div>
-            <ChevronDown className={`w-3 h-3 text-muted-foreground transition-transform flex-shrink-0 ${freqOpen ? 'rotate-180' : ''}`} />
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <SaveButton settingKey="freqRange" value={{ minFrequency: settings.minFrequency, maxFrequency: settings.maxFrequency }} />
+              <ChevronDown className={`w-3 h-3 text-muted-foreground transition-transform ${freqOpen ? 'rotate-180' : ''}`} />
+            </div>
           </button>
-          
           {freqOpen && (
             <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-background border border-border rounded shadow-lg overflow-hidden">
-              {FREQ_RANGE_PRESETS.map((preset) => {
+              {FREQ_RANGE_PRESETS.map((preset, idx) => {
                 const isActive = settings.minFrequency === preset.minFrequency && settings.maxFrequency === preset.maxFrequency
+                const isFocused = focusedFreqIndex === idx
                 return (
                   <button
                     key={preset.label}
-                    onClick={() => { onSettingsChange({ minFrequency: preset.minFrequency, maxFrequency: preset.maxFrequency }); setFreqOpen(false) }}
+                    onClick={() => { onSettingsChange({ minFrequency: preset.minFrequency, maxFrequency: preset.maxFrequency }); setFreqOpen(false); setFocusedFreqIndex(-1) }}
                     className={`w-full flex items-center justify-between px-2 py-1.5 text-left transition-colors ${
-                      isActive ? 'bg-primary/10 text-primary' : 'hover:bg-muted text-foreground'
+                      isActive ? 'bg-primary/10 text-primary' : isFocused ? 'bg-muted text-foreground' : 'hover:bg-muted text-foreground'
                     }`}
                   >
                     <span className="text-xs font-medium">{preset.label}</span>
@@ -140,22 +249,25 @@ export function DetectionControls({ settings, onModeChange, onSettingsChange }: 
               </span>
             )}
           </div>
-          <button
-            role="switch"
-            aria-checked={settings.autoMusicAware}
-            aria-label="Toggle auto music-aware mode"
-            onClick={() => onSettingsChange({ autoMusicAware: !settings.autoMusicAware })}
-            className={`relative inline-flex h-4 w-7 flex-shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-              settings.autoMusicAware ? 'bg-primary' : 'bg-muted'
-            }`}
-          >
-            <span className={`inline-block h-3 w-3 transform rounded-full bg-background shadow transition-transform ${
-              settings.autoMusicAware ? 'translate-x-3.5' : 'translate-x-0.5'
-            }`} />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <SaveButton settingKey="autoMusicAware" value={settings.autoMusicAware} />
+            <button
+              role="switch"
+              aria-checked={settings.autoMusicAware}
+              aria-label="Toggle auto music-aware mode"
+              onClick={() => onSettingsChange({ autoMusicAware: !settings.autoMusicAware })}
+              className={`relative inline-flex h-4 w-7 flex-shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                settings.autoMusicAware ? 'bg-primary' : 'bg-muted'
+              }`}
+            >
+              <span className={`inline-block h-3 w-3 transform rounded-full bg-background shadow transition-transform ${
+                settings.autoMusicAware ? 'translate-x-3.5' : 'translate-x-0.5'
+              }`} />
+            </button>
+          </div>
         </div>
 
-        {/* Sliders — label+value row above full-width track */}
+        {/* Sliders */}
         <div className="space-y-0">
           <div className="pb-1.5">
             <SliderRow
@@ -165,6 +277,10 @@ export function DetectionControls({ settings, onModeChange, onSettingsChange }: 
               min={2} max={20} step={1}
               sliderValue={settings.feedbackThresholdDb}
               onChange={(v) => onSettingsChange({ feedbackThresholdDb: v })}
+              settingKey="feedbackThresholdDb"
+              savedKeys={savedKeys}
+              onSave={saveDefault}
+              onClear={clearDefault}
             />
           </div>
           <div className="py-1.5">
@@ -175,6 +291,10 @@ export function DetectionControls({ settings, onModeChange, onSettingsChange }: 
               min={1} max={12} step={0.5}
               sliderValue={settings.ringThresholdDb}
               onChange={(v) => onSettingsChange({ ringThresholdDb: v })}
+              settingKey="ringThresholdDb"
+              savedKeys={savedKeys}
+              onSave={saveDefault}
+              onClear={clearDefault}
             />
           </div>
           <div className="pt-1.5">
@@ -185,6 +305,10 @@ export function DetectionControls({ settings, onModeChange, onSettingsChange }: 
               min={0.5} max={8} step={0.5}
               sliderValue={settings.growthRateThreshold}
               onChange={(v) => onSettingsChange({ growthRateThreshold: v })}
+              settingKey="growthRateThreshold"
+              savedKeys={savedKeys}
+              onSave={saveDefault}
+              onClear={clearDefault}
             />
           </div>
         </div>
@@ -203,12 +327,16 @@ interface SliderRowProps {
   step: number
   sliderValue: number
   onChange: (v: number) => void
+  settingKey: string
+  savedKeys: Set<string>
+  onSave: (key: string, value: unknown) => void
+  onClear: (key: string) => void
 }
 
-function SliderRow({ label, value, tooltip, min, max, step, sliderValue, onChange }: SliderRowProps) {
+function SliderRow({ label, value, tooltip, min, max, step, sliderValue, onChange, settingKey, savedKeys, onSave, onClear }: SliderRowProps) {
+  const isSaved = savedKeys.has(settingKey)
   return (
     <div className="space-y-0.5">
-      {/* Label + value on one compact row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
           <span className="text-xs text-muted-foreground">{label}</span>
@@ -223,9 +351,28 @@ function SliderRow({ label, value, tooltip, min, max, step, sliderValue, onChang
             </Tooltip>
           )}
         </div>
-        <span className="text-xs font-mono text-foreground tabular-nums">{value}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-mono text-foreground tabular-nums">{value}</span>
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={() => onSave(settingKey, sliderValue)}
+              className="p-0.5 rounded hover:bg-muted/50 transition-colors"
+              title={isSaved ? 'Update saved default' : 'Save as default'}
+            >
+              <Download className={`w-3 h-3 ${isSaved ? 'text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'}`} />
+            </button>
+            {isSaved && (
+              <button
+                onClick={() => onClear(settingKey)}
+                className="p-0.5 rounded hover:bg-muted/50 transition-colors"
+                title="Clear saved default"
+              >
+                <X className="w-3 h-3 text-muted-foreground/50 hover:text-destructive" />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
-      {/* Full-width slider track */}
       <Slider
         value={[sliderValue]}
         onValueChange={([v]) => onChange(v)}

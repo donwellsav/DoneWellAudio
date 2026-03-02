@@ -27,14 +27,14 @@ export async function createSession(params: {
   return rows[0] as Session
 }
 
-export async function endSession(id: string): Promise<Session> {
+export async function endSession(id: string): Promise<Session | null> {
   const rows = await sql`
     UPDATE sessions
     SET ended_at = NOW()
     WHERE id = ${id}
     RETURNING *
   `
-  return rows[0] as Session
+  return (rows[0] as Session) ?? null
 }
 
 export async function listSessions(limit = 50): Promise<Session[]> {
@@ -51,8 +51,9 @@ export async function listSessions(limit = 50): Promise<Session[]> {
   return rows as Session[]
 }
 
-export async function deleteSession(id: string): Promise<void> {
-  await sql`DELETE FROM sessions WHERE id = ${id}`
+export async function deleteSession(id: string): Promise<number> {
+  const rows = await sql`DELETE FROM sessions WHERE id = ${id} RETURNING id`
+  return rows.length
 }
 
 export async function getSession(id: string): Promise<Session | null> {

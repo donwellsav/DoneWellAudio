@@ -1,100 +1,6 @@
 // KillTheRing2 Types - Full type definitions for the feedback detection system
-// Enhanced with advanced algorithm types from DAFx-16, DBX, and KU Leuven research
 
 export type ThresholdMode = 'absolute' | 'relative' | 'hybrid'
-
-// ============================================================================
-// ADVANCED ALGORITHM TYPES (from advancedDetection.ts)
-// ============================================================================
-
-/** Algorithm selection mode */
-export type AlgorithmMode = 'auto' | 'msd' | 'phase' | 'combined' | 'all'
-
-/** Detected content type for adaptive thresholds */
-export type ContentType = 'speech' | 'music' | 'compressed' | 'unknown'
-
-/** MSD (Magnitude Slope Deviation) algorithm result */
-export interface MSDResult {
-  msd: number
-  feedbackScore: number
-  secondDerivative: number
-  isFeedbackLikely: boolean
-  framesAnalyzed: number
-}
-
-/** Phase coherence analysis result */
-export interface PhaseCoherenceResult {
-  coherence: number
-  feedbackScore: number
-  meanPhaseDelta: number
-  phaseDeltaStd: number
-  isFeedbackLikely: boolean
-}
-
-/** Spectral flatness and kurtosis result */
-export interface SpectralFlatnessResult {
-  flatness: number
-  kurtosis: number
-  feedbackScore: number
-  isFeedbackLikely: boolean
-}
-
-/** Comb filter pattern detection result */
-export interface CombPatternResult {
-  hasPattern: boolean
-  fundamentalSpacing: number | null
-  estimatedPathLength: number | null
-  matchingPeaks: number
-  predictedFrequencies: number[]
-  confidence: number
-}
-
-/** Compression detection result */
-export interface CompressionResult {
-  isCompressed: boolean
-  estimatedRatio: number
-  crestFactor: number
-  dynamicRange: number
-  thresholdMultiplier: number
-}
-
-/** Combined algorithm scores */
-export interface AlgorithmScores {
-  msd: MSDResult | null
-  phase: PhaseCoherenceResult | null
-  spectral: SpectralFlatnessResult | null
-  comb: CombPatternResult | null
-  compression: CompressionResult | null
-}
-
-/** Fused detection verdict */
-export type FusionVerdict = 'FEEDBACK' | 'POSSIBLE_FEEDBACK' | 'NOT_FEEDBACK' | 'UNCERTAIN'
-
-/** Fused detection result from all algorithms */
-export interface FusedDetectionResult {
-  feedbackProbability: number
-  confidence: number
-  contributingAlgorithms: string[]
-  algorithmScores: AlgorithmScores
-  verdict: FusionVerdict
-  reasons: string[]
-}
-
-/** Algorithm fusion configuration */
-export interface FusionConfig {
-  mode: AlgorithmMode
-  customWeights?: {
-    msd?: number
-    phase?: number
-    spectral?: number
-    comb?: number
-    existing?: number
-  }
-  msdMinFrames: number
-  phaseThreshold: number
-  enableCompressionDetection: boolean
-  feedbackThreshold: number
-}
 // Unified operation mode type - use 'vocalRing' everywhere (not 'vocalRingAssist')
 export type OperationMode = 'feedbackHunt' | 'vocalRing' | 'musicAware' | 'aggressive' | 'calibration'
 export type Preset = 'surgical' | 'heavy'
@@ -147,6 +53,21 @@ export interface DetectedPeak {
   timestamp: number
   noiseFloorDb: number | null
   effectiveThresholdDb: number
+  // MSD (Magnitude Slope Deviation) analysis - DAFx-16 algorithm
+  // Lower MSD = more consistent growth = more likely feedback howl
+  msd?: number // MSD value (-1 if not enough history)
+  msdGrowthRate?: number // Average dB growth per frame
+  msdIsHowl?: boolean // True if MSD indicates feedback howl pattern
+  msdFastConfirm?: boolean // True if MSD confirms feedback quickly (for speed priority)
+  // Phase 2: Peak Persistence Scoring
+  // Higher persistence = more likely feedback (pure tone persists)
+  persistenceFrames?: number // Consecutive frames at this frequency
+  persistenceBoost?: number // Probability boost based on persistence
+  isPersistent?: boolean // True if persistence >= MIN_PERSISTENCE_FRAMES
+  isHighlyPersistent?: boolean // True if persistence >= HIGH_PERSISTENCE_FRAMES
+  // Q and bandwidth from -3dB analysis
+  qEstimate?: number // Estimated Q factor
+  bandwidthHz?: number // -3dB bandwidth in Hz
 }
 
 export interface TrackFeatures {
@@ -186,6 +107,22 @@ export interface Track {
   harmonicOfHz: number | null
   isSubHarmonicRoot: boolean // True when this track is the fundamental of a partial series
   isActive: boolean
+  // MSD (Magnitude Slope Deviation) analysis - DAFx-16 algorithm
+  msd?: number // Current MSD value
+  msdGrowthRate?: number // Average dB growth per frame
+  msdIsHowl?: boolean // True if MSD indicates feedback howl pattern
+  msdFastConfirm?: boolean // True if MSD confirms feedback quickly
+  // Phase 2: Peak Persistence Scoring
+  persistenceFrames?: number // Consecutive frames at this frequency
+  persistenceBoost?: number // Probability boost from persistence
+  isPersistent?: boolean // True if persistence >= MIN_PERSISTENCE_FRAMES
+  isHighlyPersistent?: boolean // True if persistence >= HIGH_PERSISTENCE_FRAMES
+  // Phase 3: Adjacent Frequency Detection (beating)
+  hasAdjacentPeaks?: boolean // True if nearby peaks causing beating detected
+  adjacentPeakIds?: string[] // IDs of adjacent peaks
+  beatFrequencies?: number[] // Beat frequencies in Hz
+  clusterCenterHz?: number // Center of the frequency cluster
+  clusterWidthHz?: number // Width of the cluster
 }
 
 export interface ClassificationResult {
@@ -264,6 +201,8 @@ export interface Advisory {
   cumulativeGrowthDb?: number // Total dB growth since onset
   frequencyBand?: 'LOW' | 'MID' | 'HIGH' // Which frequency band this falls into
   schroederFrequency?: number // Calculated Schroeder frequency for reference
+  // Cluster info — tracks merged peaks in same GEQ band
+  clusterCount?: number // Number of peaks merged into this advisory (default 1)
 }
 
 export interface SpectrumData {
@@ -275,12 +214,6 @@ export interface SpectrumData {
   fftSize: number
   timestamp: number
   peak: number // Peak level in dB for metering
-  // Advanced algorithm state (from DAFx-16, DBX, KU Leuven research)
-  algorithmMode?: AlgorithmMode
-  contentType?: ContentType
-  msdFrameCount?: number
-  isCompressed?: boolean
-  compressionRatio?: number
 }
 
 export interface AnalyzerState {
@@ -345,6 +278,10 @@ export interface TrackedPeak {
     modulationScore: number
     velocityDbPerSec: number
   }
+  // Phase 2+6: MSD and persistence for hybrid fusion
+  msd?: number
+  msdIsHowl?: boolean
+  persistenceFrames?: number
 }
 
 // DetectorSettings - primary settings interface for the analyzer
@@ -371,38 +308,19 @@ export interface DetectorSettings {
   showTooltips: boolean // Show/hide all help tooltips throughout the UI
   aWeightingEnabled: boolean // Apply A-weighting curve to analysis (per IEC 61672-1)
   // Confidence and filtering
-  confidenceThreshold: number // Minimum confidence to display (0.40-0.95, default 0.40)
+  confidenceThreshold: number // Minimum confidence to display (0.0-1.0, default 0.40)
   // Room acoustics for Schroeder frequency calculation
   roomRT60: number // Reverberation time in seconds (0.3-3.0, default 0.7)
   roomVolume: number // Room volume in m³ (50-5000, default 250)
   roomPreset: 'small' | 'medium' | 'large' | 'custom' // Quick room size preset
-  
-  // ==================== ADVANCED ALGORITHM SETTINGS ====================
-  // Based on DAFx-16, DBX, and KU Leuven research papers
-  
-  /** Algorithm mode: auto, msd, phase, combined, or all */
-  algorithmMode: AlgorithmMode
-  
-  /** MSD (Magnitude Slope Deviation) minimum frames for analysis (7-50) */
-  msdMinFrames: number
-  
-  /** Phase coherence threshold (0.4-0.95, higher = stricter) */
-  phaseCoherenceThreshold: number
-  
-  /** Enable compression detection for adaptive thresholds */
-  enableCompressionDetection: boolean
-  
-  /** Enable comb filter pattern detection */
-  enableCombPatternDetection: boolean
-  
-  /** Feedback probability threshold for positive detection (0.4-0.9) */
-  fusionFeedbackThreshold: number
-  
-  /** Show algorithm scores in UI */
-  showAlgorithmScores: boolean
-  
-  /** Show phase coherence display */
-  showPhaseDisplay: boolean
+  // Phase 1: Harmonic Series Filter (reduces bass guitar/instrument false positives)
+  harmonicFilterEnabled: boolean // Enable harmonic series detection to filter instruments
+  // Phase 4: Room Mode Calculator (identifies room resonances vs feedback)
+  roomModesEnabled: boolean // Enable room mode calculation and display
+  roomLengthM: number // Room length in meters (for mode calculation)
+  roomWidthM: number // Room width in meters
+  roomHeightM: number // Room height in meters
+  roomDimensionsUnit: 'meters' | 'feet' // Unit for dimension input
 }
 
 // Default configuration - optimized for Corporate/Conference PA with Vocal Focus (200Hz-8kHz)
@@ -421,11 +339,11 @@ export const DEFAULT_CONFIG: AnalysisConfig = {
   maxIssues: 12, // Show more issues for comprehensive tuning
   ignoreWhistle: true,
   preset: 'surgical',
-  mode: 'vocalRing', // Matches DEFAULT_SETTINGS.mode - optimized for speech/vocal feedback
+  mode: 'feedbackHunt', // Matches DEFAULT_SETTINGS.mode for consistency
   aWeightingEnabled: false,
   noiseFloorEnabled: true,
   noiseFloorSampleCount: 160, // Faster noise floor sampling
   noiseFloorAttackMs: 200, // Faster attack for dynamic environments
   noiseFloorReleaseMs: 1000, // Faster release
-  inputGainDb: 15, // Default input gain (adjustable -40 to +40 dB)
+  inputGainDb: 12, // Default gain for speech systems (adjustable -40 to +40 dB)
 }

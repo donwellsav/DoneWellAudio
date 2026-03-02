@@ -1,29 +1,7 @@
 // KillTheRing2 Feedback Detector - Core DSP engine for peak detection
 // Adapted from FeedbackDetector.js with TypeScript and enhancements
-// Enhanced with MSD, Phase Coherence, Spectral Flatness, and Comb Filter algorithms
 
-import { A_WEIGHTING, LN10_OVER_10, HARMONIC_SETTINGS } from './constants'
-import {
-  MSDHistoryBuffer,
-  PhaseHistoryBuffer,
-  AmplitudeHistoryBuffer,
-  calculateSpectralFlatness,
-  detectCombPattern,
-  fuseAlgorithmResults,
-  detectContentType,
-  type MSDResult,
-  type PhaseCoherenceResult,
-  type SpectralFlatnessResult,
-  type CombPatternResult,
-  type CompressionResult,
-  type AlgorithmScores,
-  type FusedDetectionResult,
-  type AlgorithmMode,
-  type ContentType,
-  type FusionConfig,
-  DEFAULT_FUSION_CONFIG,
-  MSD_CONSTANTS,
-} from './advancedDetection'
+import { A_WEIGHTING, LN10_OVER_10, HARMONIC_SETTINGS, MSD_SETTINGS, PERSISTENCE_SCORING } from './constants'
 import { 
   medianInPlace, 
   buildPrefixSum, 
@@ -38,12 +16,6 @@ import { DEFAULT_CONFIG } from '@/types/advisory'
 export interface FeedbackDetectorCallbacks {
   onPeakDetected?: (peak: DetectedPeak) => void
   onPeakCleared?: (peak: { binIndex: number; frequencyHz: number; timestamp: number }) => void
-  /** Called with advanced algorithm scores for each detected peak */
-  onAlgorithmScores?: (scores: { binIndex: number; frequencyHz: number; scores: AlgorithmScores; fusion: FusedDetectionResult }) => void
-  /** Called when content type is detected (speech/music/compressed) */
-  onContentTypeDetected?: (contentType: ContentType) => void
-  /** Called when comb filter pattern is detected */
-  onCombPatternDetected?: (pattern: CombPatternResult) => void
 }
 
 export interface FeedbackDetectorState {
@@ -52,16 +24,6 @@ export interface FeedbackDetectorState {
   effectiveThresholdDb: number
   sampleRate: number
   fftSize: number
-  /** Advanced algorithm configuration */
-  algorithmMode: AlgorithmMode
-  /** Current detected content type */
-  contentType: ContentType
-  /** Number of frames in MSD history buffer */
-  msdFrameCount: number
-  /** Whether compression is detected */
-  isCompressed: boolean
-  /** Estimated compression ratio */
-  compressionRatio: number
 }
 
 export class FeedbackDetector {
@@ -86,6 +48,19 @@ export class FeedbackDetector {
   private activeBins: Uint32Array | null = null
   private activeBinPos: Int32Array | null = null
   private activeCount: number = 0
+
+  // MSD (Magnitude Slope Deviation) buffers - DAFx-16 algorithm
+  // Stores magnitude history per frequency bin for growth analysis
+  private msdHistory: Float32Array[] | null = null // [bin][frame] ring buffer
+  private msdHistoryIndex: Uint8Array | null = null // Current write index per bin
+  private msdFrameCount: Uint16Array | null = null // How many frames we have per bin
+  private msdConfirmFrames: Uint8Array | null = null // Frames below fast confirm threshold
+
+  // Peak Persistence Scoring - Phase 2 Enhancement
+  // Tracks consecutive frames where a peak persists at the same frequency
+  // Feedback = persistent (vertical streak), transient = short-lived
+  private persistenceCount: Uint16Array | null = null // Consecutive frames at this bin
+  private persistenceLastDb: Float32Array | null = null // Last amplitude for comparison
 
   // A-weighting lookup
   private aWeightingTable: Float32Array | null = null
@@ -122,36 +97,6 @@ export class FeedbackDetector {
   // Ring/growth detection thresholds (mapped from DetectorSettings)
   private ringThresholdDb: number = -10
   private growthRateThreshold: number = 1.5
-
-  // ==================== Advanced Detection Buffers ====================
-  // MSD (Magnitude Slope Deviation) - from DAFx-16 paper
-  private msdBuffer: MSDHistoryBuffer | null = null
-  
-  // Phase coherence tracking - DISABLED
-  // NOTE: Web Audio API AnalyserNode.getFloatFrequencyData() only returns magnitude, not phase.
-  // These buffers exist but are never populated. Kept for future AudioWorklet implementation.
-  private phaseBuffer: PhaseHistoryBuffer | null = null
-  private lastPhaseData: Float32Array | null = null
-  
-  // Compression detection
-  private amplitudeBuffer: AmplitudeHistoryBuffer | null = null
-  private compressionResult: CompressionResult | null = null
-  
-  // Content type detection
-  private detectedContentType: ContentType = 'unknown'
-  private contentTypeConfidence: number = 0
-  
-  // Algorithm configuration
-  private algorithmMode: AlgorithmMode = 'msd' // Changed from 'combined' - phase is disabled
-  private fusionConfig: FusionConfig = { ...DEFAULT_FUSION_CONFIG }
-  private msdMinFrames: number = MSD_CONSTANTS.MIN_FRAMES_SPEECH
-  
-  // Comb filter pattern tracking
-  private recentPeakFrequencies: number[] = []
-  private lastCombPattern: CombPatternResult | null = null
-  
-  // Peak-level algorithm scores cache
-  private peakAlgorithmScores: Map<number, AlgorithmScores> = new Map()
 
   constructor(config: Partial<AnalysisConfig> = {}, callbacks: FeedbackDetectorCallbacks = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config }
@@ -362,32 +307,6 @@ export class FeedbackDetector {
       mappedConfig.confidenceThreshold = settings.confidenceThreshold
     }
 
-    // ==================== Advanced Algorithm Settings ====================
-    // Algorithm mode (auto, msd, phase, combined, all)
-    if (settings.algorithmMode !== undefined) {
-      this.setAlgorithmMode(settings.algorithmMode)
-    }
-
-    // MSD minimum frames for analysis
-    if (settings.msdMinFrames !== undefined) {
-      this.setMSDMinFrames(settings.msdMinFrames)
-    }
-
-    // Phase coherence threshold
-    if (settings.phaseCoherenceThreshold !== undefined) {
-      this.fusionConfig.phaseThreshold = settings.phaseCoherenceThreshold
-    }
-
-    // Compression detection
-    if (settings.enableCompressionDetection !== undefined) {
-      this.fusionConfig.enableCompressionDetection = settings.enableCompressionDetection
-    }
-
-    // Fusion feedback threshold
-    if (settings.fusionFeedbackThreshold !== undefined) {
-      this.fusionConfig.feedbackThreshold = settings.fusionFeedbackThreshold
-    }
-
     if (Object.keys(mappedConfig).length > 0) {
       this.updateConfig(mappedConfig)
     }
@@ -402,12 +321,6 @@ export class FeedbackDetector {
       effectiveThresholdDb: this.computeEffectiveThresholdDb(),
       sampleRate: this.audioContext?.sampleRate ?? 48000,
       fftSize: this.config.fftSize,
-      // Advanced algorithm state
-      algorithmMode: this.algorithmMode,
-      contentType: this.detectedContentType,
-      msdFrameCount: this.msdBuffer?.getFrameCount() ?? 0,
-      isCompressed: this.compressionResult?.isCompressed ?? false,
-      compressionRatio: this.compressionResult?.estimatedRatio ?? 1,
     }
   }
 
@@ -433,9 +346,9 @@ export class FeedbackDetector {
 
   private allocateBuffers(): void {
     if (!this.analyser) return
-    
+
     const n = this.analyser.frequencyBinCount
-    
+
     this.freqDb = new Float32Array(n)
     this.power = new Float32Array(n)
     this.prefix = new Float64Array(n + 1)
@@ -447,29 +360,28 @@ export class FeedbackDetector {
     this.activeBinPos = new Int32Array(n)
     this.activeBinPos.fill(-1)
     this.activeCount = 0
-    
+
     // Build A-weighting table
     this.aWeightingTable = new Float32Array(n)
     this.computeAWeightingTable()
     this.recomputeAnalysisDbBounds()
+
+    // MSD history buffers - ring buffer per bin
+    const historySize = MSD_SETTINGS.HISTORY_SIZE
+    this.msdHistory = new Array(n)
+    for (let i = 0; i < n; i++) {
+      this.msdHistory[i] = new Float32Array(historySize)
+    }
+    this.msdHistoryIndex = new Uint8Array(n)
+    this.msdFrameCount = new Uint16Array(n)
+    this.msdConfirmFrames = new Uint8Array(n)
+
+    // Peak Persistence Scoring - Phase 2
+    this.persistenceCount = new Uint16Array(n)
+    this.persistenceLastDb = new Float32Array(n)
     
     this.noiseFloorDb = null
     this.recomputeDerivedIndices()
-    
-    // ==================== Advanced Detection Buffers ====================
-    // MSD history buffer - stores dB magnitude for second derivative analysis
-    this.msdBuffer = new MSDHistoryBuffer(n, this.msdMinFrames * 2)
-    
-    // Phase history buffer - stores phase data for coherence analysis
-    this.phaseBuffer = new PhaseHistoryBuffer(n, 10)
-    this.lastPhaseData = new Float32Array(n)
-    
-    // Amplitude buffer for compression detection
-    this.amplitudeBuffer = new AmplitudeHistoryBuffer(100)
-    
-    // Clear peak algorithm scores cache
-    this.peakAlgorithmScores.clear()
-    this.recentPeakFrequencies = []
   }
 
   private resetHistory(): void {
@@ -480,16 +392,19 @@ export class FeedbackDetector {
     if (this.activeBinPos) this.activeBinPos.fill(-1)
     this.activeCount = 0
     
-    // Reset advanced detection buffers
-    this.msdBuffer?.reset()
-    this.phaseBuffer?.reset()
-    this.amplitudeBuffer?.reset()
-    this.peakAlgorithmScores.clear()
-    this.recentPeakFrequencies = []
-    this.detectedContentType = 'unknown'
-    this.contentTypeConfidence = 0
-    this.compressionResult = null
-    this.lastCombPattern = null
+    // Reset MSD history
+    if (this.msdHistory) {
+      for (let i = 0; i < this.msdHistory.length; i++) {
+        this.msdHistory[i].fill(0)
+      }
+    }
+    if (this.msdHistoryIndex) this.msdHistoryIndex.fill(0)
+    if (this.msdFrameCount) this.msdFrameCount.fill(0)
+    if (this.msdConfirmFrames) this.msdConfirmFrames.fill(0)
+    
+    // Reset persistence scoring
+    if (this.persistenceCount) this.persistenceCount.fill(0)
+    if (this.persistenceLastDb) this.persistenceLastDb.fill(-200)
   }
 
   private computeAWeightingTable(): void {
@@ -627,7 +542,7 @@ export class FeedbackDetector {
   private analyze(now: number, dt: number): void {
     const analyser = this.analyser
     const ctx = this.audioContext
-    if (!analyser || !this.freqDb || !this.power || !this.prefix || !this.holdMs || !this.active) return
+    if (!analyser || !this.freqDb || !this.power || !this.prefix || !this.holdMs || !this.deadMs || !this.active) return
     if (!ctx || ctx.state !== 'running') return
 
     // Read spectrum
@@ -664,48 +579,11 @@ export class FeedbackDetector {
       prefix[i + 1] = prefix[i] + p
     }
 
-  // Update noise floor
+    // Update noise floor
     if (this.config.noiseFloorEnabled) {
       this.updateNoiseFloorDb(dt)
     }
-    
-    // ==================== Advanced Detection Processing ====================
-    // Update MSD history buffer with current frame
-    if (this.msdBuffer) {
-      this.msdBuffer.addFrame(freqDb)
-    }
-    
-    // Update amplitude buffer for compression detection
-    if (this.amplitudeBuffer) {
-      // Calculate peak and RMS for this frame
-      let peakLinear = 0
-      let sumSquares = 0
-      for (let i = 0; i < n; i++) {
-        const linear = power[i]
-        if (linear > peakLinear) peakLinear = linear
-        sumSquares += linear * linear
-      }
-      const rmsLinear = Math.sqrt(sumSquares / n)
-      const peakDb = peakLinear > 0 ? 10 * Math.log10(peakLinear) : -100
-      const rmsDb = rmsLinear > 0 ? 10 * Math.log10(rmsLinear) : -100
-      this.amplitudeBuffer.addSample(peakDb, rmsDb)
-      
-      // Update compression detection periodically
-      if (this.msdBuffer && this.msdBuffer.getFrameCount() % 10 === 0) {
-        this.compressionResult = this.amplitudeBuffer.detectCompression()
-        
-        // Detect content type
-        const avgFlatness = this.calculateGlobalSpectralFlatness(freqDb)
-        const crestFactor = this.compressionResult.crestFactor
-        this.detectedContentType = detectContentType(freqDb, crestFactor, avgFlatness)
-        
-        // Notify content type change
-        if (this.callbacks.onContentTypeDetected) {
-          this.callbacks.onContentTypeDetected(this.detectedContentType)
-        }
-      }
-    }
-    
+
     const effectiveThresholdDb = this.computeEffectiveThresholdDb()
     const nb = this.effectiveNb
     const start = this.startBin
@@ -715,12 +593,18 @@ export class FeedbackDetector {
     const hold = this.holdMs
     const dead = this.deadMs
     const active = this.active
-    if (!hold || !dead || !active) return
 
     for (let i = start; i <= end; i++) {
       const peakDb = freqDb[i]
       const leftDb = freqDb[i - 1]
       const rightDb = freqDb[i + 1]
+
+      // MSD: Always update magnitude history for active or candidate peaks
+      // This enables early detection of growing feedback
+      if (peakDb >= effectiveThresholdDb - 6) { // Track peaks within 6dB of threshold
+        this.updateMsdHistory(i, peakDb)
+        this.updatePersistence(i, peakDb) // Phase 2: Also track persistence
+      }
 
       // Local max check
       const isLocalMax = peakDb >= leftDb && peakDb >= rightDb && (peakDb > leftDb || peakDb > rightDb)
@@ -848,55 +732,23 @@ export class FeedbackDetector {
             effectiveThresholdDb,
           }
 
-          // Add Q to peak (extend type for internal use)
-          ;(peak as DetectedPeak & { qEstimate: number; bandwidthHz: number }).qEstimate = qEstimate
-          ;(peak as DetectedPeak & { qEstimate: number; bandwidthHz: number }).bandwidthHz = bandwidthHz
+          // Q estimation
+          peak.qEstimate = qEstimate
+          peak.bandwidthHz = bandwidthHz
 
-          // ==================== Advanced Algorithm Scoring ====================
-          // Calculate algorithm scores for this peak
-          const algorithmScores = this.calculateAlgorithmScores(i, trueFrequencyHz, freqDb)
-          
-          // Store for tracking
-          this.peakAlgorithmScores.set(i, algorithmScores)
-          
-          // Track peak frequency for comb pattern detection
-          this.recentPeakFrequencies.push(trueFrequencyHz)
-          if (this.recentPeakFrequencies.length > 20) {
-            this.recentPeakFrequencies.shift()
-          }
-          
-          // Fuse algorithm results
-          const existingScore = prominence / 20 // Normalize prominence to 0-1 range
-          const fusion = fuseAlgorithmResults(
-            algorithmScores,
-            this.detectedContentType,
-            existingScore,
-            this.fusionConfig
-          )
-          
-          // Attach fusion result to peak for downstream use
-          ;(peak as DetectedPeak & { 
-            qEstimate: number
-            bandwidthHz: number
-            algorithmScores: AlgorithmScores
-            fusion: FusedDetectionResult
-          }).algorithmScores = algorithmScores
-          ;(peak as DetectedPeak & { 
-            qEstimate: number
-            bandwidthHz: number
-            algorithmScores: AlgorithmScores
-            fusion: FusedDetectionResult
-          }).fusion = fusion
+          // MSD analysis for howl detection
+          const msdResult = this.calculateMsd(i)
+          peak.msd = msdResult.msd
+          peak.msdGrowthRate = msdResult.growthRate
+          peak.msdIsHowl = msdResult.isHowl
+          peak.msdFastConfirm = msdResult.fastConfirm
 
-          // Notify algorithm scores callback
-          if (this.callbacks.onAlgorithmScores) {
-            this.callbacks.onAlgorithmScores({
-              binIndex: i,
-              frequencyHz: trueFrequencyHz,
-              scores: algorithmScores,
-              fusion,
-            })
-          }
+          // Phase 2: Persistence scoring
+          const persistenceResult = this.getPersistenceScore(i)
+          peak.persistenceFrames = persistenceResult.frames
+          peak.persistenceBoost = persistenceResult.boost
+          peak.isPersistent = persistenceResult.isPersistent
+          peak.isHighlyPersistent = persistenceResult.isHighlyPersistent
 
           this.callbacks.onPeakDetected?.(peak)
         }
@@ -926,7 +778,10 @@ export class FeedbackDetector {
                 this.activeBinPos[i] = -1
               }
             }
-            if (this.activeHz) this.activeHz[i] = 0
+                if (this.activeHz) this.activeHz[i] = 0
+            
+            // Reset MSD history for this bin
+            this.resetMsdForBin(i)
 
             this.callbacks.onPeakCleared?.({
               binIndex: i,
@@ -954,25 +809,47 @@ export class FeedbackDetector {
 
     // Search left for -3dB crossing
     let leftBin = binIndex
+    let foundLeft = false
     for (let i = binIndex - 1; i >= 0; i--) {
       if (freqDb[i] < threshold) {
         // Interpolate crossing point
-        const t = (threshold - freqDb[i]) / (freqDb[i + 1] - freqDb[i])
-        leftBin = i + t
+        const denom = freqDb[i + 1] - freqDb[i]
+        if (denom > 0) {
+          const t = (threshold - freqDb[i]) / denom
+          leftBin = i + t
+        } else {
+          leftBin = i
+        }
+        foundLeft = true
         break
       }
     }
 
     // Search right for -3dB crossing
     let rightBin = binIndex
+    let foundRight = false
     for (let i = binIndex + 1; i < n; i++) {
       if (freqDb[i] < threshold) {
         // Interpolate crossing point
-        const t = (threshold - freqDb[i - 1]) / (freqDb[i] - freqDb[i - 1])
-        rightBin = i - 1 + t
+        const denom = freqDb[i] - freqDb[i - 1]
+        if (denom < 0) {
+          const t = (threshold - freqDb[i - 1]) / denom
+          rightBin = i - 1 + t
+        } else {
+          rightBin = i
+        }
+        foundRight = true
         break
       }
     }
+
+    // If no crossing found on either side, use 1-bin default bandwidth
+    if (!foundLeft && !foundRight) {
+      return { qEstimate: 100, bandwidthHz: hzPerBin }
+    }
+    // Mirror the found side if only one crossing was located
+    if (!foundLeft) leftBin = binIndex - (rightBin - binIndex)
+    if (!foundRight) rightBin = binIndex + (binIndex - leftBin)
 
     const bandwidthBins = rightBin - leftBin
     const bandwidthHz = bandwidthBins * hzPerBin
@@ -1017,13 +894,13 @@ export class FeedbackDetector {
 
   private computeEffectiveThresholdDb(): number {
     const absT = this.config.thresholdDb
-    
+
     if (!this.config.noiseFloorEnabled || this.noiseFloorDb === null) {
       return absT
     }
-    
+
     const relT = this.noiseFloorDb + this.config.relativeThresholdDb
-    
+
     switch (this.config.thresholdMode) {
       case 'absolute': return absT
       case 'relative': return relT
@@ -1032,161 +909,195 @@ export class FeedbackDetector {
     }
   }
 
-  // ==================== Advanced Algorithm Methods ====================
-
+  // ==================== MSD Algorithm (DAFx-16) ====================
+  
   /**
-   * Calculate all algorithm scores for a detected peak
+   * Update MSD history for a frequency bin
+   * Called every analysis frame to track magnitude over time
    */
-  private calculateAlgorithmScores(
-    binIndex: number,
-    frequencyHz: number,
-    spectrum: Float32Array
-  ): AlgorithmScores {
-    const scores: AlgorithmScores = {
-      msd: null,
-      phase: null,
-      spectral: null,
-      comb: null,
-      compression: this.compressionResult,
+  private updateMsdHistory(binIndex: number, magnitudeDb: number): void {
+    if (!this.msdHistory || !this.msdHistoryIndex || !this.msdFrameCount) return
+    
+    const historySize = MSD_SETTINGS.HISTORY_SIZE
+    const history = this.msdHistory[binIndex]
+    const idx = this.msdHistoryIndex[binIndex]
+    
+    // Store magnitude in ring buffer
+    history[idx] = magnitudeDb
+    
+    // Update index (wrap around)
+    this.msdHistoryIndex[binIndex] = (idx + 1) % historySize
+    
+    // Track how many frames we have (up to historySize)
+    if (this.msdFrameCount[binIndex] < historySize) {
+      this.msdFrameCount[binIndex]++
+    }
+  }
+  
+  /**
+   * Calculate Magnitude Slope Deviation (MSD) for a frequency bin
+   * 
+   * MSD measures how consistently the magnitude grows over time.
+   * Feedback howl has exponential growth (linear on dB scale) with low gradient deviation.
+   * 
+   * Using "Summing MSD" method from DAFx paper (140x faster than original):
+   * MSD(k,m) = sum of |G''(k,n)|^2 for n = (m-N)+1 to m
+   * 
+   * Where G''(k,n) is the second derivative of magnitude at bin k, frame n
+   * 
+   * @returns MSD value (lower = more consistent growth = more likely feedback)
+   *          Returns -1 if not enough history
+   */
+  private calculateMsd(binIndex: number): { msd: number; growthRate: number; isHowl: boolean; fastConfirm: boolean } {
+    if (!this.msdHistory || !this.msdFrameCount || !this.msdHistoryIndex || !this.msdConfirmFrames) {
+      return { msd: -1, growthRate: 0, isHowl: false, fastConfirm: false }
     }
 
-    // MSD Analysis (if enough frames)
-    if (this.msdBuffer && this.msdBuffer.getFrameCount() >= this.msdMinFrames) {
-      scores.msd = this.msdBuffer.calculateMSD(binIndex, this.msdMinFrames)
+    const frameCount = this.msdFrameCount[binIndex]
+    if (frameCount < MSD_SETTINGS.MIN_FRAMES) {
+      return { msd: -1, growthRate: 0, isHowl: false, fastConfirm: false }
     }
 
-    // Phase Coherence Analysis (if we have phase data)
-    if (this.phaseBuffer && this.phaseBuffer.getFrameCount() >= 5) {
-      scores.phase = this.phaseBuffer.calculateCoherence(binIndex)
+    const historySize = MSD_SETTINGS.HISTORY_SIZE
+    const history = this.msdHistory[binIndex]
+    const currentIdx = this.msdHistoryIndex[binIndex]
+
+    // Compute first derivative sum (growth rate) inline — no array allocations
+    // Ring buffer: read oldest→newest via modular index
+    let sumFirstDeriv = 0
+    let prevVal = history[(currentIdx - frameCount + historySize) % historySize]
+    for (let i = 1; i < frameCount; i++) {
+      const val = history[(currentIdx - frameCount + i + historySize) % historySize]
+      sumFirstDeriv += val - prevVal
+      prevVal = val
     }
 
-    // Spectral Flatness around the peak
-    scores.spectral = calculateSpectralFlatness(spectrum, binIndex, 10)
+    const numFirstDeriv = frameCount - 1
+    const avgGrowthRate = numFirstDeriv > 0 ? sumFirstDeriv / numFirstDeriv : 0
 
-    // Comb Filter Pattern Detection (if enough peaks)
-    if (this.recentPeakFrequencies.length >= 3) {
-      const combResult = detectCombPattern(
-        this.recentPeakFrequencies,
-        this.getSampleRate()
+    // If not growing, not feedback
+    if (avgGrowthRate < MSD_SETTINGS.MIN_GROWTH_RATE) {
+      this.msdConfirmFrames[binIndex] = 0
+      return { msd: 999, growthRate: avgGrowthRate, isHowl: false, fastConfirm: false }
+    }
+
+    // Compute MSD (second derivative RMS) inline — no array allocations
+    // Second derivative = d1[i] - d1[i-1] where d1[i] = ordered[i+1] - ordered[i]
+    let sumSquaredSecondDeriv = 0
+    let prevD1 = history[(currentIdx - frameCount + 1 + historySize) % historySize]
+                - history[(currentIdx - frameCount + historySize) % historySize]
+    for (let i = 2; i < frameCount; i++) {
+      const cur = history[(currentIdx - frameCount + i + historySize) % historySize]
+      const prev = history[(currentIdx - frameCount + i - 1 + historySize) % historySize]
+      const d1 = cur - prev
+      const d2 = d1 - prevD1
+      sumSquaredSecondDeriv += d2 * d2
+      prevD1 = d1
+    }
+
+    const numSecondDeriv = frameCount - 2
+    const msd = numSecondDeriv > 0
+      ? Math.sqrt(sumSquaredSecondDeriv / numSecondDeriv)
+      : 0
+
+    // Check for howl
+    const isHowl = msd < MSD_SETTINGS.HOWL_THRESHOLD
+
+    // Fast confirmation: if MSD stays below fast threshold for N frames
+    let fastConfirm = false
+    if (msd < MSD_SETTINGS.FAST_CONFIRM_THRESHOLD) {
+      this.msdConfirmFrames[binIndex]++
+      if (this.msdConfirmFrames[binIndex] >= MSD_SETTINGS.FAST_CONFIRM_FRAMES) {
+        fastConfirm = true
+      }
+    } else {
+      this.msdConfirmFrames[binIndex] = 0
+    }
+
+    return { msd, growthRate: avgGrowthRate, isHowl, fastConfirm }
+  }
+  
+  /**
+   * Reset MSD history for a specific bin (when peak clears)
+   */
+  private resetMsdForBin(binIndex: number): void {
+    if (!this.msdHistory || !this.msdHistoryIndex || !this.msdFrameCount || !this.msdConfirmFrames) return
+    
+    this.msdHistory[binIndex].fill(0)
+    this.msdHistoryIndex[binIndex] = 0
+    this.msdFrameCount[binIndex] = 0
+    this.msdConfirmFrames[binIndex] = 0
+    
+    // Also reset persistence for this bin
+    if (this.persistenceCount) this.persistenceCount[binIndex] = 0
+    if (this.persistenceLastDb) this.persistenceLastDb[binIndex] = -200
+  }
+  
+  // ==================== Persistence Scoring (Phase 2) ====================
+  
+  /**
+   * Update persistence count for a frequency bin
+   * Tracks consecutive frames where a peak persists at similar amplitude
+   */
+  private updatePersistence(binIndex: number, amplitudeDb: number): void {
+    if (!this.persistenceCount || !this.persistenceLastDb) return
+    
+    const lastDb = this.persistenceLastDb[binIndex]
+    const dbDiff = Math.abs(amplitudeDb - lastDb)
+    
+    // Check if amplitude is within tolerance (peak is "persisting")
+    if (dbDiff <= PERSISTENCE_SCORING.AMPLITUDE_TOLERANCE_DB && lastDb > -150) {
+      // Increment persistence (cap at HISTORY_FRAMES)
+      this.persistenceCount[binIndex] = Math.min(
+        this.persistenceCount[binIndex] + 1,
+        PERSISTENCE_SCORING.HISTORY_FRAMES
       )
-      scores.comb = combResult
-
-      // Notify if pattern detected
-      if (combResult.hasPattern && this.callbacks.onCombPatternDetected) {
-        // Only notify if this is a new pattern or significantly different
-        if (!this.lastCombPattern || 
-            !this.lastCombPattern.hasPattern ||
-            Math.abs((this.lastCombPattern.fundamentalSpacing ?? 0) - (combResult.fundamentalSpacing ?? 0)) > 5) {
-          this.callbacks.onCombPatternDetected(combResult)
-          this.lastCombPattern = combResult
-        }
-      }
+    } else {
+      // Amplitude changed too much, reset persistence
+      this.persistenceCount[binIndex] = 1
     }
-
-    return scores
+    
+    // Update last amplitude
+    this.persistenceLastDb[binIndex] = amplitudeDb
   }
-
+  
   /**
-   * Calculate global spectral flatness for content type detection
+   * Get persistence score for a frequency bin
+   * Returns: { frames, boost, isPersistent, isVeryPersistent }
    */
-  private calculateGlobalSpectralFlatness(spectrum: Float32Array): number {
-    const start = this.startBin
-    const end = this.endBin
-    if (end <= start) return 0.5
-
-    // Convert from dB to linear power
-    const region: number[] = []
-    for (let i = start; i <= end; i++) {
-      const linear = Math.pow(10, spectrum[i] / 10)
-      if (linear > 0 && Number.isFinite(linear)) {
-        region.push(linear)
-      }
+  private getPersistenceScore(binIndex: number): {
+    frames: number
+    boost: number
+    penalty: number
+    isPersistent: boolean
+    isHighlyPersistent: boolean
+    isVeryHighlyPersistent: boolean
+  } {
+    if (!this.persistenceCount) {
+      return { frames: 0, boost: 0, penalty: 0, isPersistent: false, isHighlyPersistent: false, isVeryHighlyPersistent: false }
     }
-
-    if (region.length === 0) return 0.5
-
-    // Geometric mean (using log-sum for stability)
-    const logSum = region.reduce((sum, x) => sum + Math.log(x), 0)
-    const geometricMean = Math.exp(logSum / region.length)
-
-    // Arithmetic mean
-    const arithmeticMean = region.reduce((a, b) => a + b, 0) / region.length
-
-    // Spectral flatness
-    return arithmeticMean > 0 ? geometricMean / arithmeticMean : 0.5
-  }
-
-  // ==================== Advanced Algorithm Configuration ====================
-
-  /**
-   * Set the algorithm mode
-   */
-  setAlgorithmMode(mode: AlgorithmMode): void {
-    this.algorithmMode = mode
-    this.fusionConfig.mode = mode
-  }
-
-  /**
-   * Get current algorithm mode
-   */
-  getAlgorithmMode(): AlgorithmMode {
-    return this.algorithmMode
-  }
-
-  /**
-   * Set MSD minimum frames
-   */
-  setMSDMinFrames(frames: number): void {
-    this.msdMinFrames = clamp(frames, MSD_CONSTANTS.MIN_FRAMES_SPEECH, MSD_CONSTANTS.MAX_FRAMES)
-    this.fusionConfig.msdMinFrames = this.msdMinFrames
-  }
-
-  /**
-   * Get current MSD frame count
-   */
-  getMSDFrameCount(): number {
-    return this.msdBuffer?.getFrameCount() ?? 0
-  }
-
-  /**
-   * Get detected content type
-   */
-  getContentType(): ContentType {
-    return this.detectedContentType
-  }
-
-  /**
-   * Get compression detection result
-   */
-  getCompressionResult(): CompressionResult | null {
-    return this.compressionResult
-  }
-
-  /**
-   * Get algorithm scores for a specific bin
-   */
-  getAlgorithmScoresForBin(binIndex: number): AlgorithmScores | undefined {
-    return this.peakAlgorithmScores.get(binIndex)
-  }
-
-  /**
-   * Get recent peak frequencies (for external comb pattern analysis)
-   */
-  getRecentPeakFrequencies(): number[] {
-    return [...this.recentPeakFrequencies]
-  }
-
-  /**
-   * Update fusion configuration
-   */
-  updateFusionConfig(config: Partial<FusionConfig>): void {
-    this.fusionConfig = { ...this.fusionConfig, ...config }
-  }
-
-  /**
-   * Get current fusion configuration
-   */
-  getFusionConfig(): FusionConfig {
-    return { ...this.fusionConfig }
+    
+    const frames = this.persistenceCount[binIndex]
+    let boost = 0
+    let penalty = 0
+    
+    if (frames >= PERSISTENCE_SCORING.VERY_HIGH_PERSISTENCE_FRAMES) {
+      boost = PERSISTENCE_SCORING.VERY_HIGH_PERSISTENCE_BOOST
+    } else if (frames >= PERSISTENCE_SCORING.HIGH_PERSISTENCE_FRAMES) {
+      boost = PERSISTENCE_SCORING.HIGH_PERSISTENCE_BOOST
+    } else if (frames >= PERSISTENCE_SCORING.MIN_PERSISTENCE_FRAMES) {
+      boost = PERSISTENCE_SCORING.MIN_PERSISTENCE_BOOST
+    } else if (frames < PERSISTENCE_SCORING.LOW_PERSISTENCE_FRAMES) {
+      penalty = PERSISTENCE_SCORING.LOW_PERSISTENCE_PENALTY
+    }
+    
+    return {
+      frames,
+      boost,
+      penalty,
+      isPersistent: frames >= PERSISTENCE_SCORING.MIN_PERSISTENCE_FRAMES,
+      isHighlyPersistent: frames >= PERSISTENCE_SCORING.HIGH_PERSISTENCE_FRAMES,
+      isVeryHighlyPersistent: frames >= PERSISTENCE_SCORING.VERY_HIGH_PERSISTENCE_FRAMES,
+    }
   }
 }

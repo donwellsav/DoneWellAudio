@@ -28,6 +28,27 @@ export async function POST(req: NextRequest, { params }: Params) {
     if (!Array.isArray(events)) {
       return NextResponse.json({ error: 'events must be an array' }, { status: 400 })
     }
+    if (events.length === 0) {
+      return NextResponse.json({ error: 'events array must not be empty' }, { status: 400 })
+    }
+    if (events.length > 500) {
+      return NextResponse.json({ error: 'events array must not exceed 500 items' }, { status: 400 })
+    }
+    for (let i = 0; i < events.length; i++) {
+      const ev = events[i]
+      if (typeof ev.id !== 'string' || !ev.id) {
+        return NextResponse.json({ error: `events[${i}].id must be a non-empty string` }, { status: 400 })
+      }
+      if (typeof ev.type !== 'string' || !ev.type) {
+        return NextResponse.json({ error: `events[${i}].type must be a non-empty string` }, { status: 400 })
+      }
+      if (typeof ev.timestamp !== 'number' || ev.timestamp <= 0) {
+        return NextResponse.json({ error: `events[${i}].timestamp must be a positive number` }, { status: 400 })
+      }
+      if (typeof ev.data !== 'object' || ev.data === null || Array.isArray(ev.data)) {
+        return NextResponse.json({ error: `events[${i}].data must be an object` }, { status: 400 })
+      }
+    }
     await bulkInsertEvents(id, events)
     return NextResponse.json({ saved: events.length })
   } catch (err) {

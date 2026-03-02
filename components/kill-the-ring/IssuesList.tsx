@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { formatFrequency, formatPitch } from '@/lib/utils/pitchUtils'
 import { getSeverityColor } from '@/lib/dsp/eqAdvisor'
 import { getSeverityText } from '@/lib/dsp/classifier'
@@ -22,17 +23,19 @@ interface IssuesListProps {
 }
 
 export function IssuesList({ advisories, maxIssues = 10, appliedIds, dismissedIds, onApply, onDismiss }: IssuesListProps) {
-  // Filter dismissed, sort by frequency (low → high), then slice to max
-  const sorted = [...advisories]
-    .filter((a) => !dismissedIds?.has(a.id))
-    .sort((a, b) => (a.trueFrequencyHz ?? 0) - (b.trueFrequencyHz ?? 0))
-    .slice(0, maxIssues)
+  // Filter dismissed, sort by frequency (low -> high), then slice to max
+  const sorted = useMemo(() =>
+    [...advisories]
+      .filter((a) => !dismissedIds?.has(a.id))
+      .sort((a, b) => (a.trueFrequencyHz ?? 0) - (b.trueFrequencyHz ?? 0))
+      .slice(0, maxIssues),
+    [advisories, dismissedIds, maxIssues]
+  )
 
   return (
     <div className="flex flex-col gap-2">
-      {/* Issue cards */}
       {sorted.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-8">
+        <div className="flex flex-col items-center justify-center flex-1 min-h-[120px] text-muted-foreground py-8">
           <div className="text-sm">No issues detected</div>
           <div className="text-xs mt-1">Monitoring for feedback...</div>
         </div>
@@ -113,6 +116,21 @@ function IssueCard({ advisory, rank, isApplied, onApply, onDismiss }: IssueCardP
             {pitchStr && (
               <span className="text-[10px] font-mono text-muted-foreground leading-none">{pitchStr}</span>
             )}
+            {/* Cluster count badge — shows when multiple peaks merged into this advisory */}
+            {(advisory.clusterCount ?? 1) > 1 && (
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex items-center text-[9px] text-sky-400 bg-sky-500/20 px-1 py-0.5 rounded-sm border border-sky-500/30">
+                      +{(advisory.clusterCount ?? 1) - 1}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs">
+                    {advisory.clusterCount} peaks merged in this frequency band
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
             {/* Repeat offender indicator */}
             {(() => {
               const occurrences = getFeedbackHistory().getOccurrenceCount(advisory.trueFrequencyHz)
@@ -146,7 +164,7 @@ function IssueCard({ advisory, rank, isApplied, onApply, onDismiss }: IssueCardP
                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                     : advisory.confidence >= 0.70
                       ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                      : advisory.confidence >= 0.55
+                      : advisory.confidence >= 0.45
                         ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                         : 'bg-muted text-muted-foreground border border-border'
                 }`}
@@ -224,12 +242,12 @@ function IssueCard({ advisory, rank, isApplied, onApply, onDismiss }: IssueCardP
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground">
               <span>
-                GEQ <span className="text-foreground">{geq!.suggestedDb}dB</span>
-                {' @ '}{geq!.bandHz}
+                GEQ <span className="text-foreground">{geq?.suggestedDb}dB</span>
+                {' @ '}{geq?.bandHz}
               </span>
               <span className="text-border">|</span>
               <span>
-                PEQ Q{(peq!.q ?? 1).toFixed(0)} <span className="text-foreground">{peq!.gainDb ?? 0}dB</span>
+                PEQ Q{(peq?.q ?? 1).toFixed(0)} <span className="text-foreground">{peq?.gainDb ?? 0}dB</span>
               </span>
             </div>
 
@@ -238,7 +256,7 @@ function IssueCard({ advisory, rank, isApplied, onApply, onDismiss }: IssueCardP
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
-                      onClick={() => !isApplied && onApply(advisory)}
+                      onClick={() => onApply(advisory)}
                       disabled={isApplied}
                       aria-label={isApplied ? 'Cut sent to EQ Notepad' : `Send cut to EQ Notepad (${freqStr}Hz)`}
                       className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded transition-colors ${

@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { useAnimationFrame } from '@/hooks/useAnimationFrame'
 import { freqToLogPosition, clamp } from '@/lib/utils/mathHelpers'
 import { CANVAS_SETTINGS } from '@/lib/dsp/constants'
@@ -206,9 +207,28 @@ export function WaterfallCanvas({ spectrum, isRunning, graphFontSize = 11 }: Wat
 
   useAnimationFrame(render, isRunning || historyRef.current.length > 0)
 
+  const showPlaceholder = !isRunning && historyRef.current.length === 0
+
   return (
-    <div ref={containerRef} className="w-full h-full">
-      <canvas ref={canvasRef} className="w-full h-full" />
+    <div ref={containerRef} className="w-full h-full relative">
+      {showPlaceholder ? (
+        <div className="w-full h-full relative overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <Image
+            src="/wtf-placeholder.jpg"
+            alt="Waterfall placeholder"
+            fill
+            className="object-cover object-center"
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-white/60 text-sm font-medium tracking-wide bg-black/50 px-3 py-1 rounded">
+              Press Start to begin analysis
+            </span>
+          </div>
+        </div>
+      ) : (
+        <canvas ref={canvasRef} className="w-full h-full" role="img" aria-label="Waterfall spectrogram showing frequency changes over time" />
+      )}
     </div>
   )
 }

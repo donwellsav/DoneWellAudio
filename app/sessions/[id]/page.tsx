@@ -4,28 +4,7 @@ import { getSession, getSessionFrequencyStats } from '@/lib/db/sessions'
 import { FrequencyHistogram } from '@/components/kill-the-ring/FrequencyHistogram'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, AlertCircle } from 'lucide-react'
-
-interface PageProps {
-  params: Promise<{ id: string }>
-}
-
-function formatDuration(startedAt: string, endedAt: string | null): string {
-  if (!endedAt) return 'In progress'
-  const ms = new Date(endedAt).getTime() - new Date(startedAt).getTime()
-  const s = Math.floor(ms / 1000)
-  const m = Math.floor(s / 60)
-  const h = Math.floor(m / 60)
-  if (h > 0) return `${h}h ${m % 60}m`
-  if (m > 0) return `${m}m ${s % 60}s`
-  return `${s}s`
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleString(undefined, {
-    month: 'short', day: 'numeric', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  })
-}
+import { formatFrequency, formatDuration, formatDate } from '@/lib/utils/pitchUtils'
 
 const MODE_LABELS: Record<string, string> = {
   feedbackHunt: 'Feedback Hunt',
@@ -122,7 +101,7 @@ export default async function SessionDetailPage({ params }: PageProps) {
           <StatCard label="Unique Bands" value={bins.length} />
           <StatCard
             label="Hottest Freq"
-            value={topBins[0] ? `${topBins[0].bandHz >= 1000 ? `${topBins[0].bandHz / 1000}k` : topBins[0].bandHz}Hz` : '—'}
+            value={topBins[0] ? formatFrequency(topBins[0].bandHz) : '—'}
           />
           <StatCard
             label="Top Severity"
@@ -170,7 +149,7 @@ export default async function SessionDetailPage({ params }: PageProps) {
               {topBins.map((bin, i) => {
                 const dom = Object.entries(bin.severities).sort((a, b) => b[1] - a[1])[0]
                 const color = dom ? (SEVERITY_COLORS[dom[0]] ?? '#6b7280') : '#6b7280'
-                const freqLabel = bin.bandHz >= 1000 ? `${bin.bandHz / 1000}kHz` : `${bin.bandHz}Hz`
+                const freqLabel = formatFrequency(bin.bandHz)
                 return (
                   <div key={bin.bandHz} className="flex items-center gap-4 px-4 py-2.5 text-xs">
                     <span className="text-muted-foreground font-mono w-4 text-right">{i + 1}</span>

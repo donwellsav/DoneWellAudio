@@ -6,31 +6,7 @@ import { Trash2, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import type { Session } from '@/lib/db/sessions'
-
-interface SessionsTableProps {
-  sessions: Session[]
-}
-
-function formatDuration(startedAt: string, endedAt: string | null): string {
-  if (!endedAt) return 'In progress'
-  const ms = new Date(endedAt).getTime() - new Date(startedAt).getTime()
-  const s = Math.floor(ms / 1000)
-  const m = Math.floor(s / 60)
-  const h = Math.floor(m / 60)
-  if (h > 0) return `${h}h ${m % 60}m`
-  if (m > 0) return `${m}m ${s % 60}s`
-  return `${s}s`
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
+import { formatDuration, formatDate } from '@/lib/utils/pitchUtils'
 
 /** Renders date only on the client to avoid server/client timezone mismatch */
 function ClientDate({ dateStr }: { dateStr: string }) {
@@ -57,8 +33,6 @@ function DeleteButton({ id }: { id: string }) {
   const handleClick = () => {
     if (!confirmed) {
       setConfirmed(true)
-      // Auto-reset after 3s if not confirmed
-      setTimeout(() => setConfirmed(false), 3000)
       return
     }
     startTransition(async () => {
@@ -66,6 +40,13 @@ function DeleteButton({ id }: { id: string }) {
       router.refresh()
     })
   }
+
+  // Auto-reset confirm state after 3s — cleanup prevents setState on unmount
+  useEffect(() => {
+    if (!confirmed) return
+    const t = setTimeout(() => setConfirmed(false), 3000)
+    return () => clearTimeout(t)
+  }, [confirmed])
 
   return (
     <Button
@@ -83,6 +64,10 @@ function DeleteButton({ id }: { id: string }) {
       <Trash2 className="w-3.5 h-3.5" />
     </Button>
   )
+}
+
+interface SessionsTableProps {
+  sessions: Session[]
 }
 
 export function SessionsTable({ sessions }: SessionsTableProps) {

@@ -3,7 +3,17 @@
 import { TRACK_SETTINGS } from './constants'
 import { hzToCents } from '@/lib/utils/pitchUtils'
 import { standardDeviation, autocorrelation, generateId } from '@/lib/utils/mathHelpers'
-import type { Track, TrackHistoryEntry, TrackFeatures, DetectedPeak, TrackedPeak } from '@/types/advisory'
+import type { Track, TrackHistoryEntry, TrackFeatures, DetectedPeak, TrackedPeak, Classification, Severity } from '@/types/advisory'
+
+// Maximum number of confirmed partials used to normalise the harmonicity score (0..1)
+const MAX_HARMONICS_FOR_SCORE = 4
+
+// Cents tolerance when matching other tracks' harmonicOfHz to this track's frequency.
+// Tighter than ASSOCIATION_TOLERANCE_CENTS because harmonic-root matching needs precision.
+const HARMONIC_ROOT_TOLERANCE_CENTS = 20
+
+// Minimum delta-time (seconds) for velocity calculation to avoid division by near-zero
+const MIN_VELOCITY_DT_SEC = 0.05
 
 export class TrackManager {
   private tracks: Map<string, Track> = new Map()
@@ -28,7 +38,7 @@ export class TrackManager {
   /**
    * Process a detected peak and associate/create a track
    */
-  processPeak(peak: DetectedPeak & { qEstimate?: number; bandwidthHz?: number }): Track {
+  processPeak(peak: DetectedPeak & { qEstimate?: number; bandwidthHz?: number; msd?: number; msdGrowthRate?: number; msdIsHowl?: boolean; msdFastConfirm?: boolean }): Track {
     // Check if there's an existing track for this bin
     const existingTrackId = this.binToTrackId.get(peak.binIndex)
     
@@ -97,8 +107,8 @@ export class TrackManager {
       prominenceDb: track.prominenceDb,
       qEstimate: track.qEstimate,
       bandwidthHz: track.bandwidthHz,
-      classification: 'unknown', // Will be set by classifier
-      severity: 'unknown',
+      classification: 'unknown' as Classification, // Will be set by classifier
+      severity: 'unknown' as Severity,
       onsetTime: track.onsetTime,
       lastUpdateTime: track.lastUpdateTime,
       active: track.isActive,
@@ -170,7 +180,7 @@ export class TrackManager {
 
   // ==================== Private Methods ====================
 
-  private createTrack(peak: DetectedPeak & { qEstimate?: number; bandwidthHz?: number }): Track {
+  private createTrack(peak: DetectedPeak & { qEstimate?: number; bandwidthHz?: number; msd?: number; msdGrowthRate?: number; msdIsHowl?: boolean; msdFastConfirm?: boolean; persistenceFrames?: number; persistenceBoost?: number; isPersistent?: boolean; isHighlyPersistent?: boolean }): Track {
     const id = generateId()
     const qEstimate = peak.qEstimate ?? 10
     const bandwidthHz = peak.bandwidthHz ?? 100
@@ -198,6 +208,16 @@ export class TrackManager {
       harmonicOfHz: peak.harmonicOfHz,
       isSubHarmonicRoot: peak.isSubHarmonicRoot ?? false,
       isActive: true,
+      // MSD data from feedbackDetector
+      msd: peak.msd,
+      msdGrowthRate: peak.msdGrowthRate,
+      msdIsHowl: peak.msdIsHowl,
+      msdFastConfirm: peak.msdFastConfirm,
+      // Phase 2: Persistence scoring
+      persistenceFrames: peak.persistenceFrames,
+      persistenceBoost: peak.persistenceBoost,
+      isPersistent: peak.isPersistent,
+      isHighlyPersistent: peak.isHighlyPersistent,
     }
 
     this.tracks.set(id, track)
@@ -206,7 +226,7 @@ export class TrackManager {
     return track
   }
 
-  private updateTrack(track: Track, peak: DetectedPeak & { qEstimate?: number; bandwidthHz?: number }): Track {
+  private updateTrack(track: Track, peak: DetectedPeak & { qEstimate?: number; bandwidthHz?: number; msd?: number; msdGrowthRate?: number; msdIsHowl?: boolean; msdFastConfirm?: boolean; persistenceFrames?: number; persistenceBoost?: number; isPersistent?: boolean; isHighlyPersistent?: boolean }): Track {
     const qEstimate = peak.qEstimate ?? track.qEstimate
     const bandwidthHz = peak.bandwidthHz ?? track.bandwidthHz
 
@@ -235,10 +255,22 @@ export class TrackManager {
     // Once a sub-harmonic root is identified, keep that flag sticky on the track
     if (peak.isSubHarmonicRoot) track.isSubHarmonicRoot = true
     track.isActive = true
-
-    // Calculate velocity (dB/sec)
-    const dt = (peak.timestamp - track.onsetTime) / 1000
-    if (dt > 0.05) {
+    
+    // Update MSD data from feedbackDetector
+    track.msd = peak.msd
+    track.msdGrowthRate = peak.msdGrowthRate
+    track.msdIsHowl = peak.msdIsHowl
+    track.msdFastConfirm = peak.msdFastConfirm
+    
+    // Phase 2: Persistence scoring
+    track.persistenceFrames = peak.persistenceFrames
+    track.persistenceBoost = peak.persistenceBoost
+    track.isPersistent = peak.isPersistent
+    track.isHighlyPersistent = peak.isHighlyPersistent
+    
+    // Calculate velocity (dB/sec) — clamp dt to avoid division by near-zero
+    const dt = Math.max((peak.timestamp - track.onsetTime) / 1000, MIN_VELOCITY_DT_SEC)
+    if (dt > MIN_VELOCITY_DT_SEC) {
       track.velocityDbPerSec = (peak.trueAmplitudeDb - track.onsetDb) / dt
     }
 
@@ -337,14 +369,14 @@ export class TrackManager {
       if (other.id === track.id || !other.isActive) continue
       if (other.harmonicOfHz !== null) {
         const cents = Math.abs(hzToCents(other.harmonicOfHz, track.trueFrequencyHz))
-        if (cents < 20) {
+        if (cents < HARMONIC_ROOT_TOLERANCE_CENTS) {
           harmonicCount++
         }
       }
     }
 
     // More confirmed partials → higher score (cap at 1.0)
-    return Math.min(harmonicCount / 4, 1)
+    return Math.min(harmonicCount / MAX_HARMONICS_FOR_SCORE, 1)
   }
 
   private computeModulationScore(track: Track): number {

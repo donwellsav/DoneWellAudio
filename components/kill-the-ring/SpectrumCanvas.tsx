@@ -253,7 +253,7 @@ export function SpectrumCanvas({ spectrum, advisories, isRunning, graphFontSize 
 
   return (
     <div ref={containerRef} className="relative w-full h-full">
-      <canvas ref={canvasRef} className="w-full h-full" />
+      <canvas ref={canvasRef} className="w-full h-full" role="img" aria-label="Real-time audio frequency spectrum display" />
       {showPlaceholder && (
         <div className="absolute inset-0 pointer-events-none">
           <Image
