@@ -684,60 +684,36 @@ export function detectCombPattern(
 // ============================================================================
 
 /**
- * Circular buffer tracking peak and RMS dB per frame.
+ * AmplitudeHistoryBuffer v2 — stores peak and RMS separately.
  *
- * FIXED: Previously stored only (peakDb - rmsDb) which gave crest-factor
- * variance instead of true signal dynamic range.  We now store peak and RMS
- * separately so detectCompression() can compute:
+ * True dynamic range = max(peak) - min(rms) over the analysis window.
+ * Crest factor       = mean(peak - rms) per frame.
  *
- *   dynamicRange  = max(peakDb over window) - min(rmsDb over window)
- *   crestFactor   = mean(peakDb - rmsDb)
- *
- * This matches the textbook definition: dynamic range is the ratio between
- * the loudest peak and the quietest sustained passage, measured in dB.
+ * Compressed content: low crest factor (< ~6 dB), narrow dynamic range.
+ * Uncompressed speech/acoustic: crest factor 12-18 dB, dynamic range 20-40 dB.
  */
 export class AmplitudeHistoryBuffer {
-  /** Per-frame peak dB */
-  private peakHistory: number[] = []
-  /** Per-frame RMS dB */
-  private rmsHistory: number[] = []
-  private maxSize: number
+  private peakHistory: Float64Array
+  private rmsHistory: Float64Array
+  private writePos: number = 0
+  private count: number = 0
+  private readonly maxSize: number
 
   constructor(maxSize: number = 100) {
     this.maxSize = maxSize
+    this.peakHistory = new Float64Array(maxSize)
+    this.rmsHistory  = new Float64Array(maxSize)
   }
 
-  /**
-   * Add a new amplitude sample.
-   * @param peakDb  - Frame peak in dB (from power spectrum peak)
-   * @param rmsDb   - Frame RMS in dB  (from power spectrum RMS)
-   */
   addSample(peakDb: number, rmsDb: number): void {
-    this.peakHistory.push(peakDb)
-    this.rmsHistory.push(rmsDb)
-    if (this.peakHistory.length > this.maxSize) {
-      this.peakHistory.shift()
-      this.rmsHistory.shift()
-    }
+    this.peakHistory[this.writePos] = peakDb
+    this.rmsHistory[this.writePos]  = rmsDb
+    this.writePos = (this.writePos + 1) % this.maxSize
+    if (this.count < this.maxSize) this.count++
   }
 
-  /**
-   * Analyse the stored history to detect heavy compression.
-   *
-   * True dynamic range = max(peak) − min(rms) over the analysis window.
-   * Crest factor       = mean(peak − rms) per frame.
-   *
-   * Compressed content has:
-   *   - low crest factor  (< ~6 dB after hard limiting)
-   *   - narrow dynamic range (< ~10 dB for brick-wall limited pop/rock)
-   *
-   * Uncompressed speech/acoustic content typically has:
-   *   - crest factor 12–18 dB
-   *   - dynamic range 20–40 dB
-   */
   detectCompression(): CompressionResult {
-    const n = this.peakHistory.length
-    if (n < 10) {
+    if (this.count < 10) {
       return {
         isCompressed: false,
         estimatedRatio: 1,
@@ -747,50 +723,39 @@ export class AmplitudeHistoryBuffer {
       }
     }
 
-    // True dynamic range: span between highest peak and lowest RMS
     let maxPeak = -Infinity
     let minRms  =  Infinity
     let crestSum = 0
-    for (let i = 0; i < n; i++) {
+
+    for (let i = 0; i < this.count; i++) {
       const p = this.peakHistory[i]
       const r = this.rmsHistory[i]
       if (p > maxPeak) maxPeak = p
       if (r < minRms)  minRms  = r
       crestSum += (p - r)
     }
-    const dynamicRange = maxPeak - minRms          // true dynamic range (dB)
-    const crestFactor  = crestSum / n              // mean crest factor (dB)
 
-    // Estimate compression ratio from crest factor reduction.
-    // Uncompressed programme typically has crest factor ~12–14 dB.
-    const normalCrest   = COMPRESSION_CONSTANTS.NORMAL_CREST_FACTOR
+    const dynamicRange   = maxPeak - minRms
+    const crestFactor    = crestSum / this.count
+    const normalCrest    = COMPRESSION_CONSTANTS.NORMAL_CREST_FACTOR
     const estimatedRatio = normalCrest / Math.max(crestFactor, 1)
 
-    // Content is "compressed" when either metric falls below threshold
     const isCompressed =
-      crestFactor   < COMPRESSION_CONSTANTS.COMPRESSED_CREST_FACTOR  ||
-      dynamicRange  < COMPRESSION_CONSTANTS.COMPRESSED_DYNAMIC_RANGE
+      crestFactor  < COMPRESSION_CONSTANTS.COMPRESSED_CREST_FACTOR ||
+      dynamicRange < COMPRESSION_CONSTANTS.COMPRESSED_DYNAMIC_RANGE
 
-    // Raise detection thresholds proportionally so sustained notes from
-    // compressed instruments don't flood us with false feedback positives.
-    let thresholdMultiplier = 1
-    if (isCompressed) {
-      // Scale up to 1.5× for heavily limited content
-      thresholdMultiplier = Math.min(1 + (estimatedRatio - 1) * 0.25, 1.5)
-    }
+    const thresholdMultiplier = isCompressed
+      ? Math.min(1 + (estimatedRatio - 1) * 0.25, 1.5)
+      : 1
 
-    return {
-      isCompressed,
-      estimatedRatio,
-      crestFactor,
-      dynamicRange,
-      thresholdMultiplier,
-    }
+    return { isCompressed, estimatedRatio, crestFactor, dynamicRange, thresholdMultiplier }
   }
 
   reset(): void {
-    this.peakHistory = []
-    this.rmsHistory  = []
+    this.writePos = 0
+    this.count    = 0
+    this.peakHistory.fill(0)
+    this.rmsHistory.fill(0)
   }
 }
 
