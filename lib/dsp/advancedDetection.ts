@@ -684,17 +684,14 @@ export function detectCombPattern(
 // ============================================================================
 
 /**
- * Amplitude history buffer for compression detection
- */
-/**
  * Circular buffer tracking peak and RMS dB per frame.
  *
  * FIXED: Previously stored only (peakDb - rmsDb) which gave crest-factor
  * variance instead of true signal dynamic range.  We now store peak and RMS
  * separately so detectCompression() can compute:
  *
- *   dynamicRange  = max(peakDb over window) − min(rmsDb over window)
- *   crestFactor   = mean(peakDb − rmsDb)
+ *   dynamicRange  = max(peakDb over window) - min(rmsDb over window)
+ *   crestFactor   = mean(peakDb - rmsDb)
  *
  * This matches the textbook definition: dynamic range is the ratio between
  * the loudest peak and the quietest sustained passage, measured in dB.
