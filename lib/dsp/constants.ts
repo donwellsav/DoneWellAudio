@@ -140,27 +140,28 @@ export const SEVERITY_THRESHOLDS = {
 } as const
 
 // Classification weights - optimized for PA feedback detection
+// Feature weights normalized to sum to 1.0 for proper probability distribution
 export const CLASSIFIER_WEIGHTS = {
-  // Stationarity (low pitch variation = feedback) - increased weight
-  STABILITY_FEEDBACK: 0.30,
+  // Stationarity (low pitch variation = feedback) - primary indicator
+  STABILITY_FEEDBACK: 0.28,
   STABILITY_THRESHOLD_CENTS: 12, // tighter threshold for feedback detection
-  
+
   // Harmonicity (coherent harmonics = instrument)
-  HARMONICITY_INSTRUMENT: 0.25,
+  HARMONICITY_INSTRUMENT: 0.22,
   HARMONICITY_THRESHOLD: 0.65, // higher threshold = less false instrument classification
-  
+
   // Modulation (vibrato = whistle)
-  MODULATION_WHISTLE: 0.20,
+  MODULATION_WHISTLE: 0.18,
   MODULATION_THRESHOLD: 0.45, // slightly higher threshold
-  
+
   // Sideband noise (breath = whistle)
-  SIDEBAND_WHISTLE: 0.10,
+  SIDEBAND_WHISTLE: 0.09,
   SIDEBAND_THRESHOLD: 0.35, // slightly higher threshold
-  
-  // Runaway growth (high velocity = feedback) - increased weight
-  GROWTH_FEEDBACK: 0.25,
+
+  // Runaway growth (high velocity = feedback) - strong indicator
+  GROWTH_FEEDBACK: 0.23,
   GROWTH_THRESHOLD: 4, // lower threshold = catch feedback growth earlier
-  
+
   // Classification thresholds - more conservative for PA use
   CLASSIFICATION_THRESHOLD: 0.45, // lower = more likely to flag as potential issue
   WHISTLE_THRESHOLD: 0.65, // higher = less false whistle classification
@@ -318,6 +319,14 @@ export const DEFAULT_SETTINGS = {
   fusionFeedbackThreshold: 0.55, // MORE AGGRESSIVE - lower threshold for more detections (lowered from 0.65)
   showAlgorithmScores: false, // Hide advanced scores by default (for advanced users)
   showPhaseDisplay: false, // Hide phase visualization by default (phase is disabled anyway)
+  // Phase 1: Harmonic Series Filter
+  harmonicFilterEnabled: true, // Filter out harmonic series (reduce instrument false positives)
+  // Phase 4: Room Mode Calculator
+  roomModesEnabled: false, // Disabled by default - requires room dimensions
+  roomLengthM: 10, // Default room length (meters)
+  roomWidthM: 8, // Default room width (meters)
+  roomHeightM: 3, // Default room height (meters)
+  roomDimensionsUnit: 'meters' as const,
 }
 
 // Room size presets for quick switching in corporate/conference environments
@@ -410,6 +419,47 @@ export const MSD_SETTINGS = {
   DEFAULT_MIN_FRAMES: 15,
   /** Maximum frames (balance accuracy vs latency) */
   MAX_FRAMES: 50,
+  /** Ring buffer size per frequency bin for MSD history */
+  HISTORY_SIZE: 30,
+  /** Alias for DEFAULT_MIN_FRAMES - minimum frames for MSD calculation */
+  MIN_FRAMES: 7,
+  /** MSD value below which indicates howl (same as THRESHOLD, kept for clarity) */
+  HOWL_THRESHOLD: 0.5,
+  /** Minimum dB/frame growth rate to consider as potential feedback */
+  MIN_GROWTH_RATE: 0.1,
+  /** Stricter MSD threshold for fast confirmation (lower = more certain) */
+  FAST_CONFIRM_THRESHOLD: 0.2,
+  /** Consecutive frames below FAST_CONFIRM_THRESHOLD needed to confirm feedback */
+  FAST_CONFIRM_FRAMES: 3,
+  /** Minimum energy (dB above noise floor) required to run MSD analysis
+   *  Prevents false positives on quiet noise floor fluctuations (DAFx-16 Section 3) */
+  MIN_ENERGY_ABOVE_NOISE_DB: 6,
+} as const
+
+// Peak Persistence Scoring - tracks consecutive frames where a peak
+// persists at the same frequency bin. Feedback produces "vertical streaks"
+// in the spectrogram; transients are short-lived.
+export const PERSISTENCE_SCORING = {
+  /** Max amplitude change (dB) to still count as "persisting" */
+  AMPLITUDE_TOLERANCE_DB: 4,
+  /** Maximum frames to track in persistence buffer */
+  HISTORY_FRAMES: 200,
+  /** Minimum consecutive frames to be considered persistent */
+  MIN_PERSISTENCE_FRAMES: 10,
+  /** Confidence boost for minimum persistence */
+  MIN_PERSISTENCE_BOOST: 0.05,
+  /** Frames for high persistence classification */
+  HIGH_PERSISTENCE_FRAMES: 30,
+  /** Confidence boost for high persistence */
+  HIGH_PERSISTENCE_BOOST: 0.15,
+  /** Frames for very high persistence classification */
+  VERY_HIGH_PERSISTENCE_FRAMES: 60,
+  /** Confidence boost for very high persistence */
+  VERY_HIGH_PERSISTENCE_BOOST: 0.25,
+  /** Below this frame count, apply penalty (likely transient) */
+  LOW_PERSISTENCE_FRAMES: 5,
+  /** Penalty for low persistence (transient) */
+  LOW_PERSISTENCE_PENALTY: 0.10,
 } as const
 
 // Phase coherence from KU Leuven/Nyquist analysis
@@ -464,16 +514,18 @@ export const COMPRESSION_SETTINGS = {
   COMPRESSED_DYNAMIC_RANGE: 8,
 } as const
 
-// Algorithm fusion weights
+// Algorithm fusion weights - PHASE DISABLED (Web Audio API doesn't provide phase data)
+// Weights redistributed to MSD, spectral, comb, and existing algorithms
+// All weight sets sum to 1.0 for proper normalization
 export const FUSION_WEIGHTS = {
-  /** Default weights (balanced) */
-  DEFAULT: { msd: 0.35, phase: 0.30, spectral: 0.15, comb: 0.10, existing: 0.10 },
-  /** Speech-optimized (MSD is most reliable) */
-  SPEECH: { msd: 0.45, phase: 0.25, spectral: 0.15, comb: 0.05, existing: 0.10 },
-  /** Music-optimized (phase is more reliable) */
-  MUSIC: { msd: 0.20, phase: 0.40, spectral: 0.15, comb: 0.10, existing: 0.15 },
-  /** Compressed content (phase most important) */
-  COMPRESSED: { msd: 0.15, phase: 0.45, spectral: 0.20, comb: 0.10, existing: 0.10 },
+  /** Default weights - PHASE DISABLED */
+  DEFAULT: { msd: 0.50, phase: 0.00, spectral: 0.25, comb: 0.15, existing: 0.10 },
+  /** Speech-optimized (MSD is most reliable per DAFx-16) */
+  SPEECH: { msd: 0.55, phase: 0.00, spectral: 0.25, comb: 0.10, existing: 0.10 },
+  /** Music-optimized (spectral flatness + comb patterns more useful) */
+  MUSIC: { msd: 0.35, phase: 0.00, spectral: 0.30, comb: 0.20, existing: 0.15 },
+  /** Compressed content (MSD less reliable, lean on spectral + comb) */
+  COMPRESSED: { msd: 0.30, phase: 0.00, spectral: 0.35, comb: 0.20, existing: 0.15 },
 } as const
 
 // Algorithm mode options for UI

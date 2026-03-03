@@ -1,5 +1,11 @@
 // KillTheRing2 Types - Full type definitions for the feedback detection system
 
+// Re-export algorithm types defined in advancedDetection.ts so consumers
+// can import everything from '@/types/advisory'
+export type { AlgorithmScores, FusedDetectionResult, InterHarmonicResult, PTMRResult } from '@/lib/dsp/advancedDetection'
+export type AlgorithmMode = 'auto' | 'msd' | 'phase' | 'combined' | 'all'
+export type ContentType = 'speech' | 'music' | 'compressed' | 'unknown'
+
 export type ThresholdMode = 'absolute' | 'relative' | 'hybrid'
 // Unified operation mode type - use 'vocalRing' everywhere (not 'vocalRingAssist')
 export type OperationMode = 'feedbackHunt' | 'vocalRing' | 'musicAware' | 'aggressive' | 'calibration'
@@ -214,6 +220,12 @@ export interface SpectrumData {
   fftSize: number
   timestamp: number
   peak: number // Peak level in dB for metering
+  // Advanced algorithm status (populated by dspWorker / createAudioAnalyzer)
+  algorithmMode?: AlgorithmMode
+  contentType?: ContentType
+  msdFrameCount?: number
+  isCompressed?: boolean
+  compressionRatio?: number
 }
 
 export interface AnalyzerState {
@@ -321,6 +333,15 @@ export interface DetectorSettings {
   roomWidthM: number // Room width in meters
   roomHeightM: number // Room height in meters
   roomDimensionsUnit: 'meters' | 'feet' // Unit for dimension input
+  // Advanced algorithm settings
+  algorithmMode?: AlgorithmMode // Which algorithms to use (default: 'msd')
+  msdMinFrames?: number // Minimum frames for MSD analysis
+  phaseCoherenceThreshold?: number // Phase coherence threshold (kept for future)
+  enableCompressionDetection?: boolean // Detect compressed content
+  enableCombPatternDetection?: boolean // Detect comb filter patterns
+  fusionFeedbackThreshold?: number // Fusion probability threshold for positive detection
+  showAlgorithmScores?: boolean // Show advanced algorithm scores in UI
+  showPhaseDisplay?: boolean // Show phase visualization (disabled - no data)
 }
 
 // Default configuration - optimized for Corporate/Conference PA with Vocal Focus (200Hz-8kHz)

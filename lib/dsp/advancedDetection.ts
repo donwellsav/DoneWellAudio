@@ -86,6 +86,10 @@ export interface AlgorithmScores {
   spectral: SpectralFlatnessResult | null
   comb: CombPatternResult | null
   compression: CompressionResult | null
+  /** Inter-harmonic ratio analysis — low IHR = feedback, high IHR = music */
+  ihr: InterHarmonicResult | null
+  /** Peak-to-median ratio — high PTMR = narrow spectral peak (feedback) */
+  ptmr: PTMRResult | null
 }
 
 export interface FusedDetectionResult {
@@ -172,41 +176,54 @@ export const COMPRESSION_CONSTANTS = {
 } as const
 
 /** Algorithm fusion weights - PHASE REMOVED (not populated by Web Audio API)
- * Weights redistributed to MSD, spectral, comb, and existing algorithms
- * Total weights still sum to 1.0 for proper normalization
+ * Weights redistributed across MSD, spectral, comb, IHR, PTMR, and existing.
+ * Total weights sum to 1.0 for proper normalization.
+ *
+ * IHR (Inter-Harmonic Ratio): Discriminates feedback (clean tone) from music
+ *   (rich harmonic content). Especially useful for music content.
+ * PTMR (Peak-to-Median Ratio): Measures how sharply a peak rises above the
+ *   local spectral floor. Feedback peaks are extremely narrow and tall.
  */
 export const FUSION_WEIGHTS = {
   /** Default weights for each algorithm (sum to 1) - PHASE DISABLED */
   DEFAULT: {
-    msd: 0.50,      // Increased from 0.35 (absorbs phase weight)
+    msd: 0.35,      // Primary algorithm (DAFx-16)
     phase: 0.00,    // DISABLED - Web Audio API doesn't provide phase data
-    spectral: 0.25, // Increased from 0.15
-    comb: 0.15,     // Increased from 0.10
-    existing: 0.10,
+    spectral: 0.18, // Spectral flatness / kurtosis
+    comb: 0.12,     // Comb filter pattern detection (DBX paper)
+    ihr: 0.15,      // Inter-harmonic ratio (feedback vs music)
+    ptmr: 0.10,     // Peak-to-median ratio (spectral prominence)
+    existing: 0.10, // Legacy prominence-based detection
   },
   /** Weights for speech content (MSD is most reliable per DAFx-16 paper) */
   SPEECH: {
-    msd: 0.55,      // Increased - 100% accurate for speech per research
+    msd: 0.40,      // MSD is king for speech — 100% accurate per research
     phase: 0.00,    // DISABLED
-    spectral: 0.25, // Increased from 0.15
-    comb: 0.10,     // Increased from 0.05
+    spectral: 0.18, // Spectral flatness still useful
+    comb: 0.07,     // Comb patterns less common in speech
+    ihr: 0.15,      // IHR helps distinguish speech formants from feedback
+    ptmr: 0.10,     // PTMR catches narrow feedback in speech spectrum
     existing: 0.10,
   },
   /** Weights for music content */
   MUSIC: {
-    msd: 0.35,      // Still primary even for music
+    msd: 0.25,      // MSD less reliable with sustained musical tones
     phase: 0.00,    // DISABLED
-    spectral: 0.30, // Increased - spectral flatness helps with music
-    comb: 0.20,     // Increased - comb patterns more useful for music
-    existing: 0.15,
+    spectral: 0.20, // Spectral flatness helps separate music broadband
+    comb: 0.10,     // Comb patterns useful for PA feedback loops
+    ihr: 0.25,      // IHR is critical for music vs feedback discrimination
+    ptmr: 0.10,     // PTMR still useful for narrow peaks
+    existing: 0.10,
   },
   /** Weights when compression is detected */
   COMPRESSED: {
-    msd: 0.30,      // MSD less reliable for compressed content per DAFx-16
+    msd: 0.20,      // MSD least reliable for compressed content per DAFx-16
     phase: 0.00,    // DISABLED
-    spectral: 0.35, // Increased - spectral analysis more important
-    comb: 0.20,     // Increased
-    existing: 0.15,
+    spectral: 0.20, // Spectral analysis more important when compressed
+    comb: 0.15,     // Comb patterns unaffected by compression
+    ihr: 0.25,      // IHR still reliable — harmonic structure survives compression
+    ptmr: 0.10,     // PTMR slightly compressed but still useful
+    existing: 0.10,
   },
 } as const
 
@@ -472,24 +489,48 @@ export class PhaseHistoryBuffer {
 // ============================================================================
 
 /**
+ * Calculate frequency-adaptive analysis bandwidth.
+ * Low frequencies need fewer bins (modes are sparse), high frequencies
+ * need more bins (feedback peaks are narrower relative to bin spacing).
+ * Uses 1/3-octave-equivalent bandwidth: bw = peakBin * (2^(1/6) - 1)
+ * Clamped to [5, 40] bins to stay practical.
+ *
+ * @param peakBin - Center bin index of the peak
+ * @param fallback - Default bandwidth if peakBin is 0
+ */
+function adaptiveBandwidth(peakBin: number, fallback: number = SPECTRAL_CONSTANTS.ANALYSIS_BANDWIDTH_BINS): number {
+  if (peakBin <= 0) return fallback
+  // 2^(1/6) - 1 ≈ 0.1225 → one-third octave half-width in bins
+  const bw = Math.round(peakBin * 0.1225)
+  return Math.max(5, Math.min(bw, 40))
+}
+
+/**
  * Calculate spectral flatness (Wiener entropy) around a peak
- * 
+ *
  * Spectral flatness = geometric mean / arithmetic mean
  * Pure tone: flatness ≈ 0
  * White noise: flatness ≈ 1
- * 
- * @param spectrum - Magnitude spectrum (linear, not dB)
+ *
+ * Now uses frequency-adaptive bandwidth: narrower analysis window at low
+ * frequencies where room modes are sparse, wider at high frequencies where
+ * feedback peaks are tighter in the spectral domain.
+ *
+ * @param spectrum - Magnitude spectrum (in dB)
  * @param peakBin - Center bin of the peak
- * @param bandwidth - Number of bins to analyze on each side
+ * @param bandwidth - Number of bins to analyze on each side (auto if omitted)
  */
 export function calculateSpectralFlatness(
   spectrum: Float32Array,
   peakBin: number,
-  bandwidth: number = SPECTRAL_CONSTANTS.ANALYSIS_BANDWIDTH_BINS
+  bandwidth?: number
 ): SpectralFlatnessResult {
+  // Frequency-adaptive bandwidth: use 1/3-octave equivalent if not specified
+  const bw = bandwidth ?? adaptiveBandwidth(peakBin)
+
   // Extract region around peak
-  const startBin = Math.max(0, peakBin - bandwidth)
-  const endBin = Math.min(spectrum.length - 1, peakBin + bandwidth)
+  const startBin = Math.max(0, peakBin - bw)
+  const endBin = Math.min(spectrum.length - 1, peakBin + bw)
   const region: number[] = []
 
   for (let i = startBin; i <= endBin; i++) {
@@ -759,6 +800,182 @@ export class AmplitudeHistoryBuffer {
 }
 
 // ============================================================================
+// INTER-HARMONIC RATIO ANALYSIS
+// Distinguishes feedback (single or evenly-spaced tones) from musical content
+// (rich harmonic series with characteristic amplitude decay).
+// ============================================================================
+
+export interface InterHarmonicResult {
+  /** Ratio of energy between harmonics vs at harmonics (0 = clean, 1 = noisy) */
+  interHarmonicRatio: number
+  /** Whether the harmonic pattern suggests feedback (clean, evenly-spaced) */
+  isFeedbackLike: boolean
+  /** Whether the harmonic pattern suggests music (rich, decaying harmonics) */
+  isMusicLike: boolean
+  /** Number of harmonics detected */
+  harmonicsFound: number
+  /** Feedback score contribution (0-1) */
+  feedbackScore: number
+}
+
+/**
+ * Analyze inter-harmonic energy distribution to distinguish feedback from music.
+ *
+ * Musical instruments produce harmonics with characteristic amplitude decay
+ * (roughly -6 dB/octave for most) and significant inter-harmonic energy from
+ * formants, noise, and resonances. Feedback produces a clean tone (or evenly
+ * spaced comb) with very little energy between harmonics.
+ *
+ * The inter-harmonic ratio (IHR) measures the energy between expected harmonic
+ * peaks relative to the energy at those peaks. Low IHR = feedback, high IHR = music.
+ *
+ * @param spectrum - Magnitude spectrum (dB)
+ * @param fundamentalBin - Bin index of the suspected fundamental
+ * @param sampleRate - Audio sample rate
+ * @param fftSize - FFT size
+ */
+export function analyzeInterHarmonicRatio(
+  spectrum: Float32Array,
+  fundamentalBin: number,
+  sampleRate: number,
+  fftSize: number
+): InterHarmonicResult {
+  const maxBin = spectrum.length - 1
+  const nyquistBin = Math.floor(maxBin * 0.95) // Stay below Nyquist
+
+  if (fundamentalBin <= 0 || fundamentalBin >= nyquistBin) {
+    return { interHarmonicRatio: 0.5, isFeedbackLike: false, isMusicLike: false, harmonicsFound: 0, feedbackScore: 0 }
+  }
+
+  // Look for harmonics at 2f, 3f, 4f, ... up to 8th
+  const maxHarmonic = 8
+  let harmonicEnergy = 0
+  let interHarmonicEnergy = 0
+  let harmonicsFound = 0
+  const halfBinWidth = Math.max(1, Math.round(fundamentalBin * 0.02)) // ±2% tolerance in bins
+
+  for (let k = 1; k <= maxHarmonic; k++) {
+    const expectedBin = Math.round(fundamentalBin * k)
+    if (expectedBin >= nyquistBin) break
+
+    // Sum energy at harmonic (±tolerance)
+    let hPeak = -Infinity
+    for (let b = Math.max(0, expectedBin - halfBinWidth); b <= Math.min(maxBin, expectedBin + halfBinWidth); b++) {
+      if (spectrum[b] > hPeak) hPeak = spectrum[b]
+    }
+    // Convert dB to linear power for summing
+    const hPower = Math.pow(10, hPeak / 10)
+    harmonicEnergy += hPower
+    if (hPeak > -80) harmonicsFound++
+
+    // Sum inter-harmonic energy (midpoint between k-th and (k+1)-th harmonic)
+    if (k < maxHarmonic) {
+      const midBin = Math.round(fundamentalBin * (k + 0.5))
+      if (midBin < nyquistBin) {
+        let ihPeak = -Infinity
+        for (let b = Math.max(0, midBin - halfBinWidth); b <= Math.min(maxBin, midBin + halfBinWidth); b++) {
+          if (spectrum[b] > ihPeak) ihPeak = spectrum[b]
+        }
+        interHarmonicEnergy += Math.pow(10, ihPeak / 10)
+      }
+    }
+  }
+
+  // Compute ratio
+  const ihr = harmonicEnergy > 0 ? interHarmonicEnergy / harmonicEnergy : 0.5
+
+  // Feedback: IHR < 0.15 (very clean tone, almost no inter-harmonic energy)
+  // Music: IHR > 0.35 (rich inter-harmonic content from formants, noise, etc.)
+  const isFeedbackLike = ihr < 0.15 && harmonicsFound <= 2
+  const isMusicLike = ihr > 0.35 && harmonicsFound >= 3
+
+  // Score: low IHR + few harmonics → feedback-like
+  let feedbackScore = 0
+  if (harmonicsFound <= 1) {
+    feedbackScore = Math.max(0, 1 - ihr * 5) // Single peak = strong feedback indicator
+  } else if (harmonicsFound <= 2) {
+    feedbackScore = Math.max(0, 0.7 - ihr * 3)
+  } else {
+    feedbackScore = Math.max(0, 0.3 - ihr) // Many harmonics = probably music
+  }
+
+  return {
+    interHarmonicRatio: ihr,
+    isFeedbackLike,
+    isMusicLike,
+    harmonicsFound,
+    feedbackScore: Math.min(feedbackScore, 1),
+  }
+}
+
+// ============================================================================
+// PEAK-TO-MEDIAN RATIO (PTMR)
+// Measures how much a spectral peak exceeds the local median level.
+// Feedback peaks are extremely narrow and tall relative to surroundings.
+// ============================================================================
+
+export interface PTMRResult {
+  /** Peak-to-median ratio in dB */
+  ptmrDb: number
+  /** Whether PTMR exceeds the feedback threshold */
+  isFeedbackLike: boolean
+  /** Feedback score contribution (0-1) */
+  feedbackScore: number
+}
+
+/**
+ * Calculate peak-to-median ratio (PTMR) for a spectral peak.
+ *
+ * Instead of using the neighborhood mean (which is pulled up by the peak
+ * itself), use the MEDIAN of a wider neighborhood. This is more robust
+ * to the peak's own influence and gives a cleaner measure of how much
+ * the peak exceeds the local spectral floor.
+ *
+ * Feedback peaks typically have PTMR > 15 dB. Musical content has
+ * PTMR < 10 dB due to broader spectral energy distribution.
+ *
+ * @param spectrum - Magnitude spectrum (dB)
+ * @param peakBin - Bin index of the peak
+ * @param halfWidth - Half-width of the analysis window in bins
+ */
+export function calculatePTMR(
+  spectrum: Float32Array,
+  peakBin: number,
+  halfWidth: number = 20
+): PTMRResult {
+  const n = spectrum.length
+  const start = Math.max(0, peakBin - halfWidth)
+  const end = Math.min(n - 1, peakBin + halfWidth)
+
+  // Collect neighborhood values EXCLUDING the peak ±2 bins
+  const values: number[] = []
+  for (let i = start; i <= end; i++) {
+    if (Math.abs(i - peakBin) > 2) {
+      values.push(spectrum[i])
+    }
+  }
+
+  if (values.length < 4) {
+    return { ptmrDb: 0, isFeedbackLike: false, feedbackScore: 0 }
+  }
+
+  // Sort for median
+  values.sort((a, b) => a - b)
+  const mid = values.length >> 1
+  const median = (values.length & 1)
+    ? values[mid]
+    : (values[mid - 1] + values[mid]) / 2
+
+  const ptmrDb = spectrum[peakBin] - median
+
+  // Thresholds: >20 dB = almost certainly feedback, <8 dB = probably not
+  const isFeedbackLike = ptmrDb > 15
+  const feedbackScore = Math.min(Math.max((ptmrDb - 8) / 15, 0), 1)
+
+  return { ptmrDb, isFeedbackLike, feedbackScore }
+}
+
+// ============================================================================
 // ALGORITHM FUSION ENGINE
 // Combines all algorithms into a unified detection score
 // ============================================================================
@@ -802,16 +1019,16 @@ export function fuseAlgorithmResults(
   const contributingAlgorithms: string[] = []
 
   // Select weights based on content type and compression
-  let weights: typeof FUSION_WEIGHTS.DEFAULT
+  let weights: { msd: number; phase: number; spectral: number; comb: number; ihr: number; ptmr: number; existing: number }
   if (scores.compression?.isCompressed) {
-    weights = FUSION_WEIGHTS.COMPRESSED
+    weights = { ...FUSION_WEIGHTS.COMPRESSED }
     reasons.push(`Compression detected (ratio ~${scores.compression.estimatedRatio.toFixed(1)}:1)`)
   } else if (contentType === 'speech') {
-    weights = FUSION_WEIGHTS.SPEECH
+    weights = { ...FUSION_WEIGHTS.SPEECH }
   } else if (contentType === 'music') {
-    weights = FUSION_WEIGHTS.MUSIC
+    weights = { ...FUSION_WEIGHTS.MUSIC }
   } else {
-    weights = FUSION_WEIGHTS.DEFAULT
+    weights = { ...FUSION_WEIGHTS.DEFAULT }
   }
 
   // Apply custom weight overrides
@@ -820,16 +1037,17 @@ export function fuseAlgorithmResults(
   }
 
   // Filter algorithms based on mode
-  let activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'existing']
+  // IHR and PTMR are always active (they're cheap and highly discriminative)
+  let activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'existing']
   switch (config.mode) {
     case 'msd':
-      activeAlgorithms = ['msd', 'existing']
+      activeAlgorithms = ['msd', 'ihr', 'ptmr', 'existing']
       break
     case 'phase':
-      activeAlgorithms = ['phase', 'existing']
+      activeAlgorithms = ['phase', 'ihr', 'ptmr', 'existing']
       break
     case 'combined':
-      activeAlgorithms = ['msd', 'phase', 'existing']
+      activeAlgorithms = ['msd', 'phase', 'ihr', 'ptmr', 'existing']
       break
     case 'all':
       // Use all algorithms
@@ -837,9 +1055,9 @@ export function fuseAlgorithmResults(
     case 'auto':
       // Auto-select based on available data
       if (scores.msd && scores.msd.framesAnalyzed >= config.msdMinFrames) {
-        activeAlgorithms = ['msd', 'phase', 'spectral', 'existing']
+        activeAlgorithms = ['msd', 'phase', 'spectral', 'ihr', 'ptmr', 'existing']
       } else {
-        activeAlgorithms = ['phase', 'spectral', 'existing']
+        activeAlgorithms = ['phase', 'spectral', 'ihr', 'ptmr', 'existing']
       }
       break
   }
@@ -887,6 +1105,28 @@ export function fuseAlgorithmResults(
     reasons.push(`Comb pattern: ${scores.comb.matchingPeaks} peaks, ${scores.comb.fundamentalSpacing?.toFixed(0)}Hz spacing`)
   }
 
+  // Inter-Harmonic Ratio (IHR) — low IHR = feedback (clean tone), high IHR = music
+  if (scores.ihr) {
+    weightedSum += scores.ihr.feedbackScore * weights.ihr
+    totalWeight += weights.ihr
+    contributingAlgorithms.push('IHR')
+    if (scores.ihr.isFeedbackLike) {
+      reasons.push(`Clean tone (IHR ${scores.ihr.interHarmonicRatio.toFixed(2)}, ${scores.ihr.harmonicsFound} harmonics)`)
+    } else if (scores.ihr.isMusicLike) {
+      reasons.push(`Rich harmonics suggest music (IHR ${scores.ihr.interHarmonicRatio.toFixed(2)})`)
+    }
+  }
+
+  // Peak-to-Median Ratio (PTMR) — high PTMR = narrow spectral spike (feedback)
+  if (scores.ptmr) {
+    weightedSum += scores.ptmr.feedbackScore * weights.ptmr
+    totalWeight += weights.ptmr
+    contributingAlgorithms.push('PTMR')
+    if (scores.ptmr.isFeedbackLike) {
+      reasons.push(`Sharp spectral peak (PTMR ${scores.ptmr.ptmrDb.toFixed(1)} dB)`)
+    }
+  }
+
   // Existing algorithm score
   if (activeAlgorithms.includes('existing')) {
     weightedSum += existingScore * weights.existing
@@ -902,6 +1142,8 @@ export function fuseAlgorithmResults(
     scores.msd?.feedbackScore,
     scores.phase?.feedbackScore,
     scores.spectral?.feedbackScore,
+    scores.ihr?.feedbackScore,
+    scores.ptmr?.feedbackScore,
     existingScore,
   ].filter((s): s is number => s !== undefined && s !== null)
 
@@ -935,7 +1177,16 @@ export function fuseAlgorithmResults(
 }
 
 /**
- * Detect content type from signal characteristics
+ * Detect content type from signal characteristics.
+ *
+ * Enhanced beyond simple crest factor + flatness with:
+ * - Spectral centroid analysis (speech has lower centroid than rock/pop)
+ * - Spectral roll-off (speech energy concentrated below 4 kHz)
+ * - Dynamic range variance (speech has wider short-term dynamics than music)
+ *
+ * @param spectrum - Magnitude spectrum (dB)
+ * @param crestFactor - Peak-to-RMS ratio in dB
+ * @param spectralFlatness - Wiener entropy (0 = tonal, 1 = noise)
  */
 export function detectContentType(
   spectrum: Float32Array,
@@ -947,15 +1198,61 @@ export function detectContentType(
     return 'compressed'
   }
 
-  // High spectral flatness indicates broadband content (likely music)
-  if (spectralFlatness > 0.2) {
-    return 'music'
+  // Compute spectral centroid (weighted average frequency bin)
+  let powerSum = 0
+  let weightedBinSum = 0
+  for (let i = 1; i < spectrum.length; i++) {
+    const p = Math.pow(10, spectrum[i] / 10) // dB → linear power
+    powerSum += p
+    weightedBinSum += i * p
   }
+  const centroidBin = powerSum > 0 ? weightedBinSum / powerSum : 0
+  const centroidNormalized = centroidBin / spectrum.length // 0–1 scale
 
-  // Low spectral flatness with moderate crest factor indicates speech
-  if (spectralFlatness < 0.1 && crestFactor > 8) {
-    return 'speech'
+  // Compute 85% spectral roll-off bin
+  let cumulativePower = 0
+  const target85 = powerSum * 0.85
+  let rolloffBin = spectrum.length - 1
+  for (let i = 1; i < spectrum.length; i++) {
+    cumulativePower += Math.pow(10, spectrum[i] / 10)
+    if (cumulativePower >= target85) {
+      rolloffBin = i
+      break
+    }
   }
+  const rolloffNormalized = rolloffBin / spectrum.length
+
+  // Score each content type using a weighted feature vector
+  // Speech: low centroid (<0.15), low rolloff (<0.2), moderate crest (8-14), low flatness (<0.12)
+  // Music: moderate centroid (0.1-0.3), moderate rolloff (0.15-0.4), varied crest, higher flatness
+  // Compressed: any centroid/rolloff, low crest (<6)
+  let speechScore = 0
+  let musicScore = 0
+
+  // Centroid analysis
+  if (centroidNormalized < 0.12) speechScore += 0.3
+  else if (centroidNormalized < 0.20) speechScore += 0.15
+  if (centroidNormalized > 0.15) musicScore += 0.2
+
+  // Roll-off analysis
+  if (rolloffNormalized < 0.18) speechScore += 0.25
+  else if (rolloffNormalized < 0.25) speechScore += 0.1
+  if (rolloffNormalized > 0.25) musicScore += 0.2
+
+  // Crest factor
+  if (crestFactor > 10) speechScore += 0.2
+  else if (crestFactor > 8) speechScore += 0.1
+  if (crestFactor < 10 && crestFactor > 4) musicScore += 0.15
+
+  // Spectral flatness
+  if (spectralFlatness < 0.08) speechScore += 0.25
+  else if (spectralFlatness < 0.15) speechScore += 0.1
+  if (spectralFlatness > 0.15) musicScore += 0.25
+  if (spectralFlatness > 0.3) musicScore += 0.2
+
+  // Decision
+  if (speechScore > musicScore && speechScore > 0.4) return 'speech'
+  if (musicScore > speechScore && musicScore > 0.4) return 'music'
 
   return 'unknown'
 }

@@ -449,7 +449,7 @@ export function applyFrequencyDependentThreshold(
   thresholdType: 'prominence' | 'sustain' | 'q'
 ): number {
   const band = getFrequencyBand(frequencyHz, schroederHz)
-  
+
   switch (thresholdType) {
     case 'prominence':
       return baseThreshold * band.prominenceMultiplier
@@ -460,4 +460,140 @@ export function applyFrequencyDependentThreshold(
     default:
       return baseThreshold
   }
+}
+
+// ============================================================================
+// ROOM MODE CALCULATION
+// From Carl Hopkins "Sound Insulation" Section 1.2
+// ============================================================================
+
+/** Speed of sound at ~20°C */
+const SPEED_OF_SOUND = 343
+
+interface RoomMode {
+  /** Frequency in Hz */
+  frequency: number
+  /** Mode indices (nx, ny, nz) */
+  nx: number
+  ny: number
+  nz: number
+  /** Mode type: axial (1D), tangential (2D), or oblique (3D) */
+  type: 'axial' | 'tangential' | 'oblique'
+  /** Display label like "1,0,0" */
+  label: string
+}
+
+/**
+ * Calculate room modes below 300 Hz using the rectangular room equation:
+ *   f = (c/2) * sqrt( (nx/Lx)² + (ny/Ly)² + (nz/Lz)² )
+ *
+ * @param lengthM - Room length in meters
+ * @param widthM  - Room width in meters
+ * @param heightM - Room height in meters
+ * @param maxHz   - Maximum frequency to compute (default 300 Hz)
+ */
+export function calculateRoomModes(
+  lengthM: number,
+  widthM: number,
+  heightM: number,
+  maxHz: number = 300
+): RoomMode[] {
+  const modes: RoomMode[] = []
+  const cHalf = SPEED_OF_SOUND / 2
+  // Maximum mode order to search per axis
+  const maxN = 10
+
+  for (let nx = 0; nx <= maxN; nx++) {
+    for (let ny = 0; ny <= maxN; ny++) {
+      for (let nz = 0; nz <= maxN; nz++) {
+        if (nx === 0 && ny === 0 && nz === 0) continue
+
+        const f = cHalf * Math.sqrt(
+          (nx / lengthM) ** 2 + (ny / widthM) ** 2 + (nz / heightM) ** 2
+        )
+        if (f > maxHz) continue
+
+        const nonZero = (nx > 0 ? 1 : 0) + (ny > 0 ? 1 : 0) + (nz > 0 ? 1 : 0)
+        let type: RoomMode['type']
+        if (nonZero === 1) type = 'axial'
+        else if (nonZero === 2) type = 'tangential'
+        else type = 'oblique'
+
+        modes.push({
+          frequency: Math.round(f * 10) / 10,
+          nx, ny, nz,
+          type,
+          label: `${nx},${ny},${nz}`,
+        })
+      }
+    }
+  }
+
+  return modes.sort((a, b) => a.frequency - b.frequency)
+}
+
+interface FormattedMode {
+  hz: string
+  label: string
+}
+
+interface FormattedModes {
+  all: FormattedMode[]
+  axial: FormattedMode[]
+  tangential: FormattedMode[]
+  oblique: FormattedMode[]
+}
+
+/**
+ * Format room modes for UI display, grouped by type
+ */
+export function formatRoomModesForDisplay(modes: RoomMode[]): FormattedModes {
+  const fmt = (m: RoomMode): FormattedMode => ({
+    hz: m.frequency.toFixed(0),
+    label: m.label,
+  })
+
+  return {
+    all: modes.map(fmt),
+    axial: modes.filter(m => m.type === 'axial').map(fmt),
+    tangential: modes.filter(m => m.type === 'tangential').map(fmt),
+    oblique: modes.filter(m => m.type === 'oblique').map(fmt),
+  }
+}
+
+/** Typical absorption coefficients by room type */
+const ABSORPTION_COEFFICIENTS: Record<string, number> = {
+  'live': 0.10,       // Hard surfaces, minimal treatment
+  'average': 0.20,    // Typical room
+  'dead': 0.40,       // Heavy acoustic treatment
+  'very_dead': 0.60,  // Recording studio / anechoic
+}
+
+/**
+ * Estimate RT60 and volume from room dimensions and absorption type.
+ * Uses Sabine equation: T60 = 0.161 * V / A
+ * where A = total absorption = α * S (surface area)
+ */
+export function getRoomParametersFromDimensions(
+  lengthM: number,
+  widthM: number,
+  heightM: number,
+  absorptionType: string = 'average'
+): { rt60: number; volume: number } {
+  const volume = lengthM * widthM * heightM
+  const surfaceArea = 2 * (lengthM * widthM + lengthM * heightM + widthM * heightM)
+  const alpha = ABSORPTION_COEFFICIENTS[absorptionType] ?? 0.20
+  const totalAbsorption = alpha * surfaceArea
+
+  // Sabine equation
+  const rt60 = totalAbsorption > 0 ? (0.161 * volume) / totalAbsorption : 1.0
+
+  return { rt60, volume }
+}
+
+/**
+ * Convert feet to meters
+ */
+export function feetToMeters(feet: number): number {
+  return feet * 0.3048
 }

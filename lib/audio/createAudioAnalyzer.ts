@@ -160,12 +160,13 @@ export class AudioAnalyzer {
           fftSize: state.fftSize,
           timestamp,
           peak,
-          // Advanced algorithm state (from DAFx-16, DBX, KU Leuven research)
-          algorithmMode: state.algorithmMode,
-          contentType: state.contentType,
-          msdFrameCount: state.msdFrameCount,
-          isCompressed: state.isCompressed,
-          compressionRatio: state.compressionRatio,
+          // Advanced algorithm state - populated at the worker/hook level, not by FeedbackDetector
+          // Safe to default to undefined; higher-level code fills these in
+          algorithmMode: undefined,
+          contentType: undefined,
+          msdFrameCount: undefined,
+          isCompressed: undefined,
+          compressionRatio: undefined,
         }
 
         this.callbacks.onSpectrum?.(spectrumData)

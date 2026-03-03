@@ -9,8 +9,16 @@
  */
 
 import { TrackManager } from './trackManager'
-import { classifyTrack, shouldReportIssue } from './classifier'
+import { classifyTrackWithAlgorithms, shouldReportIssue } from './classifier'
 import { generateEQAdvisory } from './eqAdvisor'
+import {
+  calculateSpectralFlatness,
+  analyzeInterHarmonicRatio,
+  calculatePTMR,
+  fuseAlgorithmResults,
+  detectContentType,
+} from './advancedDetection'
+import type { AlgorithmScores, FusedDetectionResult } from './advancedDetection'
 import { generateId } from '@/lib/utils/mathHelpers'
 import type {
   Advisory,
@@ -52,6 +60,7 @@ export type WorkerInboundMessage =
 
 export type WorkerOutboundMessage =
   | { type: 'advisory'; advisory: Advisory }
+  | { type: 'advisoryReplaced'; replacedId: string; advisory: Advisory }
   | { type: 'advisoryCleared'; advisoryId: string }
   | { type: 'tracksUpdate'; tracks: TrackedPeak[] }
   | { type: 'ready' }
@@ -144,8 +153,43 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       // Process through track manager
       const track = trackManager.processPeak(peak)
 
-      // Classify
-      const classification = classifyTrack(track, settings)
+      // ── Compute advanced algorithm scores ──────────────────────────────
+      const binIndex = peak.binIndex
+
+      // Spectral flatness around the peak
+      const spectralResult = calculateSpectralFlatness(spectrum, binIndex)
+
+      // Inter-harmonic ratio (feedback = clean, music = rich harmonics)
+      const ihrResult = analyzeInterHarmonicRatio(spectrum, binIndex, sampleRate, fftSize)
+
+      // Peak-to-median ratio (feedback peaks are very sharp)
+      const ptmrResult = calculatePTMR(spectrum, binIndex)
+
+      // Assemble algorithm scores
+      const algorithmScores: AlgorithmScores = {
+        msd: null,    // MSD is computed in feedbackDetector, not available here per-frame
+        phase: null,  // Phase disabled (Web Audio API limitation)
+        spectral: spectralResult,
+        comb: null,   // Comb detection runs on the full peak set, not per-peak
+        compression: null,
+        ihr: ihrResult,
+        ptmr: ptmrResult,
+      }
+
+      // Detect content type for fusion weight selection
+      const crestFactor = peak.trueAmplitudeDb - (peak.noiseFloorDb ?? -80)
+      const contentType = detectContentType(spectrum, crestFactor, spectralResult.flatness)
+
+      // Fuse algorithm results
+      const existingScore = peak.prominenceDb > 15 ? 0.7 : peak.prominenceDb > 10 ? 0.5 : 0.3
+      const fusionResult: FusedDetectionResult = fuseAlgorithmResults(
+        algorithmScores,
+        contentType,
+        existingScore
+      )
+
+      // Enhanced classification with algorithm scores
+      const classification = classifyTrackWithAlgorithms(track, algorithmScores, fusionResult, settings)
 
       // Gate on reporting threshold
       if (!shouldReportIssue(classification, settings)) {

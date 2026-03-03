@@ -476,6 +476,34 @@ export function classifyTrackWithAlgorithms(
     }
   }
   
+  // Inter-Harmonic Ratio Analysis
+  if (algorithmScores.ihr) {
+    const ihr = algorithmScores.ihr
+    if (ihr.isFeedbackLike) {
+      // Clean tone with few harmonics — strong feedback indicator
+      pFeedback = Math.min(1, pFeedback + ihr.feedbackScore * 0.15)
+      reasons.push(`Clean tone (IHR ${ihr.interHarmonicRatio.toFixed(2)}, ${ihr.harmonicsFound} harmonics)`)
+    } else if (ihr.isMusicLike) {
+      // Rich harmonic content with inter-harmonic energy — suppress feedback
+      pFeedback = Math.max(0, pFeedback - 0.15)
+      pInstrument = Math.min(1, pInstrument + 0.15)
+      reasons.push(`Musical harmonics (IHR ${ihr.interHarmonicRatio.toFixed(2)}, ${ihr.harmonicsFound} harmonics)`)
+    }
+  }
+
+  // Peak-to-Median Ratio Analysis
+  if (algorithmScores.ptmr) {
+    const ptmr = algorithmScores.ptmr
+    if (ptmr.isFeedbackLike) {
+      // Sharp spectral spike well above local floor — feedback hallmark
+      pFeedback = Math.min(1, pFeedback + ptmr.feedbackScore * 0.1)
+      reasons.push(`Sharp peak (PTMR ${ptmr.ptmrDb.toFixed(1)} dB above median)`)
+    } else if (ptmr.ptmrDb < 8) {
+      // Broad spectral energy — likely broadband content, not feedback
+      pInstrument = Math.min(1, pInstrument + 0.05)
+    }
+  }
+
   // Compression Adjustment
   if (algorithmScores.compression && algorithmScores.compression.isCompressed) {
     const comp = algorithmScores.compression
@@ -566,9 +594,19 @@ export function getAlgorithmSummary(scores: AlgorithmScores): string[] {
     summary.push(`Comb: ${scores.comb.matchingPeaks} peaks @ ${scores.comb.fundamentalSpacing?.toFixed(0)}Hz`)
   }
   
+  if (scores.ihr) {
+    const status = scores.ihr.isFeedbackLike ? 'CLEAN' : scores.ihr.isMusicLike ? 'MUSIC' : 'OK'
+    summary.push(`IHR: ${status} (${scores.ihr.interHarmonicRatio.toFixed(2)}, ${scores.ihr.harmonicsFound}h)`)
+  }
+
+  if (scores.ptmr) {
+    const status = scores.ptmr.isFeedbackLike ? 'SHARP' : 'BROAD'
+    summary.push(`PTMR: ${status} (${scores.ptmr.ptmrDb.toFixed(1)}dB)`)
+  }
+
   if (scores.compression && scores.compression.isCompressed) {
     summary.push(`Compressed: ${scores.compression.estimatedRatio.toFixed(1)}:1`)
   }
-  
+
   return summary
 }

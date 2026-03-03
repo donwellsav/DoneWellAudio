@@ -127,3 +127,45 @@ export function harmonicSeries(fundamental: number, count: number = 8): number[]
   }
   return harmonics
 }
+
+/**
+ * Format a duration to a human-readable string.
+ * Accepts either a single value in milliseconds or two date/timestamp
+ * arguments (start, end) and computes the elapsed time between them.
+ */
+export function formatDuration(msOrStart: number | string | Date, end?: string | Date | null): string {
+  let ms: number
+  if (end != null) {
+    const startTime = msOrStart instanceof Date ? msOrStart.getTime() : new Date(msOrStart).getTime()
+    const endTime = end instanceof Date ? end.getTime() : new Date(end).getTime()
+    ms = Math.abs(endTime - startTime)
+  } else if (typeof msOrStart === 'number') {
+    ms = msOrStart
+  } else {
+    return '—'
+  }
+
+  if (ms < 1000) return `${Math.round(ms)}ms`
+  const seconds = ms / 1000
+  if (seconds < 60) return `${seconds.toFixed(1)}s`
+  const minutes = Math.floor(seconds / 60)
+  const remainingSec = Math.round(seconds % 60)
+  if (minutes < 60) return `${minutes}m ${remainingSec}s`
+  const hours = Math.floor(minutes / 60)
+  const remainingMin = minutes % 60
+  return `${hours}h ${remainingMin}m`
+}
+
+/**
+ * Format a Date or timestamp to a locale-appropriate display string
+ */
+export function formatDate(date: Date | number | string): string {
+  const d = date instanceof Date ? date : new Date(date)
+  return d.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}

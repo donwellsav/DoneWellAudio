@@ -958,6 +958,20 @@ export class FeedbackDetector {
       return { msd: -1, growthRate: 0, isHowl: false, fastConfirm: false }
     }
 
+    // MINIMUM ENERGY GUARD (DAFx-16 Section 3):
+    // Prevent MSD from triggering on quiet noise floor fluctuations.
+    // Only run MSD analysis if the current bin energy is sufficiently
+    // above the noise floor. Without this, random dB-level noise
+    // fluctuations near the noise floor can produce low MSD values
+    // that mimic the linear-in-dB growth pattern of feedback.
+    if (this.noiseFloorDb !== null && this.freqDb) {
+      const currentDb = this.freqDb[binIndex]
+      const energyAboveNoise = currentDb - this.noiseFloorDb
+      if (energyAboveNoise < MSD_SETTINGS.MIN_ENERGY_ABOVE_NOISE_DB) {
+        return { msd: 999, growthRate: 0, isHowl: false, fastConfirm: false }
+      }
+    }
+
     const historySize = MSD_SETTINGS.HISTORY_SIZE
     const history = this.msdHistory[binIndex]
     const currentIdx = this.msdHistoryIndex[binIndex]

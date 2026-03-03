@@ -50,27 +50,48 @@ export function findNearestGEQBand(freqHz: number): { bandHz: number; bandIndex:
 }
 
 /**
- * Calculate recommended cut depth based on severity and preset
+ * Calculate recommended cut depth based on severity, preset, and optional
+ * recurrence count. Implements MINDS-inspired adaptive depth: the first
+ * detection gets a light cut, but if feedback recurs at the same frequency
+ * the notch progressively deepens (capped at preset maxCut).
+ *
+ * @param severity - Current severity level
+ * @param preset - EQ preset (surgical / heavy)
+ * @param recurrenceCount - How many times feedback has recurred at this freq (0 = first time)
  */
-export function calculateCutDepth(severity: SeverityLevel, preset: Preset): number {
+export function calculateCutDepth(severity: SeverityLevel, preset: Preset, recurrenceCount: number = 0): number {
   const presetConfig = EQ_PRESETS[preset]
 
+  let baseDepth: number
   switch (severity) {
     case 'RUNAWAY':
-      return presetConfig.maxCut // -18 or -12 dB
+      baseDepth = presetConfig.maxCut // -18 or -12 dB
+      break
     case 'GROWING':
-      return presetConfig.moderateCut // -9 or -6 dB
+      baseDepth = presetConfig.moderateCut // -9 or -6 dB
+      break
     case 'RESONANCE':
-      return presetConfig.lightCut // -4 or -3 dB
+      baseDepth = presetConfig.lightCut // -4 or -3 dB
+      break
     case 'POSSIBLE_RING':
-      return -3 // Gentle for possible rings
+      baseDepth = -3 // Gentle for possible rings
+      break
     case 'WHISTLE':
-      return 0 // No cut for whistles by default
+      return 0 // No cut for whistles
     case 'INSTRUMENT':
-      return 0 // No cut for instruments by default
+      return 0 // No cut for instruments
     default:
-      return presetConfig.lightCut
+      baseDepth = presetConfig.lightCut
   }
+
+  // MINDS-inspired adaptive depth: each recurrence deepens by 2 dB
+  // capped at the preset's maxCut to avoid over-cutting
+  if (recurrenceCount > 0) {
+    const adaptiveDepth = baseDepth - (recurrenceCount * 2)
+    return Math.max(adaptiveDepth, presetConfig.maxCut) // maxCut is negative, so max() clamps
+  }
+
+  return baseDepth
 }
 
 /**
