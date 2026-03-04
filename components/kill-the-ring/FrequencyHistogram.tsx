@@ -11,13 +11,14 @@ interface FrequencyHistogramProps {
 }
 
 const SEVERITY_COLORS: Record<string, string> = {
-  runaway:    '#ef4444',
-  growing:    '#f97316',
-  resonance:  '#eab308',
-  ring:       '#a855f7',
-  whistle:    '#06b6d4',
-  instrument: '#22c55e',
-  unknown:    '#6b7280',
+  runaway:       '#ef4444',
+  growing:       '#f97316',
+  resonance:     '#eab308',
+  possible_ring: '#a855f7',
+  ring:          '#a855f7',
+  whistle:       '#06b6d4',
+  instrument:    '#22c55e',
+  unknown:       '#6b7280',
 }
 
 const FREQ_MIN = CANVAS_SETTINGS.RTA_FREQ_MIN
@@ -80,9 +81,9 @@ export function FrequencyHistogram({ bins, height = 200 }: FrequencyHistogramPro
         const barH = (bin.count / maxCount) * plotH
         const y = pad.top + plotH - barH
 
-        // Pick color from dominant severity
+        // Pick color from dominant severity (keys may be UPPERCASE from DB)
         const dom = Object.entries(bin.severities).sort((a, b) => b[1] - a[1])[0]
-        const color = dom ? (SEVERITY_COLORS[dom[0]] ?? '#6b7280') : '#6b7280'
+        const color = dom ? (SEVERITY_COLORS[dom[0].toLowerCase()] ?? '#6b7280') : '#6b7280'
 
         ctx.fillStyle = color
         ctx.globalAlpha = 0.85

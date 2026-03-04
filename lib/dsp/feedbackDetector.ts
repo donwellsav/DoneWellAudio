@@ -178,7 +178,7 @@ export class FeedbackDetector {
     this.setFftSize(this.config.fftSize)
 
     // Initialize auto-gain EMA coefficients based on analysis rate (~50 fps)
-    // Attack 300ms (gain rises slowly), Release 1000ms (gain drops slowly)
+    // Attack 300ms (gain decreases fast), Release 1000ms (gain recovers slowly)
     const fps = 1000 / this.config.analysisIntervalMs
     this._autoGainAttackCoeff = 1 - Math.exp(-1 / (0.3 * fps))  // 300ms attack
     this._autoGainReleaseCoeff = 1 - Math.exp(-1 / (1.0 * fps)) // 1000ms release
@@ -861,7 +861,7 @@ export class FeedbackDetector {
           }
 
           // Q estimation via -3dB bandwidth
-          const { qEstimate, bandwidthHz } = this.estimateQ(i, trueAmplitudeDb)
+          const { qEstimate, bandwidthHz } = this.estimateQ(i, trueAmplitudeDb, trueFrequencyHz)
 
           const peak: DetectedPeak = {
             binIndex: i,
@@ -940,7 +940,7 @@ export class FeedbackDetector {
     }
   }
 
-  private estimateQ(binIndex: number, peakDb: number): { qEstimate: number; bandwidthHz: number } {
+  private estimateQ(binIndex: number, peakDb: number, trueFrequencyHz?: number): { qEstimate: number; bandwidthHz: number } {
     // Find -3dB points around peak
     const freqDb = this.freqDb
     if (!freqDb) return { qEstimate: 10, bandwidthHz: 100 }
@@ -997,8 +997,8 @@ export class FeedbackDetector {
 
     const bandwidthBins = rightBin - leftBin
     const bandwidthHz = bandwidthBins * hzPerBin
-    const centerHz = binIndex * hzPerBin
-    
+    const centerHz = trueFrequencyHz ?? binIndex * hzPerBin
+
     // Q = center / bandwidth
     const qEstimate = bandwidthHz > 0 ? centerHz / bandwidthHz : 100
 
@@ -1155,7 +1155,7 @@ export class FeedbackDetector {
 
     const numSecondDeriv = frameCount - 2
     const msd = numSecondDeriv > 0
-      ? Math.sqrt(sumSquaredSecondDeriv / numSecondDeriv)
+      ? sumSquaredSecondDeriv / numSecondDeriv
       : 0
 
     // Check for howl

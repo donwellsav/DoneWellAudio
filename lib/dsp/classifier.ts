@@ -307,6 +307,14 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings): C
     severity = 'RESONANCE'
   }
 
+  // Re-normalize after Math.max overrides to maintain probability invariant
+  const postTotal = pFeedback + pWhistle + pInstrument
+  if (postTotal > 1) {
+    pFeedback /= postTotal
+    pWhistle /= postTotal
+    pInstrument /= postTotal
+  }
+
   // Determine label
   if (pWhistle >= CLASSIFIER_WEIGHTS.WHISTLE_THRESHOLD && pWhistle > pFeedback) {
     label = 'WHISTLE'
@@ -600,7 +608,7 @@ export function classifyTrackWithAlgorithms(
   
   // Recalculate confidence
   const maxProb = Math.max(pFeedback, pWhistle, pInstrument)
-  const confidence = Math.max(baseResult.confidence, fusionResult?.confidence ?? 0, maxProb)
+  const confidence = fusionResult ? fusionResult.confidence : Math.max(baseResult.confidence, maxProb)
   const pUnknown = 1 - confidence
   
   // Determine updated label and severity

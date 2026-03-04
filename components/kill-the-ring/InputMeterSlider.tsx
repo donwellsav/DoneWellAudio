@@ -112,34 +112,36 @@ export function InputMeterSlider({
     onChange(Math.round(min + ratio * (max - min)))
   }
 
+  // Keep a ref to the latest updateValueFromX so window listeners
+  // always call through the current closure without re-registering.
+  const updateValueFromXRef = useRef(updateValueFromX)
+  updateValueFromXRef.current = updateValueFromX
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if (editing) return
     isDragging.current = true
-    updateValueFromX(e.clientX)
+    updateValueFromXRef.current(e.clientX)
   }
-
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!isDragging.current) return
-    updateValueFromX(e.clientX)
-  }
-
-  const handleMouseUp = () => { isDragging.current = false }
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (editing) return
     isDragging.current = true
-    updateValueFromX(e.touches[0].clientX)
+    updateValueFromXRef.current(e.touches[0].clientX)
   }
-
-  const handleTouchMove = (e: TouchEvent) => {
-    if (!isDragging.current) return
-    e.preventDefault()
-    updateValueFromX(e.touches[0].clientX)
-  }
-
-  const handleTouchEnd = () => { isDragging.current = false }
 
   useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current) return
+      updateValueFromXRef.current(e.clientX)
+    }
+    const handleMouseUp = () => { isDragging.current = false }
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDragging.current) return
+      e.preventDefault()
+      updateValueFromXRef.current(e.touches[0].clientX)
+    }
+    const handleTouchEnd = () => { isDragging.current = false }
+
     window.addEventListener('mousemove', handleMouseMove)
     window.addEventListener('mouseup', handleMouseUp)
     window.addEventListener('touchmove', handleTouchMove, { passive: false })
@@ -150,7 +152,7 @@ export function InputMeterSlider({
       window.removeEventListener('touchmove', handleTouchMove)
       window.removeEventListener('touchend', handleTouchEnd)
     }
-  }, [editing])
+  }, [])
 
   const commitEdit = (raw: string) => {
     const parsed = parseInt(raw, 10)

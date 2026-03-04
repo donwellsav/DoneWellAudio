@@ -78,6 +78,7 @@ export function LogsViewer() {
     logger.logExport(format, logs.length)
   }
 
+  // TODO: Replace native confirm() with AlertDialog for UI consistency (see ResetConfirmDialog pattern)
   const handleClear = () => {
     if (confirm('Clear all logs? This cannot be undone.')) {
       logger.clearLogs()

@@ -22,6 +22,13 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function PATCH(_req: NextRequest, { params }: Params) {
+  const { allowed, retryAfterMs } = rateLimit(getClientIp(_req))
+  if (!allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(retryAfterMs / 1000)) } },
+    )
+  }
   const { id } = await params
   try {
     const session = await endSession(id)

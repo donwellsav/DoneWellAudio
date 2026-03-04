@@ -303,9 +303,15 @@ export class FeedbackHistory {
     const allConf = hotspot.events.map(e => e.confidence)
     hotspot.avgConfidence = allConf.reduce((a, b) => a + b, 0) / allConf.length
     
-    // Update center frequency (weighted average)
+    // Update center frequency (weighted average) and fix Map key if it drifts
+    const oldKey = Math.round(hotspot.centerFrequencyHz / 10) * 10
     const allFreqs = hotspot.events.map(e => e.frequencyHz)
     hotspot.centerFrequencyHz = allFreqs.reduce((a, b) => a + b, 0) / allFreqs.length
+    const newKey = Math.round(hotspot.centerFrequencyHz / 10) * 10
+    if (newKey !== oldKey) {
+      this.hotspots.delete(oldKey)
+      this.hotspots.set(newKey, hotspot)
+    }
     
     // Update suggested cut based on history
     const allProminence = hotspot.events.map(e => e.prominenceDb)

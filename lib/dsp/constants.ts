@@ -18,12 +18,9 @@ export const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A',
 // Cents per semitone
 export const CENTS_PER_SEMITONE = 100
 export const SEMITONES_PER_OCTAVE = 12
-export const CENTS_PER_OCTAVE = 1200
-
 // Mathematical constants (precomputed for performance)
 export const LN10_OVER_10 = Math.LN10 / 10 // For dB to power conversion
 export const LOG10_E = Math.LOG10E // For power to dB conversion
-export const TWO_PI = Math.PI * 2
 
 // ============================================================================
 // ACOUSTIC CONSTANTS (from Sound Insulation textbook, Carl Hopkins 2007)

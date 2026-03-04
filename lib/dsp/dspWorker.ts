@@ -16,7 +16,7 @@
  */
 
 import { TrackManager } from './trackManager'
-import { classifyTrackWithAlgorithms, shouldReportIssue } from './classifier'
+import { classifyTrackWithAlgorithms, shouldReportIssue, getSeverityUrgency } from './classifier'
 import { generateEQAdvisory } from './eqAdvisor'
 import {
   MSDHistoryBuffer,
@@ -123,17 +123,7 @@ const classificationLabelHistory = new Map<string, string[]>()
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function getSeverityUrgency(severity: string): number {
-  switch (severity) {
-    case 'RUNAWAY': return 5
-    case 'GROWING': return 4
-    case 'RESONANCE': return 3
-    case 'POSSIBLE_RING': return 2
-    case 'WHISTLE': return 1
-    case 'INSTRUMENT': return 1
-    default: return 0
-  }
-}
+// getSeverityUrgency imported from ./classifier
 
 function isHarmonicOfExisting(freqHz: number): boolean {
   // Use the same cents-based tolerance as FeedbackDetector to stay consistent.

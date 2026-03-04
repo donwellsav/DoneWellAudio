@@ -1,4 +1,5 @@
 export { KillTheRing } from "./KillTheRing";
+export { KillTheRingClient } from "./KillTheRingClient";
 export { SpectrumCanvas } from "./SpectrumCanvas";
 export { GEQBarView } from "./GEQBarView";
 export { IssuesList } from "./IssuesList";
@@ -8,3 +9,9 @@ export { InputMeterSlider } from "./InputMeterSlider";
 export { ResetConfirmDialog } from "./ResetConfirmDialog";
 export { DetectionControls } from "./DetectionControls";
 export { FeedbackHistoryPanel } from "./FeedbackHistoryPanel";
+export { AlgorithmStatusBar } from "./AlgorithmStatusBar";
+export { EQNotepad } from "./EQNotepad";
+export { ErrorBoundary } from "./ErrorBoundary";
+export { FrequencyHistogram } from "./FrequencyHistogram";
+export { LogsViewer } from "./LogsViewer";
+export { SessionsTable } from "./SessionsTable";

@@ -3,7 +3,7 @@
 import { TRACK_SETTINGS } from './constants'
 import { hzToCents } from '@/lib/utils/pitchUtils'
 import { standardDeviation, autocorrelation, generateId } from '@/lib/utils/mathHelpers'
-import type { Track, TrackHistoryEntry, TrackFeatures, DetectedPeak, TrackedPeak, Classification, Severity } from '@/types/advisory'
+import type { Track, TrackHistoryEntry, TrackFeatures, DetectedPeak, TrackedPeak, Severity } from '@/types/advisory'
 
 // Maximum number of confirmed partials used to normalise the harmonicity score (0..1)
 const MAX_HARMONICS_FOR_SCORE = 4
@@ -115,7 +115,7 @@ export class TrackManager {
       prominenceDb: track.prominenceDb,
       qEstimate: track.qEstimate,
       bandwidthHz: track.bandwidthHz,
-      classification: 'unknown' as Classification, // Will be set by classifier
+      classification: 'unknown' as Severity, // Will be set by classifier
       severity: 'unknown' as Severity,
       onsetTime: track.onsetTime,
       lastUpdateTime: track.lastUpdateTime,

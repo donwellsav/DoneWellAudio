@@ -301,7 +301,7 @@ export function SpectrumCanvas({ spectrum, advisories, isRunning, graphFontSize 
     ctx.textAlign = 'center'
     ctx.fillText('Hz', width / 2, height - 2)
 
-  }, [spectrum, advisories, graphFontSize, earlyWarning])
+  }, [spectrum, advisories, graphFontSize, earlyWarning, rtaDbMinProp, rtaDbMaxProp, spectrumLineWidthProp])
 
   useAnimationFrame(render, isRunning || spectrum !== null)
 
@@ -323,6 +323,8 @@ export function SpectrumCanvas({ spectrum, advisories, isRunning, graphFontSize 
             onClick={onStart}
             role={onStart ? 'button' : undefined}
             aria-label={onStart ? 'Start analysis' : undefined}
+            tabIndex={onStart ? 0 : undefined}
+            onKeyDown={onStart ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onStart(); } } : undefined}
           >
             <span className="flex items-center gap-2 px-4 py-2 rounded-md bg-black/60 text-sm text-neutral-300 font-medium tracking-wide backdrop-blur-sm pointer-events-none">
               Press

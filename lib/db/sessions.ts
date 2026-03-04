@@ -1,6 +1,8 @@
 import { neon } from '@neondatabase/serverless'
 
-const sql = neon(process.env.DATABASE_URL!)
+const dbUrl = process.env.DATABASE_URL
+if (!dbUrl) throw new Error('DATABASE_URL environment variable is required')
+const sql = neon(dbUrl)
 
 // ─── Session ─────────────────────────────────────────────────────────────────
 
@@ -31,13 +33,13 @@ export async function endSession(id: string): Promise<Session | null> {
   const rows = await sql`
     UPDATE sessions
     SET ended_at = NOW()
-    WHERE id = ${id}
+    WHERE id = ${id} AND ended_at IS NULL
     RETURNING *
   `
   return (rows[0] as Session) ?? null
 }
 
-export async function listSessions(limit = 50): Promise<Session[]> {
+export async function listSessions(limit = 50, offset = 0): Promise<Session[]> {
   const rows = await sql`
     SELECT
       s.*,
@@ -47,6 +49,7 @@ export async function listSessions(limit = 50): Promise<Session[]> {
     GROUP BY s.id
     ORDER BY s.started_at DESC
     LIMIT ${limit}
+    OFFSET ${offset}
   `
   return rows as Session[]
 }
@@ -120,11 +123,16 @@ export async function bulkInsertEvents(
   // Build a single multi-row INSERT — one DB round-trip regardless of batch size.
   // The neon client supports sql(queryString, params[]) as an alternative to tagged templates,
   // which lets us construct dynamic parameter placeholders safely.
-  const COL_COUNT = 12
+  const EVENT_COLUMNS = [
+    'id', 'session_id', 'occurred_at', 'event_type',
+    'frequency', 'amplitude', 'severity', 'classification',
+    'q_factor', 'bandwidth', 'growth_rate', 'metadata',
+  ] as const
+  const COL_COUNT = EVENT_COLUMNS.length
   const placeholders = rows
     .map((_, i) => {
       const b = i * COL_COUNT
-      return `($${b+1},$${b+2},$${b+3},$${b+4},$${b+5},$${b+6},$${b+7},$${b+8},$${b+9},$${b+10},$${b+11},$${b+12})`
+      return `(${EVENT_COLUMNS.map((_, c) => `$${b + c + 1}`).join(',')})`
     })
     .join(',\n')
 

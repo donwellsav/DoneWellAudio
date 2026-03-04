@@ -18,10 +18,6 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  onDemandEntries: {
-    maxInactiveAge: 15 * 1000,
-    pagesBufferLength: 5,
-  },
 }
 
 export default withSerwist(nextConfig)

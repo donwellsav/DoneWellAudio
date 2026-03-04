@@ -53,6 +53,13 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ saved: events.length })
   } catch (err) {
     console.error('[sessions/:id/events] POST error:', err)
+    const isFkViolation =
+      err instanceof Error &&
+      (('code' in err && (err as Record<string, unknown>).code === '23503') ||
+        err.message.includes('foreign key'))
+    if (isFkViolation) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+    }
     return NextResponse.json({ error: 'Failed to save events' }, { status: 500 })
   }
 }

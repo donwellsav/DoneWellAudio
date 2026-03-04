@@ -1,6 +1,6 @@
 // KillTheRing2 Math Utilities - Zero-allocation helpers for DSP
 
-import { LN10_OVER_10, LOG10_E } from '@/lib/dsp/constants'
+import { LN10_OVER_10 } from '@/lib/dsp/constants'
 
 /**
  * Convert dB to linear power using precomputed constant
@@ -42,6 +42,7 @@ export function amplitudeToDb(amplitude: number): number {
  * Returns the k-th smallest value (0-indexed)
  */
 export function quickselect(arr: Float32Array, k: number): number {
+  if (arr.length === 0) return NaN
   let left = 0
   let right = arr.length - 1
 

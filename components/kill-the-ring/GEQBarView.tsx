@@ -211,7 +211,7 @@ export function GEQBarView({ advisories, graphFontSize = 11 }: GEQBarViewProps) 
 
   }, [bandRecommendations, graphFontSize])
 
-  useAnimationFrame(render, true)
+  useAnimationFrame(render, advisories.length > 0)
 
   return (
     <div ref={containerRef} className="w-full h-full">

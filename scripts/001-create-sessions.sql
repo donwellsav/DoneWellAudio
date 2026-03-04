@@ -27,4 +27,5 @@ CREATE TABLE IF NOT EXISTS session_events (
 
 CREATE INDEX IF NOT EXISTS idx_session_events_session_id ON session_events(session_id);
 CREATE INDEX IF NOT EXISTS idx_session_events_occurred_at ON session_events(occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_session_events_type ON session_events(session_id, event_type);
 CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON sessions(started_at DESC);

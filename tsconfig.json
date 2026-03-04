@@ -1,5 +1,9 @@
 {
   "compilerOptions": {
+    // Both "dom" and "webworker" are included because the project shares type
+    // files between the main thread (DOM) and Web Worker (lib/dsp/dspWorker.ts).
+    // Ideally these would be separate tsconfig projects, but the shared @/types
+    // imports make a single config the pragmatic choice for now.
     "lib": [
       "dom",
       "dom.iterable",

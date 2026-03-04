@@ -58,6 +58,7 @@ export function FeedbackHistoryPanel() {
     URL.revokeObjectURL(url)
   }, [])
 
+  // TODO: Replace native confirm() with AlertDialog for UI consistency (see ResetConfirmDialog pattern)
   const handleClear = useCallback(() => {
     if (confirm('Clear all feedback history? This cannot be undone.')) {
       getFeedbackHistory().clear()

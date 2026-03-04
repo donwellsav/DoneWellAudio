@@ -64,6 +64,11 @@ interface IssueCardProps {
 }
 
 function IssueCard({ advisory, rank, isApplied, onApply, onDismiss }: IssueCardProps) {
+  // Precompute occurrence count once per render instead of calling in JSX render path
+  const occurrenceCount = useMemo(
+    () => getFeedbackHistory().getOccurrenceCount(advisory.trueFrequencyHz),
+    [advisory.trueFrequencyHz]
+  )
   const severityColor = getSeverityColor(advisory.severity)
   const pitchStr = advisory.advisory?.pitch ? formatPitch(advisory.advisory.pitch) : null
   const exactFreqStr = advisory.trueFrequencyHz != null ? formatFrequency(advisory.trueFrequencyHz) : '---'
@@ -142,27 +147,21 @@ function IssueCard({ advisory, rank, isApplied, onApply, onDismiss }: IssueCardP
               </TooltipProvider>
             )}
             {/* Repeat offender indicator */}
-            {(() => {
-              const occurrences = getFeedbackHistory().getOccurrenceCount(advisory.trueFrequencyHz)
-              if (occurrences >= 3) {
-                return (
-                  <TooltipProvider delayDuration={300}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="inline-flex items-center gap-0.5 text-[0.5625rem] text-amber-400 bg-amber-500/20 px-1 py-0.5 rounded-sm border border-amber-500/30">
-                          <TrendingUp className="w-2.5 h-2.5" />
-                          {occurrences}x
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="text-xs">
-                        Repeat offender: detected {occurrences} times this session
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )
-              }
-              return null
-            })()}
+            {occurrenceCount >= 3 && (
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex items-center gap-0.5 text-[0.5625rem] text-amber-400 bg-amber-500/20 px-1 py-0.5 rounded-sm border border-amber-500/30">
+                      <TrendingUp className="w-2.5 h-2.5" />
+                      {occurrenceCount}x
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs">
+                    Repeat offender: detected {occurrenceCount} times this session
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
           </div>
 
           <div className="flex items-center gap-1 flex-shrink-0">

@@ -12,7 +12,6 @@ export type OperationMode = 'speech' | 'worship' | 'liveMusic' | 'theater' | 'mo
 export type Preset = 'surgical' | 'heavy'
 export type SeverityLevel = 'RUNAWAY' | 'GROWING' | 'RESONANCE' | 'POSSIBLE_RING' | 'WHISTLE' | 'INSTRUMENT'
 export type Severity = 'runaway' | 'growing' | 'resonance' | 'ring' | 'whistle' | 'instrument' | 'unknown'
-export type Classification = 'runaway' | 'growing' | 'resonance' | 'ring' | 'whistle' | 'instrument' | 'unknown'
 export type IssueLabel = 'ACOUSTIC_FEEDBACK' | 'WHISTLE' | 'INSTRUMENT' | 'POSSIBLE_RING'
 export type PEQType = 'bell' | 'notch' | 'highShelf' | 'lowShelf' | 'HPF' | 'LPF'
 export type ShelfType = 'highShelf' | 'lowShelf' | 'HPF' | 'LPF'
@@ -204,7 +203,7 @@ export interface Advisory {
   isRunaway?: boolean
   predictedTimeToClipMs?: number
   // Enhanced detection fields (from textbook research)
-  modalOverlapFactor?: number // M = π / Q (isolated < 0.3, overlapping ≈ 1, diffuse > 3)
+  modalOverlapFactor?: number // M = 1/Q (isolated < 0.03, coupled < 0.1, diffuse > 0.33)
   cumulativeGrowthDb?: number // Total dB growth since onset
   frequencyBand?: 'LOW' | 'MID' | 'HIGH' // Which frequency band this falls into
   schroederFrequency?: number // Calculated Schroeder frequency for reference
@@ -243,34 +242,6 @@ export interface AnalyzerState {
   advisories: Advisory[]
 }
 
-// Worker message types
-export interface WorkerAnalysisMessage {
-  type: 'analysis'
-  spectrum: SpectrumData
-  peaks: DetectedPeak[]
-}
-
-export interface WorkerConfigMessage {
-  type: 'config'
-  config: Partial<AnalysisConfig>
-}
-
-export interface WorkerStartMessage {
-  type: 'start'
-}
-
-export interface WorkerStopMessage {
-  type: 'stop'
-}
-
-export type WorkerIncomingMessage = WorkerConfigMessage | WorkerStartMessage | WorkerStopMessage
-
-export interface WorkerOutgoingMessage {
-  type: 'analysis' | 'error' | 'ready'
-  data?: unknown
-  error?: string
-}
-
 // TrackedPeak - represents a tracked frequency peak
 export interface TrackedPeak {
   id: string
@@ -279,7 +250,7 @@ export interface TrackedPeak {
   prominenceDb: number
   qEstimate: number
   bandwidthHz: number
-  classification: Classification
+  classification: Severity
   severity: Severity
   onsetTime: number
   lastUpdateTime: number
