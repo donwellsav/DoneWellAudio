@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 
-const _geist = Geist({ subsets: ['latin'], display: 'swap' })
-const _geistMono = Geist_Mono({ subsets: ['latin'], display: 'swap' })
+const geist = Geist({ subsets: ['latin'], display: 'swap', variable: '--font-geist-sans' })
+const geistMono = Geist_Mono({ subsets: ['latin'], display: 'swap', variable: '--font-geist-mono' })
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -42,13 +42,9 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${geist.variable} ${geistMono.variable}`}>
       <head>
         <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="KillTheRing" />
-        <link rel="manifest" href="/manifest.json" />
       </head>
       <body className="font-sans antialiased">
         {children}

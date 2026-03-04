@@ -1,13 +1,11 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { HelpCircle, ChevronDown, Download, X } from 'lucide-react'
+import { HelpCircle, ChevronDown } from 'lucide-react'
 import { Slider } from '@/components/ui/slider'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import type { DetectorSettings, OperationMode } from '@/types/advisory'
 import { FREQ_RANGE_PRESETS } from '@/lib/dsp/constants'
-
-const STORAGE_PREFIX = 'ktr-setting-'
 
 interface DetectionControlsProps {
   settings: DetectorSettings
@@ -18,16 +16,7 @@ interface DetectionControlsProps {
 export function DetectionControls({ settings, onModeChange, onSettingsChange }: DetectionControlsProps) {
   const [freqOpen, setFreqOpen] = useState(false)
   const [focusedFreqIndex, setFocusedFreqIndex] = useState(-1)
-  const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set())
   const freqRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const keys = new Set<string>()
-    Object.keys(localStorage).forEach((k) => {
-      if (k.startsWith(STORAGE_PREFIX)) keys.add(k.replace(STORAGE_PREFIX, ''))
-    })
-    setSavedKeys(keys)
-  }, [])
 
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
@@ -66,40 +55,6 @@ export function DetectionControls({ settings, onModeChange, onSettingsChange }: 
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [freqOpen, focusedFreqIndex, onSettingsChange])
 
-  const saveDefault = (key: string, value: unknown) => {
-    localStorage.setItem(`${STORAGE_PREFIX}${key}`, JSON.stringify(value))
-    setSavedKeys((prev) => new Set(prev).add(key))
-  }
-
-  const clearDefault = (key: string) => {
-    localStorage.removeItem(`${STORAGE_PREFIX}${key}`)
-    setSavedKeys((prev) => { const n = new Set(prev); n.delete(key); return n })
-  }
-
-  const SaveButton = ({ settingKey, value }: { settingKey: string; value: unknown }) => {
-    const isSaved = savedKeys.has(settingKey)
-    return (
-      <div className="flex items-center gap-0.5 flex-shrink-0">
-        <button
-          onClick={(e) => { e.stopPropagation(); saveDefault(settingKey, value) }}
-          className="p-0.5 rounded hover:bg-muted/50 transition-colors"
-          title={isSaved ? 'Update saved default' : 'Save as default'}
-        >
-          <Download className={`w-3 h-3 ${isSaved ? 'text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'}`} />
-        </button>
-        {isSaved && (
-          <button
-            onClick={(e) => { e.stopPropagation(); clearDefault(settingKey) }}
-            className="p-0.5 rounded hover:bg-muted/50 transition-colors"
-            title="Clear saved default"
-          >
-            <X className="w-3 h-3 text-muted-foreground/50 hover:text-destructive" />
-          </button>
-        )}
-      </div>
-    )
-  }
-
   const currentFreqPreset = FREQ_RANGE_PRESETS.find(
     p => p.minFrequency === settings.minFrequency && p.maxFrequency === settings.maxFrequency
   ) || { label: 'Custom', minFrequency: settings.minFrequency, maxFrequency: settings.maxFrequency }
@@ -123,7 +78,6 @@ export function DetectionControls({ settings, onModeChange, onSettingsChange }: 
               </div>
               <ChevronDown className={`w-3 h-3 text-muted-foreground transition-transform ${freqOpen ? 'rotate-180' : ''}`} />
             </button>
-            <SaveButton settingKey="freqRange" value={{ minFrequency: settings.minFrequency, maxFrequency: settings.maxFrequency }} />
           </div>
           {freqOpen && (
             <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-background border border-border rounded shadow-lg overflow-hidden">
@@ -173,22 +127,19 @@ export function DetectionControls({ settings, onModeChange, onSettingsChange }: 
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1.5">
-            <SaveButton settingKey="autoMusicAware" value={settings.autoMusicAware} />
-            <button
-              role="switch"
-              aria-checked={settings.autoMusicAware}
-              aria-label="Toggle auto music-aware mode"
-              onClick={() => onSettingsChange({ autoMusicAware: !settings.autoMusicAware })}
-              className={`relative inline-flex h-4 w-7 flex-shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                settings.autoMusicAware ? 'bg-primary' : 'bg-muted'
-              }`}
-            >
-              <span className={`inline-block h-3 w-3 transform rounded-full bg-background shadow transition-transform ${
-                settings.autoMusicAware ? 'translate-x-3.5' : 'translate-x-0.5'
-              }`} />
-            </button>
-          </div>
+          <button
+            role="switch"
+            aria-checked={settings.autoMusicAware}
+            aria-label="Toggle auto music-aware mode"
+            onClick={() => onSettingsChange({ autoMusicAware: !settings.autoMusicAware })}
+            className={`relative inline-flex h-4 w-7 flex-shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+              settings.autoMusicAware ? 'bg-primary' : 'bg-muted'
+            }`}
+          >
+            <span className={`inline-block h-3 w-3 transform rounded-full bg-background shadow transition-transform ${
+              settings.autoMusicAware ? 'translate-x-3.5' : 'translate-x-0.5'
+            }`} />
+          </button>
         </div>
 
         {/* Sliders */}
@@ -201,10 +152,6 @@ export function DetectionControls({ settings, onModeChange, onSettingsChange }: 
               min={2} max={20} step={1}
               sliderValue={settings.feedbackThresholdDb}
               onChange={(v) => onSettingsChange({ feedbackThresholdDb: v })}
-              settingKey="feedbackThresholdDb"
-              savedKeys={savedKeys}
-              onSave={saveDefault}
-              onClear={clearDefault}
             />
           </div>
           <div className="py-1.5">
@@ -215,10 +162,6 @@ export function DetectionControls({ settings, onModeChange, onSettingsChange }: 
               min={1} max={12} step={0.5}
               sliderValue={settings.ringThresholdDb}
               onChange={(v) => onSettingsChange({ ringThresholdDb: v })}
-              settingKey="ringThresholdDb"
-              savedKeys={savedKeys}
-              onSave={saveDefault}
-              onClear={clearDefault}
             />
           </div>
           <div className="pt-1.5">
@@ -229,10 +172,6 @@ export function DetectionControls({ settings, onModeChange, onSettingsChange }: 
               min={0.5} max={8} step={0.5}
               sliderValue={settings.growthRateThreshold}
               onChange={(v) => onSettingsChange({ growthRateThreshold: v })}
-              settingKey="growthRateThreshold"
-              savedKeys={savedKeys}
-              onSave={saveDefault}
-              onClear={clearDefault}
             />
           </div>
         </div>
@@ -251,14 +190,9 @@ interface SliderRowProps {
   step: number
   sliderValue: number
   onChange: (v: number) => void
-  settingKey: string
-  savedKeys: Set<string>
-  onSave: (key: string, value: unknown) => void
-  onClear: (key: string) => void
 }
 
-function SliderRow({ label, value, tooltip, min, max, step, sliderValue, onChange, settingKey, savedKeys, onSave, onClear }: SliderRowProps) {
-  const isSaved = savedKeys.has(settingKey)
+function SliderRow({ label, value, tooltip, min, max, step, sliderValue, onChange }: SliderRowProps) {
   return (
     <div className="space-y-0.5">
       <div className="flex items-center justify-between">
@@ -275,27 +209,7 @@ function SliderRow({ label, value, tooltip, min, max, step, sliderValue, onChang
             </Tooltip>
           )}
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs font-mono text-foreground tabular-nums">{value}</span>
-          <div className="flex items-center gap-0.5">
-            <button
-              onClick={() => onSave(settingKey, sliderValue)}
-              className="p-0.5 rounded hover:bg-muted/50 transition-colors"
-              title={isSaved ? 'Update saved default' : 'Save as default'}
-            >
-              <Download className={`w-3 h-3 ${isSaved ? 'text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'}`} />
-            </button>
-            {isSaved && (
-              <button
-                onClick={() => onClear(settingKey)}
-                className="p-0.5 rounded hover:bg-muted/50 transition-colors"
-                title="Clear saved default"
-              >
-                <X className="w-3 h-3 text-muted-foreground/50 hover:text-destructive" />
-              </button>
-            )}
-          </div>
-        </div>
+        <span className="text-xs font-mono text-foreground tabular-nums">{value}</span>
       </div>
       <Slider
         value={[sliderValue]}

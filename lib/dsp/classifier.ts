@@ -351,7 +351,7 @@ export function shouldReportIssue(
   settings: DetectorSettings
 ): boolean {
   const mode = settings.mode
-  const ignoreWhistle = !settings.musicAware // If music aware, don't filter whistles
+  const ignoreWhistle = settings.ignoreWhistle ?? true
   const { label, severity, confidence } = classification
   
   // Get confidence threshold from settings (default 0.40 = 40%)

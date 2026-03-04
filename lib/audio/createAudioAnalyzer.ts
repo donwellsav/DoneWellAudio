@@ -16,7 +16,7 @@ import { DEFAULT_SETTINGS } from '@/lib/dsp/constants'
 export interface AudioAnalyzerCallbacks {
   onSpectrum?: (data: SpectrumData) => void
   /** Raw peak detected — route to DSP worker for classification */
-  onPeakDetected?: (peak: DetectedPeak, spectrum: Float32Array, sampleRate: number, fftSize: number) => void
+  onPeakDetected?: (peak: DetectedPeak, spectrum: Float32Array, sampleRate: number, fftSize: number, timeDomain?: Float32Array) => void
   /** Peak cleared — route to DSP worker */
   onPeakCleared?: (peak: { binIndex: number; frequencyHz: number; timestamp: number }) => void
   /** Comb filter pattern detected — includes predicted feedback frequencies (early warning) */
@@ -61,11 +61,12 @@ export class AudioAnalyzer {
 
     this.detector = new FeedbackDetector({}, {
       onPeakDetected: (peak: DetectedPeak) => {
-        // Route to worker via callback — spectrum is read from detector
+        // Route to worker via callback — spectrum + time-domain are read from detector
         const spectrum = this.detector.getSpectrum()
+        const timeDomain = this.detector.getTimeDomain()
         const state = this.detector.getState()
         if (spectrum) {
-          this.callbacks.onPeakDetected?.(peak, spectrum, state.sampleRate, state.fftSize)
+          this.callbacks.onPeakDetected?.(peak, spectrum, state.sampleRate, state.fftSize, timeDomain ?? undefined)
         }
       },
       onPeakCleared: (peak) => {

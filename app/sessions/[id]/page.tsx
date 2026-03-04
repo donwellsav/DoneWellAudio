@@ -6,8 +6,6 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft, AlertCircle } from 'lucide-react'
 import { formatFrequency, formatDuration, formatDate } from '@/lib/utils/pitchUtils'
 
-type PageProps = { params: Promise<{ id: string }> }
-
 const MODE_LABELS: Record<string, string> = {
   feedbackHunt: 'Feedback Hunt',
   vocalRing: 'Vocal Ring',

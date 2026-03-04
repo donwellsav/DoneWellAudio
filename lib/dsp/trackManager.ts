@@ -36,6 +36,14 @@ export class TrackManager {
   }
 
   /**
+   * Update runtime-configurable options without clearing tracks
+   */
+  updateOptions(options: Partial<{ maxTracks: number; trackTimeoutMs: number }>) {
+    if (options.maxTracks !== undefined) this.maxTracks = options.maxTracks
+    if (options.trackTimeoutMs !== undefined) this.trackTimeoutMs = options.trackTimeoutMs
+  }
+
+  /**
    * Process a detected peak and associate/create a track
    */
   processPeak(peak: DetectedPeak & { qEstimate?: number; bandwidthHz?: number; msd?: number; msdGrowthRate?: number; msdIsHowl?: boolean; msdFastConfirm?: boolean }): Track {

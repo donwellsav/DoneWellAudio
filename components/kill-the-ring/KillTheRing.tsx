@@ -567,7 +567,7 @@ export const KillTheRing = memo(function KillTheRingComponent() {
               </div>
               <div className="relative flex-1 min-h-0">
                 <div className={`absolute inset-0 transition-opacity duration-200 ${activeGraph === 'rta' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}>
-                  <SpectrumCanvas spectrum={spectrum} advisories={advisories} isRunning={isRunning} graphFontSize={settings.graphFontSize} onStart={!isRunning ? start : undefined} earlyWarning={earlyWarning} />
+                  <SpectrumCanvas spectrum={spectrum} advisories={advisories} isRunning={isRunning} graphFontSize={settings.graphFontSize} onStart={!isRunning ? start : undefined} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} />
                 </div>
                 <div className={`absolute inset-0 transition-opacity duration-200 ${activeGraph === 'geq' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}>
                   <GEQBarView advisories={advisories} graphFontSize={settings.graphFontSize} />
@@ -603,7 +603,7 @@ export const KillTheRing = memo(function KillTheRingComponent() {
             {/* Bottom-Left Graph */}
             <div className="flex-1 bg-card/60 rounded-lg border border-border overflow-hidden flex flex-col min-w-0">
               <div className="flex-1 min-h-0 pointer-events-none">
-                {bottomLeftGraph === 'rta' && <SpectrumCanvas spectrum={spectrum} advisories={advisories} isRunning={isRunning} graphFontSize={Math.max(10, settings.graphFontSize - 4)} earlyWarning={earlyWarning} />}
+                {bottomLeftGraph === 'rta' && <SpectrumCanvas spectrum={spectrum} advisories={advisories} isRunning={isRunning} graphFontSize={Math.max(10, settings.graphFontSize - 4)} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} />}
                 {bottomLeftGraph === 'geq' && <GEQBarView advisories={advisories} graphFontSize={Math.max(10, settings.graphFontSize - 4)} />}
                 {bottomLeftGraph === 'controls' && (
                   <div className="h-full p-3 overflow-y-auto pointer-events-auto">
@@ -615,7 +615,7 @@ export const KillTheRing = memo(function KillTheRingComponent() {
             {/* Bottom-Right Graph */}
             <div className="flex-1 bg-card/60 rounded-lg border border-border overflow-hidden flex flex-col min-w-0">
               <div className="flex-1 min-h-0 pointer-events-none">
-                {bottomRightGraph === 'rta' && <SpectrumCanvas spectrum={spectrum} advisories={advisories} isRunning={isRunning} graphFontSize={Math.max(10, settings.graphFontSize - 4)} earlyWarning={earlyWarning} />}
+                {bottomRightGraph === 'rta' && <SpectrumCanvas spectrum={spectrum} advisories={advisories} isRunning={isRunning} graphFontSize={Math.max(10, settings.graphFontSize - 4)} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} />}
                 {bottomRightGraph === 'geq' && <GEQBarView advisories={advisories} graphFontSize={Math.max(10, settings.graphFontSize - 4)} />}
                 {bottomRightGraph === 'controls' && (
                   <div className="h-full p-3 overflow-y-auto pointer-events-auto">

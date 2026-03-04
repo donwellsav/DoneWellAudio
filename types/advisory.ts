@@ -336,6 +336,24 @@ export interface DetectorSettings {
   // Algorithm mode and scoring display
   algorithmMode: AlgorithmMode // Which detection algorithm to use (auto, msd, phase, combined, all)
   showAlgorithmScores: boolean // Show the algorithm status bar with live scoring metrics
+  // Peak timing
+  sustainMs: number // Peak sustain before confirmation (100-2000, default 250)
+  clearMs: number // Time before peak declared dead (100-2000, default 400)
+  // Threshold control
+  thresholdMode: ThresholdMode // 'absolute' | 'relative' | 'hybrid' (default 'hybrid')
+  relativeThresholdDb: number // Relative threshold above noise (6-30, default 18)
+  prominenceDb: number // Peak prominence required (4-30, default 12)
+  // Noise floor timing
+  noiseFloorAttackMs: number // Noise floor attack time (50-1000, default 200)
+  noiseFloorReleaseMs: number // Noise floor release time (200-5000, default 1000)
+  // Track management
+  maxTracks: number // Max simultaneous tracks (8-128, default 64)
+  trackTimeoutMs: number // Track inactivity timeout (200-5000, default 1000)
+  ignoreWhistle: boolean // Suppress whistle classifications (default true)
+  // Display / canvas
+  rtaDbMin: number // RTA display range minimum (-120 to -60, default -100)
+  rtaDbMax: number // RTA display range maximum (-20 to 0, default 0)
+  spectrumLineWidth: number // RTA line width in pixels (0.5-4, default 1.5)
 }
 
 // Default configuration - optimized for Corporate/Conference PA with Vocal Focus (200Hz-8kHz)
@@ -360,5 +378,5 @@ export const DEFAULT_CONFIG: AnalysisConfig = {
   noiseFloorSampleCount: 160, // Faster noise floor sampling
   noiseFloorAttackMs: 200, // Faster attack for dynamic environments
   noiseFloorReleaseMs: 1000, // Faster release
-  inputGainDb: 12, // Default gain for speech systems (adjustable -40 to +40 dB)
+  inputGainDb: 15, // Default gain for speech systems (adjustable -40 to +40 dB) — matches DEFAULT_SETTINGS
 }

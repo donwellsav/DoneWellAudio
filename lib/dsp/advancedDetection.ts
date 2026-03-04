@@ -27,6 +27,13 @@
 // ============================================================================
 
 import type { AlgorithmMode, ContentType } from '@/types/advisory'
+import {
+  MSD_SETTINGS,
+  PHASE_SETTINGS,
+  SPECTRAL_FLATNESS_SETTINGS,
+  COMB_PATTERN_SETTINGS,
+  COMPRESSION_SETTINGS,
+} from './constants'
 
 export interface MSDResult {
   msd: number
@@ -94,84 +101,91 @@ export interface FusedDetectionResult {
 }
 
 // ============================================================================
-// CONSTANTS (from research papers)
+// CONSTANTS — sourced from the canonical definitions in constants.ts
+//
+// Previously advancedDetection.ts maintained its own MSD_CONSTANTS, PHASE_CONSTANTS,
+// etc. that duplicated and conflicted with constants.ts values (different thresholds,
+// frame counts, coherence levels).  Now all algorithm constants live in constants.ts
+// and are re-exported here for backwards compatibility.
 // ============================================================================
 
 /**
  * MSD thresholds from DAFx-16 paper.
- *
- * FLAW 3 FIX: The paper gives threshold = 1.0 (dB/frame²)² for a 16-frame
- * window.  After normalizing by numTerms = frameCount - 2, that becomes
- * ≈ 1.0/14 = 0.071.  We use 0.1 (slightly loose) to stay fast while
- * avoiding the 0.8 value which was 11× too permissive and would pass music.
+ * Now sourced from constants.ts MSD_SETTINGS for single source of truth.
  */
 export const MSD_CONSTANTS = {
-  THRESHOLD: 0.1,
-  /** Noise floor gate: bins below this mean dB are considered silent.
-   *  Prevents false-positive feedback scores on empty frequency bands. */
+  THRESHOLD: MSD_SETTINGS.THRESHOLD,
   SILENCE_FLOOR_DB: -70,
-  MIN_FRAMES_SPEECH: 5,
-  MIN_FRAMES_MUSIC: 10,
-  DEFAULT_FRAMES: 7,
-  MAX_FRAMES: 30,
+  MIN_FRAMES_SPEECH: MSD_SETTINGS.MIN_FRAMES_SPEECH,
+  MIN_FRAMES_MUSIC: MSD_SETTINGS.MIN_FRAMES_MUSIC,
+  DEFAULT_FRAMES: MSD_SETTINGS.MIN_FRAMES_SPEECH, // Use speech frames as default (fastest, 100% accuracy)
+  MAX_FRAMES: MSD_SETTINGS.MAX_FRAMES,
 } as const
 
 export const PHASE_CONSTANTS = {
-  HIGH_COHERENCE: 0.70,
-  MEDIUM_COHERENCE: 0.50,
-  LOW_COHERENCE: 0.30,
-  MIN_SAMPLES: 3,
+  HIGH_COHERENCE: PHASE_SETTINGS.HIGH_COHERENCE,
+  MEDIUM_COHERENCE: PHASE_SETTINGS.MEDIUM_COHERENCE,
+  LOW_COHERENCE: PHASE_SETTINGS.LOW_COHERENCE,
+  MIN_SAMPLES: PHASE_SETTINGS.MIN_SAMPLES,
 } as const
 
 export const SPECTRAL_CONSTANTS = {
-  PURE_TONE_FLATNESS: 0.05,
-  MUSIC_FLATNESS: 0.3,
-  HIGH_KURTOSIS: 10,
-  ANALYSIS_BANDWIDTH_BINS: 10,
+  PURE_TONE_FLATNESS: SPECTRAL_FLATNESS_SETTINGS.PURE_TONE,
+  MUSIC_FLATNESS: SPECTRAL_FLATNESS_SETTINGS.MUSIC,
+  HIGH_KURTOSIS: SPECTRAL_FLATNESS_SETTINGS.HIGH_KURTOSIS,
+  ANALYSIS_BANDWIDTH_BINS: SPECTRAL_FLATNESS_SETTINGS.ANALYSIS_BANDWIDTH,
 } as const
 
 export const COMB_CONSTANTS = {
-  SPEED_OF_SOUND: 343,
-  MIN_PEAKS_FOR_PATTERN: 3,
-  SPACING_TOLERANCE: 0.05,
-  MAX_PATH_LENGTH: 50,
+  SPEED_OF_SOUND: COMB_PATTERN_SETTINGS.SPEED_OF_SOUND,
+  MIN_PEAKS_FOR_PATTERN: COMB_PATTERN_SETTINGS.MIN_PEAKS,
+  SPACING_TOLERANCE: COMB_PATTERN_SETTINGS.SPACING_TOLERANCE,
+  MAX_PATH_LENGTH: COMB_PATTERN_SETTINGS.MAX_PATH_LENGTH,
 } as const
 
 export const COMPRESSION_CONSTANTS = {
-  NORMAL_CREST_FACTOR: 12,
-  COMPRESSED_CREST_FACTOR: 6,
-  MIN_DYNAMIC_RANGE: 20,
-  COMPRESSED_DYNAMIC_RANGE: 8,
+  NORMAL_CREST_FACTOR: COMPRESSION_SETTINGS.NORMAL_CREST_FACTOR,
+  COMPRESSED_CREST_FACTOR: COMPRESSION_SETTINGS.COMPRESSED_CREST_FACTOR,
+  MIN_DYNAMIC_RANGE: COMPRESSION_SETTINGS.MIN_DYNAMIC_RANGE,
+  COMPRESSED_DYNAMIC_RANGE: COMPRESSION_SETTINGS.COMPRESSED_DYNAMIC_RANGE,
   ANALYSIS_WINDOW_MS: 500,
 } as const
 
 export const FUSION_WEIGHTS = {
   DEFAULT: {
-    msd: 0.35,
-    phase: 0.30,
-    spectral: 0.15,
-    comb: 0.10,
+    msd: 0.30,
+    phase: 0.25,
+    spectral: 0.12,
+    comb: 0.08,
+    ihr: 0.08,
+    ptmr: 0.07,
     existing: 0.10,
   },
   SPEECH: {
-    msd: 0.45,
-    phase: 0.25,
-    spectral: 0.15,
+    msd: 0.40,
+    phase: 0.20,
+    spectral: 0.10,
     comb: 0.05,
+    ihr: 0.05,
+    ptmr: 0.10,
     existing: 0.10,
   },
   MUSIC: {
-    msd: 0.20,
-    phase: 0.40,
-    spectral: 0.15,
-    comb: 0.10,
+    msd: 0.15,
+    phase: 0.35,
+    spectral: 0.10,
+    comb: 0.08,
+    ihr: 0.12,
+    ptmr: 0.05,
     existing: 0.15,
   },
   COMPRESSED: {
-    msd: 0.15,
-    phase: 0.45,
-    spectral: 0.20,
-    comb: 0.10,
+    msd: 0.12,
+    phase: 0.38,
+    spectral: 0.15,
+    comb: 0.08,
+    ihr: 0.10,
+    ptmr: 0.07,
     existing: 0.10,
   },
 } as const
@@ -864,7 +878,7 @@ export function fuseAlgorithmResults(
   const reasons: string[] = []
   const contributingAlgorithms: string[] = []
 
-  let weights: { msd: number; phase: number; spectral: number; comb: number; existing: number }
+  let weights: { msd: number; phase: number; spectral: number; comb: number; ihr: number; ptmr: number; existing: number }
   if (scores.compression?.isCompressed) {
     weights = { ...FUSION_WEIGHTS.COMPRESSED }
     reasons.push(`Compression detected (ratio ~${scores.compression.estimatedRatio.toFixed(1)}:1)`)
@@ -880,7 +894,7 @@ export function fuseAlgorithmResults(
     weights = { ...weights, ...config.customWeights }
   }
 
-  let activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'existing']
+  let activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'existing']
   switch (config.mode) {
     case 'msd':
       activeAlgorithms = ['msd', 'ihr', 'ptmr', 'existing']
@@ -892,12 +906,13 @@ export function fuseAlgorithmResults(
       activeAlgorithms = ['msd', 'phase', 'ihr', 'ptmr', 'existing']
       break
     case 'all':
+      activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'existing']
       break
     case 'auto':
       if (scores.msd && scores.msd.framesAnalyzed >= config.msdMinFrames) {
-        activeAlgorithms = ['msd', 'phase', 'spectral', 'ihr', 'ptmr', 'existing']
+        activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'existing']
       } else {
-        activeAlgorithms = ['phase', 'spectral', 'ihr', 'ptmr', 'existing']
+        activeAlgorithms = ['phase', 'spectral', 'comb', 'ihr', 'ptmr', 'existing']
       }
       break
   }
@@ -946,6 +961,28 @@ export function fuseAlgorithmResults(
         ? ` (path ~${scores.comb.estimatedPathLength.toFixed(1)} m)`
         : '')
     )
+  }
+
+  // Inter-harmonic ratio: low IHR = clean tone (feedback), high IHR = rich harmonics (music)
+  if (activeAlgorithms.includes('ihr') && scores.ihr) {
+    weightedSum += scores.ihr.feedbackScore * weights.ihr
+    totalWeight += weights.ihr
+    contributingAlgorithms.push('IHR')
+    if (scores.ihr.isFeedbackLike) {
+      reasons.push(`Clean tone (IHR ${scores.ihr.interHarmonicRatio.toFixed(2)}, ${scores.ihr.harmonicsFound} harmonics)`)
+    } else if (scores.ihr.isMusicLike) {
+      reasons.push(`Rich harmonics suggest music (IHR ${scores.ihr.interHarmonicRatio.toFixed(2)})`)
+    }
+  }
+
+  // Peak-to-median ratio: high PTMR = sharp spectral spike (feedback)
+  if (activeAlgorithms.includes('ptmr') && scores.ptmr) {
+    weightedSum += scores.ptmr.feedbackScore * weights.ptmr
+    totalWeight += weights.ptmr
+    contributingAlgorithms.push('PTMR')
+    if (scores.ptmr.isFeedbackLike) {
+      reasons.push(`Sharp spectral peak (PTMR ${scores.ptmr.ptmrDb.toFixed(1)} dB)`)
+    }
   }
 
   if (activeAlgorithms.includes('existing')) {

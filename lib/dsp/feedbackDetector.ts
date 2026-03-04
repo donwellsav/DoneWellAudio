@@ -47,6 +47,7 @@ export class FeedbackDetector {
 
   // Preallocated buffers
   private freqDb: Float32Array | null = null
+  private timeDomain: Float32Array | null = null // Raw waveform for phase coherence FFT
   private power: Float32Array | null = null
   private prefix: Float64Array | null = null
   private holdMs: Float32Array | null = null
@@ -57,18 +58,6 @@ export class FeedbackDetector {
   private activeBinPos: Int32Array | null = null
   private activeCount: number = 0
   
-  // ---- Phase extraction: dual-snapshot phase-difference estimator ----
-  // We keep two consecutive time-domain snapshots and derive per-bin phase
-  // via the instantaneous frequency estimate:
-  //   Δφ_k = arg( X_k(t) · conj(X_k(t-1)) )
-  // where X_k is the analytic DFT bin computed from getFloatTimeDomainData.
-  // This avoids a manual FFT entirely and matches the AnalyserNode's own
-  // windowing so there is no normalization mismatch.
-  private tdBufA: Float32Array | null = null   // current frame time-domain
-  private tdBufB: Float32Array | null = null   // previous frame time-domain
-  private phaseData: Float32Array | null = null // extracted phase per bin (radians)
-  private tdBufSwap: boolean = false            // ping-pong flag
-
   // MSD (Magnitude Slope Deviation) buffers - DAFx-16 algorithm
   // Stores magnitude history per frequency bin for growth analysis
   private msdHistory: Float32Array[] | null = null // [bin][frame] ring buffer
@@ -334,6 +323,38 @@ export class FeedbackDetector {
       mappedConfig.confidenceThreshold = settings.confidenceThreshold
     }
 
+    // Peak timing
+    if (settings.sustainMs !== undefined) {
+      mappedConfig.sustainMs = settings.sustainMs
+    }
+    if (settings.clearMs !== undefined) {
+      mappedConfig.clearMs = settings.clearMs
+    }
+
+    // Threshold control
+    if (settings.thresholdMode !== undefined) {
+      mappedConfig.thresholdMode = settings.thresholdMode
+    }
+    if (settings.relativeThresholdDb !== undefined) {
+      mappedConfig.relativeThresholdDb = settings.relativeThresholdDb
+    }
+    if (settings.prominenceDb !== undefined) {
+      mappedConfig.prominenceDb = settings.prominenceDb
+    }
+
+    // Noise floor timing
+    if (settings.noiseFloorAttackMs !== undefined) {
+      mappedConfig.noiseFloorAttackMs = settings.noiseFloorAttackMs
+    }
+    if (settings.noiseFloorReleaseMs !== undefined) {
+      mappedConfig.noiseFloorReleaseMs = settings.noiseFloorReleaseMs
+    }
+
+    // Whistle suppression
+    if (settings.ignoreWhistle !== undefined) {
+      mappedConfig.ignoreWhistle = settings.ignoreWhistle
+    }
+
     if (Object.keys(mappedConfig).length > 0) {
       this.updateConfig(mappedConfig)
     }
@@ -374,6 +395,10 @@ export class FeedbackDetector {
     return this.freqDb
   }
 
+  getTimeDomain(): Float32Array | null {
+    return this.timeDomain
+  }
+
   getSampleRate(): number {
     return this.audioContext?.sampleRate ?? 48000
   }
@@ -396,6 +421,7 @@ export class FeedbackDetector {
     const n = this.analyser.frequencyBinCount
 
     this.freqDb = new Float32Array(n)
+    this.timeDomain = new Float32Array(this.config.fftSize) // Full waveform (fftSize, not frequencyBinCount)
     this.power = new Float32Array(n)
     this.prefix = new Float64Array(n + 1)
     this.holdMs = new Float32Array(n)
@@ -591,8 +617,11 @@ export class FeedbackDetector {
     if (!analyser || !this.freqDb || !this.power || !this.prefix || !this.holdMs || !this.deadMs || !this.active) return
     if (!ctx || ctx.state !== 'running') return
 
-    // Read spectrum
+    // Read spectrum + time-domain waveform (phase coherence requires raw samples)
     analyser.getFloatFrequencyData(this.freqDb)
+    if (this.timeDomain) {
+      analyser.getFloatTimeDomainData(this.timeDomain)
+    }
 
     const freqDb = this.freqDb
     const power = this.power

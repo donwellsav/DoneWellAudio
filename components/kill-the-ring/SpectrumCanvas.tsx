@@ -18,11 +18,17 @@ interface SpectrumCanvasProps {
   onStart?: () => void
   /** Early warning predictions for upcoming feedback frequencies */
   earlyWarning?: EarlyWarning | null
+  /** Override RTA display dB minimum (default from CANVAS_SETTINGS) */
+  rtaDbMin?: number
+  /** Override RTA display dB maximum (default from CANVAS_SETTINGS) */
+  rtaDbMax?: number
+  /** Override spectrum line width in pixels (default 1.5) */
+  spectrumLineWidth?: number
 }
 
 const FREQ_LABELS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
 
-export function SpectrumCanvas({ spectrum, advisories, isRunning, graphFontSize = 11, onStart, earlyWarning }: SpectrumCanvasProps) {
+export function SpectrumCanvas({ spectrum, advisories, isRunning, graphFontSize = 11, onStart, earlyWarning, rtaDbMin: rtaDbMinProp, rtaDbMax: rtaDbMaxProp, spectrumLineWidth: spectrumLineWidthProp }: SpectrumCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const dimensionsRef = useRef({ width: 0, height: 0 })
@@ -80,7 +86,9 @@ export function SpectrumCanvas({ spectrum, advisories, isRunning, graphFontSize 
     const plotWidth = width - padding.left - padding.right
     const plotHeight = height - padding.top - padding.bottom
 
-    const { RTA_DB_MIN, RTA_DB_MAX, RTA_FREQ_MIN, RTA_FREQ_MAX } = CANVAS_SETTINGS
+    const { RTA_FREQ_MIN, RTA_FREQ_MAX } = CANVAS_SETTINGS
+    const RTA_DB_MIN = rtaDbMinProp ?? CANVAS_SETTINGS.RTA_DB_MIN
+    const RTA_DB_MAX = rtaDbMaxProp ?? CANVAS_SETTINGS.RTA_DB_MAX
 
     // Draw grid
     ctx.save()
@@ -164,7 +172,7 @@ export function SpectrumCanvas({ spectrum, advisories, isRunning, graphFontSize 
 
       // Spectrum line
       ctx.strokeStyle = VIZ_COLORS.SPECTRUM
-      ctx.lineWidth = 1.5
+      ctx.lineWidth = spectrumLineWidthProp ?? 1.5
       ctx.beginPath()
 
       let started = false

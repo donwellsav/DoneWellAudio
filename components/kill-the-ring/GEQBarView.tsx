@@ -6,6 +6,13 @@ import { ISO_31_BANDS } from '@/lib/dsp/constants'
 import { getSeverityColor } from '@/lib/dsp/eqAdvisor'
 import type { Advisory } from '@/types/advisory'
 
+// ISO 31-band labels matching standard GEQ notation
+const GEQ_BAND_LABELS = [
+  '20', '25', '31.5', '40', '50', '63', '80', '100', '125', '160',
+  '200', '250', '315', '400', '500', '630', '800', '1k', '1.25k', '1.6k',
+  '2k', '2.5k', '3.15k', '4k', '5k', '6.3k', '8k', '10k', '12.5k', '16k', '20k',
+] as const
+
 interface GEQBarViewProps {
   advisories: Advisory[]
   graphFontSize?: number
@@ -79,7 +86,7 @@ export function GEQBarView({ advisories, graphFontSize = 11 }: GEQBarViewProps) 
     ctx.scale(dpr, dpr)
     ctx.clearRect(0, 0, width, height)
 
-    const padding = { top: 15, right: 10, bottom: 25, left: 30 }
+    const padding = { top: 15, right: 10, bottom: 45, left: 30 }
     const plotWidth = width - padding.left - padding.right
     const plotHeight = height - padding.top - padding.bottom
 
@@ -169,16 +176,22 @@ export function GEQBarView({ advisories, graphFontSize = 11 }: GEQBarViewProps) 
 
     ctx.restore()
 
-    // Draw band labels (every 4th band to avoid clutter)
-    ctx.fillStyle = '#555'
-    ctx.font = `${graphFontSize}px system-ui, sans-serif`
-    ctx.textAlign = 'center'
+    // Draw all 31 ISO band labels (rotated vertical to fit)
+    // Cap label font so labels don't overlap — each band gets barSpacing px of horizontal room
+    const labelFontSize = Math.min(Math.max(Math.floor(barSpacing * 0.85), 8), 13)
+    ctx.fillStyle = '#888'
+    ctx.font = `${labelFontSize}px system-ui, sans-serif`
+    ctx.textAlign = 'right'
+    ctx.textBaseline = 'middle'
 
-    for (let i = 0; i < numBands; i += 4) {
+    for (let i = 0; i < numBands; i++) {
       const x = padding.left + i * barSpacing + barSpacing / 2
-      const freq = ISO_31_BANDS[i]
-      const label = freq >= 1000 ? `${freq / 1000}k` : `${freq}`
-      ctx.fillText(label, x, height - 6)
+      const label = GEQ_BAND_LABELS[i]
+      ctx.save()
+      ctx.translate(x, height - padding.bottom + 6)
+      ctx.rotate(-Math.PI / 2)
+      ctx.fillText(label, 0, 0)
+      ctx.restore()
     }
 
     // Y-axis labels

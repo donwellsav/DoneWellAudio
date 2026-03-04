@@ -13,12 +13,19 @@ interface RateLimitEntry {
 }
 
 const store = new Map<string, RateLimitEntry>()
+const MAX_STORE_SIZE = 1000 // Evict expired entries when store exceeds this
 
 export function rateLimit(ip: string): { allowed: boolean; retryAfterMs: number } {
   const now = Date.now()
   const entry = store.get(ip)
 
   if (!entry || now > entry.resetAt) {
+    // Evict expired entries periodically to prevent unbounded memory growth
+    if (store.size > MAX_STORE_SIZE) {
+      for (const [key, val] of store) {
+        if (now > val.resetAt) store.delete(key)
+      }
+    }
     store.set(ip, { count: 1, resetAt: now + WINDOW_MS })
     return { allowed: true, retryAfterMs: 0 }
   }

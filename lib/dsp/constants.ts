@@ -320,6 +320,24 @@ export const DEFAULT_SETTINGS = {
   roomWidthM: 8, // Default room width in meters
   roomHeightM: 3, // Default room height in meters
   roomDimensionsUnit: 'meters' as const, // Default unit for dimension input
+  // Peak timing
+  sustainMs: 250, // Fast confirmation for speech dynamics
+  clearMs: 400, // Fast clearing for responsive display
+  // Threshold control
+  thresholdMode: 'hybrid' as const,
+  relativeThresholdDb: 18, // Slightly sensitive relative threshold
+  prominenceDb: 12, // Lower prominence for catching subtle peaks
+  // Noise floor timing
+  noiseFloorAttackMs: 200, // Fast attack for dynamic environments
+  noiseFloorReleaseMs: 1000, // Moderate release
+  // Track management
+  maxTracks: 64, // Maximum simultaneous tracks
+  trackTimeoutMs: 1000, // Remove track after 1s inactive
+  ignoreWhistle: true, // Suppress whistle classifications by default
+  // Display / canvas
+  rtaDbMin: -100, // RTA display range minimum
+  rtaDbMax: 0, // RTA display range maximum
+  spectrumLineWidth: 1.5, // RTA line width in pixels
 }
 
 // Room size presets for quick switching in corporate/conference environments
@@ -504,19 +522,8 @@ export const COMPRESSION_SETTINGS = {
   COMPRESSED_DYNAMIC_RANGE: 8,
 } as const
 
-// Algorithm fusion weights - PHASE DISABLED (Web Audio API doesn't provide phase data)
-// Weights redistributed to MSD, spectral, comb, and existing algorithms
-// All weight sets sum to 1.0 for proper normalization
-export const FUSION_WEIGHTS = {
-  /** Default weights - PHASE DISABLED */
-  DEFAULT: { msd: 0.50, phase: 0.00, spectral: 0.25, comb: 0.15, existing: 0.10 },
-  /** Speech-optimized (MSD is most reliable per DAFx-16) */
-  SPEECH: { msd: 0.55, phase: 0.00, spectral: 0.25, comb: 0.10, existing: 0.10 },
-  /** Music-optimized (spectral flatness + comb patterns more useful) */
-  MUSIC: { msd: 0.35, phase: 0.00, spectral: 0.30, comb: 0.20, existing: 0.15 },
-  /** Compressed content (MSD less reliable, lean on spectral + comb) */
-  COMPRESSED: { msd: 0.30, phase: 0.00, spectral: 0.35, comb: 0.20, existing: 0.15 },
-} as const
+// FUSION_WEIGHTS: canonical definition is in advancedDetection.ts (the only consumer)
+// Removed duplicate from here to avoid conflicting values.
 
 // Algorithm mode options for UI
 export const ALGORITHM_MODES = {

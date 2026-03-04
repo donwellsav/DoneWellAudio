@@ -132,9 +132,9 @@ export function useAudioAnalyzer(
           noiseFloorDb: data.noiseFloorDb,
         }))
       },
-      // Route raw peaks to the DSP worker
-      onPeakDetected: (peak, spectrum, sampleRate, fftSize) => {
-        dspWorker.processPeak(peak, spectrum, sampleRate, fftSize)
+      // Route raw peaks to the DSP worker (includes time-domain for phase coherence)
+      onPeakDetected: (peak, spectrum, sampleRate, fftSize, timeDomain) => {
+        dspWorker.processPeak(peak, spectrum, sampleRate, fftSize, timeDomain)
       },
       onPeakCleared: (peak) => {
         dspWorker.clearPeak(peak.binIndex, peak.frequencyHz, peak.timestamp)

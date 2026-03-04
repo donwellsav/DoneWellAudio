@@ -43,8 +43,8 @@ export interface DSPWorkerHandle {
   init: (settings: DetectorSettings, sampleRate: number, fftSize: number) => void
   /** Push updated settings to the worker */
   updateSettings: (settings: Partial<DetectorSettings>) => void
-  /** Send a detected peak + current spectrum for classification */
-  processPeak: (peak: DetectedPeak, spectrum: Float32Array, sampleRate: number, fftSize: number) => void
+  /** Send a detected peak + current spectrum + time-domain waveform for classification */
+  processPeak: (peak: DetectedPeak, spectrum: Float32Array, sampleRate: number, fftSize: number, timeDomain?: Float32Array) => void
   /** Notify the worker a peak has been cleared */
   clearPeak: (binIndex: number, frequencyHz: number, timestamp: number) => void
   /** Clear all worker state (tracks, advisories) */
@@ -141,12 +141,20 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
   )
 
   const processPeak = useCallback(
-    (peak: DetectedPeak, spectrum: Float32Array, sampleRate: number, fftSize: number) => {
-      // Transfer a zero-copy clone to the worker — avoids a 16KB heap allocation per peak
-      const clone = spectrum.slice(0)
+    (peak: DetectedPeak, spectrum: Float32Array, sampleRate: number, fftSize: number, timeDomain?: Float32Array) => {
+      // Transfer zero-copy clones to the worker — avoids heap allocations per peak
+      const specClone = spectrum.slice(0)
+      const transferList: ArrayBuffer[] = [specClone.buffer as ArrayBuffer]
+
+      let tdClone: Float32Array | undefined
+      if (timeDomain) {
+        tdClone = timeDomain.slice(0)
+        transferList.push(tdClone.buffer as ArrayBuffer)
+      }
+
       workerRef.current?.postMessage(
-        { type: 'processPeak', peak, spectrum: clone, sampleRate, fftSize },
-        [clone.buffer]
+        { type: 'processPeak', peak, spectrum: specClone, sampleRate, fftSize, timeDomain: tdClone } as WorkerInboundMessage,
+        transferList
       )
     },
     []
