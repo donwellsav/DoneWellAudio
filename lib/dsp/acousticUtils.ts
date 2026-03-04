@@ -772,7 +772,11 @@ export function getRoomParametersFromDimensions(
     2 * (lengthM * widthM + lengthM * heightM + widthM * heightM)
 
   // Sabine's formula: RT60 = 0.161 * V / (alpha * S)
-  const rt60 = surface > 0 ? (0.161 * volume) / (alpha * surface) : 1.0
+  const sabineRT60 = surface > 0 ? (0.161 * volume) / (alpha * surface) : 1.0
+  // Eyring is more accurate for absorptive rooms (α > 0.2)
+  const eyringRT60 = calculateEyringRT60(volume, surface, alpha)
+  // Use the more conservative (shorter) estimate
+  const rt60 = Math.min(sabineRT60, eyringRT60)
 
   const schroederHz = calculateSchroederFrequency(rt60, volume)
 
@@ -781,4 +785,168 @@ export function getRoomParametersFromDimensions(
     rt60: Math.round(rt60 * 10) / 10,
     schroederHz,
   }
+}
+
+// ============================================================================
+// EYRING RT60 — More accurate than Sabine for absorptive rooms
+// ============================================================================
+
+/**
+ * Calculate Eyring RT60 — more accurate than Sabine when α > 0.2.
+ * Formula: RT60 = 0.161 × V / (-S × ln(1 - α))
+ *
+ * Falls back to Sabine when α is very small (ln(1-α) ≈ -α).
+ *
+ * @param volume      - Room volume m³
+ * @param surfaceArea - Total surface area m²
+ * @param alpha       - Average absorption coefficient (0–1)
+ */
+export function calculateEyringRT60(volume: number, surfaceArea: number, alpha: number): number {
+  if (volume <= 0 || surfaceArea <= 0 || alpha <= 0) return 1.0
+  // Clamp alpha to prevent ln(0) — α = 1.0 means perfect absorption
+  const clampedAlpha = Math.min(alpha, 0.99)
+  const denominator = -surfaceArea * Math.log(1 - clampedAlpha)
+  if (denominator <= 0) return 1.0
+  return (0.161 * volume) / denominator
+}
+
+// ============================================================================
+// AIR ABSORPTION CORRECTION — Hopkins §1.2.4
+// ============================================================================
+
+/**
+ * Apply air absorption correction to RT60 for high frequencies.
+ *
+ * Air absorbs sound energy proportional to f^~1.7. Below 2 kHz the effect
+ * is negligible; above 4 kHz it significantly shortens effective RT60.
+ *
+ * Simplified fit for 20°C, 50% RH (typical indoor conditions):
+ *   m ≈ 5.5e-4 × (f/1000)^1.7  (Np/m → absorption per meter)
+ *
+ * Corrected RT60 (Hopkins §1.2.4):
+ *   RT60_corr = RT60 / (1 + 4mV × RT60 / S)
+ *
+ * @param rt60        - Uncorrected RT60 in seconds
+ * @param frequencyHz - Frequency in Hz
+ * @param volume      - Room volume m³
+ * @param surfaceArea - Total surface area m² (estimated from volume if not given)
+ */
+export function airAbsorptionCorrectedRT60(
+  rt60: number,
+  frequencyHz: number,
+  volume: number,
+  surfaceArea?: number
+): number {
+  if (rt60 <= 0 || frequencyHz <= 0 || volume <= 0) return rt60
+  // Below 2 kHz, air absorption is negligible
+  if (frequencyHz < 2000) return rt60
+
+  // Estimate surface area from volume if not provided (cube approximation)
+  const sideLen = Math.pow(volume, 1 / 3) * 1.2
+  const S = surfaceArea ?? 6 * sideLen * sideLen
+
+  // Simplified air absorption coefficient at 20°C, 50% RH
+  const fKHz = frequencyHz / 1000
+  const m = 5.5e-4 * Math.pow(fKHz, 1.7) // Np/m
+
+  // Corrected RT60
+  const correction = 1 + (4 * m * volume * rt60) / S
+  return rt60 / Math.max(correction, 1)
+}
+
+// ============================================================================
+// ROOM MODE PROXIMITY PENALTY
+// ============================================================================
+
+/**
+ * Check if a detected peak frequency coincides with a calculated room mode.
+ *
+ * Uses existing calculateRoomModes() to enumerate eigenfrequencies, then
+ * checks if the detected peak falls within the -3 dB bandwidth of any mode.
+ * Bandwidth from Hopkins §1.2.6.3: Δf_3dB = 6.9 / (π × RT60).
+ *
+ * @param frequencyHz - Detected peak frequency
+ * @param roomLengthM - Room length in meters
+ * @param roomWidthM  - Room width in meters
+ * @param roomHeightM - Room height in meters
+ * @param rt60        - Room RT60 in seconds
+ * @returns delta to apply to pFeedback, plus reason string
+ */
+export function roomModeProximityPenalty(
+  frequencyHz: number,
+  roomLengthM: number,
+  roomWidthM: number,
+  roomHeightM: number,
+  rt60: number
+): { delta: number; reason: string | null } {
+  if (roomLengthM <= 0 || roomWidthM <= 0 || roomHeightM <= 0 || rt60 <= 0) {
+    return { delta: 0, reason: null }
+  }
+
+  // Only check up to 500 Hz — above that, room modes are too dense to be useful
+  if (frequencyHz > 500) {
+    return { delta: 0, reason: null }
+  }
+
+  // Mode bandwidth (Hopkins §1.2.6.3): Δf_3dB = 6.9 / (π × RT60)
+  const bandwidth3dB = 6.9 / (Math.PI * rt60)
+
+  const modes = calculateRoomModes(roomLengthM, roomWidthM, roomHeightM, 500)
+
+  for (const mode of modes.all) {
+    const distance = Math.abs(frequencyHz - mode.frequency)
+
+    if (distance <= bandwidth3dB) {
+      // Within -3 dB bandwidth — strong room mode match
+      return {
+        delta: -0.15,
+        reason: `Peak ${frequencyHz.toFixed(0)} Hz matches room mode ${mode.label} (${mode.type}) at ${mode.frequency.toFixed(1)} Hz ±${bandwidth3dB.toFixed(1)} Hz`,
+      }
+    }
+
+    if (distance <= 2 * bandwidth3dB) {
+      // Within 2× bandwidth — mild room mode proximity
+      return {
+        delta: -0.08,
+        reason: `Peak ${frequencyHz.toFixed(0)} Hz near room mode ${mode.label} at ${mode.frequency.toFixed(1)} Hz`,
+      }
+    }
+  }
+
+  return { delta: 0, reason: null }
+}
+
+// ============================================================================
+// FREQUENCY-DEPENDENT PROMINENCE THRESHOLD
+// ============================================================================
+
+/**
+ * Calculate a frequency-dependent prominence floor using modal density.
+ *
+ * In sparse modal regions (low frequency, small rooms), room modes can
+ * look like sharp peaks.  Require higher prominence to confirm feedback.
+ * In dense modal regions, the standard floor suffices.
+ *
+ * @param baseProminenceDb - Base prominence floor (e.g. 10 dB)
+ * @param frequencyHz      - Frequency of the peak
+ * @param roomVolume       - Room volume m³
+ * @returns Adjusted prominence floor in dB
+ */
+export function frequencyDependentProminence(
+  baseProminenceDb: number,
+  frequencyHz: number,
+  roomVolume: number
+): number {
+  if (frequencyHz <= 0 || roomVolume <= 0) return baseProminenceDb
+
+  const nf = calculateModalDensity(frequencyHz, roomVolume)
+
+  // In sparse regions (n(f) < 1), scale up the prominence requirement
+  // Cap the multiplier at 1.5× to avoid over-suppression
+  if (nf < 1.0) {
+    const multiplier = Math.min(1 + 0.5 / Math.max(nf, 0.1), 1.5)
+    return baseProminenceDb * multiplier
+  }
+
+  return baseProminenceDb
 }

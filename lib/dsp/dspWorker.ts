@@ -99,6 +99,11 @@ const bandClearedAt = new Map<number, number>()
 let lastAdvisoryCreatedAt = 0
 const ADVISORY_RATE_LIMIT_MS = 1000
 
+// Decay rate analysis — tracks recently cleared peaks to analyze their decay signature
+// Room modes decay exponentially (following RT60); feedback drops instantly (Hopkins §1.2.6.3)
+const recentDecays = new Map<number, { lastAmplitudeDb: number; clearTime: number; frequencyHz: number }>()
+const DECAY_ANALYSIS_WINDOW_MS = 500
+
 // ─── Advanced algorithm buffers (previously dormant, now active) ────────────
 
 /** Full-spectrum MSD history — provides per-bin MSD scores to the fusion engine.
@@ -473,6 +478,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       trackToAdvisoryId.clear()
       bandClearedAt.clear()
       lastAdvisoryCreatedAt = 0
+      recentDecays.clear()
       self.postMessage({ type: 'ready' } satisfies WorkerOutboundMessage)
       break
     }
@@ -495,6 +501,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       trackToAdvisoryId.clear()
       bandClearedAt.clear()
       lastAdvisoryCreatedAt = 0
+      recentDecays.clear()
       msdBuffer?.reset()
       phaseBuffer?.reset()
       ampBuffer.reset()
@@ -540,6 +547,47 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
           const phases = computePhaseAngles(msg.timeDomain)
           if (phases) {
             phaseBuffer.addFrame(phases)
+          }
+        }
+
+        // ── Decay rate analysis — check recently cleared bins ──────────────
+        // Room modes decay exponentially (following RT60); feedback drops instantly.
+        // If a recently cleared bin is decaying at the RT60 rate, extend band cooldown.
+        {
+          const rt60 = settings?.roomRT60 ?? 1.2
+          const roomVol = settings?.roomVolume ?? 250
+          const now = peak.timestamp
+          const expiredBins: number[] = []
+          // Estimate surface area for air absorption correction
+          const sideLen = Math.pow(roomVol, 1 / 3) * 1.2
+          const estSurface = 6 * sideLen * sideLen
+
+          for (const [dBin, decay] of recentDecays) {
+            const elapsed = now - decay.clearTime
+            if (elapsed > DECAY_ANALYSIS_WINDOW_MS) {
+              expiredBins.push(dBin)
+              continue
+            }
+            // Check if this bin still has energy in the current spectrum
+            if (dBin < spectrum.length) {
+              const currentDb = spectrum[dBin]
+              if (currentDb > -100) { // Still measurable
+                const elapsedSec = elapsed / 1000
+                if (elapsedSec > 0.05) { // Need at least 50ms for meaningful rate
+                  const actualDecayRate = (decay.lastAmplitudeDb - currentDb) / elapsedSec // dB/sec
+                  const expectedDecayRate = 60 / rt60 // dB/sec for RT60 exponential decay
+                  // If actual decay is within 50% of expected → room mode signature
+                  if (actualDecayRate > 0 && actualDecayRate < expectedDecayRate * 1.5) {
+                    // Decaying like a room mode — extend band cooldown to suppress re-trigger
+                    const geqBandIdx = Math.round(Math.log2(decay.frequencyHz / 31.25) * 3)
+                    bandClearedAt.set(geqBandIdx, now)
+                  }
+                }
+              }
+            }
+          }
+          for (const bin of expiredBins) {
+            recentDecays.delete(bin)
           }
         }
 
@@ -609,8 +657,9 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         existingScore
       )
 
-      // Enhanced classification with algorithm scores
-      const classification = classifyTrackWithAlgorithms(track, algorithmScores, fusionResult, settings)
+      // Enhanced classification with algorithm scores + active frequencies for mode clustering
+      const activeFrequencies = trackManager.getRawTracks().map(t => t.trueFrequencyHz)
+      const classification = classifyTrackWithAlgorithms(track, algorithmScores, fusionResult, settings, activeFrequencies)
 
       // Apply classification temporal smoothing (prevents advisory flickering)
       // Safety-critical RUNAWAY/GROWING bypass smoothing automatically
@@ -735,7 +784,11 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
 
     case 'clearPeak': {
       const { binIndex, frequencyHz, timestamp } = msg
-      trackManager.clearTrack(binIndex, timestamp)
+      const lastAmplitude = trackManager.clearTrack(binIndex, timestamp)
+      // Record for decay rate analysis (room mode vs feedback distinction)
+      if (lastAmplitude !== null) {
+        recentDecays.set(binIndex, { lastAmplitudeDb: lastAmplitude, clearTime: timestamp, frequencyHz })
+      }
       trackManager.pruneInactiveTracks(timestamp)
 
       for (const [trackId, advisoryId] of trackToAdvisoryId.entries()) {

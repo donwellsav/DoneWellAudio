@@ -77,15 +77,18 @@ export class TrackManager {
   /**
    * Mark a track as cleared (peak no longer detected)
    */
-  clearTrack(binIndex: number, timestamp: number): void {
+  clearTrack(binIndex: number, timestamp: number): number | null {
     const trackId = this.binToTrackId.get(binIndex)
-    if (!trackId) return
+    if (!trackId) return null
 
     const track = this.tracks.get(trackId)
     if (track) {
+      const lastAmplitude = track.trueAmplitudeDb
       track.isActive = false
       track.lastUpdateTime = timestamp
+      return lastAmplitude
     }
+    return null
   }
 
   /**

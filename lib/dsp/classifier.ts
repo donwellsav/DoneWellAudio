@@ -22,6 +22,9 @@ import {
   analyzeVibrato,
   reverberationQAdjustment,
   modalDensityFeedbackAdjustment,
+  roomModeProximityPenalty,
+  frequencyDependentProminence,
+  airAbsorptionCorrectedRT60,
 } from './acousticUtils'
 
 // Type union for track input
@@ -70,7 +73,7 @@ function normalizeTrackInput(input: TrackInput) {
  * Uses weighted scoring model based on extracted features
  * Enhanced with acoustic research from "Sound Insulation" (Carl Hopkins, 2007)
  */
-export function classifyTrack(track: TrackInput, settings?: DetectorSettings): ClassificationResult {
+export function classifyTrack(track: TrackInput, settings?: DetectorSettings, activeFrequencies?: number[]): ClassificationResult {
   const features = normalizeTrackInput(track)
   const reasons: string[] = []
 
@@ -168,8 +171,10 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings): C
   // Rooms with high RT60 produce naturally high-Q room modes.
   // A peak Q ≤ Q_room = π·f·T₆₀/6.9 is more likely a room mode than feedback.
   // A peak Q >> Q_room is unusually sharp → boost pFeedback.
+  // Air absorption correction (Hopkins §1.2.4) shortens effective RT60 at high frequencies.
   {
-    const rt60Adj = reverberationQAdjustment(features.minQ, features.frequencyHz, roomRT60)
+    const effectiveRT60 = airAbsorptionCorrectedRT60(roomRT60, features.frequencyHz, roomVolume)
+    const rt60Adj = reverberationQAdjustment(features.minQ, features.frequencyHz, effectiveRT60)
     if (rt60Adj.delta !== 0) {
       pFeedback += rt60Adj.delta
       if (rt60Adj.reason) reasons.push(rt60Adj.reason)
@@ -207,6 +212,19 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings): C
     }
   }
 
+  // 8b. Mode clustering — 2+ peaks within 3× bandwidth suggest coupled room modes (Hopkins §1.2.6.7)
+  if (activeFrequencies && activeFrequencies.length > 1 && features.minQ > 0) {
+    const bandwidth3dB = features.frequencyHz / features.minQ
+    const clusterRadius = 3 * bandwidth3dB
+    const neighbors = activeFrequencies.filter(f =>
+      f !== features.frequencyHz && Math.abs(f - features.frequencyHz) <= clusterRadius
+    ).length
+    if (neighbors >= 2) {
+      pFeedback -= 0.12
+      reasons.push(`Mode cluster: ${neighbors + 1} peaks within ${clusterRadius.toFixed(0)} Hz — coupled modes`)
+    }
+  }
+
   // 9. NEW: Cumulative growth analysis (slow-building feedback)
   if (cumulativeGrowth.shouldAlert) {
     if (cumulativeGrowth.severity === 'RUNAWAY') {
@@ -236,6 +254,21 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings): C
     pFeedback   -= 0.25
     pInstrument += 0.10
     reasons.push(`Below Schroeder boundary (${schroederFreq.toFixed(0)} Hz) — probable room mode`)
+  }
+
+  // 10a. Room mode proximity — compare against calculated eigenfrequencies
+  if (settings?.roomModesEnabled && settings?.roomLengthM > 0 && settings?.roomWidthM > 0 && settings?.roomHeightM > 0) {
+    const modeProximity = roomModeProximityPenalty(
+      features.frequencyHz,
+      settings.roomLengthM,
+      settings.roomWidthM,
+      settings.roomHeightM,
+      roomRT60
+    )
+    if (modeProximity.delta !== 0) {
+      pFeedback += modeProximity.delta
+      if (modeProximity.reason) reasons.push(modeProximity.reason)
+    }
   }
 
   // ==================== Normalization ====================
@@ -381,10 +414,14 @@ export function shouldReportIssue(
     return false
   }
 
-  // Prominence floor — noise bursts rarely sustain 10 dB above neighbors
-  // Raised from 8 dB to further eliminate noise spikes during active audio
-  if (classification.prominenceDb !== undefined && classification.prominenceDb < 10) {
-    return false
+  // Frequency-dependent prominence floor — sparse modal regions need higher prominence
+  // Uses modal density n(f) to scale the 10 dB base floor (up to 1.5× in sparse regions)
+  {
+    const representativeFreq = classification.frequencyBand === 'LOW' ? 150 : classification.frequencyBand === 'HIGH' ? 6000 : 1000
+    const prominenceFloor = frequencyDependentProminence(10, representativeFreq, settings.roomVolume ?? 250)
+    if (classification.prominenceDb !== undefined && classification.prominenceDb < prominenceFloor) {
+      return false
+    }
   }
 
   // Handle whistle filtering
@@ -475,10 +512,11 @@ export function classifyTrackWithAlgorithms(
   track: Track | TrackedPeak,
   algorithmScores: AlgorithmScores | null,
   fusionResult: FusedDetectionResult | null,
-  settings?: DetectorSettings
+  settings?: DetectorSettings,
+  activeFrequencies?: number[]
 ): ClassificationResult {
-  // Get base classification
-  const baseResult = classifyTrack(track, settings)
+  // Get base classification (with active frequencies for mode clustering)
+  const baseResult = classifyTrack(track, settings, activeFrequencies)
   
   // If no algorithm scores, return base result
   if (!algorithmScores || !fusionResult) {
