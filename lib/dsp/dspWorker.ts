@@ -38,7 +38,7 @@ import type {
   DetectorSettings,
   TrackedPeak,
 } from '@/types/advisory'
-import { DEFAULT_SETTINGS } from './constants'
+import { DEFAULT_SETTINGS, BAND_COOLDOWN_MS } from './constants'
 
 // ─── Message types ──────────────────────────────────────────────────────────
 
@@ -91,9 +91,8 @@ const trackManager = new TrackManager()
 const advisories = new Map<string, Advisory>()
 const trackToAdvisoryId = new Map<string, string>()
 
-// Band cooldown: maps GEQ band index → timestamp when the band was last cleared.
-// Suppresses re-triggering the same band for BAND_COOLDOWN_MS after an advisory clears.
-const BAND_COOLDOWN_MS = 1500
+// Band cooldown: maps GEQ band index → timestamp when the band was last explicitly cleared.
+// Suppresses re-triggering the same band for BAND_COOLDOWN_MS after an advisory is cleared via clearPeak.
 const bandClearedAt = new Map<number, number>()
 
 // ─── Advanced algorithm buffers (previously dormant, now active) ────────────
@@ -468,6 +467,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       trackManager.clear()
       advisories.clear()
       trackToAdvisoryId.clear()
+      bandClearedAt.clear()
       self.postMessage({ type: 'ready' } satisfies WorkerOutboundMessage)
       break
     }
@@ -624,10 +624,8 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       if (!shouldReportIssue(classification, settings)) {
         const existingId = trackToAdvisoryId.get(track.id)
         if (existingId) {
-          const clearedAdvisory = advisories.get(existingId)
-          if (clearedAdvisory?.advisory?.geq?.bandIndex != null) {
-            bandClearedAt.set(clearedAdvisory.advisory.geq.bandIndex, peak.timestamp)
-          }
+          // No band cooldown here — classification gate drops are transient.
+          // Only explicit clearPeak events (hold-time expiry) trigger cooldown.
           advisories.delete(existingId)
           trackToAdvisoryId.delete(track.id)
           self.postMessage({ type: 'advisoryCleared', advisoryId: existingId } satisfies WorkerOutboundMessage)
@@ -674,6 +672,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
             // New peak is less urgent — absorb into existing, bump its cluster count
             const updatedAdvisory = { ...dup, clusterCount: (dup.clusterCount ?? 1) + 1 }
             advisories.set(dup.id, updatedAdvisory)
+            trackToAdvisoryId.set(track.id, dup.id) // Map absorbed track so it doesn't re-enter dedup
             self.postMessage({ type: 'advisory', advisory: updatedAdvisory } satisfies WorkerOutboundMessage)
             break
           }

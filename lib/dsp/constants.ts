@@ -217,10 +217,13 @@ export const TRACK_SETTINGS = {
 // Harmonic detection settings
 export const HARMONIC_SETTINGS = {
   MAX_HARMONIC: 8, // Check overtones up to this partial (2nd–8th)
-  TOLERANCE_CENTS: 50, // ±50 cents = half a semitone; matches track association tolerance
+  TOLERANCE_CENTS: 100, // ±100 cents = 1 semitone; synced with ASSOCIATION_TOLERANCE_CENTS
   // Sub-harmonic check: if new peak F and an active track is near F*k, new peak may be the fundamental
   CHECK_SUB_HARMONICS: true,
 } as const
+
+// Band cooldown — suppresses re-triggering the same GEQ band after an advisory is explicitly cleared
+export const BAND_COOLDOWN_MS = 1500
 
 // Canvas rendering settings
 export const CANVAS_SETTINGS = {
@@ -287,11 +290,11 @@ export const OPERATION_MODES: Record<string, ModePreset> = {
     fftSize: 8192,           // 5.9 Hz resolution, 170 ms time constant at 48 kHz
     minFrequency: 150,       // Extended for chest-resonance body mics
     maxFrequency: 8000,      // Speech sibilance upper bound
-    sustainMs: 200,          // Fast confirmation — well above consonant transients
+    sustainMs: 150,          // Fast confirmation — load-in friendly, above consonant transients
     clearMs: 350,            // Quick clearing for responsive display
-    holdTimeMs: 3000,        // Long hold for EQ reference during adjustments
-    confidenceThreshold: 0.35, // Very aggressive — surface everything
-    prominenceDb: 10,        // Low prominence catches subtle peaks
+    holdTimeMs: 4000,        // Long hold — time to walk to EQ rack during load-in
+    confidenceThreshold: 0.30, // Very aggressive — surface everything during ring-out
+    prominenceDb: 8,         // Low prominence catches subtle peaks in empty rooms
     relativeThresholdDb: 16, // Sensitive relative threshold
     eqPreset: 'surgical',   // Narrow cuts preserve speech clarity
     aWeightingEnabled: true, // Prioritizes 2–5 kHz speech intelligibility band
@@ -318,11 +321,11 @@ export const OPERATION_MODES: Record<string, ModePreset> = {
     fftSize: 8192,
     minFrequency: 100,       // Organ and piano extend low
     maxFrequency: 12000,     // Cymbals and choir harmonics
-    sustainMs: 350,          // Longer sustain for reverberant decay patterns
+    sustainMs: 280,          // Tightened for load-in — reverb decay still handled
     clearMs: 500,            // Slower clearing in reverberant environment
     holdTimeMs: 4000,        // Long hold in reverberant space
-    confidenceThreshold: 0.50, // Balance sensitivity with reverb-induced false positives
-    prominenceDb: 14,        // Higher prominence to cut through reverberant energy
+    confidenceThreshold: 0.45, // Slightly more aggressive — surface more during setup
+    prominenceDb: 12,        // Lowered to catch quieter resonances during load-in
     relativeThresholdDb: 20, // Higher relative threshold for reverberant noise floor
     eqPreset: 'surgical',   // Narrow cuts avoid coloring worship music
     aWeightingEnabled: false, // Full spectrum important for organ/choir
@@ -349,11 +352,11 @@ export const OPERATION_MODES: Record<string, ModePreset> = {
     fftSize: 4096,           // Fast 85 ms time response for dynamic transients
     minFrequency: 60,        // Full range for bass/sub instruments
     maxFrequency: 16000,     // Full range for cymbals, brass harmonics
-    sustainMs: 400,          // Long sustain avoids musical transient false positives
+    sustainMs: 350,          // Tightened for load-in — still avoids musical transients
     clearMs: 600,            // Slow clearing for sustained musical content
-    holdTimeMs: 2000,        // Short hold — engineer is actively mixing
-    confidenceThreshold: 0.60, // High confidence to avoid false alarms in dense mix
-    prominenceDb: 16,        // High prominence to cut through musical energy
+    holdTimeMs: 3000,        // Extended — time to walk to EQ during sound check
+    confidenceThreshold: 0.55, // Slightly more sensitive for load-in discovery
+    prominenceDb: 14,        // Lowered to catch resonances in empty venue
     relativeThresholdDb: 24, // Very high — only extreme peaks relative to noise
     eqPreset: 'heavy',      // Wider cuts for emergency feedback killing
     aWeightingEnabled: false, // Flat weighting at high SPL
@@ -379,11 +382,11 @@ export const OPERATION_MODES: Record<string, ModePreset> = {
     fftSize: 8192,
     minFrequency: 150,       // Body mic range with proximity effect
     maxFrequency: 10000,     // Extended for sibilance from lavaliers
-    sustainMs: 250,          // Fast for dialogue dynamics
+    sustainMs: 200,          // Tightened for load-in — fast for dialogue dynamics
     clearMs: 400,            // Standard clearing
-    holdTimeMs: 3000,
-    confidenceThreshold: 0.45,
-    prominenceDb: 12,
+    holdTimeMs: 4000,        // Extended — time to walk to EQ during load-in
+    confidenceThreshold: 0.40, // More aggressive — surface more during setup
+    prominenceDb: 10,        // Lowered to catch quieter resonances in empty theater
     relativeThresholdDb: 18,
     eqPreset: 'surgical',   // Narrow cuts preserve dialogue clarity
     aWeightingEnabled: true, // A-weighting helps for dialogue-focused detection
@@ -412,9 +415,9 @@ export const OPERATION_MODES: Record<string, ModePreset> = {
     maxFrequency: 6000,      // Most monitor feedback is mid-range
     sustainMs: 200,          // Fast confirmation — raised from 150ms to reduce transient false positives
     clearMs: 300,            // Fast clearing
-    holdTimeMs: 2000,        // Short hold — monitor engineer works fast
-    confidenceThreshold: 0.40, // Aggressive — better false positives than missed feedback
-    prominenceDb: 10,
+    holdTimeMs: 3000,        // Extended — time to walk to EQ during load-in
+    confidenceThreshold: 0.35, // More aggressive — surface everything during ring-out
+    prominenceDb: 8,         // Lowered to catch subtler resonances during setup
     relativeThresholdDb: 15,
     eqPreset: 'surgical',   // Narrow notches preserve monitor clarity
     aWeightingEnabled: false,
@@ -470,11 +473,11 @@ export const OPERATION_MODES: Record<string, ModePreset> = {
     fftSize: 8192,
     minFrequency: 80,        // Extended low for proximity effect on broadcast mics
     maxFrequency: 12000,     // Broadcast audio extends higher than speech
-    sustainMs: 200,          // Fast confirmation
+    sustainMs: 150,          // Tightened for load-in — fast confirmation
     clearMs: 350,            // Fast clearing
-    holdTimeMs: 3000,
-    confidenceThreshold: 0.35, // Very aggressive in quiet environment
-    prominenceDb: 10,
+    holdTimeMs: 4000,        // Extended — time to walk to EQ during setup
+    confidenceThreshold: 0.30, // Very aggressive — surface everything in quiet studio
+    prominenceDb: 8,         // Lowered to catch subtle resonances in treated room
     relativeThresholdDb: 14, // Sensitive — low noise floor makes relative work well
     eqPreset: 'surgical',   // Precise cuts for broadcast quality
     aWeightingEnabled: true, // A-weighting for speech focus
@@ -501,11 +504,11 @@ export const OPERATION_MODES: Record<string, ModePreset> = {
     fftSize: 4096,           // Fast time response for dynamic outdoor conditions
     minFrequency: 100,       // Above wind rumble range
     maxFrequency: 12000,     // Reduced HF due to atmospheric absorption
-    sustainMs: 300,          // Moderate sustain
+    sustainMs: 250,          // Tightened for load-in — less ambient during setup
     clearMs: 450,            // Moderate clearing
-    holdTimeMs: 2500,
-    confidenceThreshold: 0.50, // Moderate — ambient noise creates more uncertainty
-    prominenceDb: 14,        // Higher prominence to cut through ambient
+    holdTimeMs: 3500,        // Extended — time to walk to EQ during load-in
+    confidenceThreshold: 0.45, // Slightly more aggressive — less ambient during setup
+    prominenceDb: 12,        // Lowered — quieter environment during load-in
     relativeThresholdDb: 22, // Higher relative threshold for noisy outdoor
     eqPreset: 'heavy',      // Wider cuts for outdoor PA
     aWeightingEnabled: true, // A-weighting helps filter wind rumble perception
@@ -529,7 +532,7 @@ export const DEFAULT_SETTINGS = {
   feedbackThresholdDb: 6, // AGGRESSIVE — catch feedback before audience hears it
   ringThresholdDb: 3, // AGGRESSIVE — catch resonances before they become feedback
   growthRateThreshold: 1.0, // FAST — detect growing peaks immediately
-  holdTimeMs: 3000, // Long hold for EQ reference during adjustments
+  holdTimeMs: 4000, // Long hold — time to walk to EQ rack during load-in
   noiseFloorDecay: 0.98, // Fast adaptation for dynamic conference environments
   peakMergeCents: 150, // 1.5 semitones — wider merge window reduces same-band duplicate advisories
   maxDisplayedIssues: 8, // Show more issues — don't hide potential problems
@@ -540,11 +543,11 @@ export const DEFAULT_SETTINGS = {
   inputGainDb: 15, // Default input gain (adjustable -40 to +40 dB)
   autoGainEnabled: true, // Auto-gain on by default — finds optimal level for any venue
   graphFontSize: 15, // Default label size for canvas graphs (8–26 px)
-  harmonicToleranceCents: 50, // ±50 cents for harmonic matching
+  harmonicToleranceCents: 100, // ±100 cents for harmonic matching; synced with ASSOCIATION_TOLERANCE_CENTS
   showTooltips: true, // Show help tooltips (useful for AV techs)
   aWeightingEnabled: true, // A-WEIGHTING ON — prioritizes speech intelligibility band (2–5 kHz)
   // Confidence filtering — LOW threshold, surface almost everything
-  confidenceThreshold: 0.35, // 35% — very aggressive for speech environments
+  confidenceThreshold: 0.30, // 30% — very aggressive, load-in optimized
   // Room acoustics — defaults to large ballroom / exhibit hall
   roomRT60: 1.0, // Large ballroom (hard floors, high ceilings, 0.8–1.5 s typical)
   roomVolume: 1000, // ~1000 m³ ballroom (50×40×20 ft, seats ~200 people)
@@ -564,12 +567,12 @@ export const DEFAULT_SETTINGS = {
   roomHeightM: 5, // Default ceiling height — ballroom (~16 ft)
   roomDimensionsUnit: 'meters' as const,
   // Peak timing — fast for speech dynamics (consonant transients 5–15 ms)
-  sustainMs: 200, // Fast confirmation — well above consonant transient duration
+  sustainMs: 150, // Fast confirmation — load-in friendly, above consonant transients
   clearMs: 350, // Quick clearing for responsive display
   // Threshold control
   thresholdMode: 'hybrid' as const,
   relativeThresholdDb: 16, // Sensitive relative threshold for speech
-  prominenceDb: 10, // Low prominence catches subtle peaks in quiet rooms
+  prominenceDb: 8, // Low prominence catches subtle peaks in empty rooms during load-in
   // Noise floor timing
   noiseFloorAttackMs: 200, // Fast attack for dynamic conference environments
   noiseFloorReleaseMs: 1000, // Moderate release

@@ -856,7 +856,7 @@ export const DEFAULT_FUSION_CONFIG: FusionConfig = {
   msdMinFrames: MSD_CONSTANTS.MIN_FRAMES_SPEECH,
   phaseThreshold: PHASE_CONSTANTS.HIGH_COHERENCE,
   enableCompressionDetection: true,
-  feedbackThreshold: 0.65,
+  feedbackThreshold: 0.70, // Tightened from 0.65 — requires stronger algorithm agreement to reduce false positives
 }
 
 /**
