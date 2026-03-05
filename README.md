@@ -21,7 +21,7 @@ Built by [Don Wells AV](https://donwellsav.com).
 
 **Current default values (as of last update):**
 - Input Gain: **+15 dB**
-- Confidence Threshold: **40%**
+- Confidence Threshold: **30%**
 - Algorithm Mode: **Combined (MSD + Phase)**
 - MSD Min Frames: **15**
 - Phase Coherence Threshold: **75%**
@@ -71,9 +71,10 @@ Built by [Don Wells AV](https://donwellsav.com).
 - **GEQ band mapping** to ISO 31-band center frequencies with cut depth recommendations
 - **PEQ recommendations** with filter type, Q estimation, and gain
 - **Pitch translation** - every frequency shown as musical note (e.g., A4, C#3 +15 cents)
-- **5 operation modes** from calibration to music-aware performance
-- **Session history** with database persistence (Neon PostgreSQL)
-- **Event logging** with CSV, JSON, and plain text export
+- **8 operation modes** tailored for speech, worship, live music, theater, monitors, ring out, broadcast, and outdoor
+- **Feedback history** with repeat offender tracking (localStorage persistence)
+- **EQ Notepad** for accumulating applied cuts during a session
+- **PWA support** — installable, works offline via Serwist service worker
 
 ---
 
@@ -87,10 +88,12 @@ Built by [Don Wells AV](https://donwellsav.com).
 | Styling | Tailwind CSS v4 |
 | Audio | Web Audio API (`AnalyserNode`) |
 | Visualization | HTML5 Canvas (custom rendering) |
-| Database | Neon (PostgreSQL via `@neondatabase/serverless`) |
-| State | React hooks + SWR for data fetching |
+| State | React 19 hooks (no external state library) |
+| PWA | Serwist (service worker, offline caching, installable) |
 
 **No external audio processing libraries.** All DSP runs client-side in the browser.
+
+**No environment variables required.** The app is fully client-side with localStorage persistence.
 
 ---
 
@@ -127,12 +130,7 @@ Open [http://localhost:3000](http://localhost:3000), grant microphone permission
 kill-the-ring/
 ├── app/
 │   ├── layout.tsx                    # Root layout with metadata
-│   ├── page.tsx                      # Entry point - renders KillTheRing
-│   ├── api/
-│   │   └── sessions/                 # Session API routes
-│   └── sessions/
-│       ├── page.tsx                  # Sessions list page
-│       └── [id]/page.tsx             # Session detail with histogram
+│   └── page.tsx                      # Entry point - renders KillTheRing
 │
 ├── components/
 │   ├── kill-the-ring/
@@ -140,47 +138,48 @@ kill-the-ring/
 │   │   ├── KillTheRingClient.tsx     # Client-side wrapper
 │   │   ├── SpectrumCanvas.tsx        # RTA Spectrum visualization
 │   │   ├── GEQBarView.tsx            # 31-Band GEQ bar visualization
-│   │   ├── WaterfallCanvas.tsx       # Waterfall history display
 │   │   ├── IssuesList.tsx            # Active issues with Apply buttons
 │   │   ├── EQNotepad.tsx             # Accumulated applied cuts
 │   │   ├── AlgorithmStatusBar.tsx    # Real-time algorithm state display
-│   │   ├── FrequencyHistogram.tsx    # ISO 31-band histogram (sessions)
 │   │   ├── InputMeterSlider.tsx      # Combined input gain + level meter
-│   │   ├── SettingsPanel.tsx         # Settings dialog (4 tabs)
+│   │   ├── SettingsPanel.tsx         # Settings dialog (5 tabs: Detection, Algorithms, Display, Room, Advanced)
 │   │   ├── DetectionControls.tsx     # Sidebar mode/threshold controls
-│   │   ├── HelpMenu.tsx              # Comprehensive help documentation
-│   │   ├── LogsViewer.tsx            # Event log with export
+│   │   ├── HelpMenu.tsx              # Help documentation (5 tabs: Guide, Modes, Algorithms, Reference, About)
 │   │   ├── FeedbackHistoryPanel.tsx  # Historical feedback tracking
-│   │   └── SessionsTable.tsx         # Sessions list table
+│   │   ├── ResetConfirmDialog.tsx    # Settings reset confirmation
+│   │   └── ErrorBoundary.tsx         # Error boundary wrapper
 │   └── ui/                           # shadcn/ui components
 │
 ├── hooks/
 │   ├── useAudioAnalyzer.ts           # Main audio analyzer lifecycle
-│   ├── useAdvisoryLogging.ts         # Advisory event logging
+│   ├── useAdvisoryLogging.ts         # Advisory → feedback history recording
 │   └── useAnimationFrame.ts          # rAF utility hook
 │
 ├── lib/
 │   ├── audio/
 │   │   └── createAudioAnalyzer.ts    # AudioAnalyzer factory
-│   ├── db/
-│   │   └── sessions.ts               # Neon DB layer
+│   ├── changelog.ts                  # Version history (rendered in About tab)
 │   ├── dsp/
-│   │   ├── feedbackDetector.ts       # Core FFT analysis engine (826 lines)
-│   │   ├── advancedDetection.ts      # MSD, Phase, Spectral, Comb (959 lines)
+│   │   ├── feedbackDetector.ts       # Core FFT analysis engine
+│   │   ├── advancedDetection.ts      # MSD, Phase, Spectral, Comb, IHR, PTMR
 │   │   ├── classifier.ts             # Feedback/whistle/instrument classifier
 │   │   ├── eqAdvisor.ts              # GEQ/PEQ recommendation generator
 │   │   ├── trackManager.ts           # Peak track lifecycle management
-│   │   ├── acousticUtils.ts          # Room acoustics calculations
-│   │   ├── feedbackHistory.ts        # Historical tracking
-│   │   └── constants.ts              # All tunable parameters (486 lines)
-│   ├── logging/
-│   │   └── eventLogger.ts            # Session event logger
+│   │   ├── acousticUtils.ts          # Room acoustics (RT60, Schroeder, air absorption)
+│   │   ├── feedbackHistory.ts        # Repeat offender tracking (localStorage)
+│   │   ├── severityUtils.ts          # Shared severity/urgency calculation
+│   │   ├── dspWorker.ts              # Web Worker entry point
+│   │   └── constants.ts              # All tunable parameters and mode presets
+│   ├── utils.ts                      # cn() helper for Tailwind class merging
 │   └── utils/
 │       ├── mathHelpers.ts            # DSP math utilities
 │       └── pitchUtils.ts             # Hz to note/octave/cents
 │
-└── types/
-    └── advisory.ts                   # All TypeScript interfaces (400+ lines)
+├── types/
+│   └── advisory.ts                   # All TypeScript interfaces
+│
+└── styles/
+    └── globals.css                   # Tailwind globals (OKLch theme)
 ```
 
 ---
@@ -568,25 +567,28 @@ Where RT60 is reverberation time in seconds and Volume is in cubic meters.
 
 | Mode | Threshold | Ring | Growth | Use Case |
 |---|---|---|---|---|
-| **Feedback Hunt** | 6 dB | 4 dB | 1.5 dB/s | General PA monitoring |
-| **Aggressive** | 5 dB | 3 dB | 1 dB/s | System calibration |
-| **Vocal Ring** | 5 dB | 3 dB | 1 dB/s | Monitor mix tuning |
-| **Music-Aware** | 10 dB | 6 dB | 2.5 dB/s | Live performance |
-| **Calibration** | 4 dB | 2 dB | 0.5 dB/s | Initial setup |
+| **Speech** (Default) | 6 dB | 3 dB | 1.0 dB/s | Corporate conferences, lectures |
+| **Worship** | 8 dB | 5 dB | 2.0 dB/s | Churches, reverberant spaces |
+| **Live Music** | 14 dB | 8 dB | 4.0 dB/s | Concerts, clubs, festivals |
+| **Theater** | 7 dB | 4 dB | 1.5 dB/s | Drama, musicals, body mics |
+| **Monitors** | 5 dB | 3 dB | 0.8 dB/s | Stage wedges, sidefills |
+| **Ring Out** | 4 dB | 2 dB | 0.5 dB/s | System calibration, sound check |
+| **Broadcast** | 5 dB | 3 dB | 1.0 dB/s | Studio, podcast, radio |
+| **Outdoor** | 10 dB | 6 dB | 2.5 dB/s | Open air, festivals |
 
 ---
 
 ## Settings Reference
 
-### Analysis Tab
+### Detection Tab
 
 | Setting | Range | Default | Description |
 |---|---|---|---|
 | FFT Size | 4096/8192/16384 | 8192 | Frequency resolution |
 | Smoothing | 0-95% | 50% | Frame averaging |
-| Hold Time | 0.5-5s | 3s | Issue visibility duration |
+| Hold Time | 0.5-8s | 4s | Issue visibility duration |
 | Input Gain | -40 to +40 dB | **+15 dB** | Software boost before analysis |
-| Confidence | 40-95% | **40%** | Minimum confidence to display |
+| Confidence | 30-95% | **30%** | Minimum confidence to display |
 
 ### Algorithms Tab
 
@@ -630,7 +632,7 @@ Where RT60 is reverberation time in seconds and Volume is in cubic meters.
 
 {
   // Core detection
-  mode: 'feedbackHunt',
+  mode: 'speech',
   fftSize: 8192,
   smoothingTimeConstant: 0.5,
   minFrequency: 200,
@@ -640,7 +642,7 @@ Where RT60 is reverberation time in seconds and Volume is in cubic meters.
   growthRateThreshold: 1.5,
   
   // Timing
-  holdTimeMs: 3000,
+  holdTimeMs: 4000,
   noiseFloorDecay: 0.98,
   
   // Display
@@ -649,10 +651,10 @@ Where RT60 is reverberation time in seconds and Volume is in cubic meters.
   graphFontSize: 15,
   
   // Input
-  inputGainDb: 15,                    // UPDATED: was 12
+  inputGainDb: 15,                    // Default input gain (+15 dB)
   
   // Filtering
-  confidenceThreshold: 0.40,          // UPDATED: was 0.55
+  confidenceThreshold: 0.30,          // 30% — very aggressive, load-in optimized
   aWeightingEnabled: true,
   
   // Advanced algorithms
@@ -666,9 +668,9 @@ Where RT60 is reverberation time in seconds and Volume is in cubic meters.
   showPhaseDisplay: false,
   
   // Room acoustics
-  roomRT60: 0.7,
-  roomVolume: 250,
-  roomPreset: 'medium',
+  roomRT60: 1.0,
+  roomVolume: 1000,
+  roomPreset: 'large',
 }
 ```
 
@@ -719,29 +721,6 @@ All tunable constants are in `lib/dsp/constants.ts`:
 - `SEVERITY_THRESHOLDS` - Classification thresholds
 - `CLASSIFIER_WEIGHTS` - Scoring weights
 - `MSD_SETTINGS`, `PHASE_SETTINGS`, etc. - Algorithm constants
-
-### Database Schema
-
-Sessions and events are stored in Neon PostgreSQL. See `lib/db/sessions.ts`:
-
-```sql
--- Sessions table
-CREATE TABLE sessions (
-  id UUID PRIMARY KEY,
-  started_at TIMESTAMP,
-  ended_at TIMESTAMP,
-  settings JSONB
-);
-
--- Events table
-CREATE TABLE session_events (
-  id UUID PRIMARY KEY,
-  session_id UUID REFERENCES sessions(id),
-  timestamp TIMESTAMP,
-  type TEXT,
-  data JSONB
-);
-```
 
 ---
 
