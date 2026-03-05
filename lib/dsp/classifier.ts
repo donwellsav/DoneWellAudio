@@ -392,6 +392,7 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     confidence,
     reasons,
     // Enhanced fields from acoustic analysis
+    frequencyHz: features.frequencyHz,
     modalOverlapFactor: modalOverlap,
     cumulativeGrowthDb: cumulativeGrowth.totalGrowthDb,
     frequencyBand: freqBand.band,
@@ -431,13 +432,14 @@ export function shouldReportIssue(
   }
 
   // Frequency-dependent prominence floor — sparse modal regions need higher prominence
-  // Uses the detector's prominenceDb setting as the base (not a hardcoded value) so the
-  // reporting gate stays in sync with the detection gate. Modal density scaling still
-  // applies (up to 1.5× in sparse regions) to filter room mode false positives.
+  // Uses the actual peak frequency (not a band proxy) so e.g. a 350 Hz peak isn't
+  // penalised as heavily as a 100 Hz peak.  Falls back to band midpoints only when
+  // the actual frequency isn't available.
   {
     const baseProminence = settings.prominenceDb ?? 10
-    const representativeFreq = classification.frequencyBand === 'LOW' ? 150 : classification.frequencyBand === 'HIGH' ? 6000 : 1000
-    const prominenceFloor = frequencyDependentProminence(baseProminence, representativeFreq, settings.roomVolume ?? 250)
+    const freq = classification.frequencyHz
+      ?? (classification.frequencyBand === 'LOW' ? 200 : classification.frequencyBand === 'HIGH' ? 6000 : 1000)
+    const prominenceFloor = frequencyDependentProminence(baseProminence, freq, settings.roomVolume ?? 250)
     if (classification.prominenceDb !== undefined && classification.prominenceDb < prominenceFloor) {
       return false
     }

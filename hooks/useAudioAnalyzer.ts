@@ -81,18 +81,31 @@ export function useAudioAnalyzer(
   // ── DSP Worker callbacks — stable refs, never change identity ───────────────
   // These refs forward to the latest closure values without causing re-renders
   const onAdvisoryRef = useRef<(a: Advisory) => void>(() => {})
-  const onAdvisoryClearedRef = useRef<(id: string) => void>(() => {})
   const onTracksUpdateRef = useRef<(t: TrackedPeak[]) => void>(() => {})
 
   onAdvisoryRef.current = (advisory) => {
     setState(prev => {
-      const existing = prev.advisories.findIndex(a => a.id === advisory.id)
       const next = [...prev.advisories]
-      if (existing >= 0) {
-        next[existing] = advisory
+
+      // Match by ID first (same track updating)
+      const byId = next.findIndex(a => a.id === advisory.id)
+      if (byId >= 0) {
+        next[byId] = advisory
       } else {
-        next.push(advisory)
+        // Frequency-proximity dedup (200 cents = 2 semitones, matches worker)
+        // Prevents duplicate cards when a peak is cleared then re-detected
+        // with a new track/advisory ID at the same frequency.
+        const byFreq = next.findIndex(a => {
+          const cents = Math.abs(1200 * Math.log2(advisory.trueFrequencyHz / a.trueFrequencyHz))
+          return cents <= 200
+        })
+        if (byFreq >= 0) {
+          next[byFreq] = advisory // Replace the old card
+        } else {
+          next.push(advisory)
+        }
       }
+
       return {
         ...prev,
         advisories: next
@@ -107,16 +120,6 @@ export function useAudioAnalyzer(
     })
   }
 
-  onAdvisoryClearedRef.current = (advisoryId) => {
-    // Remove the cleared advisory so re-detection of the same frequency
-    // doesn't accumulate duplicate cards (worker clears → re-creates with new ID)
-    setState(prev => {
-      const next = prev.advisories.filter(a => a.id !== advisoryId)
-      if (next.length === prev.advisories.length) return prev // no-op avoids re-render
-      return { ...prev, advisories: next }
-    })
-  }
-
   onTracksUpdateRef.current = (tracks) => {
     setState(prev => ({ ...prev, tracks }))
   }
@@ -124,7 +127,7 @@ export function useAudioAnalyzer(
   // Stable callbacks object — created once, never triggers re-renders
   const stableCallbacks = useRef<DSPWorkerCallbacks>({
     onAdvisory: (advisory) => onAdvisoryRef.current(advisory),
-    onAdvisoryCleared: (id) => onAdvisoryClearedRef.current(id),
+    onAdvisoryCleared: () => { /* Keep cards visible until next start */ },
     onTracksUpdate: (tracks) => onTracksUpdateRef.current(tracks),
     onReady: () => { /* Worker ready */ },
   }).current

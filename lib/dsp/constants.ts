@@ -48,8 +48,8 @@ export const FREQUENCY_BANDS = {
   LOW: {
     minHz: 20,
     maxHz: 300, // Approximate - adjusted by Schroeder calculation
-    prominenceMultiplier: 1.4, // Require 40% more prominence
-    sustainMultiplier: 1.5, // Require 50% longer sustain
+    prominenceMultiplier: 1.15, // Mild extra prominence (was 1.4 — too aggressive with other gates)
+    sustainMultiplier: 1.2, // Slightly longer sustain (was 1.5)
     qThresholdMultiplier: 0.6, // Lower Q threshold (broader peaks expected)
     description: 'Sub-bass to low-mid (room modes)',
   },

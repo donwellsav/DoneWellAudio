@@ -147,6 +147,7 @@ export interface ClassificationResult {
   // Enhanced fields from acoustic analysis
   modalOverlapFactor?: number // M = 1/Q (isolated < 0.03, coupled < 0.1, diffuse > 0.33)
   cumulativeGrowthDb?: number // Total dB growth since onset
+  frequencyHz?: number // Actual peak frequency for downstream gates
   frequencyBand?: 'LOW' | 'MID' | 'HIGH' // Which frequency band this falls into
   confidenceLabel?: 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH' // Human-readable confidence
   prominenceDb?: number // Carried through for downstream filtering
