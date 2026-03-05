@@ -5,8 +5,10 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { AudioAnalyzer, createAudioAnalyzer } from '@/lib/audio/createAudioAnalyzer'
 import { useDSPWorker, type DSPWorkerCallbacks } from './useDSPWorker'
 import { getSeverityUrgency } from '@/lib/dsp/classifier'
-import type { 
-  Advisory, 
+import type {
+  Advisory,
+  AlgorithmMode,
+  ContentType,
   SpectrumData,
   TrackedPeak,
   DetectorSettings,
@@ -27,6 +29,24 @@ export interface EarlyWarning {
   timestamp: number
 }
 
+/** Throttled scalar fields from SpectrumData for DOM consumers.
+ *  noiseFloorDb lives at UseAudioAnalyzerState top-level (single source of truth). */
+const STATUS_THROTTLE_MS = 250 // ~4fps React state updates for DOM consumers
+
+export interface SpectrumStatus {
+  peak: number
+  autoGainDb?: number
+  autoGainEnabled?: boolean
+  autoGainLocked?: boolean
+  algorithmMode?: AlgorithmMode
+  contentType?: ContentType
+  msdFrameCount?: number
+  isCompressed?: boolean
+  compressionRatio?: number
+  isSignalPresent?: boolean
+  rawPeakDb?: number
+}
+
 export interface UseAudioAnalyzerState {
   isRunning: boolean
   hasPermission: boolean
@@ -34,8 +54,7 @@ export interface UseAudioAnalyzerState {
   noiseFloorDb: number | null
   sampleRate: number
   fftSize: number
-  spectrum: SpectrumData | null
-  tracks: TrackedPeak[]
+  spectrumStatus: SpectrumStatus | null
   advisories: Advisory[]
   /** Early warning predictions for upcoming feedback frequencies */
   earlyWarning: EarlyWarning | null
@@ -47,6 +66,10 @@ export interface UseAudioAnalyzerReturn extends UseAudioAnalyzerState {
   updateSettings: (settings: Partial<DetectorSettings>) => void
   resetSettings: () => void
   settings: DetectorSettings
+  /** Direct ref to latest SpectrumData — canvas reads this imperatively each frame */
+  spectrumRef: React.RefObject<SpectrumData | null>
+  /** Direct ref to latest tracked peaks — canvas reads this imperatively */
+  tracksRef: React.RefObject<TrackedPeak[]>
 }
 
 export function useAudioAnalyzer(
@@ -64,14 +87,19 @@ export function useAudioAnalyzer(
     noiseFloorDb: null,
     sampleRate: 48000,
     fftSize: settings.fftSize,
-    spectrum: null,
-    tracks: [],
+    spectrumStatus: null,
     advisories: [],
     earlyWarning: null,
   })
 
   const analyzerRef = useRef<AudioAnalyzer | null>(null)
   const settingsRef = useRef(settings)
+
+  // Hot-path refs: written every frame, read imperatively by canvas
+  const spectrumRef = useRef<SpectrumData | null>(null)
+  const tracksRef = useRef<TrackedPeak[]>([])
+  // Throttle timestamp for React state updates (~4fps)
+  const lastStatusUpdateRef = useRef(0)
   
   // Keep settings ref in sync
   useEffect(() => {
@@ -81,7 +109,6 @@ export function useAudioAnalyzer(
   // ── DSP Worker callbacks — stable refs, never change identity ───────────────
   // These refs forward to the latest closure values without causing re-renders
   const onAdvisoryRef = useRef<(a: Advisory) => void>(() => {})
-  const onTracksUpdateRef = useRef<(t: TrackedPeak[]) => void>(() => {})
 
   onAdvisoryRef.current = (advisory) => {
     setState(prev => {
@@ -120,15 +147,11 @@ export function useAudioAnalyzer(
     })
   }
 
-  onTracksUpdateRef.current = (tracks) => {
-    setState(prev => ({ ...prev, tracks }))
-  }
-
   // Stable callbacks object — created once, never triggers re-renders
   const stableCallbacks = useRef<DSPWorkerCallbacks>({
     onAdvisory: (advisory) => onAdvisoryRef.current(advisory),
     onAdvisoryCleared: () => { /* Keep cards visible until next start */ },
-    onTracksUpdate: (tracks) => onTracksUpdateRef.current(tracks),
+    onTracksUpdate: (tracks) => { tracksRef.current = tracks },
     onReady: () => { /* Worker ready */ },
   }).current
 
@@ -140,11 +163,31 @@ export function useAudioAnalyzer(
   useEffect(() => {
     const analyzer = createAudioAnalyzer(settings, {
       onSpectrum: (data) => {
-        setState(prev => ({ 
-          ...prev, 
-          spectrum: data,
-          noiseFloorDb: data.noiseFloorDb,
-        }))
+        // Hot path: write to ref every frame (canvas reads this directly)
+        spectrumRef.current = data
+
+        // Throttled path: update React state at ~4fps for DOM consumers
+        const now = performance.now()
+        if (now - lastStatusUpdateRef.current > STATUS_THROTTLE_MS) {
+          lastStatusUpdateRef.current = now
+          setState(prev => ({
+            ...prev,
+            spectrumStatus: {
+              peak: data.peak,
+              autoGainDb: data.autoGainDb,
+              autoGainEnabled: data.autoGainEnabled,
+              autoGainLocked: data.autoGainLocked,
+              algorithmMode: data.algorithmMode,
+              contentType: data.contentType,
+              msdFrameCount: data.msdFrameCount,
+              isCompressed: data.isCompressed,
+              compressionRatio: data.compressionRatio,
+              isSignalPresent: data.isSignalPresent,
+              rawPeakDb: data.rawPeakDb,
+            },
+            noiseFloorDb: data.noiseFloorDb,
+          }))
+        }
       },
       // Route raw peaks to the DSP worker (includes time-domain for phase coherence)
       onPeakDetected: (peak, spectrum, sampleRate, fftSize, timeDomain) => {
@@ -207,7 +250,8 @@ export function useAudioAnalyzer(
     
     try {
       // Clear previous advisories + worker state when starting fresh analysis
-      setState(prev => ({ ...prev, advisories: [], tracks: [], earlyWarning: null }))
+      tracksRef.current = []
+      setState(prev => ({ ...prev, advisories: [], earlyWarning: null }))
       dspWorkerRef.current.reset()
       
       await analyzerRef.current.start()
@@ -239,10 +283,10 @@ export function useAudioAnalyzer(
     if (!analyzerRef.current) return
     analyzerRef.current.stop({ releaseMic: false })
     // Keep advisories visible until next start - only clear running state
+    tracksRef.current = []
     setState(prev => ({
       ...prev,
       isRunning: false,
-      tracks: [],
     }))
   }, [])
 
@@ -261,7 +305,7 @@ export function useAudioAnalyzer(
     stop,
     updateSettings,
     resetSettings,
+    spectrumRef,
+    tracksRef,
   }
 }
-
-
