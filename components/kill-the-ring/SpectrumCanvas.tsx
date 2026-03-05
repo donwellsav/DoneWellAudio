@@ -174,36 +174,13 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
         gradientHeightRef.current = plotHeight
       }
 
-      ctx.beginPath()
-      ctx.moveTo(0, plotHeight)
-
-      for (let i = 1; i < n; i++) {
-        const freq = i * hzPerBin
-        if (freq < RTA_FREQ_MIN || freq > RTA_FREQ_MAX) continue
-
-        const x = freqToLogPosition(freq, RTA_FREQ_MIN, RTA_FREQ_MAX) * plotWidth
-        const db = clamp(freqDb[i], RTA_DB_MIN, RTA_DB_MAX)
-        const y = ((RTA_DB_MAX - db) / (RTA_DB_MAX - RTA_DB_MIN)) * plotHeight
-
-        if (i === 1) {
-          ctx.moveTo(x, plotHeight)
-          ctx.lineTo(x, y)
-        } else {
-          ctx.lineTo(x, y)
-        }
-      }
-
-      ctx.lineTo(plotWidth, plotHeight)
-      ctx.closePath()
-      ctx.fillStyle = gradient
-      ctx.fill()
-
-      // Spectrum line
-      ctx.strokeStyle = VIZ_COLORS.SPECTRUM
-      ctx.lineWidth = spectrumLineWidthProp ?? 1.5
-      ctx.beginPath()
-
+      // Single pass: build stroke path, then derive fill from it
+      const strokePath = new Path2D()
+      const fillPath = new Path2D()
+      let firstX = 0
+      let lastX = 0
       let started = false
+
       for (let i = 1; i < n; i++) {
         const freq = i * hzPerBin
         if (freq < RTA_FREQ_MIN || freq > RTA_FREQ_MAX) continue
@@ -213,13 +190,29 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
         const y = ((RTA_DB_MAX - db) / (RTA_DB_MAX - RTA_DB_MIN)) * plotHeight
 
         if (!started) {
-          ctx.moveTo(x, y)
+          firstX = x
+          strokePath.moveTo(x, y)
+          fillPath.moveTo(x, plotHeight)
+          fillPath.lineTo(x, y)
           started = true
         } else {
-          ctx.lineTo(x, y)
+          strokePath.lineTo(x, y)
+          fillPath.lineTo(x, y)
         }
+        lastX = x
       }
-      ctx.stroke()
+
+      // Complete fill path back to baseline
+      fillPath.lineTo(lastX, plotHeight)
+      fillPath.closePath()
+
+      // Draw fill then stroke
+      ctx.fillStyle = gradient
+      ctx.fill(fillPath)
+
+      ctx.strokeStyle = VIZ_COLORS.SPECTRUM
+      ctx.lineWidth = spectrumLineWidthProp ?? 1.5
+      ctx.stroke(strokePath)
     }
 
     // Draw early warning predictions (predicted feedback frequencies)
