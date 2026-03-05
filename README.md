@@ -142,9 +142,9 @@ kill-the-ring/
 │   │   ├── EQNotepad.tsx             # Accumulated applied cuts
 │   │   ├── AlgorithmStatusBar.tsx    # Real-time algorithm state display
 │   │   ├── InputMeterSlider.tsx      # Combined input gain + level meter
-│   │   ├── SettingsPanel.tsx         # Settings dialog (4 tabs)
+│   │   ├── SettingsPanel.tsx         # Settings dialog (5 tabs: Detection, Algorithms, Display, Room, Advanced)
 │   │   ├── DetectionControls.tsx     # Sidebar mode/threshold controls
-│   │   ├── HelpMenu.tsx              # Comprehensive help documentation (7-tab)
+│   │   ├── HelpMenu.tsx              # Help documentation (5 tabs: Guide, Modes, Algorithms, Reference, About)
 │   │   ├── FeedbackHistoryPanel.tsx  # Historical feedback tracking
 │   │   ├── ResetConfirmDialog.tsx    # Settings reset confirmation
 │   │   └── ErrorBoundary.tsx         # Error boundary wrapper

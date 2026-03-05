@@ -62,3 +62,9 @@ styles/                     # Tailwind globals (OKLch theme)
 - **No test framework configured** — rely on TypeScript strict mode and manual browser testing
 - **ESLint:** Flat config (`eslint.config.mjs`) with `eslint-config-next` core-web-vitals + typescript
 - **Build verification:** `npx tsc --noEmit && pnpm build` — must both pass before PRs
+
+## CI/CD
+
+- **Auto-versioning:** GitHub Action (`.github/workflows/auto-version.yml`) bumps version to `v1.0.{PR#}` and auto-generates changelog entry from PR title, labels, and body on merge to `main`
+- **Deployment:** Vercel auto-deploys on push to `main`; the `[skip ci]` in auto-version commits prevents double-deploys
+- **Version flow:** `package.json` version → `next.config.mjs` reads via `readFileSync` → `NEXT_PUBLIC_APP_VERSION` env → HelpMenu About tab
