@@ -111,6 +111,7 @@ let peakProcessCount = 0
 /** Full-spectrum MSD history — provides per-bin MSD scores to the fusion engine.
  *  Complement to the per-bin ring-buffer MSD in feedbackDetector.ts. */
 let msdBuffer: MSDHistoryBuffer | null = null
+let msdDownsampleBuf: Float32Array | null = null
 
 /** Phase history buffer for coherence analysis (KU Leuven 2025).
  *  Stores raw phase angles per bin per frame from our own FFT of the time-domain
@@ -472,9 +473,10 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
 
       // Initialize advanced algorithm buffers
       const numBins = Math.floor(fftSize / 2)
-      msdBuffer = new MSDHistoryBuffer(numBins)
+      msdBuffer = new MSDHistoryBuffer(numBins >> 1)
       phaseBuffer = new PhaseHistoryBuffer(numBins, 12) // 12 frames ≈ 240ms at 50fps
       ampBuffer.reset()
+      msdDownsampleBuf = null
       ensureFftBuffers(fftSize) // Pre-allocate FFT buffers
       lastFrameTimestamp = -1
 
@@ -512,6 +514,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       recentDecays.clear()
       peakProcessCount = 0
       msdBuffer?.reset()
+      msdDownsampleBuf = null
       phaseBuffer?.reset()
       ampBuffer.reset()
       classificationLabelHistory.clear()
@@ -530,9 +533,16 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       // ── Feed frame-level buffers (once per frame, not per peak) ──────────
       const isNewFrame = peak.timestamp !== lastFrameTimestamp
       if (isNewFrame) {
-        // MSD: add full spectrum frame to history buffer
+        // MSD: max-pool spectrum to half resolution before storing (halves memory)
         if (msdBuffer) {
-          msdBuffer.addFrame(spectrum)
+          const halfLen = spectrum.length >> 1
+          if (!msdDownsampleBuf || msdDownsampleBuf.length !== halfLen) {
+            msdDownsampleBuf = new Float32Array(halfLen)
+          }
+          for (let i = 0; i < halfLen; i++) {
+            msdDownsampleBuf[i] = Math.max(spectrum[i << 1], spectrum[(i << 1) + 1])
+          }
+          msdBuffer.addFrame(msdDownsampleBuf)
         }
 
         // Compression: compute frame-level peak and RMS from spectrum
@@ -628,10 +638,10 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       const crestFactor = peak.trueAmplitudeDb - (peak.noiseFloorDb ?? -80)
       const contentType = detectContentType(spectrum, crestFactor, spectralResult.flatness)
 
-      // MSD from full-spectrum history buffer (DAFx-16 paper)
+      // MSD from half-resolution history buffer (DAFx-16 paper, max-pooled 2:1)
       // Content-type-aware frame count: speech=5, music=10, compressed=30, unknown=7
       const msdMinFrames = getMsdMinFrames(contentType)
-      const msdResult = msdBuffer?.calculateMSD(binIndex, msdMinFrames) ?? null
+      const msdResult = msdBuffer?.calculateMSD(binIndex >> 1, msdMinFrames) ?? null
 
       // Compression detection from amplitude history
       const compressionResult = ampBuffer.detectCompression()
