@@ -168,19 +168,33 @@ export const CLASSIFIER_WEIGHTS = {
 // EQ recommendation presets
 export const EQ_PRESETS = {
   surgical: {
-    defaultQ: 8,
-    runawayQ: 16,
+    defaultQ: 30,
+    runawayQ: 60,
     maxCut: -18,
     moderateCut: -9,
     lightCut: -4,
   },
   heavy: {
-    defaultQ: 4,
-    runawayQ: 8,
+    defaultQ: 16,
+    runawayQ: 30,
     maxCut: -12,
     moderateCut: -6,
     lightCut: -3,
   },
+} as const
+
+// ERB (Equivalent Rectangular Bandwidth) settings for frequency-dependent EQ depth
+// Based on Glasberg & Moore (1990): ERB(f) = 24.7 * (4.37 * f/1000 + 1)
+// Notches narrower than one ERB are psychoacoustically transparent
+export const ERB_SETTINGS = {
+  /** Below this frequency, reduce cut depth to protect warmth */
+  LOW_FREQ_HZ: 500,
+  /** Above this frequency, allow deeper cuts (notch more transparent) */
+  HIGH_FREQ_HZ: 2000,
+  /** Max depth reduction factor for low frequencies (0.7 = 30% shallower) */
+  LOW_FREQ_SCALE: 0.7,
+  /** Max depth increase factor for high frequencies (1.2 = 20% deeper) */
+  HIGH_FREQ_SCALE: 1.2,
 } as const
 
 // Vocal ring assist mode settings - optimized for speech/corporate PA
