@@ -14,6 +14,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.0.69',
+    date: '2026-03-05',
+    changes: [
+      { type: 'feat', description: '**Low-frequency detection**: Reduced Schroeder room-mode penalty from -0.25 to -0.12 — the old value consumed 76% of starting feedback probability, making sub-300 Hz detection nearly impossible even with strong positive signals (high MSD, sustained growth, high Q). The prominence floor scaling (up to 1.5× via modal density) and LOW band multipliers (1.4× prominence, 1.5× sustain) already provide robust room-mode filtering.' },
+      { type: 'feat', description: '**Prominence floor sync**: Changed hardcoded 10 dB base in `shouldReportIssue()` to use `settings.prominenceDb` so the reporting gate stays in sync with the detection gate (Speech preset uses 8 dB).' },
+      { type: 'feat', description: '**Duplicate advisories**: `onAdvisoryCleared` was a no-op in React state — when the worker cleared and re-detected the same frequency, both advisory cards accumulated. Now properly removes cleared advisories by ID.' },
+      { type: 'feat', description: '[ ] Verify low-frequency feedback (<300 Hz) is detected in Speech mode at a live venue' },
+      { type: 'feat', description: '[ ] Confirm no duplicate advisory cards appear for the same frequency' },
+      { type: 'feat', description: '[ ] Verify room modes are still filtered (not every low-freq peak should trigger)' },
+      { type: 'feat', description: '[ ] Run `npx tsc --noEmit && pnpm build` — both pass' },
+    ],
+  },
+  {
     version: '1.0.68',
     date: '2026-03-05',
     changes: [
