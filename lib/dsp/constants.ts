@@ -282,20 +282,20 @@ export const OPERATION_MODES: Record<string, ModePreset> = {
   speech: {
     label: 'Speech',
     description: 'Corporate & Conference',
-    feedbackThresholdDb: 6,
-    ringThresholdDb: 3,
-    growthRateThreshold: 1.0,
+    feedbackThresholdDb: 8,
+    ringThresholdDb: 5,
+    growthRateThreshold: 1.5,
     musicAware: false,
     autoMusicAware: false,
     fftSize: 8192,           // 5.9 Hz resolution, 170 ms time constant at 48 kHz
     minFrequency: 150,       // Extended for chest-resonance body mics
-    maxFrequency: 8000,      // Speech sibilance upper bound
-    sustainMs: 250,          // Require ¼ second persistence — reduces transient false positives
-    clearMs: 350,            // Quick clearing for responsive display
+    maxFrequency: 10000,     // Catches condenser sibilance feedback in 8–10 kHz range
+    sustainMs: 350,          // Filters speech plosives (~100 ms) while catching sustained feedback
+    clearMs: 400,            // Slightly longer decay reduces display flicker
     holdTimeMs: 4000,        // Long hold — time to walk to EQ rack during load-in
-    confidenceThreshold: 0.30, // Very aggressive — surface everything during ring-out
-    prominenceDb: 8,         // Low prominence catches subtle peaks in empty rooms
-    relativeThresholdDb: 16, // Sensitive relative threshold
+    confidenceThreshold: 0.40, // Balanced — surfaces real issues without noise floor artifacts
+    prominenceDb: 10,        // Requires real peak standing out from neighbors
+    relativeThresholdDb: 18, // Headroom above noise floor in quiet conference rooms
     eqPreset: 'surgical',   // Narrow cuts preserve speech clarity
     aWeightingEnabled: true, // Prioritizes 2–5 kHz speech intelligibility band
     inputGainDb: 15,
@@ -528,10 +528,10 @@ export const DEFAULT_SETTINGS = {
   fftSize: 8192 as const, // 5.9 Hz resolution, 170 ms at 48 kHz — balanced for speech
   smoothingTimeConstant: 0.5, // Faster response for quick detection
   minFrequency: 150, // Extended for body mic chest resonance (Everest: speech starts ~170 Hz)
-  maxFrequency: 8000, // Speech sibilance upper bound (intelligibility band: 500 Hz–4 kHz)
-  feedbackThresholdDb: 6, // AGGRESSIVE — catch feedback before audience hears it
-  ringThresholdDb: 3, // AGGRESSIVE — catch resonances before they become feedback
-  growthRateThreshold: 1.0, // FAST — detect growing peaks immediately
+  maxFrequency: 10000, // Condenser sibilance feedback upper bound (extends beyond intelligibility band)
+  feedbackThresholdDb: 8, // Balanced — catch feedback while filtering room resonances
+  ringThresholdDb: 5, // Balanced — genuine resonances only, not HVAC/ambient
+  growthRateThreshold: 1.5, // Moderate — filters transient plosives from actual growth
   holdTimeMs: 4000, // Long hold — time to walk to EQ rack during load-in
   noiseFloorDecay: 0.98, // Fast adaptation for dynamic conference environments
   peakMergeCents: 200, // 2 semitones — synced with ASSOCIATION_TOLERANCE_CENTS to prevent merge gap
@@ -546,8 +546,8 @@ export const DEFAULT_SETTINGS = {
   harmonicToleranceCents: 200, // ±200 cents for harmonic matching; synced with ASSOCIATION_TOLERANCE_CENTS
   showTooltips: true, // Show help tooltips (useful for AV techs)
   aWeightingEnabled: true, // A-WEIGHTING ON — prioritizes speech intelligibility band (2–5 kHz)
-  // Confidence filtering — LOW threshold, surface almost everything
-  confidenceThreshold: 0.30, // 30% — very aggressive, load-in optimized
+  // Confidence filtering — balanced for both soundcheck and live
+  confidenceThreshold: 0.40, // 40% — reduces noise while still catching early feedback
   // Room acoustics — defaults to large ballroom / exhibit hall
   roomRT60: 1.0, // Large ballroom (hard floors, high ceilings, 0.8–1.5 s typical)
   roomVolume: 1000, // ~1000 m³ ballroom (50×40×20 ft, seats ~200 people)
@@ -566,13 +566,13 @@ export const DEFAULT_SETTINGS = {
   roomWidthM: 12, // Default room width — large ballroom (~40 ft)
   roomHeightM: 5, // Default ceiling height — ballroom (~16 ft)
   roomDimensionsUnit: 'meters' as const,
-  // Peak timing — fast for speech dynamics (consonant transients 5–15 ms)
-  sustainMs: 250, // Require ¼ second persistence — reduces transient false positives
-  clearMs: 350, // Quick clearing for responsive display
+  // Peak timing — filters speech plosives while catching sustained feedback
+  sustainMs: 350, // 350 ms persistence — filters plosives, catches real feedback
+  clearMs: 400, // Slightly longer decay reduces display flicker
   // Threshold control
   thresholdMode: 'hybrid' as const,
-  relativeThresholdDb: 16, // Sensitive relative threshold for speech
-  prominenceDb: 8, // Low prominence catches subtle peaks in empty rooms during load-in
+  relativeThresholdDb: 18, // Headroom above noise floor in quiet conference rooms
+  prominenceDb: 10, // Requires real peak standing out from neighbors
   // Noise floor timing
   noiseFloorAttackMs: 200, // Fast attack for dynamic conference environments
   noiseFloorReleaseMs: 1000, // Moderate release

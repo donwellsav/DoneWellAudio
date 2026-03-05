@@ -336,18 +336,18 @@ export interface DetectorSettings {
   spectrumLineWidth: number // RTA line width in pixels (0.5-4, default 1.5)
 }
 
-// Default configuration - optimized for Corporate/Conference PA with Vocal Focus (200Hz-8kHz)
+// Default configuration - optimized for Corporate/Conference PA (Speech mode)
 export const DEFAULT_CONFIG: AnalysisConfig = {
   fftSize: 8192,
-  minHz: 200, // Vocal-focused lower bound
-  maxHz: 8000, // Vocal-focused upper bound - where most speech feedback occurs
+  minHz: 150, // Body mic chest resonance lower bound
+  maxHz: 10000, // Condenser sibilance feedback upper bound
   analysisIntervalMs: 20, // Faster analysis for quicker detection
-  sustainMs: 250, // Faster confirmation for speech dynamics
-  clearMs: 400, // Faster clearing for responsive display
+  sustainMs: 350, // Filters speech plosives while catching sustained feedback
+  clearMs: 400, // Slightly longer decay reduces display flicker
   thresholdMode: 'hybrid',
   thresholdDb: -40, // More sensitive absolute threshold
-  relativeThresholdDb: 18, // Slightly more sensitive relative threshold
-  prominenceDb: 12, // Lower prominence for catching subtle peaks
+  relativeThresholdDb: 18, // Headroom above noise floor in quiet rooms
+  prominenceDb: 10, // Requires real peak standing out from neighbors
   neighborhoodBins: 8, // ±2 exclusion means effective 6 each side
   maxIssues: 12, // Show more issues for comprehensive tuning
   ignoreWhistle: true,
