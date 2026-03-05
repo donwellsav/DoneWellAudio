@@ -14,6 +14,8 @@ import type { DetectedPeak, AnalysisConfig, DetectorSettings, AlgorithmMode, Con
 import { DEFAULT_CONFIG } from '@/types/advisory'
 import type { CombPatternResult } from './advancedDetection'
 
+const HOLD_DECAY_RATE_MULTIPLIER = 2
+
 export interface FeedbackDetectorCallbacks {
   onPeakDetected?: (peak: DetectedPeak) => void
   onPeakCleared?: (peak: { binIndex: number; frequencyHz: number; timestamp: number }) => void
@@ -1006,7 +1008,7 @@ export class FeedbackDetector {
           this.callbacks.onPeakDetected?.(peak)
         }
       } else {
-        hold[i] = Math.max(0, hold[i] - dt * 2)
+        hold[i] = Math.max(0, hold[i] - dt * HOLD_DECAY_RATE_MULTIPLIER)
 
         if (active[i] === 1) {
           dead[i] += dt

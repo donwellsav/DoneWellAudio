@@ -27,6 +27,12 @@ import {
   airAbsorptionCorrectedRT60,
 } from './acousticUtils'
 
+// ── Classifier Tuning Constants ─────────────────────────────────────────────
+const PRIOR_PROBABILITY = 0.33
+const CLUSTERING_BANDWIDTH_MULTIPLIER = 3
+const MODE_PRESENCE_BONUS = 0.12
+const MODE_ABSENCE_PENALTY = 0.05
+
 // Type union for track input
 type TrackInput = Track | TrackedPeak
 
@@ -101,9 +107,9 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
   )
 
   // Initialize probabilities
-  let pFeedback = 0.33
-  let pWhistle = 0.33
-  let pInstrument = 0.33
+  let pFeedback = PRIOR_PROBABILITY
+  let pWhistle = PRIOR_PROBABILITY
+  let pInstrument = PRIOR_PROBABILITY
 
   // ==================== Feature Analysis ====================
 
@@ -229,12 +235,12 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
   // 8b. Mode clustering — 2+ peaks within 3× bandwidth suggest coupled room modes (Hopkins §1.2.6.7)
   if (activeFrequencies && activeFrequencies.length > 1 && features.minQ > 0) {
     const bandwidth3dB = features.frequencyHz / features.minQ
-    const clusterRadius = 3 * bandwidth3dB
+    const clusterRadius = CLUSTERING_BANDWIDTH_MULTIPLIER * bandwidth3dB
     const neighbors = activeFrequencies.filter(f =>
       f !== features.frequencyHz && Math.abs(f - features.frequencyHz) <= clusterRadius
     ).length
     if (neighbors >= 2) {
-      pFeedback -= 0.12
+      pFeedback -= MODE_PRESENCE_BONUS
       reasons.push(`Mode cluster: ${neighbors + 1} peaks within ${clusterRadius.toFixed(0)} Hz — coupled modes`)
     }
   }
@@ -267,8 +273,8 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
   // multipliers (1.4× prominence, 1.5× sustain) already provide robust
   // room-mode filtering without this severe a classifier penalty.
   if (freqBand.band === 'LOW') {
-    pFeedback   -= 0.12
-    pInstrument += 0.05
+    pFeedback   -= MODE_PRESENCE_BONUS
+    pInstrument += MODE_ABSENCE_PENALTY
     reasons.push(`Below Schroeder boundary (${schroederFreq.toFixed(0)} Hz) — possible room mode`)
   }
 

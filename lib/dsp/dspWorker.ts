@@ -106,6 +106,12 @@ const recentDecays = new Map<number, { lastAmplitudeDb: number; clearTime: numbe
 const DECAY_ANALYSIS_WINDOW_MS = 500
 let peakProcessCount = 0
 
+// ─── Extracted magic numbers ─────────────────────────────────────────────────
+const SIDEBAND_NOISE_OFFSET_DB = 3
+const SIDEBAND_NOISE_RANGE_DB = 9
+const EXISTING_PROMINENCE_THRESHOLD_DB = 10
+const CLEAR_PEAK_TOLERANCE_CENTS = 100
+
 // ─── Advanced algorithm buffers (previously dormant, now active) ────────────
 
 /** Full-spectrum MSD history — provides per-bin MSD scores to the fusion engine.
@@ -234,7 +240,7 @@ function computeNoiseSidebandScore(spectrum: Float32Array, peakBin: number): num
   // Feedback shows < 3 dB excess (clean spectral spike).
   // Map: < 3 dB excess → 0, > 12 dB excess → 1.0
   const excessDb = nearAvgDb - farAvgDb
-  return Math.max(0, Math.min(1, (excessDb - 3) / 9))
+  return Math.max(0, Math.min(1, (excessDb - SIDEBAND_NOISE_OFFSET_DB) / SIDEBAND_NOISE_RANGE_DB))
 }
 
 /**
@@ -249,7 +255,7 @@ function computeExistingScore(peak: DetectedPeak): number {
 
   // Prominence contributes
   if (peak.prominenceDb > 15) score += 0.2
-  else if (peak.prominenceDb > 10) score += 0.1
+  else if (peak.prominenceDb > EXISTING_PROMINENCE_THRESHOLD_DB) score += 0.1
 
   // MSD from feedbackDetector (per-bin, fast path)
   if (peak.msdIsHowl) score += 0.15
@@ -527,9 +533,16 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
     }
 
     case 'processPeak': {
+      if (!msdBuffer || !phaseBuffer || !trackManager) break
+
       const { peak, spectrum, sampleRate: sr, fftSize: fft } = msg
       sampleRate = sr
       fftSize = fft
+
+      // Validate frequency bounds — prevents division-by-zero from invalid settings
+      const minFreq = settings.minFrequency ?? 200
+      const maxFreq = settings.maxFrequency ?? 8000
+      if (minFreq >= maxFreq) break
 
       // Process through track manager
       const track = trackManager.processPeak(peak)
@@ -551,8 +564,8 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
 
         // Compression: compute frame-level peak and RMS from spectrum
         // Use the analysis frequency range from settings
-        const startBin = Math.max(1, Math.floor((settings.minFrequency ?? 200) * fft / sr))
-        const endBin = Math.min(spectrum.length - 1, Math.ceil((settings.maxFrequency ?? 8000) * fft / sr))
+        const startBin = Math.max(1, Math.floor(minFreq * fft / sr))
+        const endBin = Math.min(spectrum.length - 1, Math.ceil(maxFreq * fft / sr))
         specMax = -Infinity
         let sumLinearPower = 0
         let validBins = 0
@@ -831,7 +844,8 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
 
       for (const [trackId, advisoryId] of trackToAdvisoryId.entries()) {
         const advisory = advisories.get(advisoryId)
-        if (advisory && Math.abs(advisory.trueFrequencyHz - frequencyHz) < 10) {
+        const cents = advisory ? Math.abs(1200 * Math.log2(advisory.trueFrequencyHz / frequencyHz)) : Infinity
+        if (advisory && cents <= CLEAR_PEAK_TOLERANCE_CENTS) {
           if (advisory.advisory?.geq?.bandIndex != null) {
             bandClearedAt.set(advisory.advisory.geq.bandIndex, timestamp)
             advisoriesByBand.delete(advisory.advisory.geq.bandIndex)
