@@ -765,9 +765,6 @@ export const KillTheRing = memo(function KillTheRingComponent() {
                     <ResizablePanel defaultSize={50} minSize={20} collapsible>
                       <div className="h-full p-1.5 pt-0.5">
                         <div className="h-full bg-card/60 rounded-lg border border-border overflow-hidden flex flex-col min-w-0">
-                          <div className="flex-shrink-0 flex items-center px-2 py-0.5 border-b border-border bg-muted/20">
-                            <span className="text-[0.5rem] font-medium text-muted-foreground">Controls</span>
-                          </div>
                           <div className="flex-1 min-h-0">
                             <div className="h-full p-3 overflow-y-auto pointer-events-auto">
                               <DetectionControls settings={settings} onModeChange={handleModeChange} onSettingsChange={handleSettingsChange} />
