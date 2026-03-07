@@ -56,6 +56,9 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
   const dprRef = useRef(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1)
   const gradientRef = useRef<CanvasGradient | null>(null)
   const gradientHeightRef = useRef(0)
+  // Dirty-bit: skip redraw when spectrum + advisories haven't changed
+  const lastRenderedTimestampRef = useRef(-1)
+  const lastAdvisorySignatureRef = useRef('')
 
   // Track whether analysis has ever started; once true the placeholder is gone for good
   const [hasEverStarted, setHasEverStarted] = useState(false)
@@ -101,6 +104,21 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
 
     const canvas = canvasRef.current
     if (!canvas) return
+
+    // Dirty-bit check: skip redraw when nothing changed
+    const advs = advisoriesRef.current
+    const advSig = advs.length > 0 ? `${advs.length}:${advs[0].id}:${advs[advs.length - 1].id}` : ''
+    const specTs = spectrum?.timestamp ?? -1
+    const isDragging = dragRef.current !== null
+    if (
+      specTs === lastRenderedTimestampRef.current &&
+      advSig === lastAdvisorySignatureRef.current &&
+      !isDragging
+    ) {
+      return // Nothing changed, skip redraw
+    }
+    lastRenderedTimestampRef.current = specTs
+    lastAdvisorySignatureRef.current = advSig
 
     if (!ctxRef.current) ctxRef.current = canvas.getContext('2d')
     const ctx = ctxRef.current

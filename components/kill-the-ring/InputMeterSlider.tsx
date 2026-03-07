@@ -34,6 +34,8 @@ export const InputMeterSlider = memo(function InputMeterSlider({
   const isDragging = useRef(false)
   const [editing, setEditing] = useState(false)
   const dimensionsRef = useRef({ width: 0, height: 0 })
+  const gradientRef = useRef<CanvasGradient | null>(null)
+  const gradientWidthRef = useRef(0)
 
   const normalizedLevel = Math.max(0, Math.min(1, (level + 60) / 60))
 
@@ -80,13 +82,18 @@ export const InputMeterSlider = memo(function InputMeterSlider({
     ctx.fillRect(0, 0, w, h)
 
     const meterWidth = w * normalizedLevel
-    const gradient = ctx.createLinearGradient(0, 0, w, 0)
-    gradient.addColorStop(0, '#22c55e')
-    gradient.addColorStop(0.6, '#22c55e')
-    gradient.addColorStop(0.8, '#eab308')
-    gradient.addColorStop(0.95, '#ef4444')
-    gradient.addColorStop(1, '#ef4444')
-    ctx.fillStyle = gradient
+    // Cache gradient — only recreate when canvas width changes
+    if (!gradientRef.current || gradientWidthRef.current !== w) {
+      const gradient = ctx.createLinearGradient(0, 0, w, 0)
+      gradient.addColorStop(0, '#22c55e')
+      gradient.addColorStop(0.6, '#22c55e')
+      gradient.addColorStop(0.8, '#eab308')
+      gradient.addColorStop(0.95, '#ef4444')
+      gradient.addColorStop(1, '#ef4444')
+      gradientRef.current = gradient
+      gradientWidthRef.current = w
+    }
+    ctx.fillStyle = gradientRef.current
     ctx.fillRect(0, 0, meterWidth, h)
 
     // Zero-dB tick mark

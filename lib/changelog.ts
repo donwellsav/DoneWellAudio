@@ -14,6 +14,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.0.104',
+    date: '2026-03-06',
+    highlights: 'Performance & stability deep fix',
+    changes: [
+      { type: 'fix', description: 'Worker crash recovery: try/catch in onmessage prevents silent worker death' },
+      { type: 'perf', description: 'Cap recentDecays map at 100 entries to prevent unbounded growth' },
+      { type: 'perf', description: 'Pre-allocate classification label counts Map (reuse via .clear())' },
+      { type: 'perf', description: 'Direct Float32Array transfer to worker (zero-copy, no .slice())' },
+      { type: 'perf', description: 'Canvas dirty-bit tracking: skip redraws when spectrum unchanged' },
+      { type: 'perf', description: 'InputMeterSlider gradient caching: only recreate on width change' },
+      { type: 'perf', description: 'Combined cleared-ID state: 3 Sets → 1 state object (fewer re-renders)' },
+      { type: 'perf', description: 'Stable callbacks: data-attribute handlers in DetectionControls, extracted mobile tab array' },
+    ],
+  },
+  {
     version: '1.0.70',
     date: '2026-03-05',
     changes: [

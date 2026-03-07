@@ -37,6 +37,13 @@ const GRAPH_CHIPS: { value: GraphView; label: string }[] = [
 
 const LAYOUT_PREFS_KEY = 'ktr-layout-prefs'
 
+const MOBILE_TABS = [
+  { id: 'issues' as const, label: 'Issues', Icon: AlertTriangle },
+  { id: 'graph' as const, label: 'Graph', Icon: BarChart3 },
+  { id: 'notepad' as const, label: 'Notepad', Icon: ClipboardList },
+  { id: 'settings' as const, label: 'Settings', Icon: Settings2 },
+] as const
+
 function GraphChipRow({ value, onChange }: { value: GraphView; onChange: (v: GraphView) => void }) {
   return (
     <div className="flex items-center gap-1">
@@ -104,30 +111,44 @@ export const KillTheRing = memo(function KillTheRingComponent() {
   const [pinnedCuts, setPinnedCuts] = useState<PinnedCut[]>([])
   const appliedIdsRef = useRef<Set<string>>(new Set())
 
-  // Dismissed advisory IDs — hidden until the advisory disappears and a new one is detected
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
+  // Combined cleared-ID state — single object to reduce re-renders
+  const [clearedState, setClearedState] = useState({
+    dismissed: new Set<string>(),
+    geq: new Set<string>(),
+    rta: new Set<string>(),
+  })
+
+  const dismissedIds = clearedState.dismissed
+  const geqClearedIds = clearedState.geq
+  const rtaClearedIds = clearedState.rta
 
   const handleDismiss = useCallback((id: string) => {
-    setDismissedIds((prev) => new Set(prev).add(id))
+    setClearedState((prev) => ({
+      ...prev,
+      dismissed: new Set(prev.dismissed).add(id),
+    }))
   }, [])
 
   const handleClearAllIssues = useCallback(() => {
-    setDismissedIds(new Set(advisories.map(a => a.id)))
+    setClearedState((prev) => ({
+      ...prev,
+      dismissed: new Set(advisories.map(a => a.id)),
+    }))
   }, [advisories])
 
   const handleClearResolvedIssues = useCallback(() => {
-    setDismissedIds(prev => {
-      const next = new Set(prev)
+    setClearedState((prev) => {
+      const next = new Set(prev.dismissed)
       advisories.forEach(a => { if (a.resolved) next.add(a.id) })
-      return next
+      return { ...prev, dismissed: next }
     })
   }, [advisories])
 
-  // GEQ-specific cleared IDs — independent from issue card dismissals
-  const [geqClearedIds, setGeqClearedIds] = useState<Set<string>>(new Set())
-
   const handleClearGEQ = useCallback(() => {
-    setGeqClearedIds(new Set(advisories.map(a => a.id)))
+    setClearedState((prev) => ({
+      ...prev,
+      geq: new Set(advisories.map(a => a.id)),
+    }))
   }, [advisories])
 
   // True when at least one advisory has a GEQ recommendation that hasn't been cleared
@@ -136,11 +157,11 @@ export const KillTheRing = memo(function KillTheRingComponent() {
     [advisories, geqClearedIds]
   )
 
-  // RTA-specific cleared IDs — independent from issue cards and GEQ
-  const [rtaClearedIds, setRtaClearedIds] = useState<Set<string>>(new Set())
-
   const handleClearRTA = useCallback(() => {
-    setRtaClearedIds(new Set(advisories.map(a => a.id)))
+    setClearedState((prev) => ({
+      ...prev,
+      rta: new Set(advisories.map(a => a.id)),
+    }))
   }, [advisories])
 
   // True when at least one advisory hasn't been cleared from the RTA
@@ -153,20 +174,17 @@ export const KillTheRing = memo(function KillTheRingComponent() {
   useEffect(() => {
     if (dismissedIds.size === 0 && geqClearedIds.size === 0 && rtaClearedIds.size === 0) return
     const liveIds = new Set(advisories.map((a) => a.id))
-    setDismissedIds((prev) => {
-      const next = new Set<string>()
-      prev.forEach((id) => { if (liveIds.has(id)) next.add(id) })
-      return next.size === prev.size ? prev : next
-    })
-    setGeqClearedIds((prev) => {
-      const next = new Set<string>()
-      prev.forEach((id) => { if (liveIds.has(id)) next.add(id) })
-      return next.size === prev.size ? prev : next
-    })
-    setRtaClearedIds((prev) => {
-      const next = new Set<string>()
-      prev.forEach((id) => { if (liveIds.has(id)) next.add(id) })
-      return next.size === prev.size ? prev : next
+    setClearedState((prev) => {
+      const filterSet = (s: Set<string>) => {
+        const next = new Set<string>()
+        s.forEach((id) => { if (liveIds.has(id)) next.add(id) })
+        return next.size === s.size ? s : next
+      }
+      const d = filterSet(prev.dismissed)
+      const g = filterSet(prev.geq)
+      const r = filterSet(prev.rta)
+      if (d === prev.dismissed && g === prev.geq && r === prev.rta) return prev
+      return { dismissed: d, geq: g, rta: r }
     })
   }, [advisories, dismissedIds.size, geqClearedIds.size, rtaClearedIds.size])
 
@@ -450,9 +468,7 @@ export const KillTheRing = memo(function KillTheRingComponent() {
             settings={settings}
             onSettingsChange={handleSettingsChange}
             onModeChange={handleModeChange}
-            onReset={() => {
-              resetSettings()
-            }}
+            onReset={resetSettings}
           />
 
         </div>
@@ -561,9 +577,7 @@ export const KillTheRing = memo(function KillTheRingComponent() {
               </section>
               <div className="border-t border-border" />
               <ResetConfirmDialog
-                onConfirm={() => {
-                  resetSettings()
-                }}
+                onConfirm={resetSettings}
                 trigger={
                   <Button variant="outline" className="w-full h-11 text-sm font-medium">
                     <RotateCcw className="h-4 w-4 mr-2" />
@@ -826,12 +840,9 @@ export const KillTheRing = memo(function KillTheRingComponent() {
       {/* ── Mobile bottom tab bar (portrait only) ──────────────── */}
       <nav className="landscape:hidden flex-shrink-0 border-t border-border bg-card/80 backdrop-blur-sm" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="flex items-stretch">
-          {([
-            { id: 'issues' as const, label: 'Issues', Icon: AlertTriangle, badge: activeAdvisoryCount },
-            { id: 'graph' as const, label: 'Graph', Icon: BarChart3, badge: 0 },
-            { id: 'notepad' as const, label: 'Notepad', Icon: ClipboardList, badge: pinnedCuts.length },
-            { id: 'settings' as const, label: 'Settings', Icon: Settings2, badge: 0 },
-          ]).map((tab) => (
+          {MOBILE_TABS.map((tab) => {
+            const badge = tab.id === 'issues' ? activeAdvisoryCount : tab.id === 'notepad' ? pinnedCuts.length : 0
+            return (
             <button
               key={tab.id}
               onClick={() => setMobileTab(tab.id)}
@@ -845,15 +856,16 @@ export const KillTheRing = memo(function KillTheRingComponent() {
             >
               <div className="relative">
                 <tab.Icon className="w-5 h-5" />
-                {tab.badge > 0 && (
+                {badge > 0 && (
                   <span className="absolute -top-1.5 -right-2.5 bg-primary text-primary-foreground text-[0.5rem] rounded-full min-w-[16px] h-[16px] flex items-center justify-center font-bold leading-none px-0.5">
-                    {tab.badge}
+                    {badge}
                   </span>
                 )}
               </div>
               <span className="text-[0.5625rem] font-medium leading-none">{tab.label}</span>
             </button>
-          ))}
+            )
+          })}
         </div>
       </nav>
     </div>

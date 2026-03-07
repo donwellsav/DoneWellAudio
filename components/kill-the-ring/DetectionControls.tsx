@@ -25,6 +25,17 @@ function formatFreqLabel(hz: number): string {
 
 export const DetectionControls = memo(function DetectionControls({ settings, onModeChange, onSettingsChange }: DetectionControlsProps) {
 
+  const handleModeClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    const mode = e.currentTarget.dataset.mode as OperationMode | undefined
+    if (mode) onModeChange(mode)
+  }, [onModeChange])
+
+  const handleFreqPresetClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    const min = Number(e.currentTarget.dataset.min)
+    const max = Number(e.currentTarget.dataset.max)
+    if (!isNaN(min) && !isNaN(max)) onSettingsChange({ minFrequency: min, maxFrequency: max })
+  }, [onSettingsChange])
+
   const handleFreqSliderChange = useCallback(([logMin, logMax]: number[]) => {
     const newMin = roundFreqToNice(Math.pow(10, logMin))
     const newMax = roundFreqToNice(Math.pow(10, logMax))
@@ -45,10 +56,9 @@ export const DetectionControls = memo(function DetectionControls({ settings, onM
               return (
                 <button
                   key={preset.label}
-                  onClick={() => onSettingsChange({
-                    minFrequency: preset.minFrequency,
-                    maxFrequency: preset.maxFrequency,
-                  })}
+                  data-min={preset.minFrequency}
+                  data-max={preset.maxFrequency}
+                  onClick={handleFreqPresetClick}
                   className={`px-1.5 py-0.5 rounded text-[0.625rem] font-medium transition-colors ${
                     isActive
                       ? 'bg-primary/20 text-primary border border-primary/40'
@@ -279,7 +289,8 @@ export const DetectionControls = memo(function DetectionControls({ settings, onM
                 return (
                   <button
                     key={mode}
-                    onClick={() => onModeChange(mode)}
+                    data-mode={mode}
+                    onClick={handleModeClick}
                     className={`px-1.5 py-0.5 rounded text-[0.625rem] font-medium transition-colors ${
                       isActive
                         ? 'bg-primary/20 text-primary border border-primary/40'

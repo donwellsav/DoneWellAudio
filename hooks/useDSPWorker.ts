@@ -105,6 +105,7 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
           callbacksRef.current.onTracksUpdate?.(msg.tracks)
           break
         case 'error':
+          busyRef.current = false  // Clear backpressure — worker recovered from error
           callbacksRef.current.onError?.(msg.message)
           break
       }
@@ -157,19 +158,17 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
       // Backpressure: skip if worker hasn't finished the previous batch
       if (busyRef.current || crashedRef.current || !isReadyRef.current) return
 
-      // Transfer zero-copy clones to the worker — avoids heap allocations per peak
-      const specClone = spectrum.slice(0)
-      const transferList: ArrayBuffer[] = [specClone.buffer as ArrayBuffer]
-
-      let tdClone: Float32Array | undefined
+      // Transfer arrays directly to worker (zero-copy). The source Float32Arrays
+      // become detached after postMessage, but they're re-created from
+      // getFloatFrequencyData() / getFloatTimeDomainData() next frame anyway.
+      const transferList: ArrayBuffer[] = [spectrum.buffer as ArrayBuffer]
       if (timeDomain) {
-        tdClone = timeDomain.slice(0)
-        transferList.push(tdClone.buffer as ArrayBuffer)
+        transferList.push(timeDomain.buffer as ArrayBuffer)
       }
 
       busyRef.current = true
       workerRef.current?.postMessage(
-        { type: 'processPeak', peak, spectrum: specClone, sampleRate, fftSize, timeDomain: tdClone } as WorkerInboundMessage,
+        { type: 'processPeak', peak, spectrum, sampleRate, fftSize, timeDomain } as WorkerInboundMessage,
         transferList
       )
     },
