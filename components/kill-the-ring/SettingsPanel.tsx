@@ -540,7 +540,7 @@ export const SettingsPanel = memo(function SettingsPanel({
                       onSettingsChange({ algorithmMode: 'custom' as AlgorithmMode })
                     }
                   }}
-                  className={`w-full px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  className={`w-full px-2 py-1 rounded-md text-xs font-medium transition-colors ${
                     settings.algorithmMode === 'auto'
                       ? 'bg-primary/20 border border-primary/50 text-primary'
                       : 'bg-muted/50 border border-transparent text-muted-foreground hover:bg-muted'
@@ -550,7 +550,7 @@ export const SettingsPanel = memo(function SettingsPanel({
                 </button>
 
                 {/* Individual algorithm toggles */}
-                <div className={`grid grid-cols-3 gap-1.5 ${settings.algorithmMode === 'auto' ? 'opacity-40 pointer-events-none' : ''}`}>
+                <div className={`grid grid-cols-3 gap-1 ${settings.algorithmMode === 'auto' ? 'opacity-40 pointer-events-none' : ''}`}>
                   {([
                     ['msd', 'MSD', 'Magnitude Slope'],
                     ['phase', 'Phase', 'Coherence'],
@@ -578,7 +578,7 @@ export const SettingsPanel = memo(function SettingsPanel({
                           }
                           onSettingsChange({ enabledAlgorithms: next })
                         }}
-                        className={`flex flex-col items-center px-1 py-1.5 rounded-md transition-colors ${
+                        className={`flex flex-col items-center px-1 py-0.5 rounded-md transition-colors ${
                           enabled
                             ? 'bg-primary/20 border border-primary/50 text-primary'
                             : 'bg-muted/50 border border-transparent text-muted-foreground hover:bg-muted'

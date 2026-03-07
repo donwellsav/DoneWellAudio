@@ -4,7 +4,7 @@ import React, { memo, useCallback } from 'react'
 import { HelpCircle } from 'lucide-react'
 import { Slider } from '@/components/ui/slider'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import type { DetectorSettings, OperationMode } from '@/types/advisory'
+import type { DetectorSettings, OperationMode, AlgorithmMode, Algorithm } from '@/types/advisory'
 import { FREQ_RANGE_PRESETS } from '@/lib/dsp/constants'
 import { roundFreqToNice } from '@/lib/utils/mathHelpers'
 
@@ -173,24 +173,55 @@ export const DetectionControls = memo(function DetectionControls({ settings, onM
           </div>
         </div>
 
-        {/* Algorithm mode chips */}
+        {/* Algorithm Mode toggle grid */}
         <div className="space-y-1">
-          <span className="text-xs text-muted-foreground">Algorithm</span>
-          <div className="flex items-center gap-1 flex-wrap">
-            {(['auto', 'combined', 'all'] as const).map((mode) => {
-              const isActive = (settings.algorithmMode ?? 'combined') === mode
-              const labels: Record<string, string> = { auto: 'Auto', combined: 'Combined', all: 'All' }
+          <span className="text-xs text-muted-foreground">Algorithm Mode</span>
+          <button
+            onClick={() => {
+              if (settings.algorithmMode !== 'auto') {
+                onSettingsChange({ algorithmMode: 'auto' as AlgorithmMode })
+              } else {
+                onSettingsChange({ algorithmMode: 'custom' as AlgorithmMode })
+              }
+            }}
+            className={`w-full px-1.5 py-0.5 rounded text-[0.625rem] font-medium transition-colors ${
+              settings.algorithmMode === 'auto'
+                ? 'bg-primary/20 text-primary border border-primary/40'
+                : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'
+            }`}
+          >
+            Auto
+          </button>
+          <div className={`grid grid-cols-3 gap-1 ${settings.algorithmMode === 'auto' ? 'opacity-40 pointer-events-none' : ''}`}>
+            {([
+              ['msd', 'MSD'], ['phase', 'Phase'], ['spectral', 'Spectral'],
+              ['comb', 'Comb'], ['ihr', 'IHR'], ['ptmr', 'PTMR'],
+            ] as const).map(([key, label]) => {
+              const enabled = settings.enabledAlgorithms?.includes(key) ?? true
               return (
                 <button
-                  key={mode}
-                  onClick={() => onSettingsChange({ algorithmMode: mode })}
-                  className={`px-1.5 py-0.5 rounded text-[0.625rem] font-medium transition-colors ${
-                    isActive
+                  key={key}
+                  onClick={() => {
+                    const current = settings.enabledAlgorithms ?? ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr']
+                    let next: Algorithm[]
+                    if (enabled) {
+                      next = current.filter(a => a !== key)
+                      if (next.length === 0) {
+                        onSettingsChange({ algorithmMode: 'auto' as AlgorithmMode })
+                        return
+                      }
+                    } else {
+                      next = [...current, key]
+                    }
+                    onSettingsChange({ enabledAlgorithms: next })
+                  }}
+                  className={`px-1 py-0.5 rounded text-[0.625rem] font-medium text-center transition-colors ${
+                    enabled
                       ? 'bg-primary/20 text-primary border border-primary/40'
                       : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'
                   }`}
                 >
-                  {labels[mode]}
+                  {label}
                 </button>
               )
             })}
