@@ -93,19 +93,6 @@ export const CUMULATIVE_GROWTH = {
   MAX_DURATION_MS: 10000, // Maximum window for cumulative growth calculation
 } as const
 
-// Vocal formant frequencies for whistle/vocal discrimination
-// Based on average adult formant frequencies
-export const VOCAL_FORMANTS = {
-  F1_CENTER: 500, // First formant (jaw opening)
-  F1_RANGE: 200, // ±200Hz
-  F2_CENTER: 1500, // Second formant (tongue position)
-  F2_RANGE: 500, // ±500Hz
-  F3_CENTER: 2500, // Third formant (lip rounding)
-  F3_RANGE: 500, // ±500Hz
-  // Formant detection requires multiple peaks at these ratios
-  MIN_FORMANTS_FOR_VOICE: 2, // Need at least 2 formants to classify as voice
-} as const
-
 // Vibrato detection for whistle discrimination
 export const VIBRATO_DETECTION = {
   MIN_RATE_HZ: 4, // Minimum vibrato rate

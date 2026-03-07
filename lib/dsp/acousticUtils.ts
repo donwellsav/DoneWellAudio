@@ -15,7 +15,6 @@ import {
   FREQUENCY_BANDS,
   MODAL_OVERLAP,
   CUMULATIVE_GROWTH,
-  VOCAL_FORMANTS,
   VIBRATO_DETECTION,
 } from './constants'
 
@@ -384,63 +383,6 @@ export function analyzeCumulativeGrowth(
 // ============================================================================
 // VOCAL/WHISTLE DISCRIMINATION
 // ============================================================================
-
-/**
- * Check if a set of peaks matches vocal formant pattern
- * Voice has characteristic formant structure that feedback lacks
- * 
- * @param peakFrequencies - Array of detected peak frequencies
- * @returns Formant analysis result
- */
-export function analyzeFormantStructure(peakFrequencies: number[]): {
-  hasFormantStructure: boolean
-  formantCount: number
-  voiceProbability: number
-  detectedFormants: { formant: string; frequency: number }[]
-} {
-  const detectedFormants: { formant: string; frequency: number }[] = []
-  
-  // Check for F1 (first formant)
-  const f1Match = peakFrequencies.find(f => 
-    f >= VOCAL_FORMANTS.F1_CENTER - VOCAL_FORMANTS.F1_RANGE &&
-    f <= VOCAL_FORMANTS.F1_CENTER + VOCAL_FORMANTS.F1_RANGE
-  )
-  if (f1Match) {
-    detectedFormants.push({ formant: 'F1', frequency: f1Match })
-  }
-  
-  // Check for F2 (second formant)
-  const f2Match = peakFrequencies.find(f => 
-    f >= VOCAL_FORMANTS.F2_CENTER - VOCAL_FORMANTS.F2_RANGE &&
-    f <= VOCAL_FORMANTS.F2_CENTER + VOCAL_FORMANTS.F2_RANGE
-  )
-  if (f2Match) {
-    detectedFormants.push({ formant: 'F2', frequency: f2Match })
-  }
-  
-  // Check for F3 (third formant)
-  const f3Match = peakFrequencies.find(f => 
-    f >= VOCAL_FORMANTS.F3_CENTER - VOCAL_FORMANTS.F3_RANGE &&
-    f <= VOCAL_FORMANTS.F3_CENTER + VOCAL_FORMANTS.F3_RANGE
-  )
-  if (f3Match) {
-    detectedFormants.push({ formant: 'F3', frequency: f3Match })
-  }
-  
-  const formantCount = detectedFormants.length
-  const hasFormantStructure = formantCount >= VOCAL_FORMANTS.MIN_FORMANTS_FOR_VOICE
-  
-  // Calculate voice probability based on formant matches
-  // More formants = higher probability of voice
-  const voiceProbability = Math.min(formantCount / 3, 1) * 0.5 // Max 50% boost from formants
-  
-  return {
-    hasFormantStructure,
-    formantCount,
-    voiceProbability,
-    detectedFormants,
-  }
-}
 
 /**
  * Analyze frequency stability for vibrato detection
