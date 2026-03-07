@@ -583,8 +583,9 @@ export const DEFAULT_SETTINGS = {
   // Room acoustics — defaults to large ballroom / exhibit hall
   roomRT60: 1.0, // Large ballroom (hard floors, high ceilings, 0.8–1.5 s typical)
   roomVolume: 1000, // ~1000 m³ ballroom (50×40×20 ft, seats ~200 people)
-  // Room preset identifier
-  roomPreset: 'large' as const, // Default to large auditorium/ballroom
+  // Room preset identifier — 'none' disables all room physics
+  roomPreset: 'none' as const,
+  roomTreatment: 'typical' as const,
 
   // ==================== ADVANCED ALGORITHM SETTINGS ====================
   // Based on DAFx-16, DBX, and KU Leuven research papers
@@ -593,7 +594,6 @@ export const DEFAULT_SETTINGS = {
   showAlgorithmScores: false, // Hide advanced scores by default
   // Harmonic filter and room mode settings
   harmonicFilterEnabled: true, // Enable harmonic series detection to filter instruments
-  roomModesEnabled: false, // Room mode calculation disabled by default (advanced)
   roomLengthM: 15, // Default room length — large ballroom (~50 ft)
   roomWidthM: 12, // Default room width — large ballroom (~40 ft)
   roomHeightM: 5, // Default ceiling height — ballroom (~16 ft)
@@ -621,59 +621,61 @@ export const DEFAULT_SETTINGS = {
 // Room size presets — covers common professional venue types
 // Schroeder freq = 2000 * sqrt(RT60 / Volume) — below this, room modes dominate
 export const ROOM_PRESETS = {
+  none: {
+    label: 'None',
+    description: 'No room physics — raw detection only',
+    lengthM: 15, widthM: 12, heightM: 5, // Safe fallbacks (never used — gated by roomPreset !== 'none')
+    treatment: 'typical' as const,
+    roomRT60: 1.0, roomVolume: 1000, schroederFreq: 63,
+    feedbackThresholdDb: 6, ringThresholdDb: 4,
+  },
   small: {
     label: 'Small Room',
     description: 'Boardrooms, huddle rooms, podcast booths (10–20 people)',
-    roomRT60: 0.4, // Well-treated small room (Hopkins: furnished dwellings 0.4–0.6 s)
-    roomVolume: 80, // ~80 m³ (20×15×10 ft)
-    schroederFreq: 141, // 2000 * sqrt(0.4/80) ≈ 141 Hz
-    feedbackThresholdDb: 5,
-    ringThresholdDb: 3,
+    lengthM: 6.1, widthM: 4.6, heightM: 2.9, // ~81 m³
+    treatment: 'treated' as const,
+    roomRT60: 0.4, roomVolume: 80, schroederFreq: 141,
+    feedbackThresholdDb: 5, ringThresholdDb: 3,
   },
   medium: {
     label: 'Medium Room',
     description: 'Conference rooms, classrooms, training rooms (20–80 people)',
-    roomRT60: 0.7, // Treated conference room
-    roomVolume: 300, // ~300 m³ (35×28×12 ft)
-    schroederFreq: 97, // 2000 * sqrt(0.7/300) ≈ 97 Hz
-    feedbackThresholdDb: 6,
-    ringThresholdDb: 4,
+    lengthM: 10.7, widthM: 8.5, heightM: 3.4, // ~309 m³
+    treatment: 'typical' as const,
+    roomRT60: 0.7, roomVolume: 300, schroederFreq: 97,
+    feedbackThresholdDb: 6, ringThresholdDb: 4,
   },
   large: {
     label: 'Large Venue',
     description: 'Ballrooms, auditoriums, theaters, town halls (80–500 people)',
-    roomRT60: 1.0, // Ballroom / auditorium
-    roomVolume: 1000, // ~1000 m³ (50×40×20 ft)
-    schroederFreq: 63, // 2000 * sqrt(1.0/1000) ≈ 63 Hz
-    feedbackThresholdDb: 7,
-    ringThresholdDb: 5,
+    lengthM: 15.2, widthM: 12.2, heightM: 5.5, // ~1019 m³
+    treatment: 'typical' as const,
+    roomRT60: 1.0, roomVolume: 1000, schroederFreq: 63,
+    feedbackThresholdDb: 7, ringThresholdDb: 5,
   },
   arena: {
     label: 'Arena / Hall',
     description: 'Concert halls, arenas, convention centers (500+ people)',
-    roomRT60: 1.8, // Concert hall / arena (Everest: 1.5–2.5 s)
-    roomVolume: 5000, // ~5000 m³
-    schroederFreq: 38, // 2000 * sqrt(1.8/5000) ≈ 38 Hz
-    feedbackThresholdDb: 9,
-    ringThresholdDb: 6,
+    lengthM: 30, widthM: 25, heightM: 6.7, // ~5025 m³
+    treatment: 'untreated' as const,
+    roomRT60: 1.8, roomVolume: 5000, schroederFreq: 38,
+    feedbackThresholdDb: 9, ringThresholdDb: 6,
   },
   worship: {
     label: 'Worship Space',
     description: 'Churches, cathedrals, temples (highly reverberant)',
-    roomRT60: 2.0, // Reverberant worship (Everest Fig 7-13: 1.5–4.0 s)
-    roomVolume: 2000, // ~2000 m³ — medium church
-    schroederFreq: 63, // 2000 * sqrt(2.0/2000) ≈ 63 Hz
-    feedbackThresholdDb: 8,
-    ringThresholdDb: 5,
+    lengthM: 20, widthM: 14, heightM: 7.1, // ~1988 m³
+    treatment: 'untreated' as const,
+    roomRT60: 2.0, roomVolume: 2000, schroederFreq: 63,
+    feedbackThresholdDb: 8, ringThresholdDb: 5,
   },
   custom: {
     label: 'Custom',
-    description: 'Manual RT60 and volume settings',
-    roomRT60: 1.0,
-    roomVolume: 1000,
-    schroederFreq: 63,
-    feedbackThresholdDb: 6,
-    ringThresholdDb: 4,
+    description: 'Enter your own room dimensions',
+    lengthM: 15, widthM: 12, heightM: 5,
+    treatment: 'typical' as const,
+    roomRT60: 1.0, roomVolume: 1000, schroederFreq: 63,
+    feedbackThresholdDb: 6, ringThresholdDb: 4,
   },
 } as const
 

@@ -30,7 +30,9 @@ import {
 } from '@/components/ui/tooltip'
 import { ResetConfirmDialog } from './ResetConfirmDialog'
 import { Settings, RotateCcw, HelpCircle, BarChart3, Monitor, Download, FileJson, Ruler, Cpu, Wrench, ChevronDown } from 'lucide-react'
-import { getRoomParametersFromDimensions, feetToMeters } from '@/lib/dsp/acousticUtils'
+import { getRoomParametersFromDimensions, feetToMeters, calculateSchroederFrequency } from '@/lib/dsp/acousticUtils'
+import { ROOM_PRESETS } from '@/lib/dsp/constants'
+import type { RoomPresetKey } from '@/lib/dsp/constants'
 import type { DetectorSettings, AlgorithmMode, OperationMode, ThresholdMode } from '@/types/advisory'
 
 interface SettingsPanelProps {
@@ -187,26 +189,24 @@ export const SettingsPanel = memo(function SettingsPanel({
     setHasSavedDefaults(!!saved)
   }, [])
 
-  // Room dimension inputs
-  const [roomDimensions, setRoomDimensions] = useState({
-    lengthFt: 30,
-    widthFt: 25,
-    heightFt: 12,
-    absorptionType: 'typical' as 'untreated' | 'typical' | 'treated' | 'studio',
-    useMetric: false,
-  })
-
-  const calculateFromDimensions = () => {
-    const lengthM = roomDimensions.useMetric ? roomDimensions.lengthFt : feetToMeters(roomDimensions.lengthFt)
-    const widthM = roomDimensions.useMetric ? roomDimensions.widthFt : feetToMeters(roomDimensions.widthFt)
-    const heightM = roomDimensions.useMetric ? roomDimensions.heightFt : feetToMeters(roomDimensions.heightFt)
-    const params = getRoomParametersFromDimensions(lengthM, widthM, heightM, roomDimensions.absorptionType)
+  // Auto-derive RT60 and Volume from dimensions + treatment whenever they change
+  useEffect(() => {
+    if (settings.roomPreset === 'none') return // No auto-derivation for 'none'
+    const l = settings.roomLengthM
+    const w = settings.roomWidthM
+    const h = settings.roomHeightM
+    if (l <= 0 || w <= 0 || h <= 0) return
+    // Convert from display unit to meters for calculation
+    const lM = settings.roomDimensionsUnit === 'feet' ? feetToMeters(l) : l
+    const wM = settings.roomDimensionsUnit === 'feet' ? feetToMeters(w) : w
+    const hM = settings.roomDimensionsUnit === 'feet' ? feetToMeters(h) : h
+    const params = getRoomParametersFromDimensions(lM, wM, hM, settings.roomTreatment)
     onSettingsChange({
       roomRT60: Math.round(params.rt60 * 10) / 10,
       roomVolume: Math.round(params.volume),
-      roomPreset: 'custom',
     })
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.roomLengthM, settings.roomWidthM, settings.roomHeightM, settings.roomTreatment, settings.roomDimensionsUnit, settings.roomPreset])
 
   const handleSaveAsDefaults = () => {
     localStorage.setItem('ktr-custom-defaults', JSON.stringify(settings))
@@ -218,6 +218,10 @@ export const SettingsPanel = memo(function SettingsPanel({
     if (saved) {
       try {
         const defaults = JSON.parse(saved)
+        // Backward compat: strip removed fields, add new ones
+        delete defaults.roomModesEnabled
+        if (!defaults.roomTreatment) defaults.roomTreatment = 'typical'
+        if (!defaults.roomPreset) defaults.roomPreset = 'none'
         onSettingsChange(defaults)
       } catch {
         alert('Failed to load saved defaults')
@@ -925,41 +929,39 @@ export const SettingsPanel = memo(function SettingsPanel({
           </TabsContent>
 
           {/* ═══════════════════════════════════════════════════════════════════
-              TAB 5: ROOM ACOUSTICS — Room presets, dimensions, RT60, modes
+              TAB 5: ROOM — Unified room acoustics + mode calculator
               ═══════════════════════════════════════════════════════════════════ */}
           <TabsContent value="room" className="mt-4 space-y-4">
 
-            {/* ── Room Acoustics ── */}
             <Section
-              title="Room Acoustics"
+              title="Room Physics"
               showTooltip={settings.showTooltips}
-              tooltip="Room parameters for frequency-dependent thresholds and room mode identification. The Schroeder frequency determines where room modes dominate."
+              tooltip="Room dimensions configure frequency-dependent thresholds, Schroeder boundary, room mode identification, and reverberation analysis. Select 'None' for raw detection without room modeling."
             >
               <div className="space-y-4">
-                {/* Room Preset Selector */}
+                {/* Preset grid */}
                 <div className="space-y-2">
-                  <span className="text-xs text-muted-foreground">Room Size Preset</span>
+                  <span className="text-xs text-muted-foreground">Room Preset</span>
                   <div className="grid grid-cols-2 gap-1.5">
-                    {(['small', 'medium', 'large', 'arena', 'worship', 'custom'] as const).map((preset) => {
-                      const labels = { small: 'Small', medium: 'Medium', large: 'Large', arena: 'Arena', worship: 'Worship', custom: 'Custom' }
-                      const descs = { small: '10–20 people', medium: '20–80 people', large: '80–500 people', arena: '500+ people', worship: 'Reverberant', custom: 'Manual' }
-                      const isSelected = settings.roomPreset === preset
+                    {(Object.keys(ROOM_PRESETS) as RoomPresetKey[]).map((key) => {
+                      const preset = ROOM_PRESETS[key]
+                      const isSelected = settings.roomPreset === key
                       return (
                         <button
-                          key={preset}
+                          key={key}
                           onClick={() => {
-                            if (preset === 'custom') {
-                              onSettingsChange({ roomPreset: 'custom' })
-                            } else {
-                              const presetValues = {
-                                small: { roomRT60: 0.4, roomVolume: 80, feedbackThresholdDb: 5, ringThresholdDb: 3 },
-                                medium: { roomRT60: 0.7, roomVolume: 300, feedbackThresholdDb: 6, ringThresholdDb: 4 },
-                                large: { roomRT60: 1.0, roomVolume: 1000, feedbackThresholdDb: 7, ringThresholdDb: 5 },
-                                arena: { roomRT60: 1.8, roomVolume: 5000, feedbackThresholdDb: 9, ringThresholdDb: 6 },
-                                worship: { roomRT60: 2.0, roomVolume: 2000, feedbackThresholdDb: 8, ringThresholdDb: 5 },
-                              }[preset]
-                              onSettingsChange({ roomPreset: preset, ...presetValues })
+                            const updates: Partial<DetectorSettings> = {
+                              roomPreset: key,
+                              feedbackThresholdDb: preset.feedbackThresholdDb,
+                              ringThresholdDb: preset.ringThresholdDb,
                             }
+                            if (key !== 'none') {
+                              updates.roomLengthM = preset.lengthM
+                              updates.roomWidthM = preset.widthM
+                              updates.roomHeightM = preset.heightM
+                              updates.roomTreatment = preset.treatment
+                            }
+                            onSettingsChange(updates)
                           }}
                           className={`flex flex-col items-start px-2 py-1.5 rounded-md text-left transition-colors ${
                             isSelected
@@ -967,200 +969,119 @@ export const SettingsPanel = memo(function SettingsPanel({
                               : 'bg-muted/50 border border-transparent hover:bg-muted'
                           }`}
                         >
-                          <span className="text-xs font-medium">{labels[preset]}</span>
-                          <span className="text-[0.5625rem] text-muted-foreground">{descs[preset]}</span>
+                          <span className="text-xs font-medium">{preset.label}</span>
+                          <span className="text-[0.5625rem] text-muted-foreground">{preset.description}</span>
                         </button>
                       )
                     })}
                   </div>
                 </div>
 
-                {/* Custom room controls */}
-                {settings.roomPreset === 'custom' && (
+                {/* All controls below are only shown when preset !== 'none' */}
+                {settings.roomPreset !== 'none' && (
                   <>
-                    <div className="space-y-3 p-2.5 rounded-lg border border-border/40">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium flex items-center gap-1.5">
-                          <Ruler className="w-3 h-3" />
-                          Room Dimensions
-                        </span>
-                        <button
-                          onClick={() => setRoomDimensions(d => ({ ...d, useMetric: !d.useMetric }))}
-                          className="text-[0.5625rem] px-1.5 py-0.5 rounded bg-muted hover:bg-muted/80"
-                        >
-                          {roomDimensions.useMetric ? 'Meters' : 'Feet'}
-                        </button>
+                    {/* Unit toggle */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Unit:</span>
+                      <div className="flex gap-1">
+                        {(['meters', 'feet'] as const).map((unit) => (
+                          <button
+                            key={unit}
+                            onClick={() => onSettingsChange({ roomDimensionsUnit: unit })}
+                            className={`px-2 py-0.5 text-xs rounded ${
+                              settings.roomDimensionsUnit === unit
+                                ? 'bg-primary/20 text-primary'
+                                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                            }`}
+                          >
+                            {unit === 'meters' ? 'm' : 'ft'}
+                          </button>
+                        ))}
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="space-y-1">
-                          <label className="text-[0.5625rem] text-muted-foreground">Length</label>
-                          <input
-                            type="number"
-                            value={roomDimensions.lengthFt}
-                            onChange={(e) => setRoomDimensions(d => ({ ...d, lengthFt: parseFloat(e.target.value) || 0 }))}
-                            className="w-full h-7 px-2 text-xs rounded border border-border bg-background focus:outline-none focus:border-primary"
-                            min={1} max={500}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[0.5625rem] text-muted-foreground">Width</label>
-                          <input
-                            type="number"
-                            value={roomDimensions.widthFt}
-                            onChange={(e) => setRoomDimensions(d => ({ ...d, widthFt: parseFloat(e.target.value) || 0 }))}
-                            className="w-full h-7 px-2 text-xs rounded border border-border bg-background focus:outline-none focus:border-primary"
-                            min={1} max={500}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[0.5625rem] text-muted-foreground">Height</label>
-                          <input
-                            type="number"
-                            value={roomDimensions.heightFt}
-                            onChange={(e) => setRoomDimensions(d => ({ ...d, heightFt: parseFloat(e.target.value) || 0 }))}
-                            className="w-full h-7 px-2 text-xs rounded border border-border bg-background focus:outline-none focus:border-primary"
-                            min={1} max={100}
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[0.5625rem] text-muted-foreground">Room Treatment</label>
-                        <Select
-                          value={roomDimensions.absorptionType}
-                          onValueChange={(v) => setRoomDimensions(d => ({
-                            ...d,
-                            absorptionType: v as 'untreated' | 'typical' | 'treated' | 'studio'
-                          }))}
-                        >
-                          <SelectTrigger className="h-7 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="untreated">Untreated (hard surfaces)</SelectItem>
-                            <SelectItem value="typical">Typical (some carpet/curtains)</SelectItem>
-                            <SelectItem value="treated">Treated (acoustic panels)</SelectItem>
-                            <SelectItem value="studio">Studio (heavy treatment)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button size="sm" variant="secondary" onClick={calculateFromDimensions} className="w-full h-7 text-xs">
-                        Calculate RT60 & Volume
-                      </Button>
                     </div>
 
+                    {/* Shared dimension inputs */}
+                    <div className="grid grid-cols-3 gap-2">
+                      {([
+                        ['Length', 'roomLengthM', 100] as const,
+                        ['Width', 'roomWidthM', 100] as const,
+                        ['Height', 'roomHeightM', 30] as const,
+                      ]).map(([label, field, max]) => (
+                        <div key={field} className="space-y-1">
+                          <label className="text-[0.5625rem] text-muted-foreground">{label}</label>
+                          <input
+                            type="number"
+                            value={settings[field]}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value) || 1
+                              const update: Partial<DetectorSettings> = { [field]: val }
+                              // Auto-switch to 'custom' if editing dimensions on a named preset
+                              if (settings.roomPreset !== 'custom') {
+                                update.roomPreset = 'custom'
+                              }
+                              onSettingsChange(update)
+                            }}
+                            className="w-full h-7 px-2 text-xs rounded border border-border bg-background focus:outline-none focus:border-primary"
+                            min={1} max={max} step={0.5}
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Treatment selector */}
                     <div className="space-y-1">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-muted-foreground">RT60 (reverb time)</span>
-                        <span className="text-xs font-mono">{settings.roomRT60.toFixed(1)}s</span>
+                      <label className="text-[0.5625rem] text-muted-foreground">Acoustic Treatment</label>
+                      <div className="flex gap-1">
+                        {([
+                          ['untreated', 'Untreated'],
+                          ['typical', 'Typical'],
+                          ['treated', 'Treated'],
+                        ] as const).map(([val, label]) => (
+                          <button
+                            key={val}
+                            onClick={() => {
+                              const update: Partial<DetectorSettings> = { roomTreatment: val }
+                              if (settings.roomPreset !== 'custom') update.roomPreset = 'custom'
+                              onSettingsChange(update)
+                            }}
+                            className={`flex-1 px-2 py-1 text-xs rounded ${
+                              settings.roomTreatment === val
+                                ? 'bg-primary/20 text-primary'
+                                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
                       </div>
-                      <Slider
-                        value={[settings.roomRT60 * 10]}
-                        onValueChange={([v]) => onSettingsChange({ roomRT60: v / 10 })}
-                        min={3} max={30} step={1}
-                      />
-                      <div className="flex justify-between text-[0.5625rem] text-muted-foreground">
-                        <span>Dead (studio)</span><span>Live (cathedral)</span>
+                    </div>
+
+                    {/* Auto-derived readouts */}
+                    <div className="grid grid-cols-3 gap-2 text-[0.5625rem] text-muted-foreground">
+                      <div className="bg-muted/50 rounded px-2 py-1.5 text-center">
+                        <div className="font-medium text-foreground">{settings.roomRT60.toFixed(1)}s</div>
+                        <div>RT60</div>
+                      </div>
+                      <div className="bg-muted/50 rounded px-2 py-1.5 text-center">
+                        <div className="font-medium text-foreground">{settings.roomVolume}m³</div>
+                        <div>Volume</div>
+                      </div>
+                      <div className="bg-muted/50 rounded px-2 py-1.5 text-center">
+                        <div className="font-medium text-foreground">{Math.round(calculateSchroederFrequency(settings.roomRT60, settings.roomVolume))}Hz</div>
+                        <div>Schroeder</div>
                       </div>
                     </div>
 
-                    <div className="space-y-1">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-muted-foreground">Room Volume</span>
-                        <span className="text-xs font-mono">{settings.roomVolume}m³</span>
-                      </div>
-                      <Slider
-                        value={[settings.roomVolume]}
-                        onValueChange={([v]) => onSettingsChange({ roomVolume: v })}
-                        min={50} max={5000} step={50}
-                      />
-                      <div className="flex justify-between text-[0.5625rem] text-muted-foreground">
-                        <span>Small room</span><span>Large venue</span>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* Schroeder frequency */}
-                <div className="text-[0.5625rem] text-muted-foreground bg-muted/50 rounded px-2 py-1 flex justify-between">
-                  <span>Schroeder freq:</span>
-                  <span className="font-mono">{Math.round(2000 * Math.sqrt(settings.roomRT60 / settings.roomVolume))}Hz</span>
-                </div>
-
-                {/* Room Modes */}
-                <div className="pt-2 border-t border-border/50 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <span className="text-xs font-medium">Room Mode Calculator</span>
-                      <p className="text-[0.5625rem] text-muted-foreground">Show room resonance frequencies</p>
-                    </div>
-                    <Switch
-                      checked={settings.roomModesEnabled}
-                      onCheckedChange={(checked) => onSettingsChange({ roomModesEnabled: checked })}
-                    />
-                  </div>
-
-                  {settings.roomModesEnabled && (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">Unit:</span>
-                        <div className="flex gap-1">
-                          {(['meters', 'feet'] as const).map((unit) => (
-                            <button
-                              key={unit}
-                              onClick={() => onSettingsChange({ roomDimensionsUnit: unit })}
-                              className={`px-2 py-0.5 text-xs rounded ${
-                                settings.roomDimensionsUnit === unit
-                                  ? 'bg-primary/20 text-primary'
-                                  : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-                              }`}
-                            >
-                              {unit === 'meters' ? 'm' : 'ft'}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="space-y-1">
-                          <label className="text-[0.5625rem] text-muted-foreground">Length</label>
-                          <input
-                            type="number"
-                            value={settings.roomLengthM}
-                            onChange={(e) => onSettingsChange({ roomLengthM: parseFloat(e.target.value) || 10 })}
-                            className="w-full h-7 px-2 text-xs rounded border border-border bg-background focus:outline-none focus:border-primary"
-                            min={1} max={100} step={0.5}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[0.5625rem] text-muted-foreground">Width</label>
-                          <input
-                            type="number"
-                            value={settings.roomWidthM}
-                            onChange={(e) => onSettingsChange({ roomWidthM: parseFloat(e.target.value) || 8 })}
-                            className="w-full h-7 px-2 text-xs rounded border border-border bg-background focus:outline-none focus:border-primary"
-                            min={1} max={100} step={0.5}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[0.5625rem] text-muted-foreground">Height</label>
-                          <input
-                            type="number"
-                            value={settings.roomHeightM}
-                            onChange={(e) => onSettingsChange({ roomHeightM: parseFloat(e.target.value) || 3 })}
-                            className="w-full h-7 px-2 text-xs rounded border border-border bg-background focus:outline-none focus:border-primary"
-                            min={1} max={30} step={0.1}
-                          />
-                        </div>
-                      </div>
-
+                    {/* Room Modes */}
+                    <div className="pt-2 border-t border-border/50">
                       <RoomModesDisplay
                         lengthM={settings.roomDimensionsUnit === 'feet' ? settings.roomLengthM * 0.3048 : settings.roomLengthM}
                         widthM={settings.roomDimensionsUnit === 'feet' ? settings.roomWidthM * 0.3048 : settings.roomWidthM}
                         heightM={settings.roomDimensionsUnit === 'feet' ? settings.roomHeightM * 0.3048 : settings.roomHeightM}
                       />
                     </div>
-                  )}
-                </div>
+                  </>
+                )}
               </div>
             </Section>
           </TabsContent>

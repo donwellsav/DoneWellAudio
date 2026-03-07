@@ -313,18 +313,17 @@ export interface DetectorSettings {
   aWeightingEnabled: boolean // Apply A-weighting curve to analysis (per IEC 61672-1)
   // Confidence and filtering
   confidenceThreshold: number // Minimum confidence to display (0.0-1.0, default 0.35)
-  // Room acoustics for Schroeder frequency calculation
-  roomRT60: number // Reverberation time in seconds (0.3-3.0, default 0.7)
-  roomVolume: number // Room volume in m³ (50-5000, default 250)
-  roomPreset: 'small' | 'medium' | 'large' | 'arena' | 'worship' | 'custom' // Quick room size preset
+  // Unified room physics (acoustics + mode calculator)
+  roomRT60: number // Reverberation time in seconds (auto-derived from dimensions + treatment)
+  roomVolume: number // Room volume in m³ (auto-derived from dimensions)
+  roomPreset: 'none' | 'small' | 'medium' | 'large' | 'arena' | 'worship' | 'custom' // Room preset ('none' disables all room physics)
+  roomTreatment: 'untreated' | 'typical' | 'treated' // Acoustic treatment level for RT60 estimation
+  roomLengthM: number // Room length (in display unit, converted at use)
+  roomWidthM: number // Room width
+  roomHeightM: number // Room height
+  roomDimensionsUnit: 'meters' | 'feet' // Unit for dimension input
   // Phase 1: Harmonic Series Filter (reduces bass guitar/instrument false positives)
   harmonicFilterEnabled: boolean // Enable harmonic series detection to filter instruments
-  // Phase 4: Room Mode Calculator (identifies room resonances vs feedback)
-  roomModesEnabled: boolean // Enable room mode calculation and display
-  roomLengthM: number // Room length in meters (for mode calculation)
-  roomWidthM: number // Room width in meters
-  roomHeightM: number // Room height in meters
-  roomDimensionsUnit: 'meters' | 'feet' // Unit for dimension input
   // Algorithm mode and scoring display
   algorithmMode: AlgorithmMode // Which detection algorithm to use (auto, msd, phase, combined, all)
   showAlgorithmScores: boolean // Show the algorithm status bar with live scoring metrics

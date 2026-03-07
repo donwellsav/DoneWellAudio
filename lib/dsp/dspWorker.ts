@@ -590,7 +590,8 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         peakProcessCount++
 
         // Decay rate analysis — only run every 50 peaks to reduce overhead
-        if (peakProcessCount % 50 === 0) {
+        // Only applies when room is configured (preset !== 'none')
+        if (peakProcessCount % 50 === 0 && settings?.roomPreset != null && settings.roomPreset !== 'none') {
           // ── Decay rate analysis — check recently cleared bins ──────────────
           // Room modes decay exponentially (following RT60); feedback drops instantly.
           // If a recently cleared bin is decaying at the RT60 rate, extend band cooldown.

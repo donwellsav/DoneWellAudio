@@ -86,11 +86,15 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
   const reasons: string[] = []
 
   // ==================== Acoustic Context ====================
-  
+
+  // Gate all room physics behind preset — 'none' means raw detection only
+  const roomConfigured = settings?.roomPreset != null && settings.roomPreset !== 'none'
+
   // Calculate Schroeder frequency for frequency-dependent analysis
+  // When room is unconfigured, schroederFreq = 0 so nothing falls in LOW band
   const roomRT60 = settings?.roomRT60 ?? 1.2
   const roomVolume = settings?.roomVolume ?? 500
-  const schroederFreq = calculateSchroederFrequency(roomRT60, roomVolume)
+  const schroederFreq = roomConfigured ? calculateSchroederFrequency(roomRT60, roomVolume) : 0
   
   // Get frequency band and modifiers
   const freqBand = getFrequencyBand(features.frequencyHz, schroederFreq)
@@ -192,7 +196,8 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
   // A peak Q ≤ Q_room = π·f·T₆₀/6.9 is more likely a room mode than feedback.
   // A peak Q >> Q_room is unusually sharp → boost pFeedback.
   // Air absorption correction (Hopkins §1.2.4) shortens effective RT60 at high frequencies.
-  {
+  // Only applies when room is configured (preset !== 'none')
+  if (roomConfigured) {
     const effectiveRT60 = airAbsorptionCorrectedRT60(roomRT60, features.frequencyHz, roomVolume)
     const rt60Adj = reverberationQAdjustment(features.minQ, features.frequencyHz, effectiveRT60)
     if (rt60Adj.delta !== 0) {
@@ -220,7 +225,8 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
   // 8a. Hopkins n(f) modal density adjustment (Eq. 1.77)
   // Sparse modal fields make peaks ambiguous; dense modal fields make sharp
   // peaks stand out as feedback.  Derives from room volume + frequency.
-  {
+  // Only applies when room is configured (preset !== 'none')
+  if (roomConfigured) {
     const nfAdj = modalDensityFeedbackAdjustment(
       features.frequencyHz,
       roomVolume,
@@ -272,14 +278,14 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
   // prominence floor (up to 1.5× via modal density) and the LOW band
   // multipliers (1.4× prominence, 1.5× sustain) already provide robust
   // room-mode filtering without this severe a classifier penalty.
-  if (freqBand.band === 'LOW') {
+  if (roomConfigured && freqBand.band === 'LOW') {
     pFeedback   -= MODE_PRESENCE_BONUS
     pInstrument += MODE_ABSENCE_PENALTY
     reasons.push(`Below Schroeder boundary (${schroederFreq.toFixed(0)} Hz) — possible room mode`)
   }
 
   // 10a. Room mode proximity — compare against calculated eigenfrequencies
-  if (settings?.roomModesEnabled && settings?.roomLengthM > 0 && settings?.roomWidthM > 0 && settings?.roomHeightM > 0) {
+  if (roomConfigured && settings?.roomLengthM > 0 && settings?.roomWidthM > 0 && settings?.roomHeightM > 0) {
     const modeProximity = roomModeProximityPenalty(
       features.frequencyHz,
       settings.roomLengthM,
@@ -441,7 +447,8 @@ export function shouldReportIssue(
   // Uses the actual peak frequency (not a band proxy) so e.g. a 350 Hz peak isn't
   // penalised as heavily as a 100 Hz peak.  Falls back to band midpoints only when
   // the actual frequency isn't available.
-  {
+  // Only applies when room is configured (preset !== 'none')
+  if (settings.roomPreset !== 'none') {
     const baseProminence = settings.prominenceDb ?? 10
     const freq = classification.frequencyHz
       ?? (classification.frequencyBand === 'LOW' ? 200 : classification.frequencyBand === 'HIGH' ? 6000 : 1000)
