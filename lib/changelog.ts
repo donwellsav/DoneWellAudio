@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.0.73',
+    date: '2026-03-07',
+    changes: [
+      { type: 'feat', description: '🧹 chore(dsp): remove unused `applyFrequencyDependentThreshold` function' },
+    ],
+  },
+  {
     version: '1.0.72',
     date: '2026-03-07',
     changes: [
