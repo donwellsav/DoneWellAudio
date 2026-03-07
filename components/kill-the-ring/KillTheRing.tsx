@@ -86,9 +86,9 @@ export const KillTheRing = memo(function KillTheRingComponent() {
   const [bottomLeftGraph, setBottomLeftGraph] = useState<GraphView>('geq')
   const [bottomRightGraph, setBottomRightGraph] = useState<GraphView>('controls')
   const [mobileTab, setMobileTab] = useState<'issues' | 'graph' | 'settings' | 'notepad'>('issues')
-  const [activeSidebarTab, setActiveSidebarTab] = useState<'issues' | 'notepad' | 'controls'>('issues')
+  const [activeSidebarTab, setActiveSidebarTab] = useState<'issues' | 'notepad' | 'controls'>('controls')
   const [layoutKey, setLayoutKey] = useState(0)
-  const [issuesPanelOpen, setIssuesPanelOpen] = useState(false)
+  const [issuesPanelOpen, setIssuesPanelOpen] = useState(true)
   const issuesPanelRef = useRef<ImperativePanelHandle>(null)
 
   // Fullscreen
@@ -720,7 +720,7 @@ export const KillTheRing = memo(function KillTheRingComponent() {
             {/* Issues side-panel (collapsible, between sidebar and graphs) */}
             <ResizablePanel
               ref={issuesPanelRef}
-              defaultSize={0}
+              defaultSize={18}
               collapsedSize={0}
               minSize={10}
               maxSize={35}
@@ -766,7 +766,7 @@ export const KillTheRing = memo(function KillTheRingComponent() {
             <ResizableHandle withHandle />
 
             {/* Graph area panel */}
-            <ResizablePanel defaultSize={85}>
+            <ResizablePanel defaultSize={67}>
               <ResizablePanelGroup direction="vertical" autoSaveId="ktr-layout-vertical">
                 {/* Top graph */}
                 <ResizablePanel defaultSize={60} minSize={20} collapsible>
