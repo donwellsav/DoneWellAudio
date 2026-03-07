@@ -227,6 +227,129 @@ export const DetectionControls = memo(function DetectionControls({ settings, onM
           </button>
         </div>
 
+        {/* ─── Additional Controls ─────────────────────────────── */}
+        <div className="border-t border-border pt-1.5 mt-1.5 space-y-1.5">
+
+          {/* Operation Mode chips */}
+          <div className="space-y-1">
+            <span className="text-xs text-muted-foreground">Mode</span>
+            <div className="flex items-center gap-1 flex-wrap">
+              {([
+                ['speech', 'Speech'],
+                ['worship', 'Worship'],
+                ['liveMusic', 'Live'],
+                ['theater', 'Theater'],
+                ['monitors', 'Monitors'],
+                ['ringOut', 'Ring Out'],
+                ['broadcast', 'Broadcast'],
+                ['outdoor', 'Outdoor'],
+              ] as const).map(([mode, label]) => {
+                const isActive = settings.mode === mode
+                return (
+                  <button
+                    key={mode}
+                    onClick={() => onModeChange(mode)}
+                    className={`px-1.5 py-0.5 rounded text-[0.625rem] font-medium transition-colors ${
+                      isActive
+                        ? 'bg-primary/20 text-primary border border-primary/40'
+                        : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Hold Time slider */}
+          <SliderRow
+            label="Hold"
+            value={`${(settings.holdTimeMs / 1000).toFixed(1)}s`}
+            tooltip={settings.showTooltips ? 'How long feedback stays flagged on screen. 0.5-1s fast workflow, 2-3s relaxed monitoring.' : undefined}
+            min={500} max={5000} step={100}
+            sliderValue={settings.holdTimeMs}
+            onChange={(v) => onSettingsChange({ holdTimeMs: v })}
+          />
+
+          {/* Clear Time slider */}
+          <SliderRow
+            label="Clear"
+            value={`${settings.clearMs}ms`}
+            tooltip={settings.showTooltips ? 'How fast resolved issues disappear. 100-200ms snappy, 400-600ms smooth, 1000ms+ persistent.' : undefined}
+            min={100} max={2000} step={50}
+            sliderValue={settings.clearMs}
+            onChange={(v) => onSettingsChange({ clearMs: v })}
+          />
+
+          {/* Max Issues slider */}
+          <SliderRow
+            label="Max Issues"
+            value={`${settings.maxDisplayedIssues}`}
+            tooltip={settings.showTooltips ? 'How many feedback issues display at once. 3-6 for focused work, 8-12 for full overview.' : undefined}
+            min={3} max={12} step={1}
+            sliderValue={settings.maxDisplayedIssues}
+            onChange={(v) => onSettingsChange({ maxDisplayedIssues: v })}
+          />
+
+          {/* EQ Style chips */}
+          <div className="space-y-1">
+            <span className="text-xs text-muted-foreground">EQ Style</span>
+            <div className="flex items-center gap-1 flex-wrap">
+              {([
+                ['surgical', 'Surgical'],
+                ['heavy', 'Heavy'],
+              ] as const).map(([style, label]) => {
+                const isActive = settings.eqPreset === style
+                return (
+                  <button
+                    key={style}
+                    onClick={() => onSettingsChange({ eqPreset: style })}
+                    className={`px-1.5 py-0.5 rounded text-[0.625rem] font-medium transition-colors ${
+                      isActive
+                        ? 'bg-primary/20 text-primary border border-primary/40'
+                        : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Harmonic Filter toggle */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">Harmonics</span>
+              {settings.showTooltips && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="w-3 h-3 text-muted-foreground/40 hover:text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-[200px] text-xs">
+                    Filter harmonic series to reduce false positives from instruments. Disable for ring-out or monitors.
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+            <button
+              role="switch"
+              aria-checked={settings.harmonicFilterEnabled}
+              aria-label="Toggle harmonic filter"
+              onClick={() => onSettingsChange({ harmonicFilterEnabled: !settings.harmonicFilterEnabled })}
+              className={`relative inline-flex h-4 w-7 flex-shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                settings.harmonicFilterEnabled ? 'bg-primary' : 'bg-muted'
+              }`}
+            >
+              <span className={`inline-block h-3 w-3 transform rounded-full bg-background shadow transition-transform ${
+                settings.harmonicFilterEnabled ? 'translate-x-3.5' : 'translate-x-0.5'
+              }`} />
+            </button>
+          </div>
+
+        </div>
+
       </div>
     </TooltipProvider>
   )
