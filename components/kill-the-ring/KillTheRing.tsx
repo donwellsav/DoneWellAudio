@@ -8,6 +8,7 @@ import { useFullscreen } from '@/hooks/useFullscreen'
 import { HeaderBar } from './HeaderBar'
 import { MobileLayout } from './MobileLayout'
 import { DesktopLayout } from './DesktopLayout'
+import { OnboardingOverlay } from './OnboardingOverlay'
 import type { OperationMode } from '@/types/advisory'
 import { OPERATION_MODES } from '@/lib/dsp/constants'
 import type { ImperativePanelHandle } from 'react-resizable-panels'
@@ -338,6 +339,8 @@ export const KillTheRing = memo(function KillTheRingComponent() {
         autoGainDb={autoGainDb}
         autoGainLocked={isAutoGainLocked}
       />
+
+      <OnboardingOverlay />
     </div>
   )
 })
