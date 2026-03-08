@@ -21,7 +21,7 @@ import { AlgorithmStatusBar } from './AlgorithmStatusBar'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useFullscreen } from '@/hooks/useFullscreen'
-import { RotateCcw, LayoutGrid, AlertTriangle, BarChart3, Settings2, Maximize2, Minimize2, PanelLeftClose, Columns2 } from 'lucide-react'
+import { RotateCcw, LayoutGrid, AlertTriangle, BarChart3, Settings2, Maximize2, Minimize2, PanelLeftClose, Columns2, Pause, Play } from 'lucide-react'
 import type { OperationMode } from '@/types/advisory'
 import { OPERATION_MODES } from '@/lib/dsp/constants'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
@@ -85,6 +85,7 @@ export const KillTheRing = memo(function KillTheRingComponent() {
   const [activeSidebarTab, setActiveSidebarTab] = useState<'issues' | 'controls'>('controls')
   const [layoutKey, setLayoutKey] = useState(0)
   const [issuesPanelOpen, setIssuesPanelOpen] = useState(true)
+  const [isFrozen, setIsFrozen] = useState(false)
   const issuesPanelRef = useRef<ImperativePanelHandle>(null)
 
   // Force-collapse issues panel on mount to override localStorage-restored size
@@ -96,6 +97,25 @@ export const KillTheRing = memo(function KillTheRingComponent() {
   const rootRef = useRef<HTMLDivElement>(null)
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(rootRef)
 
+  // Auto-unfreeze when stopping analysis
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset UI state on stop
+    if (!isRunning) setIsFrozen(false)
+  }, [isRunning])
+
+  // Keyboard shortcut: F to toggle freeze
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!isRunning) return
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault()
+        setIsFrozen(prev => !prev)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isRunning])
 
   // Dismissed advisory IDs — hidden until the advisory disappears and a new one is detected
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
@@ -422,6 +442,30 @@ export const KillTheRing = memo(function KillTheRingComponent() {
             </Tooltip>
           </TooltipProvider>
 
+          {isRunning && (
+            <TooltipProvider delayDuration={400}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsFrozen(prev => !prev)}
+                    className={`hidden landscape:flex h-6 w-6 p-0 ${
+                      isFrozen ? 'text-blue-400' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    aria-label={isFrozen ? 'Unfreeze spectrum' : 'Freeze spectrum'}
+                    aria-pressed={isFrozen}
+                  >
+                    {isFrozen ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">
+                  {isFrozen ? 'Unfreeze (F)' : 'Freeze display (F)'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+
           <FeedbackHistoryPanel />
           <HelpMenu />
           <SettingsPanel
@@ -488,6 +532,19 @@ export const KillTheRing = memo(function KillTheRingComponent() {
               {/* RTA — top half */}
               <div className="flex-1 min-h-0 bg-card/60 rounded-md border border-border overflow-hidden relative">
                 <span className="absolute top-1 left-1.5 z-20 text-[0.5rem] text-muted-foreground/60 font-medium uppercase tracking-wide pointer-events-none">RTA</span>
+                {isRunning && (
+                  <button
+                    onClick={() => setIsFrozen(prev => !prev)}
+                    className={`absolute top-1 z-20 px-2 py-0.5 rounded text-[0.5rem] font-medium border transition-colors ${
+                      isFrozen
+                        ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                        : 'bg-card/80 text-muted-foreground border-border hover:text-foreground'
+                    }`}
+                    style={{ right: hasActiveRTAMarkers ? '3.5rem' : '0.25rem' }}
+                  >
+                    {isFrozen ? 'Live' : 'Freeze'}
+                  </button>
+                )}
                 {hasActiveRTAMarkers && (
                   <button
                     onClick={handleClearRTA}
@@ -496,7 +553,7 @@ export const KillTheRing = memo(function KillTheRingComponent() {
                     Clear
                   </button>
                 )}
-                <SpectrumCanvas spectrumRef={spectrumRef} advisories={advisories} isRunning={isRunning} graphFontSize={settings.graphFontSize} onStart={!isRunning ? start : undefined} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} />
+                <SpectrumCanvas spectrumRef={spectrumRef} advisories={advisories} isRunning={isRunning} graphFontSize={settings.graphFontSize} onStart={!isRunning ? start : undefined} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} />
               </div>
               {/* GEQ — bottom half */}
               <div className="flex-1 min-h-0 bg-card/60 rounded-md border border-border overflow-hidden relative">
@@ -695,6 +752,11 @@ export const KillTheRing = memo(function KillTheRingComponent() {
                       <div className="flex-shrink-0 flex items-center justify-between px-2 py-1 border-b border-border bg-muted/20">
                         <div className="flex items-center gap-1">
                           <GraphChipRow value={activeGraph} onChange={setActiveGraph} />
+                          {activeGraph === 'rta' && isRunning && (
+                            <button onClick={() => setIsFrozen(prev => !prev)} className={`px-1.5 py-0.5 rounded text-[0.5rem] font-medium transition-colors ${isFrozen ? 'text-blue-400' : 'text-muted-foreground hover:text-foreground'}`}>
+                              {isFrozen ? 'Live' : 'Freeze'}
+                            </button>
+                          )}
                           {activeGraph === 'rta' && hasActiveRTAMarkers && (
                             <button onClick={handleClearRTA} className="px-1.5 py-0.5 rounded text-[0.5rem] font-medium text-muted-foreground hover:text-foreground transition-colors">
                               Clear
@@ -714,7 +776,7 @@ export const KillTheRing = memo(function KillTheRingComponent() {
                       </div>
                       <div className="relative flex-1 min-h-0">
                         <div className={`absolute inset-0 transition-opacity duration-200 ${activeGraph === 'rta' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}>
-                          <SpectrumCanvas spectrumRef={spectrumRef} advisories={advisories} isRunning={isRunning} graphFontSize={settings.graphFontSize} onStart={!isRunning ? start : undefined} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} />
+                          <SpectrumCanvas spectrumRef={spectrumRef} advisories={advisories} isRunning={isRunning} graphFontSize={settings.graphFontSize} onStart={!isRunning ? start : undefined} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} />
                         </div>
                         <div className={`absolute inset-0 transition-opacity duration-200 ${activeGraph === 'geq' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}>
                           <GEQBarView advisories={advisories} graphFontSize={settings.graphFontSize} clearedIds={geqClearedIds} />
@@ -733,6 +795,11 @@ export const KillTheRing = memo(function KillTheRingComponent() {
                       <div className="flex-shrink-0 flex items-center px-2 py-0.5 border-b border-border bg-muted/20">
                         <div className="flex items-center gap-1">
                           <GraphChipRow value={bottomLeftGraph} onChange={setBottomLeftGraph} />
+                          {bottomLeftGraph === 'rta' && isRunning && (
+                            <button onClick={() => setIsFrozen(prev => !prev)} className={`px-1.5 py-0.5 rounded text-[0.5rem] font-medium transition-colors ${isFrozen ? 'text-blue-400' : 'text-muted-foreground hover:text-foreground'}`}>
+                              {isFrozen ? 'Live' : 'Freeze'}
+                            </button>
+                          )}
                           {bottomLeftGraph === 'rta' && hasActiveRTAMarkers && (
                             <button onClick={handleClearRTA} className="px-1.5 py-0.5 rounded text-[0.5rem] font-medium text-muted-foreground hover:text-foreground transition-colors">
                               Clear
@@ -746,7 +813,7 @@ export const KillTheRing = memo(function KillTheRingComponent() {
                         </div>
                       </div>
                       <div className="flex-1 min-h-0 pointer-events-none">
-                        {bottomLeftGraph === 'rta' && <SpectrumCanvas spectrumRef={spectrumRef} advisories={advisories} isRunning={isRunning} graphFontSize={Math.max(10, settings.graphFontSize - 4)} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} />}
+                        {bottomLeftGraph === 'rta' && <SpectrumCanvas spectrumRef={spectrumRef} advisories={advisories} isRunning={isRunning} graphFontSize={Math.max(10, settings.graphFontSize - 4)} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} />}
                         {bottomLeftGraph === 'geq' && <GEQBarView advisories={advisories} graphFontSize={Math.max(10, settings.graphFontSize - 4)} clearedIds={geqClearedIds} />}
                       </div>
                     </div>

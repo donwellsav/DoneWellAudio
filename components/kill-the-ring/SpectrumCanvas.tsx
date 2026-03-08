@@ -374,21 +374,20 @@ interface SpectrumCanvasProps {
   onFreqRangeChange?: (min: number, max: number) => void
   showThresholdLine?: boolean
   feedbackThresholdDb?: number
+  isFrozen?: boolean
 }
 
 const FREQ_LABELS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
 
 const GRAB_THRESHOLD_PX = 22 // 44px total touch target per line
 
-export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, advisories, isRunning, graphFontSize = 11, onStart, earlyWarning, rtaDbMin: rtaDbMinProp, rtaDbMax: rtaDbMaxProp, spectrumLineWidth: spectrumLineWidthProp, clearedIds, minFrequency = 20, maxFrequency = 20000, onFreqRangeChange, showThresholdLine = false, feedbackThresholdDb }: SpectrumCanvasProps) {
+export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, advisories, isRunning, graphFontSize = 11, onStart, earlyWarning, rtaDbMin: rtaDbMinProp, rtaDbMax: rtaDbMaxProp, spectrumLineWidth: spectrumLineWidthProp, clearedIds, minFrequency = 20, maxFrequency = 20000, onFreqRangeChange, showThresholdLine = false, feedbackThresholdDb, isFrozen = false }: SpectrumCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const dimensionsRef = useRef({ width: 0, height: 0 })
   const advisoriesRef = useRef(advisories)
-  // eslint-disable-next-line react-hooks/refs -- synced for 60fps rAF reads
   advisoriesRef.current = advisories
   const clearedIdsRef = useRef(clearedIds)
-  // eslint-disable-next-line react-hooks/refs -- synced for 60fps rAF reads
   clearedIdsRef.current = clearedIds
 
   // Freq range ref for 60fps reads during drag (avoids React re-renders)
@@ -401,8 +400,26 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
   const dragRef = useRef<'min' | 'max' | null>(null)
   const paddingRef = useRef({ left: 0, top: 0, plotWidth: 0, plotHeight: 0 })
   const onFreqRangeChangeRef = useRef(onFreqRangeChange)
-  // eslint-disable-next-line react-hooks/refs -- synced to avoid re-registering listeners
   onFreqRangeChangeRef.current = onFreqRangeChange
+
+  // Freeze: snapshot spectrum data so canvas holds a moment while analysis continues
+  const isFrozenRef = useRef(false)
+  const frozenSpectrumRef = useRef<SpectrumData | null>(null)
+
+  useEffect(() => {
+    isFrozenRef.current = isFrozen
+    if (isFrozen && spectrumRef.current) {
+      // Deep-copy Float32Arrays — analyzer overwrites the same buffer each frame
+      frozenSpectrumRef.current = {
+        ...spectrumRef.current,
+        freqDb: new Float32Array(spectrumRef.current.freqDb),
+        power: new Float32Array(spectrumRef.current.power),
+      }
+    } else {
+      frozenSpectrumRef.current = null
+    }
+    dirtyRef.current = true
+  }, [isFrozen, spectrumRef])
 
   // Cached per-frame objects — avoid recreating every frame
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null)
@@ -455,13 +472,13 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
   }, [])
 
   const render = useCallback(() => {
-    const spectrum = spectrumRef.current
+    const spectrum = isFrozenRef.current ? frozenSpectrumRef.current : spectrumRef.current
 
     // Dirty check: skip frame if nothing changed since last draw
     const spectrumChanged = spectrum !== lastSpectrumRef.current
     if (!spectrumChanged && !dirtyRef.current) return
     lastSpectrumRef.current = spectrum
-    dirtyRef.current = false
+    dirtyRef.current = false // eslint-disable-line react-hooks/immutability -- rAF dirty-bit optimization
 
     const canvas = canvasRef.current
     if (!canvas) return
@@ -514,6 +531,29 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
     drawFreqRangeOverlay(ctx, plotWidth, plotHeight, range, freqRangeRef.current)
     drawMarkers(ctx, plotWidth, plotHeight, range, earlyWarning, advisoriesRef.current, clearedIdsRef.current, peakMarkerRadius, fontSize)
 
+    // Frozen badge — top-right of plot area
+    if (isFrozenRef.current) {
+      const badgeText = 'FROZEN'
+      ctx.font = `bold ${fontSize}px monospace`
+      const tw = ctx.measureText(badgeText).width
+      const bx = plotWidth - tw - 16
+      const by = 6
+      const px = 6, py = 3
+
+      ctx.fillStyle = 'rgba(59,130,246,0.2)'
+      ctx.beginPath()
+      ctx.roundRect(bx - px, by, tw + px * 2, fontSize + py * 2, 3)
+      ctx.fill()
+      ctx.strokeStyle = 'rgba(59,130,246,0.5)'
+      ctx.lineWidth = 1
+      ctx.stroke()
+
+      ctx.fillStyle = '#60a5fa'
+      ctx.textAlign = 'left'
+      ctx.textBaseline = 'top'
+      ctx.fillText(badgeText, bx, by + py)
+    }
+
     ctx.restore()
 
     drawAxisLabels(ctx, padding, plotWidth, plotHeight, range, fontSize, width, height)
@@ -523,7 +563,9 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
   useAnimationFrame(render, isRunning || hasEverStarted)
 
   // Mark dirty when display props change (triggers redraw on next rAF tick)
+  // eslint-disable-next-line react-hooks/immutability -- rAF dirty-bit optimization
   useEffect(() => { dirtyRef.current = true }, [graphFontSize, earlyWarning, rtaDbMinProp, rtaDbMaxProp, spectrumLineWidthProp, showThresholdLine, feedbackThresholdDb])
+  // eslint-disable-next-line react-hooks/immutability -- rAF dirty-bit optimization
   useEffect(() => { dirtyRef.current = true }, [advisories, clearedIds])
 
   // Pointer event handlers for dragging frequency range lines
