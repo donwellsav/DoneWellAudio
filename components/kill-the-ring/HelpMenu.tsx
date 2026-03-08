@@ -695,12 +695,12 @@ export const HelpMenu = memo(function HelpMenu() {
           <TabsContent value="reference" className="mt-4 space-y-4">
             <Section title="Keyboard Shortcuts">
               <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-xs">
-                <kbd className="font-mono bg-muted px-1.5 py-0.5 rounded text-[0.65rem]">Space</kbd><span>Start / stop analysis</span>
-                <kbd className="font-mono bg-muted px-1.5 py-0.5 rounded text-[0.65rem]">P</kbd><span>Freeze / unfreeze spectrum display</span>
-                <kbd className="font-mono bg-muted px-1.5 py-0.5 rounded text-[0.65rem]">F</kbd><span>Toggle fullscreen</span>
-                <kbd className="font-mono bg-muted px-1.5 py-0.5 rounded text-[0.65rem]">1</kbd><span>Switch to RTA view</span>
-                <kbd className="font-mono bg-muted px-1.5 py-0.5 rounded text-[0.65rem]">2</kbd><span>Switch to GEQ view</span>
-                <kbd className="font-mono bg-muted px-1.5 py-0.5 rounded text-[0.65rem]">3</kbd><span>Switch to Controls view</span>
+                <kbd className="font-mono bg-muted px-1.5 py-0.5 rounded text-[0.625rem]">Space</kbd><span>Start / stop analysis</span>
+                <kbd className="font-mono bg-muted px-1.5 py-0.5 rounded text-[0.625rem]">P</kbd><span>Freeze / unfreeze spectrum display</span>
+                <kbd className="font-mono bg-muted px-1.5 py-0.5 rounded text-[0.625rem]">F</kbd><span>Toggle fullscreen</span>
+                <kbd className="font-mono bg-muted px-1.5 py-0.5 rounded text-[0.625rem]">1</kbd><span>Switch to RTA view</span>
+                <kbd className="font-mono bg-muted px-1.5 py-0.5 rounded text-[0.625rem]">2</kbd><span>Switch to GEQ view</span>
+                <kbd className="font-mono bg-muted px-1.5 py-0.5 rounded text-[0.625rem]">3</kbd><span>Switch to Controls view</span>
               </div>
             </Section>
 

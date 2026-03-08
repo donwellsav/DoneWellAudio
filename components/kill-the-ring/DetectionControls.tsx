@@ -96,7 +96,7 @@ export const DetectionControls = memo(function DetectionControls({ settings, onM
               </Tooltip>
             )}
             {settings.autoMusicAware && (
-              <span className={`px-1 py-px rounded text-[0.6875rem] font-medium border leading-4 ${
+              <span className={`px-1 py-px rounded text-[0.625rem] font-medium border leading-4 ${
                 settings.musicAware
                   ? 'bg-primary/10 border-primary/40 text-primary'
                   : 'bg-muted border-border text-muted-foreground'

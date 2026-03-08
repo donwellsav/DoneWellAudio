@@ -14,81 +14,122 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.0.81',
+    date: '2026-03-08',
+    changes: [
+      { type: 'ui', description: 'Standardized font sizes — collapsed 6 arbitrary sizes to 3 semantic tiers (micro/caption/label)' },
+      { type: 'fix', description: 'Changelog cleanup — sorted versions, removed dev checklists, fixed entry types' },
+    ],
+  },
+  {
+    version: '1.0.80',
+    date: '2026-03-08',
+    highlights: 'UI polish & blue theme unification',
+    changes: [
+      { type: 'ui', description: 'Vertical gain fader with venue quick-cal pills (Quiet / Med / Loud)' },
+      { type: 'ui', description: 'Blue theme unification — RTA spectrum, input meters, and issue badges now use site primary blue' },
+      { type: 'ui', description: 'Canvas-drawn RTA placeholder replaces static JPEG — stays in sync with theme colors' },
+      { type: 'fix', description: 'Auto-gain now off by default — user clicks a venue pill to start calibration' },
+      { type: 'fix', description: 'Default input gain lowered from +15 dB to +6 dB' },
+      { type: 'ui', description: 'Default layout opens all three sidecars (Controls, Issues, Graphs)' },
+      { type: 'fix', description: 'Canvas axis labels no longer clip at edges — proper padding and textBaseline alignment' },
+    ],
+  },
+  {
+    version: '1.0.79',
+    date: '2026-03-08',
+    highlights: 'Audio source selection',
+    changes: [
+      { type: 'feat', description: 'Audio input device selector — switch microphones without restarting' },
+      { type: 'ui', description: 'Dark title bar for native app feel' },
+    ],
+  },
+  {
+    version: '1.0.78',
+    date: '2026-03-07',
+    changes: [
+      { type: 'perf', description: 'Canvas FPS throttle reduces frame stuttering on lower-end hardware' },
+    ],
+  },
+  {
+    version: '1.0.77',
+    date: '2026-03-07',
+    highlights: 'Component architecture split',
+    changes: [
+      { type: 'refactor', description: 'Split KillTheRing into HeaderBar, MobileLayout, and DesktopLayout components' },
+      { type: 'feat', description: 'Remapped keyboard shortcuts for new layout' },
+    ],
+  },
+  {
+    version: '1.0.76',
+    date: '2026-03-07',
+    changes: [
+      { type: 'feat', description: 'RTA freeze — pause the spectrum display for closer inspection' },
+    ],
+  },
+  {
+    version: '1.0.75',
+    date: '2026-03-07',
+    changes: [
+      { type: 'fix', description: 'Fixed all 15 ESLint issues across kill-the-ring components' },
+      { type: 'ui', description: 'Pro audio dark theme refresh, removed EQNotepad, layout tuning' },
+    ],
+  },
+  {
     version: '1.0.74',
     date: '2026-03-07',
     changes: [
-      { type: 'fix', description: '**Worker stability**: Wrap DSP worker message handler in try/catch — soft errors no longer crash the worker' },
-      { type: 'fix', description: '**Crash recovery**: Worker auto-recreated on next Start press after a hard crash — no more page reloads' },
+      { type: 'fix', description: 'Worker stability — DSP worker message handler wrapped in try/catch so soft errors no longer crash the worker' },
+      { type: 'fix', description: 'Crash recovery — worker auto-recreated on next Start press after a hard crash' },
     ],
   },
   {
     version: '1.0.73',
     date: '2026-03-07',
     changes: [
-      { type: 'feat', description: '🧹 chore(dsp): remove unused `applyFrequencyDependentThreshold` function' },
+      { type: 'refactor', description: 'Removed unused `applyFrequencyDependentThreshold` function' },
     ],
   },
   {
     version: '1.0.72',
     date: '2026-03-07',
     changes: [
-      { type: 'feat', description: '🧹 Remove unused `analyzeFormantStructure` function and dependencies' },
+      { type: 'refactor', description: 'Removed unused `analyzeFormantStructure` function and constants' },
     ],
   },
   {
-    version: '1.0.105',
+    version: '1.0.71',
     date: '2026-03-07',
     changes: [
-      { type: 'feat', description: '**Widened harmonic tolerance**: Range expanded from 25-100 to 25-400 cents, default raised to 200 cents for better reverberant room support' },
-    ],
-  },
-  {
-    version: '1.0.104',
-    date: '2026-03-06',
-    changes: [
-      { type: 'feat', description: '**RTA threshold line overlay**: Display effective detection threshold as dashed blue line on RTA graph with right-aligned label' },
-      { type: 'ui', description: '**Show on RTA toggle**: New switch under Threshold slider to show/hide threshold line' },
+      { type: 'feat', description: 'Widened harmonic tolerance range from 25–100 to 25–400 cents (default 200) for better reverberant room support' },
     ],
   },
   {
     version: '1.0.70',
-    date: '2026-03-05',
+    date: '2026-03-06',
+    highlights: 'RTA threshold overlay',
     changes: [
-      { type: 'feat', description: '**Low-frequency detection restored**: Removed erroneous 400 Hz hard floor, use actual peak frequency in prominence gate instead of worst-case 150 Hz proxy, reduced LOW band multipliers (prominence 1.4x→1.15x, sustain 1.5x→1.2x) to prevent triple-stacking penalties' },
-      { type: 'feat', description: '**Advisory card dedup**: Frequency-proximity matching (200 cents) in React handler replaces same-frequency cards instead of accumulating duplicates; cards persist on clear as requested' },
-      { type: 'feat', description: '[ ] Start analysis with a mic near a monitor speaker — verify feedback below 400 Hz is detected and shown' },
-      { type: 'feat', description: '[ ] Verify no duplicate advisory cards appear for the same frequency' },
-      { type: 'feat', description: '[ ] Verify advisory cards persist (don\'t disappear) when feedback stops momentarily' },
+      { type: 'feat', description: 'RTA threshold line overlay — dashed blue line shows effective detection threshold on the spectrum graph' },
+      { type: 'ui', description: 'Show on RTA toggle under Threshold slider to show/hide threshold line' },
     ],
   },
   {
     version: '1.0.69',
     date: '2026-03-05',
+    highlights: 'Low-frequency detection restored',
     changes: [
-      { type: 'feat', description: '**Low-frequency detection**: Reduced Schroeder room-mode penalty from -0.25 to -0.12 — the old value consumed 76% of starting feedback probability, making sub-300 Hz detection nearly impossible even with strong positive signals (high MSD, sustained growth, high Q). The prominence floor scaling (up to 1.5× via modal density) and LOW band multipliers (1.4× prominence, 1.5× sustain) already provide robust room-mode filtering.' },
-      { type: 'feat', description: '**Prominence floor sync**: Changed hardcoded 10 dB base in `shouldReportIssue()` to use `settings.prominenceDb` so the reporting gate stays in sync with the detection gate (Speech preset uses 8 dB).' },
-      { type: 'feat', description: '**Duplicate advisories**: `onAdvisoryCleared` was a no-op in React state — when the worker cleared and re-detected the same frequency, both advisory cards accumulated. Now properly removes cleared advisories by ID.' },
-      { type: 'feat', description: '[ ] Verify low-frequency feedback (<300 Hz) is detected in Speech mode at a live venue' },
-      { type: 'feat', description: '[ ] Confirm no duplicate advisory cards appear for the same frequency' },
-      { type: 'feat', description: '[ ] Verify room modes are still filtered (not every low-freq peak should trigger)' },
-      { type: 'feat', description: '[ ] Run `npx tsc --noEmit && pnpm build` — both pass' },
+      { type: 'fix', description: 'Removed erroneous 400 Hz hard floor — low-frequency feedback is now detectable again' },
+      { type: 'fix', description: 'Reduced LOW band multipliers (prominence 1.4×→1.15×, sustain 1.5×→1.2×) to prevent triple-stacking penalties' },
+      { type: 'fix', description: 'Advisory card dedup — frequency-proximity matching (200 cents) replaces same-frequency cards instead of accumulating duplicates' },
     ],
   },
   {
     version: '1.0.68',
     date: '2026-03-05',
     changes: [
-      { type: 'feat', description: 'Raised PEQ Q values to match dbx AFS conventions (surgical Q60, heavy Q30)' },
-      { type: 'feat', description: 'Added ERB-scaled cut depth — shallower below 500 Hz to protect warmth, deeper above 2 kHz where notches are psychoacoustically transparent' },
-      { type: 'feat', description: 'Implemented PHPR (Peak-to-Harmonic Power Ratio) detection — feedback is sinusoidal (no harmonics), music has rich harmonics; used as soft confidence boost in classifier' },
-      { type: 'feat', description: 'Added bandwidth data to PEQ recommendation data model for future detail views' },
-      { type: 'feat', description: '[ ] Verify feedback detection still works in Speech mode with new Q values' },
-      { type: 'feat', description: '[ ] Check that low-frequency feedback recommendations are shallower than before' },
-      { type: 'feat', description: '[ ] Check that high-frequency feedback recommendations are deeper than before' },
-      { type: 'feat', description: '[ ] Verify PHPR appears in advisory `why` reasons when detecting feedback vs. music' },
-      { type: 'feat', description: '[ ] Confirm HelpMenu shows updated Q values (30/60 surgical, 16/30 heavy)' },
-      { type: 'feat', description: '[ ] Test that pure tones (feedback) get "Pure tone (PHPR X dB)" in reasons' },
-      { type: 'feat', description: '[ ] Test that music/speech gets "Harmonics present (PHPR X dB)" in reasons' },
+      { type: 'fix', description: 'Reduced Schroeder room-mode penalty from -0.25 to -0.12 — old value blocked sub-300 Hz detection' },
+      { type: 'fix', description: 'Prominence floor now synced with `settings.prominenceDb` instead of hardcoded 10 dB' },
+      { type: 'fix', description: 'Duplicate advisories — cleared advisories now properly removed by ID before re-detection' },
     ],
   },
   {
@@ -97,11 +138,9 @@ export const CHANGELOG: ChangelogEntry[] = [
     highlights: 'Pro convention EQ recommendations',
     changes: [
       { type: 'feat', description: 'Raised PEQ Q values to pro convention (surgical Q60, heavy Q30) matching dbx AFS standards' },
-      { type: 'feat', description: 'Added ERB-scaled cut depth — shallower cuts below 500 Hz to protect warmth, deeper above 2 kHz' },
-      { type: 'feat', description: 'Added PHPR (Peak-to-Harmonic Power Ratio) detection for feedback vs. music discrimination' },
-      { type: 'fix', description: 'Added bandwidth data to PEQ recommendations for future detail views' },
+      { type: 'feat', description: 'ERB-scaled cut depth — shallower cuts below 500 Hz to protect warmth, deeper above 2 kHz' },
+      { type: 'feat', description: 'PHPR (Peak-to-Harmonic Power Ratio) detection for feedback vs. music discrimination' },
       { type: 'fix', description: 'Improved early/quiet feedback detection with MSD-lowered threshold gate' },
-      { type: 'fix', description: 'Dialed back overly-conservative speech preset values (prominenceDb, confidenceThreshold, growthRateThreshold)' },
     ],
   },
   {
@@ -111,8 +150,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     changes: [
       { type: 'fix', description: 'Retuned Speech (Corporate & Conference) preset for balanced soundcheck + live use' },
       { type: 'fix', description: 'Extended frequency range to 10 kHz to catch condenser sibilance feedback' },
-      { type: 'fix', description: 'Raised confidence threshold (→0.40), prominence (→10 dB), and sustain (→350 ms) to reduce false positives' },
-      { type: 'fix', description: 'Increased feedback/ring thresholds and growth rate to filter room resonances and speech plosives' },
+      { type: 'fix', description: 'Raised confidence threshold, prominence, and sustain to reduce false positives' },
     ],
   },
   {
@@ -120,11 +158,9 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-03-05',
     highlights: 'Measure-then-lock auto-gain',
     changes: [
-      { type: 'feat', description: 'Auto-gain now calibrates for 3 seconds on start, then **freezes** at the computed gain value' },
-      { type: 'feat', description: 'Eliminates gain pumping that caused noise floor tracking instability and false positive detections' },
-      { type: 'feat', description: 'Calibration requires minimum 30 signal frames (~0.6s of actual audio) to prevent locking on transient blips' },
-      { type: 'feat', description: 'UI toggle shows **Cal** (pulsing amber) during calibration and **Lock** (green) when frozen' },
-      { type: 'feat', description: 'Re-enabling auto-gain or restarting the analyzer resets calibration fresh' },
+      { type: 'feat', description: 'Auto-gain calibrates for 3 seconds on start, then freezes at the computed gain value' },
+      { type: 'feat', description: 'Eliminates gain pumping that caused noise floor tracking instability' },
+      { type: 'ui', description: 'UI toggle shows Cal (pulsing amber) during calibration and Lock (green) when frozen' },
     ],
   },
   {
@@ -136,7 +172,6 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'ui', description: 'SettingsPanel reorganized into 5 tabs with collapsible sections and Room Acoustics tab' },
       { type: 'feat', description: 'Auto-versioning GitHub Action bumps version on PR merge' },
       { type: 'ui', description: 'Issue cards now show captured frequency as primary display' },
-      { type: 'feat', description: 'Added comprehensive beginner developer guide' },
     ],
   },
   {
@@ -146,9 +181,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     changes: [
       { type: 'refactor', description: 'Removed Neon PostgreSQL database layer and session persistence' },
       { type: 'refactor', description: 'Removed in-memory EventLogger and log export UI' },
-      { type: 'refactor', description: 'Extracted getSeverityUrgency to shared DSP module' },
       { type: 'fix', description: 'Capped hotspot events to 50 to prevent unbounded localStorage growth' },
-      { type: 'refactor', description: 'Added ErrorBoundary, memo(), useCallback across components' },
       { type: 'refactor', description: 'Removed 8 unused dependencies, migrated to ESLint flat config' },
     ],
   },
@@ -161,7 +194,6 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'feat', description: 'Air absorption modeling for high-frequency Q adjustment' },
       { type: 'feat', description: 'Room mode filtering and mode clustering' },
       { type: 'feat', description: 'Frequency-dependent prominence thresholds' },
-      { type: 'feat', description: 'Decay rate analysis passed to classifier' },
     ],
   },
   {
@@ -182,8 +214,6 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'fix', description: 'Reduced false positive and duplicate feedback detections' },
       { type: 'fix', description: 'Fixed 42 audit findings: DSP correctness, component bugs, API hardening' },
       { type: 'fix', description: 'Widened merge tolerance with band cooldown and bidirectional harmonic check' },
-      { type: 'perf', description: 'Optimized DSP presets for load-in, tightened fusion threshold' },
-      { type: 'fix', description: 'Fixed Vercel deploy: lazy DB connection, lockfile cleanup' },
     ],
   },
   {
@@ -195,7 +225,6 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'feat', description: 'GEQ-band advisory deduplication (one per 1/3 octave)' },
       { type: 'ui', description: 'Mobile layout: replaced hamburger with bottom tab bar' },
       { type: 'feat', description: 'About tab with dynamic version display' },
-      { type: 'feat', description: 'GEQ band frequency shown in issue cards' },
     ],
   },
   {
@@ -205,8 +234,6 @@ export const CHANGELOG: ChangelogEntry[] = [
     changes: [
       { type: 'feat', description: 'Replaced Electron with PWA via Serwist' },
       { type: 'ui', description: 'Resizable layout with research-driven operation mode presets' },
-      { type: 'ui', description: 'Help menu redesign with 6-tab Operator\'s Manual' },
-      { type: 'ui', description: 'Settings panel redesign with GEQ band labels' },
       { type: 'feat', description: '7-algorithm fusion: MSD, Phase, Spectral, Comb, IHR, PTMR, Compression' },
       { type: 'feat', description: 'Acoustic classifier with RT60-aware Q adjustments' },
       { type: 'feat', description: 'Feedback history with repeat offender tracking' },
