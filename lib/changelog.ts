@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.0.83',
+    date: '2026-03-08',
+    highlights: 'Issue card redesign',
+    changes: [
+      { type: 'ui', description: 'Redesigned issue cards — frequency hero row, badges on dedicated row, niche metadata in tooltip' },
+      { type: 'ui', description: 'Cleaner EQ recommendation row with proper column layout' },
+    ],
+  },
+  {
     version: '1.0.82',
     date: '2026-03-08',
     changes: [
