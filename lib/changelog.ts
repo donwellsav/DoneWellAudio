@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.0.82',
+    date: '2026-03-08',
+    changes: [
+      { type: 'ui', description: 'Wider gain fader strip (48px → 64px) with proportionally larger thumb and input' },
+    ],
+  },
+  {
     version: '1.0.81',
     date: '2026-03-08',
     changes: [

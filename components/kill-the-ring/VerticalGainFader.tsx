@@ -259,7 +259,7 @@ export const VerticalGainFader = memo(function VerticalGainFader({
           autoFocus
           type="text"
           defaultValue={String(displayValue)}
-          className="font-mono bg-input border border-primary rounded px-0.5 text-center text-foreground focus-visible:outline-none text-sm w-10 h-6 flex-shrink-0"
+          className="font-mono bg-input border border-primary rounded px-0.5 text-center text-foreground focus-visible:outline-none text-sm w-12 h-6 flex-shrink-0"
           onBlur={(e) => commitEdit(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') commitEdit((e.target as HTMLInputElement).value)
@@ -349,7 +349,7 @@ export const VerticalGainFader = memo(function VerticalGainFader({
           />
           {/* Gain thumb — horizontal bar */}
           <div
-            className={`absolute left-1/2 -translate-x-1/2 translate-y-1/2 w-10 h-3 rounded-sm border-2 shadow-md pointer-events-none transition-[box-shadow] ${
+            className={`absolute left-1/2 -translate-x-1/2 translate-y-1/2 w-12 h-3 rounded-sm border-2 shadow-md pointer-events-none transition-[box-shadow] ${
               autoGainEnabled ? 'border-primary bg-primary/90' : 'border-background bg-white'
             }`}
             style={{ bottom: `${thumbBottom}%` }}
