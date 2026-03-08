@@ -9,7 +9,6 @@ import { useEffect, useState, useCallback, useRef, useMemo, memo } from 'react'
 import { useAudioAnalyzer } from '@/hooks/useAudioAnalyzer'
 import { useAdvisoryLogging } from '@/hooks/useAdvisoryLogging'
 import { IssuesList } from './IssuesList'
-import { EQNotepad, advisoryToPin, type PinnedCut } from './EQNotepad'
 import { SpectrumCanvas } from './SpectrumCanvas'
 import { GEQBarView } from './GEQBarView'
 import { SettingsPanel } from './SettingsPanel'
@@ -22,7 +21,7 @@ import { AlgorithmStatusBar } from './AlgorithmStatusBar'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useFullscreen } from '@/hooks/useFullscreen'
-import { RotateCcw, LayoutGrid, AlertTriangle, BarChart3, Settings2, ClipboardList, Maximize2, Minimize2, PanelLeftClose, Columns2 } from 'lucide-react'
+import { RotateCcw, LayoutGrid, AlertTriangle, BarChart3, Settings2, Maximize2, Minimize2, PanelLeftClose, Columns2 } from 'lucide-react'
 import type { Advisory, OperationMode } from '@/types/advisory'
 import { OPERATION_MODES } from '@/lib/dsp/constants'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
@@ -85,10 +84,10 @@ export const KillTheRing = memo(function KillTheRingComponent() {
   const [activeGraph, setActiveGraph] = useState<GraphView>('rta')
   const [bottomLeftGraph, setBottomLeftGraph] = useState<GraphView>('geq')
   const [bottomRightGraph, setBottomRightGraph] = useState<GraphView>('controls')
-  const [mobileTab, setMobileTab] = useState<'issues' | 'graph' | 'settings' | 'notepad'>('issues')
-  const [activeSidebarTab, setActiveSidebarTab] = useState<'issues' | 'notepad' | 'controls'>('controls')
+  const [mobileTab, setMobileTab] = useState<'issues' | 'graph' | 'settings'>('issues')
+  const [activeSidebarTab, setActiveSidebarTab] = useState<'issues' | 'controls'>('controls')
   const [layoutKey, setLayoutKey] = useState(0)
-  const [issuesPanelOpen, setIssuesPanelOpen] = useState(false)
+  const [issuesPanelOpen, setIssuesPanelOpen] = useState(true)
   const issuesPanelRef = useRef<ImperativePanelHandle>(null)
 
   // Force-collapse issues panel on mount to override localStorage-restored size
@@ -100,9 +99,6 @@ export const KillTheRing = memo(function KillTheRingComponent() {
   const rootRef = useRef<HTMLDivElement>(null)
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(rootRef)
 
-  // Applied cuts state (EQ Notepad)
-  const [pinnedCuts, setPinnedCuts] = useState<PinnedCut[]>([])
-  const appliedIdsRef = useRef<Set<string>>(new Set())
 
   // Dismissed advisory IDs — hidden until the advisory disappears and a new one is detected
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
@@ -170,23 +166,6 @@ export const KillTheRing = memo(function KillTheRingComponent() {
     })
   }, [advisories, dismissedIds.size, geqClearedIds.size, rtaClearedIds.size])
 
-  const handleApply = useCallback((advisory: Advisory) => {
-    if (appliedIdsRef.current.has(advisory.id)) return
-    const pin = advisoryToPin(advisory)
-    if (!pin) return
-    appliedIdsRef.current.add(advisory.id)
-    setPinnedCuts((prev) => [...prev, pin])
-  }, [])
-
-  const handleRemovePin = useCallback((id: string) => {
-    appliedIdsRef.current.delete(id)
-    setPinnedCuts((prev) => prev.filter((p) => p.id !== id))
-  }, [])
-
-  const handleClearPins = useCallback(() => {
-    appliedIdsRef.current.clear()
-    setPinnedCuts([])
-  }, [])
 
   // Auto music-aware: watch spectrumStatus.peak vs noise floor
   const autoMusicDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -249,7 +228,7 @@ export const KillTheRing = memo(function KillTheRingComponent() {
   const openIssuesPanel = useCallback(() => {
     setIssuesPanelOpen(true)
     if (activeSidebarTab === 'issues') setActiveSidebarTab('controls')
-    requestAnimationFrame(() => issuesPanelRef.current?.expand())
+    requestAnimationFrame(() => issuesPanelRef.current?.resize(25))
   }, [activeSidebarTab])
 
   const closeIssuesPanel = useCallback(() => {
@@ -494,9 +473,7 @@ export const KillTheRing = memo(function KillTheRingComponent() {
                 <IssuesList
                   advisories={advisories}
                   maxIssues={settings.maxDisplayedIssues}
-                  appliedIds={appliedIdsRef.current}
                   dismissedIds={dismissedIds}
-                  onApply={handleApply}
                   onDismiss={handleDismiss}
                   onClearAll={handleClearAllIssues}
                   onClearResolved={handleClearResolvedIssues}
@@ -574,29 +551,13 @@ export const KillTheRing = memo(function KillTheRingComponent() {
             </div>
           )}
 
-          {/* Notepad tab */}
-          {mobileTab === 'notepad' && (
-            <div className="flex-1 overflow-y-auto p-3 bg-background">
-              <h2 className="text-[0.625rem] text-muted-foreground uppercase tracking-wide mb-2 flex items-center justify-between">
-                <span>EQ Notepad</span>
-                {pinnedCuts.length > 0 && (
-                  <span className="text-primary font-mono">{pinnedCuts.length}</span>
-                )}
-              </h2>
-              <EQNotepad
-                pins={pinnedCuts}
-                onRemove={handleRemovePin}
-                onClear={handleClearPins}
-              />
-            </div>
-          )}
         </div>
 
         {/* ── Desktop: Resizable panel layout (landscape only) ─── */}
         <div className="hidden landscape:flex flex-1 overflow-hidden">
           <ResizablePanelGroup key={layoutKey} direction="horizontal" autoSaveId="ktr-layout-main-v3">
             {/* Sidebar panel */}
-            <ResizablePanel defaultSize={15} minSize={8} maxSize={30} collapsible>
+            <ResizablePanel defaultSize={20} minSize={8} maxSize={30} collapsible>
               <div className="flex flex-col h-full bg-card/50 overflow-hidden">
                 {/* Algorithm status */}
                 <div className="flex-shrink-0 border-b border-border p-2">
@@ -627,19 +588,6 @@ export const KillTheRing = memo(function KillTheRingComponent() {
                       )}
                     </button>
                   )}
-                  <button
-                    onClick={() => setActiveSidebarTab('notepad')}
-                    className={`flex-1 py-1.5 text-[0.625rem] font-medium uppercase tracking-wide transition-colors ${
-                      activeSidebarTab === 'notepad'
-                        ? 'text-foreground border-b-2 border-primary'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    EQ Notepad
-                    {pinnedCuts.length > 0 && (
-                      <span className="ml-1 font-mono text-primary">{pinnedCuts.length}</span>
-                    )}
-                  </button>
                   <button
                     onClick={() => setActiveSidebarTab('controls')}
                     className={`flex-1 py-1.5 text-[0.625rem] font-medium uppercase tracking-wide transition-colors ${
@@ -676,18 +624,9 @@ export const KillTheRing = memo(function KillTheRingComponent() {
                       <IssuesList
                         advisories={advisories}
                         maxIssues={settings.maxDisplayedIssues}
-                        appliedIds={appliedIdsRef.current}
                         dismissedIds={dismissedIds}
-                        onApply={handleApply}
                         onDismiss={handleDismiss}
                         onClearAll={handleClearAllIssues}
-                      />
-                    )}
-                    {activeSidebarTab === 'notepad' && (
-                      <EQNotepad
-                        pins={pinnedCuts}
-                        onRemove={handleRemovePin}
-                        onClear={handleClearPins}
                       />
                     )}
                     {activeSidebarTab === 'controls' && (
@@ -704,7 +643,7 @@ export const KillTheRing = memo(function KillTheRingComponent() {
             {/* Issues side-panel (collapsible, between sidebar and graphs) */}
             <ResizablePanel
               ref={issuesPanelRef}
-              defaultSize={0}
+              defaultSize={25}
               collapsedSize={0}
               minSize={10}
               maxSize={35}
@@ -737,9 +676,7 @@ export const KillTheRing = memo(function KillTheRingComponent() {
                   <IssuesList
                     advisories={advisories}
                     maxIssues={settings.maxDisplayedIssues}
-                    appliedIds={appliedIdsRef.current}
                     dismissedIds={dismissedIds}
-                    onApply={handleApply}
                     onDismiss={handleDismiss}
                     onClearAll={handleClearAllIssues}
                   />
@@ -750,7 +687,7 @@ export const KillTheRing = memo(function KillTheRingComponent() {
             <ResizableHandle withHandle />
 
             {/* Graph area panel */}
-            <ResizablePanel defaultSize={85}>
+            <ResizablePanel defaultSize={55}>
               <ResizablePanelGroup direction="vertical" autoSaveId="ktr-layout-vertical">
                 {/* Top graph */}
                 <ResizablePanel defaultSize={60} minSize={20} collapsible>
@@ -829,7 +766,6 @@ export const KillTheRing = memo(function KillTheRingComponent() {
           {([
             { id: 'issues' as const, label: 'Issues', Icon: AlertTriangle, badge: activeAdvisoryCount },
             { id: 'graph' as const, label: 'Graph', Icon: BarChart3, badge: 0 },
-            { id: 'notepad' as const, label: 'Notepad', Icon: ClipboardList, badge: pinnedCuts.length },
             { id: 'settings' as const, label: 'Settings', Icon: Settings2, badge: 0 },
           ]).map((tab) => (
             <button

@@ -82,7 +82,7 @@ function SectionGroup({ title, defaultOpen = true, children }: {
   const [open, setOpen] = useState(defaultOpen)
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="flex items-center gap-2 w-full py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">
+      <CollapsibleTrigger className="flex items-center gap-2 w-full py-1.5 text-xs font-semibold font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">
         <span className="flex-1 text-left">{title}</span>
         <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? '' : '-rotate-90'}`} />
       </CollapsibleTrigger>
@@ -251,7 +251,7 @@ export const SettingsPanel = memo(function SettingsPanel({
       </DialogTrigger>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-lg flex items-center gap-2">
+          <DialogTitle className="text-lg font-bold tracking-tight flex items-center gap-2">
             <Settings className="w-5 h-5" />
             Settings
           </DialogTitle>
@@ -1117,15 +1117,15 @@ export const SettingsPanel = memo(function SettingsPanel({
                     {/* Auto-derived readouts */}
                     <div className="grid grid-cols-3 gap-2 text-[0.5625rem] text-muted-foreground">
                       <div className="bg-muted/50 rounded px-2 py-1.5 text-center">
-                        <div className="font-medium text-foreground">{settings.roomRT60.toFixed(1)}s</div>
+                        <div className="font-mono font-medium text-foreground">{settings.roomRT60.toFixed(1)}s</div>
                         <div>RT60</div>
                       </div>
                       <div className="bg-muted/50 rounded px-2 py-1.5 text-center">
-                        <div className="font-medium text-foreground">{settings.roomVolume}m³</div>
+                        <div className="font-mono font-medium text-foreground">{settings.roomVolume}m³</div>
                         <div>Volume</div>
                       </div>
                       <div className="bg-muted/50 rounded px-2 py-1.5 text-center">
-                        <div className="font-medium text-foreground">{Math.round(calculateSchroederFrequency(settings.roomRT60, settings.roomVolume))}Hz</div>
+                        <div className="font-mono font-medium text-foreground">{Math.round(calculateSchroederFrequency(settings.roomRT60, settings.roomVolume))}Hz</div>
                         <div>Schroeder</div>
                       </div>
                     </div>

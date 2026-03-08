@@ -5,7 +5,7 @@ import { formatFrequency, formatPitch } from '@/lib/utils/pitchUtils'
 import { getSeverityColor } from '@/lib/dsp/eqAdvisor'
 import { getSeverityText } from '@/lib/dsp/classifier'
 import { getFeedbackHistory } from '@/lib/dsp/feedbackHistory'
-import { AlertTriangle, CheckCircle2, Circle, X, TrendingUp } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, X, TrendingUp } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import type { Advisory } from '@/types/advisory'
 
@@ -16,16 +16,14 @@ const WARNING_VELOCITY_THRESHOLD = 10 // dB/s
 interface IssuesListProps {
   advisories: Advisory[]
   maxIssues?: number
-  appliedIds?: Set<string>
   dismissedIds?: Set<string>
-  onApply?: (advisory: Advisory) => void
   onDismiss?: (id: string) => void
   onClearAll?: () => void
   onClearResolved?: () => void
   touchFriendly?: boolean
 }
 
-export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10, appliedIds, dismissedIds, onApply, onDismiss, onClearAll, onClearResolved, touchFriendly }: IssuesListProps) {
+export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10, dismissedIds, onDismiss, onClearAll, onClearResolved, touchFriendly }: IssuesListProps) {
   // Filter dismissed, sort repeat offenders to top by hit count, then slice to max
   const sorted = useMemo(() => {
     const history = getFeedbackHistory()
@@ -53,8 +51,9 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
     <div className="flex flex-col gap-2">
       {sorted.length === 0 ? (
         <div className="flex flex-col items-center justify-center flex-1 min-h-[120px] text-muted-foreground py-8">
-          <div className="text-sm">No issues detected</div>
-          <div className="text-xs mt-1">Monitoring for feedback...</div>
+          <CheckCircle2 className="w-5 h-5 text-emerald-500/40 mb-2" />
+          <div className="text-sm font-medium">No issues detected</div>
+          <div className="text-xs mt-1 text-muted-foreground/60">Monitoring for feedback...</div>
         </div>
       ) : (
         <>
@@ -83,8 +82,6 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
               key={advisory.id}
               advisory={advisory}
               rank={index + 1}
-              isApplied={appliedIds?.has(advisory.id) ?? false}
-              onApply={onApply}
               onDismiss={onDismiss}
               touchFriendly={touchFriendly}
             />
@@ -98,13 +95,11 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
 interface IssueCardProps {
   advisory: Advisory
   rank: number
-  isApplied: boolean
-  onApply?: (advisory: Advisory) => void
   onDismiss?: (id: string) => void
   touchFriendly?: boolean
 }
 
-const IssueCard = memo(function IssueCard({ advisory, rank, isApplied, onApply, onDismiss, touchFriendly }: IssueCardProps) {
+const IssueCard = memo(function IssueCard({ advisory, rank, onDismiss, touchFriendly }: IssueCardProps) {
   // Precompute occurrence count once per render instead of calling in JSX render path
   const occurrenceCount = useMemo(
     () => getFeedbackHistory().getOccurrenceCount(advisory.trueFrequencyHz),
@@ -139,22 +134,20 @@ const IssueCard = memo(function IssueCard({ advisory, rank, isApplied, onApply, 
 
   return (
     <div
-      className={`relative flex flex-col rounded-md border bg-card transition-all overflow-hidden ${
+      className={`relative flex flex-col rounded-md border bg-card transition-all overflow-hidden hover:bg-accent/5 ${
         isResolved
           ? 'border-border/50'
-          : isApplied
-            ? 'border-primary/30 opacity-60'
-            : isRunaway
+          : isRunaway
               ? 'border-red-500/70 shadow-[0_0_8px_rgba(239,68,68,0.35)] animate-pulse'
               : isWarning
                 ? 'border-amber-500/60 shadow-[0_0_4px_rgba(245,158,11,0.25)]'
-                : 'border-border'
+                : 'border-border hover:border-border/80'
       }`}
     >
       {/* Left severity bar */}
       <div
-        className="absolute left-0 top-0 bottom-0 w-0.5"
-        style={{ backgroundColor: isResolved ? 'hsl(var(--muted))' : isApplied ? 'transparent' : severityColor }}
+        className="absolute left-0 top-0 bottom-0 w-1 rounded-r-sm"
+        style={{ backgroundColor: isResolved ? 'hsl(var(--muted))' : severityColor }}
       />
 
       {/* Card body */}
@@ -265,7 +258,7 @@ const IssueCard = memo(function IssueCard({ advisory, rank, isApplied, onApply, 
         </div>
 
         {/* Row 2: runaway / warning alert */}
-        {(isRunaway || isWarning) && !isApplied && !isResolved && (
+        {(isRunaway || isWarning) && !isResolved && (
           <div className={`flex items-center gap-1 text-[0.5625rem] font-bold uppercase tracking-wide ${
             isRunaway ? 'text-red-400' : 'text-amber-400'
           }`}>
@@ -277,7 +270,7 @@ const IssueCard = memo(function IssueCard({ advisory, rank, isApplied, onApply, 
         )}
 
         {/* Row 2b: Modal overlap and cumulative growth indicators */}
-        {(advisory.modalOverlapFactor != null || advisory.cumulativeGrowthDb != null) && !isApplied && (
+        {(advisory.modalOverlapFactor != null || advisory.cumulativeGrowthDb != null) && (
           <div className="flex items-center gap-2 text-[0.5625rem] text-muted-foreground">
             {advisory.modalOverlapFactor != null && advisory.modalOverlapFactor < 0.3 && (
               <span className="text-amber-400" title="Isolated mode - high feedback risk">
@@ -299,7 +292,7 @@ const IssueCard = memo(function IssueCard({ advisory, rank, isApplied, onApply, 
 
         {/* Row 3: EQ suggestion + send button */}
         {hasEq && (
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center justify-between gap-2 bg-muted/30 -mx-2 px-2 py-1 rounded-sm">
             <div className="flex items-center gap-2 text-[0.625rem] font-mono text-muted-foreground">
               <span>
                 GEQ <span className="text-foreground">{geq?.suggestedDb}dB</span>
@@ -311,32 +304,6 @@ const IssueCard = memo(function IssueCard({ advisory, rank, isApplied, onApply, 
               </span>
             </div>
 
-            {onApply && (
-              <TooltipProvider delayDuration={300}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => onApply(advisory)}
-                      disabled={isApplied}
-                      aria-label={isApplied ? 'Cut sent to EQ Notepad' : `Send cut to EQ Notepad (${exactFreqStr})`}
-                      className={`flex items-center gap-1 text-[0.625rem] px-1.5 py-0.5 rounded transition-colors ${
-                        isApplied
-                          ? 'text-primary cursor-default'
-                          : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
-                      }`}
-                    >
-                      {isApplied
-                        ? <><CheckCircle2 className="w-3 h-3" /><span>Sent</span></>
-                        : <><Circle className="w-3 h-3" /><span>Notepad</span></>
-                      }
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="left" className="text-xs">
-                    {isApplied ? 'Sent to EQ Notepad' : 'Send to EQ Notepad'}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
           </div>
         )}
       </div>

@@ -10,6 +10,356 @@ import { CANVAS_SETTINGS, VIZ_COLORS } from '@/lib/dsp/constants'
 import type { SpectrumData, Advisory } from '@/types/advisory'
 import type { EarlyWarning } from '@/hooks/useAudioAnalyzer'
 
+// ─── Types for drawing functions ───────────────────────────────────────────────
+
+interface DbRange {
+  dbMin: number
+  dbMax: number
+  freqMin: number
+  freqMax: number
+}
+
+// ─── Pure drawing functions (module-level, no component state) ─────────────────
+
+const DB_MAJOR = [-90, -60, -30, 0]
+const DB_MINOR = [-80, -70, -50, -40, -20, -10]
+const DB_ALL = [...DB_MAJOR, ...DB_MINOR].sort((a, b) => a - b)
+
+function drawGrid(
+  ctx: CanvasRenderingContext2D,
+  plotWidth: number,
+  plotHeight: number,
+  range: DbRange,
+) {
+  // Background
+  ctx.fillStyle = '#0c0c0c'
+  ctx.fillRect(0, 0, plotWidth, plotHeight)
+
+  // Minor dB grid (subtle, drawn first)
+  ctx.strokeStyle = '#161616'
+  ctx.lineWidth = 0.5
+  ctx.beginPath()
+  for (const db of DB_MINOR) {
+    const y = ((range.dbMax - db) / (range.dbMax - range.dbMin)) * plotHeight
+    ctx.moveTo(0, y)
+    ctx.lineTo(plotWidth, y)
+  }
+  ctx.stroke()
+
+  // Major dB grid (brighter, on top)
+  ctx.strokeStyle = '#2a2a2a'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  for (const db of DB_MAJOR) {
+    const y = ((range.dbMax - db) / (range.dbMax - range.dbMin)) * plotHeight
+    ctx.moveTo(0, y)
+    ctx.lineTo(plotWidth, y)
+  }
+  ctx.stroke()
+
+  // Frequency grid
+  ctx.strokeStyle = '#1e1e1e'
+  ctx.lineWidth = 0.5
+  ctx.beginPath()
+  for (const freq of FREQ_LABELS) {
+    const x = freqToLogPosition(freq, range.freqMin, range.freqMax) * plotWidth
+    ctx.moveTo(x, 0)
+    ctx.lineTo(x, plotHeight)
+  }
+  ctx.stroke()
+}
+
+function drawIndicatorLines(
+  ctx: CanvasRenderingContext2D,
+  plotWidth: number,
+  plotHeight: number,
+  range: DbRange,
+  spectrum: SpectrumData | null,
+  showThresholdLine: boolean,
+  feedbackThresholdDb: number | undefined,
+  fontSize: number,
+) {
+  // Noise floor
+  if (spectrum?.noiseFloorDb !== null && spectrum?.noiseFloorDb !== undefined) {
+    const floorY = ((range.dbMax - spectrum.noiseFloorDb) / (range.dbMax - range.dbMin)) * plotHeight
+    ctx.strokeStyle = VIZ_COLORS.NOISE_FLOOR
+    ctx.lineWidth = 1
+    ctx.setLineDash([4, 4])
+    ctx.beginPath()
+    ctx.moveTo(0, floorY)
+    ctx.lineTo(plotWidth, floorY)
+    ctx.stroke()
+    ctx.setLineDash([])
+    // Right-aligned label
+    ctx.font = `${Math.max(8, fontSize - 2)}px monospace`
+    ctx.fillStyle = VIZ_COLORS.NOISE_FLOOR
+    ctx.globalAlpha = 0.7
+    ctx.textAlign = 'right'
+    ctx.fillText('Floor', plotWidth - 4, floorY - 4)
+    ctx.globalAlpha = 1
+    ctx.textAlign = 'left'
+  }
+
+  // Effective threshold
+  if (showThresholdLine && spectrum?.effectiveThresholdDb != null) {
+    const threshY = ((range.dbMax - spectrum.effectiveThresholdDb) / (range.dbMax - range.dbMin)) * plotHeight
+    ctx.strokeStyle = VIZ_COLORS.THRESHOLD
+    ctx.globalAlpha = 0.5
+    ctx.lineWidth = 1.5
+    ctx.setLineDash([6, 6])
+    ctx.beginPath()
+    ctx.moveTo(0, threshY)
+    ctx.lineTo(plotWidth, threshY)
+    ctx.stroke()
+    ctx.setLineDash([])
+    // Right-aligned label
+    const threshLabel = `Thresh +${feedbackThresholdDb ?? 0}dB`
+    ctx.font = `${Math.max(8, fontSize - 2)}px monospace`
+    ctx.fillStyle = VIZ_COLORS.THRESHOLD
+    ctx.textAlign = 'right'
+    ctx.fillText(threshLabel, plotWidth - 4, threshY - 4)
+    ctx.globalAlpha = 1
+    ctx.textAlign = 'left'
+  }
+}
+
+function drawSpectrum(
+  ctx: CanvasRenderingContext2D,
+  plotWidth: number,
+  plotHeight: number,
+  range: DbRange,
+  spectrum: SpectrumData | null,
+  gradientRef: React.RefObject<CanvasGradient | null>,
+  gradientHeightRef: React.RefObject<number>,
+  spectrumLineWidth: number,
+) {
+  if (!spectrum?.freqDb || !spectrum.sampleRate || !spectrum.fftSize) return
+
+  const freqDb = spectrum.freqDb
+  const hzPerBin = spectrum.sampleRate / spectrum.fftSize
+  const n = freqDb.length
+
+  // Cached gradient fill — only recreated when plotHeight changes
+  let gradient = gradientRef.current
+  if (!gradient || gradientHeightRef.current !== plotHeight) {
+    gradient = ctx.createLinearGradient(0, 0, 0, plotHeight)
+    gradient.addColorStop(0, 'rgba(16, 185, 129, 0.85)')
+    gradient.addColorStop(0.5, 'rgba(16, 185, 129, 0.35)')
+    gradient.addColorStop(1, 'rgba(16, 185, 129, 0.05)')
+    ;(gradientRef as React.MutableRefObject<CanvasGradient | null>).current = gradient
+    ;(gradientHeightRef as React.MutableRefObject<number>).current = plotHeight
+  }
+
+  // Single pass: build stroke path, then derive fill from it
+  const strokePath = new Path2D()
+  const fillPath = new Path2D()
+  let firstX = 0
+  let lastX = 0
+  let started = false
+
+  for (let i = 1; i < n; i++) {
+    const freq = i * hzPerBin
+    if (freq < range.freqMin || freq > range.freqMax) continue
+
+    const x = freqToLogPosition(freq, range.freqMin, range.freqMax) * plotWidth
+    const db = clamp(freqDb[i], range.dbMin, range.dbMax)
+    const y = ((range.dbMax - db) / (range.dbMax - range.dbMin)) * plotHeight
+
+    if (!started) {
+      firstX = x
+      strokePath.moveTo(x, y)
+      fillPath.moveTo(x, plotHeight)
+      fillPath.lineTo(x, y)
+      started = true
+    } else {
+      strokePath.lineTo(x, y)
+      fillPath.lineTo(x, y)
+    }
+    lastX = x
+  }
+
+  // Complete fill path back to baseline
+  fillPath.lineTo(lastX, plotHeight)
+  fillPath.closePath()
+
+  // Draw fill then stroke (with glow)
+  ctx.fillStyle = gradient
+  ctx.fill(fillPath)
+
+  // Glow pass — wider, semi-transparent
+  ctx.strokeStyle = VIZ_COLORS.SPECTRUM
+  ctx.globalAlpha = 0.15
+  ctx.lineWidth = spectrumLineWidth + 2
+  ctx.stroke(strokePath)
+
+  // Sharp pass — crisp line on top
+  ctx.globalAlpha = 1
+  ctx.lineWidth = spectrumLineWidth
+  ctx.stroke(strokePath)
+}
+
+function drawFreqRangeOverlay(
+  ctx: CanvasRenderingContext2D,
+  plotWidth: number,
+  plotHeight: number,
+  range: DbRange,
+  freqRange: { min: number; max: number },
+) {
+  const rangeMinX = freqToLogPosition(Math.max(freqRange.min, range.freqMin), range.freqMin, range.freqMax) * plotWidth
+  const rangeMaxX = freqToLogPosition(Math.min(freqRange.max, range.freqMax), range.freqMin, range.freqMax) * plotWidth
+
+  // Dim overlay outside detection range
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
+  if (rangeMinX > 0) ctx.fillRect(0, 0, rangeMinX, plotHeight)
+  if (rangeMaxX < plotWidth) ctx.fillRect(rangeMaxX, 0, plotWidth - rangeMaxX, plotHeight)
+
+  // Vertical boundary lines
+  const lineColor = '#3b82f6' // blue-500
+  ctx.strokeStyle = lineColor
+  ctx.lineWidth = 2
+  ctx.globalAlpha = 0.85
+
+  // Min line
+  ctx.beginPath()
+  ctx.moveTo(rangeMinX, 0)
+  ctx.lineTo(rangeMinX, plotHeight)
+  ctx.stroke()
+
+  // Max line
+  ctx.beginPath()
+  ctx.moveTo(rangeMaxX, 0)
+  ctx.lineTo(rangeMaxX, plotHeight)
+  ctx.stroke()
+
+  // Grab handles (small rounded rects at vertical center)
+  const handleW = 6
+  const handleH = 24
+  const handleY = (plotHeight - handleH) / 2
+  ctx.fillStyle = lineColor
+  ctx.globalAlpha = 0.7
+
+  // Min handle
+  const minHandleRect = new Path2D()
+  minHandleRect.roundRect(rangeMinX - handleW / 2, handleY, handleW, handleH, 3)
+  ctx.fill(minHandleRect)
+
+  // Max handle
+  const maxHandleRect = new Path2D()
+  maxHandleRect.roundRect(rangeMaxX - handleW / 2, handleY, handleW, handleH, 3)
+  ctx.fill(maxHandleRect)
+
+  ctx.globalAlpha = 1
+}
+
+function drawMarkers(
+  ctx: CanvasRenderingContext2D,
+  plotWidth: number,
+  plotHeight: number,
+  range: DbRange,
+  earlyWarning: EarlyWarning | null | undefined,
+  advisories: Advisory[],
+  clearedIds: Set<string> | undefined,
+  peakMarkerRadius: number,
+  fontSize: number,
+) {
+  // Early warning predictions
+  if (earlyWarning && earlyWarning.predictedFrequencies.length > 0) {
+    const warningColor = '#f59e0b' // amber-500
+    ctx.strokeStyle = warningColor
+    ctx.lineWidth = 1.5
+    ctx.setLineDash([6, 4])
+    ctx.globalAlpha = 0.6
+
+    for (const freq of earlyWarning.predictedFrequencies) {
+      if (freq < range.freqMin || freq > range.freqMax) continue
+      const x = freqToLogPosition(freq, range.freqMin, range.freqMax) * plotWidth
+
+      // Vertical dashed line
+      ctx.beginPath()
+      ctx.moveTo(x, 0)
+      ctx.lineTo(x, plotHeight)
+      ctx.stroke()
+
+      // Warning triangle at top
+      ctx.fillStyle = warningColor
+      ctx.beginPath()
+      ctx.moveTo(x, 8)
+      ctx.lineTo(x - 5, 0)
+      ctx.lineTo(x + 5, 0)
+      ctx.closePath()
+      ctx.fill()
+    }
+
+    ctx.setLineDash([])
+    ctx.globalAlpha = 1
+  }
+
+  // Advisory peak markers (persist until cleared, cap at 7)
+  const visibleAdvisories = advisories
+    .filter(a => !clearedIds?.has(a.id))
+    .slice(-7)
+  for (const advisory of visibleAdvisories) {
+    const freq = advisory.trueFrequencyHz
+    const db = advisory.trueAmplitudeDb
+    const x = freqToLogPosition(freq, range.freqMin, range.freqMax) * plotWidth
+    const y = ((range.dbMax - clamp(db, range.dbMin, range.dbMax)) / (range.dbMax - range.dbMin)) * plotHeight
+    const color = getSeverityColor(advisory.severity)
+
+    // Vertical line
+    ctx.strokeStyle = color
+    ctx.lineWidth = 2
+    ctx.globalAlpha = 0.7
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+    ctx.lineTo(x, plotHeight)
+    ctx.stroke()
+    ctx.globalAlpha = 1
+
+    // Peak dot
+    ctx.fillStyle = color
+    ctx.beginPath()
+    ctx.arc(x, y, peakMarkerRadius, 0, Math.PI * 2)
+    ctx.fill()
+
+    // Frequency label
+    ctx.fillStyle = color
+    ctx.font = `${fontSize + 3}px monospace`
+    ctx.textAlign = 'center'
+    ctx.fillText(formatFrequency(freq), x, y - 10)
+  }
+}
+
+function drawAxisLabels(
+  ctx: CanvasRenderingContext2D,
+  padding: { top: number; left: number; right: number; bottom: number },
+  plotWidth: number,
+  plotHeight: number,
+  range: DbRange,
+  fontSize: number,
+  width: number,
+  height: number,
+) {
+  ctx.fillStyle = '#888'
+  ctx.font = `${fontSize}px monospace`
+
+  // Y-axis (dB)
+  ctx.textAlign = 'right'
+  for (const db of DB_ALL) {
+    const y = padding.top + ((range.dbMax - db) / (range.dbMax - range.dbMin)) * plotHeight
+    ctx.fillText(`${db}`, padding.left - 5, y + 3)
+  }
+
+  // X-axis (Hz)
+  ctx.textAlign = 'center'
+  for (const freq of FREQ_LABELS) {
+    const x = padding.left + freqToLogPosition(freq, range.freqMin, range.freqMax) * plotWidth
+    const label = freq >= 1000 ? `${freq / 1000}k` : `${freq}`
+    ctx.fillText(label, x, height - 8)
+  }
+}
+
+// ─── Component ─────────────────────────────────────────────────────────────────
+
 interface SpectrumCanvasProps {
   spectrumRef: React.RefObject<SpectrumData | null>
   advisories: Advisory[]  // Keep as prop — changes infrequently, drives markers
@@ -59,6 +409,10 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
   const gradientRef = useRef<CanvasGradient | null>(null)
   const gradientHeightRef = useRef(0)
 
+  // Dirty-bit: skip canvas redraw when nothing has changed
+  const lastSpectrumRef = useRef<SpectrumData | null>(null)
+  const dirtyRef = useRef(true) // Start dirty to ensure first frame draws
+
   // Track whether analysis has ever started; once true the placeholder is gone for good
   const [hasEverStarted, setHasEverStarted] = useState(false)
   useEffect(() => {
@@ -83,6 +437,7 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
         // Invalidate cached objects on resize (canvas element may change)
         ctxRef.current = null
         gradientRef.current = null
+        dirtyRef.current = true
 
         const canvas = canvasRef.current
         if (canvas) {
@@ -100,6 +455,12 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
 
   const render = useCallback(() => {
     const spectrum = spectrumRef.current
+
+    // Dirty check: skip frame if nothing changed since last draw
+    const spectrumChanged = spectrum !== lastSpectrumRef.current
+    if (!spectrumChanged && !dirtyRef.current) return
+    lastSpectrumRef.current = spectrum
+    dirtyRef.current = false
 
     const canvas = canvasRef.current
     if (!canvas) return
@@ -131,288 +492,38 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
     const fontSize = Math.round((graphFontSize + scaledFontSize) / 2)
     const peakMarkerRadius = Math.max(3, Math.round(width * 0.005))
 
-    const { RTA_FREQ_MIN, RTA_FREQ_MAX } = CANVAS_SETTINGS
-    const RTA_DB_MIN = rtaDbMinProp ?? CANVAS_SETTINGS.RTA_DB_MIN
-    const RTA_DB_MAX = rtaDbMaxProp ?? CANVAS_SETTINGS.RTA_DB_MAX
+    const range: DbRange = {
+      dbMin: rtaDbMinProp ?? CANVAS_SETTINGS.RTA_DB_MIN,
+      dbMax: rtaDbMaxProp ?? CANVAS_SETTINGS.RTA_DB_MAX,
+      freqMin: CANVAS_SETTINGS.RTA_FREQ_MIN,
+      freqMax: CANVAS_SETTINGS.RTA_FREQ_MAX,
+    }
 
-    // Draw grid
+    // ── Draw phases ──────────────────────────────────────────────
     ctx.save()
     ctx.translate(padding.left, padding.top)
 
-    // Background
-    ctx.fillStyle = '#0a0a0a'
-    ctx.fillRect(0, 0, plotWidth, plotHeight)
-
-    // Grid lines
-    ctx.strokeStyle = '#1a1a1a'
-    ctx.lineWidth = 1
-
-    // Horizontal grid (dB)
-    const dbSteps = [-90, -80, -70, -60, -50, -40, -30, -20, -10, 0]
-    ctx.beginPath()
-    for (const db of dbSteps) {
-      const y = ((RTA_DB_MAX - db) / (RTA_DB_MAX - RTA_DB_MIN)) * plotHeight
-      ctx.moveTo(0, y)
-      ctx.lineTo(plotWidth, y)
-    }
-    ctx.stroke()
-
-    // Vertical grid (frequency)
-    ctx.beginPath()
-    for (const freq of FREQ_LABELS) {
-      const x = freqToLogPosition(freq, RTA_FREQ_MIN, RTA_FREQ_MAX) * plotWidth
-      ctx.moveTo(x, 0)
-      ctx.lineTo(x, plotHeight)
-    }
-    ctx.stroke()
-
-    // Draw noise floor
-    if (spectrum?.noiseFloorDb !== null && spectrum?.noiseFloorDb !== undefined) {
-      const floorY = ((RTA_DB_MAX - spectrum.noiseFloorDb) / (RTA_DB_MAX - RTA_DB_MIN)) * plotHeight
-      ctx.strokeStyle = VIZ_COLORS.NOISE_FLOOR
-      ctx.lineWidth = 1
-      ctx.setLineDash([4, 4])
-      ctx.beginPath()
-      ctx.moveTo(0, floorY)
-      ctx.lineTo(plotWidth, floorY)
-      ctx.stroke()
-      ctx.setLineDash([])
-    }
-
-    // Draw effective threshold line
-    if (showThresholdLine && spectrum?.effectiveThresholdDb != null) {
-      const threshY = ((RTA_DB_MAX - spectrum.effectiveThresholdDb) / (RTA_DB_MAX - RTA_DB_MIN)) * plotHeight
-      ctx.strokeStyle = VIZ_COLORS.THRESHOLD
-      ctx.globalAlpha = 0.5
-      ctx.lineWidth = 1.5
-      ctx.setLineDash([6, 6])
-      ctx.beginPath()
-      ctx.moveTo(0, threshY)
-      ctx.lineTo(plotWidth, threshY)
-      ctx.stroke()
-      ctx.setLineDash([])
-      // Right-aligned label
-      const threshLabel = `Thresh +${feedbackThresholdDb ?? 0}dB`
-      ctx.font = `${Math.max(8, fontSize - 2)}px monospace`
-      ctx.fillStyle = VIZ_COLORS.THRESHOLD
-      ctx.textAlign = 'right'
-      ctx.fillText(threshLabel, plotWidth - 4, threshY - 4)
-      ctx.globalAlpha = 1
-      ctx.textAlign = 'left'
-    }
-
-    // Draw spectrum
-    if (spectrum?.freqDb && spectrum.sampleRate && spectrum.fftSize) {
-      const freqDb = spectrum.freqDb
-      const hzPerBin = spectrum.sampleRate / spectrum.fftSize
-      const n = freqDb.length
-
-      // Cached gradient fill — only recreated when plotHeight changes
-      let gradient = gradientRef.current
-      if (!gradient || gradientHeightRef.current !== plotHeight) {
-        gradient = ctx.createLinearGradient(0, 0, 0, plotHeight)
-        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.8)')
-        gradient.addColorStop(0.5, 'rgba(16, 185, 129, 0.3)')
-        gradient.addColorStop(1, 'rgba(16, 185, 129, 0.05)')
-        gradientRef.current = gradient
-        gradientHeightRef.current = plotHeight
-      }
-
-      // Single pass: build stroke path, then derive fill from it
-      const strokePath = new Path2D()
-      const fillPath = new Path2D()
-      let firstX = 0
-      let lastX = 0
-      let started = false
-
-      for (let i = 1; i < n; i++) {
-        const freq = i * hzPerBin
-        if (freq < RTA_FREQ_MIN || freq > RTA_FREQ_MAX) continue
-
-        const x = freqToLogPosition(freq, RTA_FREQ_MIN, RTA_FREQ_MAX) * plotWidth
-        const db = clamp(freqDb[i], RTA_DB_MIN, RTA_DB_MAX)
-        const y = ((RTA_DB_MAX - db) / (RTA_DB_MAX - RTA_DB_MIN)) * plotHeight
-
-        if (!started) {
-          firstX = x
-          strokePath.moveTo(x, y)
-          fillPath.moveTo(x, plotHeight)
-          fillPath.lineTo(x, y)
-          started = true
-        } else {
-          strokePath.lineTo(x, y)
-          fillPath.lineTo(x, y)
-        }
-        lastX = x
-      }
-
-      // Complete fill path back to baseline
-      fillPath.lineTo(lastX, plotHeight)
-      fillPath.closePath()
-
-      // Draw fill then stroke
-      ctx.fillStyle = gradient
-      ctx.fill(fillPath)
-
-      ctx.strokeStyle = VIZ_COLORS.SPECTRUM
-      ctx.lineWidth = spectrumLineWidthProp ?? 1.5
-      ctx.stroke(strokePath)
-    }
+    drawGrid(ctx, plotWidth, plotHeight, range)
+    drawIndicatorLines(ctx, plotWidth, plotHeight, range, spectrum, showThresholdLine, feedbackThresholdDb, fontSize)
+    drawSpectrum(ctx, plotWidth, plotHeight, range, spectrum, gradientRef, gradientHeightRef, spectrumLineWidthProp ?? 1.5)
 
     // Store padding for pointer event calculations
     paddingRef.current = { left: padding.left, top: padding.top, plotWidth, plotHeight }
 
-    // Draw frequency range overlay + draggable lines
-    const rangeMinHz = freqRangeRef.current.min
-    const rangeMaxHz = freqRangeRef.current.max
-    const rangeMinX = freqToLogPosition(Math.max(rangeMinHz, RTA_FREQ_MIN), RTA_FREQ_MIN, RTA_FREQ_MAX) * plotWidth
-    const rangeMaxX = freqToLogPosition(Math.min(rangeMaxHz, RTA_FREQ_MAX), RTA_FREQ_MIN, RTA_FREQ_MAX) * plotWidth
-
-    // Dim overlay outside detection range
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
-    if (rangeMinX > 0) ctx.fillRect(0, 0, rangeMinX, plotHeight)
-    if (rangeMaxX < plotWidth) ctx.fillRect(rangeMaxX, 0, plotWidth - rangeMaxX, plotHeight)
-
-    // Vertical boundary lines
-    const lineColor = '#3b82f6' // blue-500
-    ctx.strokeStyle = lineColor
-    ctx.lineWidth = 2
-    ctx.globalAlpha = 0.85
-
-    // Min line
-    ctx.beginPath()
-    ctx.moveTo(rangeMinX, 0)
-    ctx.lineTo(rangeMinX, plotHeight)
-    ctx.stroke()
-
-    // Max line
-    ctx.beginPath()
-    ctx.moveTo(rangeMaxX, 0)
-    ctx.lineTo(rangeMaxX, plotHeight)
-    ctx.stroke()
-
-    // Grab handles (small rounded rects at vertical center)
-    const handleW = 6
-    const handleH = 24
-    const handleY = (plotHeight - handleH) / 2
-    ctx.fillStyle = lineColor
-    ctx.globalAlpha = 0.7
-
-    // Min handle
-    const minHandleRect = new Path2D()
-    minHandleRect.roundRect(rangeMinX - handleW / 2, handleY, handleW, handleH, 3)
-    ctx.fill(minHandleRect)
-
-    // Max handle
-    const maxHandleRect = new Path2D()
-    maxHandleRect.roundRect(rangeMaxX - handleW / 2, handleY, handleW, handleH, 3)
-    ctx.fill(maxHandleRect)
-
-    ctx.globalAlpha = 1
-
-    // Draw early warning predictions (predicted feedback frequencies)
-    if (earlyWarning && earlyWarning.predictedFrequencies.length > 0) {
-      const warningColor = '#f59e0b' // amber-500 for early warnings
-      ctx.strokeStyle = warningColor
-      ctx.lineWidth = 1.5
-      ctx.setLineDash([6, 4]) // Dashed line for predictions
-      ctx.globalAlpha = 0.6
-
-      for (const freq of earlyWarning.predictedFrequencies) {
-        if (freq < RTA_FREQ_MIN || freq > RTA_FREQ_MAX) continue
-        const x = freqToLogPosition(freq, RTA_FREQ_MIN, RTA_FREQ_MAX) * plotWidth
-
-        // Draw vertical dashed line
-        ctx.beginPath()
-        ctx.moveTo(x, 0)
-        ctx.lineTo(x, plotHeight)
-        ctx.stroke()
-
-        // Draw small warning triangle at top
-        ctx.fillStyle = warningColor
-        ctx.beginPath()
-        ctx.moveTo(x, 8)
-        ctx.lineTo(x - 5, 0)
-        ctx.lineTo(x + 5, 0)
-        ctx.closePath()
-        ctx.fill()
-      }
-
-      ctx.setLineDash([])
-      ctx.globalAlpha = 1
-    }
-
-    // Draw peak markers for advisories (persist until cleared, cap at 7)
-    const visibleAdvisories = advisoriesRef.current
-      .filter(a => !clearedIdsRef.current?.has(a.id))
-      .slice(-7)
-    for (const advisory of visibleAdvisories) {
-      const freq = advisory.trueFrequencyHz
-      const db = advisory.trueAmplitudeDb
-      const x = freqToLogPosition(freq, RTA_FREQ_MIN, RTA_FREQ_MAX) * plotWidth
-      const y = ((RTA_DB_MAX - clamp(db, RTA_DB_MIN, RTA_DB_MAX)) / (RTA_DB_MAX - RTA_DB_MIN)) * plotHeight
-      const color = getSeverityColor(advisory.severity)
-
-      // Vertical line
-      ctx.strokeStyle = color
-      ctx.lineWidth = 2
-      ctx.globalAlpha = 0.7
-      ctx.beginPath()
-      ctx.moveTo(x, y)
-      ctx.lineTo(x, plotHeight)
-      ctx.stroke()
-      ctx.globalAlpha = 1
-
-      // Peak marker
-      ctx.fillStyle = color
-      ctx.beginPath()
-      ctx.arc(x, y, peakMarkerRadius, 0, Math.PI * 2)
-      ctx.fill()
-
-      // Label
-      ctx.fillStyle = color
-      ctx.font = `${fontSize + 3}px system-ui, sans-serif`
-      ctx.textAlign = 'center'
-      ctx.fillText(formatFrequency(freq), x, y - 10)
-    }
+    drawFreqRangeOverlay(ctx, plotWidth, plotHeight, range, freqRangeRef.current)
+    drawMarkers(ctx, plotWidth, plotHeight, range, earlyWarning, advisoriesRef.current, clearedIdsRef.current, peakMarkerRadius, fontSize)
 
     ctx.restore()
 
-    // Draw axis labels
-    ctx.fillStyle = '#666'
-    ctx.font = `${fontSize}px system-ui, sans-serif`
+    drawAxisLabels(ctx, padding, plotWidth, plotHeight, range, fontSize, width, height)
 
-    // Y-axis (dB)
-    ctx.textAlign = 'right'
-    for (const db of dbSteps) {
-      const y = padding.top + ((RTA_DB_MAX - db) / (RTA_DB_MAX - RTA_DB_MIN)) * plotHeight
-      ctx.fillText(`${db}`, padding.left - 5, y + 3)
-    }
-
-    // X-axis (Hz)
-    ctx.textAlign = 'center'
-    for (const freq of FREQ_LABELS) {
-      const x = padding.left + freqToLogPosition(freq, RTA_FREQ_MIN, RTA_FREQ_MAX) * plotWidth
-      const label = freq >= 1000 ? `${freq / 1000}k` : `${freq}`
-      ctx.fillText(label, x, height - 8)
-    }
-
-    // Axis titles
-    ctx.save()
-    ctx.translate(12, height / 2)
-    ctx.rotate(-Math.PI / 2)
-    ctx.textAlign = 'center'
-    ctx.fillStyle = '#666'
-    ctx.fillText('dB', 0, 0)
-    ctx.restore()
-
-    ctx.fillStyle = '#666'
-    ctx.textAlign = 'center'
-    ctx.fillText('Hz', width / 2, height - 2)
-
-  }, [graphFontSize, earlyWarning, rtaDbMinProp, rtaDbMaxProp, spectrumLineWidthProp])
+  }, [graphFontSize, earlyWarning, rtaDbMinProp, rtaDbMaxProp, spectrumLineWidthProp, showThresholdLine, feedbackThresholdDb])
 
   useAnimationFrame(render, isRunning || hasEverStarted)
+
+  // Mark dirty when display props change (triggers redraw on next rAF tick)
+  useEffect(() => { dirtyRef.current = true }, [graphFontSize, earlyWarning, rtaDbMinProp, rtaDbMaxProp, spectrumLineWidthProp, showThresholdLine, feedbackThresholdDb])
+  useEffect(() => { dirtyRef.current = true }, [advisories, clearedIds])
 
   // Pointer event handlers for dragging frequency range lines
   useEffect(() => {
@@ -455,6 +566,7 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
       if (dragRef.current) {
         const hz = clientXToFreq(e.clientX)
         const range = freqRangeRef.current
+        dirtyRef.current = true // Force redraw during drag
 
         if (dragRef.current === 'min') {
           const newMin = Math.min(hz, range.max - 50)

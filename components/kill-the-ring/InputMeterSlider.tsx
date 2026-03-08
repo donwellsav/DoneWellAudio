@@ -34,6 +34,8 @@ export const InputMeterSlider = memo(function InputMeterSlider({
   const isDragging = useRef(false)
   const [editing, setEditing] = useState(false)
   const dimensionsRef = useRef({ width: 0, height: 0 })
+  const gradientRef = useRef<CanvasGradient | null>(null)
+  const gradientWidthRef = useRef(0)
 
   const normalizedLevel = Math.max(0, Math.min(1, (level + 60) / 60))
 
@@ -76,29 +78,52 @@ export const InputMeterSlider = memo(function InputMeterSlider({
     ctx.scale(dpr, dpr)
     ctx.clearRect(0, 0, w, h)
 
-    ctx.fillStyle = 'rgba(255,255,255,0.08)'
+    // Background — warmer dark, consistent with RTA/GEQ
+    ctx.fillStyle = '#161616'
     ctx.fillRect(0, 0, w, h)
 
+    // Cached meter gradient — only recreated when width changes
+    let gradient = gradientRef.current
+    if (!gradient || gradientWidthRef.current !== w) {
+      gradient = ctx.createLinearGradient(0, 0, w, 0)
+      gradient.addColorStop(0, '#22c55e')
+      gradient.addColorStop(0.6, '#22c55e')
+      gradient.addColorStop(0.8, '#eab308')
+      gradient.addColorStop(0.95, '#ef4444')
+      gradient.addColorStop(1, '#ef4444')
+      gradientRef.current = gradient
+      gradientWidthRef.current = w
+    }
+
     const meterWidth = w * normalizedLevel
-    const gradient = ctx.createLinearGradient(0, 0, w, 0)
-    gradient.addColorStop(0, '#22c55e')
-    gradient.addColorStop(0.6, '#22c55e')
-    gradient.addColorStop(0.8, '#eab308')
-    gradient.addColorStop(0.95, '#ef4444')
-    gradient.addColorStop(1, '#ef4444')
     ctx.fillStyle = gradient
     ctx.fillRect(0, 0, meterWidth, h)
 
-    // Zero-dB tick mark
+    // Top highlight — subtle glow strip for VU meter depth
+    if (meterWidth > 2) {
+      ctx.fillStyle = 'rgba(255,255,255,0.12)'
+      ctx.fillRect(0, 0, meterWidth, Math.max(1, h * 0.2))
+    }
+
+    // Scale ticks (minor dB marks)
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)'
+    ctx.lineWidth = 0.5
+    for (const db of [-30, -20, -10, 10, 20, 30]) {
+      const x = ((db - min) / (max - min)) * w
+      ctx.beginPath()
+      ctx.moveTo(x, h * 0.65)
+      ctx.lineTo(x, h)
+      ctx.stroke()
+    }
+
+    // Zero-dB tick mark — major reference, brighter
     const zeroPos = ((0 - min) / (max - min)) * w
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)'
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)'
     ctx.lineWidth = 1
-    ctx.setLineDash([2, 2])
     ctx.beginPath()
     ctx.moveTo(zeroPos, 0)
     ctx.lineTo(zeroPos, h)
     ctx.stroke()
-    ctx.setLineDash([])
   }, [normalizedLevel, displayValue, min, max])
 
   const updateValueFromX = (clientX: number) => {

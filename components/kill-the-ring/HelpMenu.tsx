@@ -43,7 +43,7 @@ export const HelpMenu = memo(function HelpMenu() {
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto" aria-describedby={undefined}>
         <DialogHeader>
-          <DialogTitle className="text-lg">Kill The Ring Help</DialogTitle>
+          <DialogTitle className="text-lg font-bold tracking-tight">Kill The Ring Help</DialogTitle>
         </DialogHeader>
 
         <Tabs defaultValue="guide" className="mt-4">
@@ -705,25 +705,25 @@ export const HelpMenu = memo(function HelpMenu() {
             </Section>
 
             <Section title="Default Configuration (Speech Mode)">
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                <span className="text-muted-foreground">Mode</span><span>Speech — Corporate &amp; Conference</span>
-                <span className="text-muted-foreground">Frequency range</span><span>150 Hz – 8 kHz</span>
-                <span className="text-muted-foreground">FFT size</span><span>8192 (5.86 Hz/bin @ 48 kHz)</span>
-                <span className="text-muted-foreground">Smoothing</span><span>50%</span>
-                <span className="text-muted-foreground">Feedback threshold</span><span>6 dB</span>
-                <span className="text-muted-foreground">Ring threshold</span><span>3 dB</span>
-                <span className="text-muted-foreground">Growth rate</span><span>1.0 dB/s</span>
-                <span className="text-muted-foreground">Hold time</span><span>4 s</span>
-                <span className="text-muted-foreground">Input gain</span><span>+15 dB</span>
-                <span className="text-muted-foreground">Confidence threshold</span><span>30%</span>
-                <span className="text-muted-foreground">Algorithm mode</span><span>Combined (MSD + Phase)</span>
-                <span className="text-muted-foreground">A-weighting</span><span>Enabled</span>
-                <span className="text-muted-foreground">Sustain time</span><span>250 ms</span>
-                <span className="text-muted-foreground">Clear time</span><span>350 ms</span>
-                <span className="text-muted-foreground">Threshold mode</span><span>Hybrid</span>
-                <span className="text-muted-foreground">Prominence</span><span>8 dB</span>
-                <span className="text-muted-foreground">Max tracks</span><span>64</span>
-                <span className="text-muted-foreground">Track timeout</span><span>1000 ms</span>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                <span className="text-muted-foreground">Mode</span><span className="font-mono">Speech — Corporate &amp; Conference</span>
+                <span className="text-muted-foreground">Frequency range</span><span className="font-mono">150 Hz – 8 kHz</span>
+                <span className="text-muted-foreground">FFT size</span><span className="font-mono">8192 (5.86 Hz/bin @ 48 kHz)</span>
+                <span className="text-muted-foreground">Smoothing</span><span className="font-mono">50%</span>
+                <span className="text-muted-foreground">Feedback threshold</span><span className="font-mono">6 dB</span>
+                <span className="text-muted-foreground">Ring threshold</span><span className="font-mono">3 dB</span>
+                <span className="text-muted-foreground">Growth rate</span><span className="font-mono">1.0 dB/s</span>
+                <span className="text-muted-foreground">Hold time</span><span className="font-mono">4 s</span>
+                <span className="text-muted-foreground">Input gain</span><span className="font-mono">+15 dB</span>
+                <span className="text-muted-foreground">Confidence threshold</span><span className="font-mono">30%</span>
+                <span className="text-muted-foreground">Algorithm mode</span><span className="font-mono">Combined (MSD + Phase)</span>
+                <span className="text-muted-foreground">A-weighting</span><span className="font-mono">Enabled</span>
+                <span className="text-muted-foreground">Sustain time</span><span className="font-mono">250 ms</span>
+                <span className="text-muted-foreground">Clear time</span><span className="font-mono">350 ms</span>
+                <span className="text-muted-foreground">Threshold mode</span><span className="font-mono">Hybrid</span>
+                <span className="text-muted-foreground">Prominence</span><span className="font-mono">8 dB</span>
+                <span className="text-muted-foreground">Max tracks</span><span className="font-mono">64</span>
+                <span className="text-muted-foreground">Track timeout</span><span className="font-mono">1000 ms</span>
               </div>
             </Section>
 
@@ -804,12 +804,12 @@ export const HelpMenu = memo(function HelpMenu() {
               TAB 5: ABOUT (includes Changelog)
               ═══════════════════════════════════════════════════════════════ */}
           <TabsContent value="about" className="mt-4 space-y-4">
-            <div className="flex flex-col items-center text-center py-4 space-y-3">
-              <div className="text-3xl font-black tracking-tight">
+            <div className="flex flex-col items-center text-center py-6 space-y-3">
+              <div className="text-3xl font-black tracking-tighter">
                 KILL THE <span className="text-primary">RING</span>
               </div>
-              <div className="text-sm text-muted-foreground">Real-Time Acoustic Feedback Detection</div>
-              <div className="font-mono text-xs bg-muted px-3 py-1.5 rounded-md">
+              <div className="text-sm text-muted-foreground/80">Real-Time Acoustic Feedback Detection</div>
+              <div className="font-mono text-xs bg-muted/60 text-muted-foreground px-3 py-1.5 rounded-md border border-border/50">
                 v{process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0'}
               </div>
             </div>
@@ -827,12 +827,12 @@ export const HelpMenu = memo(function HelpMenu() {
             </Section>
 
             <Section title="Tech">
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                <span className="text-muted-foreground">Platform</span><span>Progressive Web App</span>
-                <span className="text-muted-foreground">Framework</span><span>Next.js + React 19</span>
-                <span className="text-muted-foreground">Audio</span><span>Web Audio API + Web Workers</span>
-                <span className="text-muted-foreground">Algorithms</span><span>7 (MSD, Phase, Spectral, Comb, IHR, PTMR, Compression)</span>
-                <span className="text-muted-foreground">Offline</span><span>Service worker cached</span>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                <span className="text-muted-foreground">Platform</span><span className="font-mono">Progressive Web App</span>
+                <span className="text-muted-foreground">Framework</span><span className="font-mono">Next.js + React 19</span>
+                <span className="text-muted-foreground">Audio</span><span className="font-mono">Web Audio API + Web Workers</span>
+                <span className="text-muted-foreground">Algorithms</span><span className="font-mono">7 (MSD, Phase, Spectral, Comb, IHR, PTMR, Compression)</span>
+                <span className="text-muted-foreground">Offline</span><span className="font-mono">Service worker cached</span>
               </div>
             </Section>
 
@@ -844,7 +844,7 @@ export const HelpMenu = memo(function HelpMenu() {
             </Section>
 
             <div className="border-t border-border pt-4 mt-4">
-              <h3 className="text-sm font-semibold text-foreground mb-3">Changelog</h3>
+              <h3 className="text-sm font-bold text-foreground mb-3 tracking-tight">Changelog</h3>
               {CHANGELOG.map((entry) => (
                 <Section key={entry.version} title={`v${entry.version} — ${entry.date}${entry.highlights ? ` · ${entry.highlights}` : ''}`}>
                   <ul className="space-y-1.5">
@@ -873,7 +873,7 @@ export const HelpMenu = memo(function HelpMenu() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h3 className="text-sm font-semibold text-foreground mb-2">{title}</h3>
+      <h3 className="text-sm font-bold text-foreground mb-2 tracking-tight">{title}</h3>
       <div className="text-sm text-muted-foreground leading-relaxed">
         {children}
       </div>

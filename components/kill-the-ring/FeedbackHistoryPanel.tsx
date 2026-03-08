@@ -11,18 +11,15 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { History, Download, Trash2, AlertTriangle, TrendingUp, BarChart3 } from 'lucide-react'
-import { getFeedbackHistory, type FrequencyHotspot, type SessionSummary } from '@/lib/dsp/feedbackHistory'
+import { getFeedbackHistory, type FrequencyHotspot } from '@/lib/dsp/feedbackHistory'
 
 export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
-  const [summary, setSummary] = useState<SessionSummary | null>(null)
   const [hotspots, setHotspots] = useState<FrequencyHotspot[]>([])
   const [isOpen, setIsOpen] = useState(false)
 
   // Refresh data when panel opens
   const refreshData = useCallback(() => {
-    const history = getFeedbackHistory()
-    setSummary(history.getSessionSummary())
-    setHotspots(history.getHotspots())
+    setHotspots(getFeedbackHistory().getHotspots())
   }, [])
 
   useEffect(() => {
@@ -71,13 +68,6 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
     return `${Math.round(hz)}Hz`
   }
 
-  const formatDuration = (ms: number) => {
-    const minutes = Math.floor(ms / 60000)
-    const seconds = Math.floor((ms % 60000) / 1000)
-    if (minutes > 0) return `${minutes}m ${seconds}s`
-    return `${seconds}s`
-  }
-
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
@@ -87,75 +77,38 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
       </SheetTrigger>
       <SheetContent side="right" className="w-full sm:w-[400px] lg:w-[540px] bg-background border-border">
         <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
+          <SheetTitle className="flex items-center gap-2 font-bold tracking-tight">
             <History className="h-5 w-5" />
             Feedback History
           </SheetTitle>
         </SheetHeader>
 
-        <div className="mt-4 space-y-4">
-          {/* Session Summary */}
-          {summary && (
-            <div className="bg-muted/30 rounded-lg p-3 space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Session Duration</span>
-                <span className="font-mono">{formatDuration(summary.endTime - summary.startTime)}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Total Events</span>
-                <span className="font-mono">{summary.totalEvents}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Repeat Offenders</span>
-                <span className="font-mono text-amber-400">{summary.repeatOffenders.length}</span>
-              </div>
-              
-              {/* Frequency Band Breakdown */}
-              <div className="pt-2 border-t border-border">
-                <div className="text-xs text-muted-foreground mb-1">By Frequency Band</div>
-                <div className="flex gap-2">
-                  <div className="flex-1 bg-blue-500/20 rounded px-2 py-1 text-center">
-                    <div className="text-xs text-muted-foreground">LOW</div>
-                    <div className="text-sm font-mono">{summary.frequencyBandBreakdown.LOW}</div>
-                  </div>
-                  <div className="flex-1 bg-green-500/20 rounded px-2 py-1 text-center">
-                    <div className="text-xs text-muted-foreground">MID</div>
-                    <div className="text-sm font-mono">{summary.frequencyBandBreakdown.MID}</div>
-                  </div>
-                  <div className="flex-1 bg-orange-500/20 rounded px-2 py-1 text-center">
-                    <div className="text-xs text-muted-foreground">HIGH</div>
-                    <div className="text-sm font-mono">{summary.frequencyBandBreakdown.HIGH}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
+        <div className="space-y-4">
           {/* Repeat Offenders Section */}
           {hotspots.filter(h => h.isRepeatOffender).length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <AlertTriangle className="h-4 w-4 text-amber-400" />
-                <span className="text-sm font-medium">Repeat Offenders</span>
+                <span className="text-sm font-bold tracking-tight">Repeat Offenders</span>
               </div>
               <div className="space-y-2">
                 {hotspots.filter(h => h.isRepeatOffender).slice(0, 5).map((hotspot, i) => (
                   <div
                     key={i}
-                    className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-2"
+                    className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-2 hover:bg-amber-500/15 transition-colors"
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-mono text-amber-400 font-medium">
                         {formatFrequency(hotspot.centerFrequencyHz)}
                       </span>
-                      <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded">
+                      <span className="text-xs font-mono bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded">
                         {hotspot.occurrences}x detected
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground font-mono">
                       <span>Avg: {hotspot.avgAmplitudeDb.toFixed(1)}dB</span>
                       <span>Max: {hotspot.maxAmplitudeDb.toFixed(1)}dB</span>
-                      <span>Suggested cut: -{hotspot.suggestedCutDb.toFixed(1)}dB</span>
+                      <span>Cut: -{hotspot.suggestedCutDb.toFixed(1)}dB</span>
                     </div>
                   </div>
                 ))}
@@ -167,24 +120,24 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">All Problem Frequencies</span>
+              <span className="text-sm font-bold tracking-tight">All Problem Frequencies</span>
             </div>
             <ScrollArea className="h-[250px]">
               <div className="space-y-1.5 pr-3">
                 {hotspots.length === 0 ? (
-                  <div className="text-center text-muted-foreground text-sm py-8">
-                    No feedback events recorded yet.
-                    <br />
-                    <span className="text-xs">Events will appear here as they are detected.</span>
+                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground gap-1">
+                    <BarChart3 className="w-5 h-5 text-muted-foreground/30 mb-1" />
+                    <span className="text-sm font-medium">No feedback events recorded yet</span>
+                    <span className="text-xs text-muted-foreground/60">Events will appear here as they are detected</span>
                   </div>
                 ) : (
                   hotspots.map((hotspot, i) => (
                     <div
                       key={i}
-                      className={`rounded px-2 py-1.5 flex items-center justify-between ${
+                      className={`rounded px-2 py-1.5 flex items-center justify-between transition-colors ${
                         hotspot.isRepeatOffender
-                          ? 'bg-amber-500/10 border-l-2 border-amber-500'
-                          : 'bg-muted/30'
+                          ? 'bg-amber-500/10 border-l-2 border-amber-500 hover:bg-amber-500/15'
+                          : 'bg-muted/30 hover:bg-accent/5'
                       }`}
                     >
                       <div className="flex items-center gap-2">
@@ -195,9 +148,9 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
                           <TrendingUp className="h-3 w-3 text-amber-400" />
                         )}
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono">
                         <span>{hotspot.occurrences}x</span>
-                        <span>{(hotspot.avgConfidence * 100).toFixed(0)}% conf</span>
+                        <span>{(hotspot.avgConfidence * 100).toFixed(0)}%</span>
                       </div>
                     </div>
                   ))
@@ -213,7 +166,7 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
               size="sm"
               className="flex-1"
               onClick={handleExportCSV}
-              disabled={!summary || summary.totalEvents === 0}
+              disabled={hotspots.length === 0}
             >
               <Download className="h-3 w-3 mr-1" />
               CSV
@@ -223,7 +176,7 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
               size="sm"
               className="flex-1"
               onClick={handleExportJSON}
-              disabled={!summary || summary.totalEvents === 0}
+              disabled={hotspots.length === 0}
             >
               <Download className="h-3 w-3 mr-1" />
               JSON
@@ -232,8 +185,8 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
               variant="ghost"
               size="sm"
               onClick={handleClear}
-              className="text-destructive hover:text-destructive"
-              disabled={!summary || summary.totalEvents === 0}
+              className="text-muted-foreground/50 hover:text-destructive"
+              disabled={hotspots.length === 0}
             >
               <Trash2 className="h-3 w-3" />
             </Button>
