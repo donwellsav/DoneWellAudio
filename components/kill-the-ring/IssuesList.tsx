@@ -193,15 +193,15 @@ const IssueCard = memo(function IssueCard({ advisory, onDismiss, touchFriendly }
           </div>
 
           {/* RIGHT: Badges in 2 rows + dismiss */}
-          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+          <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
             {/* Row 1: status — repeat, cluster, resolved, dismiss */}
             <div className="flex items-center gap-1">
               {occurrenceCount >= 3 && (
                 <TooltipProvider delayDuration={300}>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <span className="inline-flex items-center gap-1 text-sm text-amber-400 bg-amber-500/20 px-2 py-1 rounded-sm leading-none border border-amber-500/30">
-                        <TrendingUp className="w-3 h-3" />
+                      <span className="inline-flex items-center gap-0.5 text-xs text-amber-400 bg-amber-500/20 px-1.5 py-0.5 rounded-sm leading-none border border-amber-500/30">
+                        <TrendingUp className="w-2.5 h-2.5" />
                         {occurrenceCount}×
                       </span>
                     </TooltipTrigger>
@@ -216,7 +216,7 @@ const IssueCard = memo(function IssueCard({ advisory, onDismiss, touchFriendly }
                 <TooltipProvider delayDuration={300}>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <span className="inline-flex items-center text-sm text-sky-400 bg-sky-500/20 px-2 py-1 rounded-sm leading-none border border-sky-500/30">
+                      <span className="inline-flex items-center text-xs text-sky-400 bg-sky-500/20 px-1.5 py-0.5 rounded-sm leading-none border border-sky-500/30">
                         +{(advisory.clusterCount ?? 1) - 1}
                       </span>
                     </TooltipTrigger>
@@ -228,7 +228,7 @@ const IssueCard = memo(function IssueCard({ advisory, onDismiss, touchFriendly }
               )}
 
               {isResolved && (
-                <span className="inline-flex items-center text-sm font-medium uppercase tracking-wider px-2 py-1 rounded-sm leading-none bg-muted text-muted-foreground border border-border">
+                <span className="inline-flex items-center text-xs font-medium uppercase tracking-wider px-1.5 py-0.5 rounded-sm leading-none bg-muted text-muted-foreground border border-border">
                   Resolved
                 </span>
               )}
@@ -238,10 +238,10 @@ const IssueCard = memo(function IssueCard({ advisory, onDismiss, touchFriendly }
                   onClick={() => onDismiss(advisory.id)}
                   aria-label={`Dismiss ${exactFreqStr} issue`}
                   className={`flex-shrink-0 flex items-center justify-center rounded text-muted-foreground/30 hover:text-muted-foreground hover:bg-muted/60 transition-colors ${
-                    touchFriendly ? 'w-9 h-9' : 'w-6 h-6'
+                    touchFriendly ? 'w-9 h-9' : 'w-5 h-5'
                   }`}
                 >
-                  <X className={touchFriendly ? 'w-4 h-4' : 'w-3.5 h-3.5'} />
+                  <X className={touchFriendly ? 'w-4 h-4' : 'w-3 h-3'} />
                 </button>
               )}
             </div>
@@ -249,7 +249,7 @@ const IssueCard = memo(function IssueCard({ advisory, onDismiss, touchFriendly }
             {/* Row 2: classification — severity, confidence */}
             <div className="flex items-center gap-1">
               <span
-                className="inline-flex items-center text-sm font-bold uppercase tracking-wider px-2 py-1 rounded-sm leading-none"
+                className="inline-flex items-center text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm leading-none"
                 style={{ backgroundColor: `${severityColor}22`, color: severityColor, border: `1px solid ${severityColor}44` }}
               >
                 {getSeverityText(advisory.severity)}
@@ -257,7 +257,7 @@ const IssueCard = memo(function IssueCard({ advisory, onDismiss, touchFriendly }
 
               {advisory.confidence != null && (
                 <span
-                  className={`inline-flex items-center text-sm font-mono px-2 py-1 rounded-sm leading-none ${
+                  className={`inline-flex items-center text-xs font-mono px-1.5 py-0.5 rounded-sm leading-none ${
                     advisory.confidence >= 0.85
                       ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                       : advisory.confidence >= 0.70
