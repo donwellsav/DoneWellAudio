@@ -10,14 +10,23 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { History, Download, Trash2, AlertTriangle, TrendingUp, BarChart3 } from 'lucide-react'
+import { History, Download, Trash2, AlertTriangle, TrendingUp, BarChart3, ChevronDown, FileText, FileJson, FileSpreadsheet, Loader2 } from 'lucide-react'
 import { getFeedbackHistory, type FrequencyHotspot } from '@/lib/dsp/feedbackHistory'
+import { downloadFile } from '@/lib/export/downloadFile'
+import { generateTxtReport } from '@/lib/export/exportTxt'
 
 export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
   const [hotspots, setHotspots] = useState<FrequencyHotspot[]>([])
   const [isOpen, setIsOpen] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
 
   // Refresh data when panel opens
   const refreshData = useCallback(() => {
@@ -34,32 +43,34 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
     }
   }, [isOpen, refreshData])
 
-  const handleExportCSV = useCallback(() => {
+  const dateSlug = () => new Date().toISOString().slice(0, 10)
+
+  const handleExportTxt = useCallback(() => {
     const history = getFeedbackHistory()
-    const csv = history.exportToCSV()
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `feedback-history-${new Date().toISOString().slice(0, 10)}.csv`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    const txt = generateTxtReport(history.getSessionSummary(), history.getHotspots())
+    downloadFile(new Blob([txt], { type: 'text/plain' }), `feedback-report-${dateSlug()}.txt`)
+  }, [])
+
+  const handleExportCSV = useCallback(() => {
+    const csv = getFeedbackHistory().exportToCSV()
+    downloadFile(new Blob([csv], { type: 'text/csv' }), `feedback-history-${dateSlug()}.csv`)
   }, [])
 
   const handleExportJSON = useCallback(() => {
-    const history = getFeedbackHistory()
-    const json = history.exportToJSON()
-    const blob = new Blob([json], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `feedback-history-${new Date().toISOString().slice(0, 10)}.json`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    const json = getFeedbackHistory().exportToJSON()
+    downloadFile(new Blob([json], { type: 'application/json' }), `feedback-history-${dateSlug()}.json`)
+  }, [])
+
+  const handleExportPdf = useCallback(async () => {
+    setIsExporting(true)
+    try {
+      const { generatePdfReport } = await import('@/lib/export/exportPdf')
+      const history = getFeedbackHistory()
+      const blob = await generatePdfReport(history.getSessionSummary(), history.getHotspots())
+      downloadFile(blob, `feedback-report-${dateSlug()}.pdf`)
+    } finally {
+      setIsExporting(false)
+    }
   }, [])
 
   const handleClear = useCallback(() => {
@@ -71,6 +82,8 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
     if (hz >= 1000) return `${(hz / 1000).toFixed(1)}kHz`
     return `${Math.round(hz)}Hz`
   }
+
+  const hasData = hotspots.length > 0
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -87,7 +100,7 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
         </TooltipContent>
       </Tooltip>
       <SheetContent side="right" className="sm:max-w-md overflow-y-auto">
-        <SheetHeader>
+        <SheetHeader className="pb-1">
           <SheetTitle className="text-lg font-bold tracking-tight flex items-center gap-2">
             <History className="h-5 w-5" />
             Feedback History
@@ -99,33 +112,50 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
 
         {/* Export/Clear Actions */}
         <div className="flex gap-2 pb-3 border-b border-border">
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1"
-            onClick={handleExportCSV}
-            disabled={hotspots.length === 0}
-          >
-            <Download className="h-3 w-3 mr-1" />
-            CSV
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1"
-            onClick={handleExportJSON}
-            disabled={hotspots.length === 0}
-          >
-            <Download className="h-3 w-3 mr-1" />
-            JSON
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                disabled={!hasData || isExporting}
+              >
+                {isExporting ? (
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                ) : (
+                  <Download className="h-3 w-3 mr-1" />
+                )}
+                {isExporting ? 'Exporting...' : 'Export'}
+                <ChevronDown className="h-3 w-3 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={handleExportTxt}>
+                <FileText className="h-4 w-4 mr-2" />
+                Export as TXT
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportCSV}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportJSON}>
+                <FileJson className="h-4 w-4 mr-2" />
+                Export as JSON
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportPdf}>
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Export as PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                className="flex-1 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
-                disabled={hotspots.length === 0}
+                className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
+                disabled={!hasData}
               >
                 <Trash2 className="h-3 w-3 mr-1" />
                 Clear
