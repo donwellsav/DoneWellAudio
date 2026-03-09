@@ -42,8 +42,10 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
     const a = document.createElement('a')
     a.href = url
     a.download = `feedback-history-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a)
     a.click()
-    setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }, [])
 
   const handleExportJSON = useCallback(() => {
@@ -54,8 +56,10 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
     const a = document.createElement('a')
     a.href = url
     a.download = `feedback-history-${new Date().toISOString().slice(0, 10)}.json`
+    document.body.appendChild(a)
     a.click()
-    setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }, [])
 
   const handleClear = useCallback(() => {

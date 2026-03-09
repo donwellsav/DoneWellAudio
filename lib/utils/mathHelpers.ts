@@ -155,7 +155,7 @@ export function standardDeviation(values: number[]): number {
     m2 += delta * delta2
   }
 
-  return Math.sqrt(m2 / n)
+  return Math.sqrt(m2 / (n - 1))
 }
 
 /**

@@ -7,8 +7,8 @@ export default function OfflinePage() {
         <div className="text-5xl">🎤</div>
         <h1 className="text-2xl font-bold tracking-tight">You&apos;re Offline</h1>
         <p className="text-muted-foreground max-w-sm">
-          Kill The Ring needs a connection for the first load. Once cached, the app
-          launches instantly — even at the venue with no Wi-Fi.
+          Kill The Ring couldn&apos;t load from cache. Try refreshing, or if this
+          persists, clear site data and reload over Wi-Fi to re-cache the app.
         </p>
         <button
           onClick={() => window.location.reload()}

@@ -22,6 +22,9 @@ export const metadata: Metadata = {
     statusBarStyle: 'black-translucent',
     title: 'KillTheRing',
   },
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
   formatDetection: {
     telephone: false,
   },
@@ -43,9 +46,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geist.variable} ${geistMono.variable}`}>
-      <head>
-        <meta name="mobile-web-app-capable" content="yes" />
-      </head>
       <body className="font-sans antialiased">
         {children}
       </body>

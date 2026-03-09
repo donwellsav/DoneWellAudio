@@ -12,7 +12,7 @@
 - **Audio:** Web Audio API (AnalyserNode, Web Workers for DSP)
 - **Visualization:** HTML5 Canvas
 - **State:** React 19 hooks (no external state library)
-- **PWA:** Serwist (service worker, offline caching, installable)
+- **PWA:** Serwist (service worker with controlled `skipWaiting`, offline caching, installable)
 - **Package Manager:** pnpm
 
 ## Commands
@@ -41,7 +41,6 @@ lib/
   utils/                    # Math helpers, pitch utilities
   utils.ts                  # cn() helper for Tailwind class merging
 types/                      # TypeScript interfaces (advisory.ts)
-styles/                     # Tailwind globals (OKLch theme)
 ```
 
 ## Architecture
@@ -51,6 +50,7 @@ styles/                     # Tailwind globals (OKLch theme)
 - **Data flow:** Mic → GainNode → AnalyserNode → FFT data → Worker (classify) → React state → Canvas render
 - Components in `components/kill-the-ring/` use barrel export via `index.ts`
 - `contexts/PortalContainerContext.tsx` provides a portal mount point for mobile overlays
+- **Security headers:** `next.config.mjs` sets `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and `Permissions-Policy` (microphone only)
 - **No environment variables required** — app is fully client-side with localStorage persistence
 
 ## Coding Conventions
@@ -64,7 +64,7 @@ styles/                     # Tailwind globals (OKLch theme)
 - **Imports:** Use `@/*` path alias (maps to project root)
 - **Styling:** Tailwind utility classes + `cn()` from `lib/utils.ts` for conditional classes
 - **No test framework configured** — rely on TypeScript strict mode and manual browser testing
-- **ESLint:** Flat config (`eslint.config.mjs`) with `eslint-config-next` core-web-vitals + typescript
+- **ESLint:** Flat config (`eslint.config.mjs`) with `eslint-config-next` core-web-vitals + typescript + `@typescript-eslint/no-explicit-any` warn
 - **Build verification:** `npx tsc --noEmit && pnpm build` — must both pass before PRs
 
 ## CI/CD

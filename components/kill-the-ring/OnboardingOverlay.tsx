@@ -89,7 +89,12 @@ export const OnboardingOverlay = memo(function OnboardingOverlay() {
   const isLast = step === STEPS.length - 1
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="onboarding-title"
+      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+    >
       <div className="bg-card border border-border rounded-lg max-w-md w-full p-6 shadow-xl animate-in fade-in zoom-in-95 duration-200">
         {/* Icon */}
         <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 border border-primary/20 mb-4 mx-auto">
@@ -97,7 +102,7 @@ export const OnboardingOverlay = memo(function OnboardingOverlay() {
         </div>
 
         {/* Content */}
-        <h2 className="text-lg font-bold text-foreground text-center mb-2">
+        <h2 id="onboarding-title" className="text-lg font-bold text-foreground text-center mb-2">
           {current.title}
         </h2>
         <p className="text-sm text-muted-foreground text-center leading-relaxed mb-6">

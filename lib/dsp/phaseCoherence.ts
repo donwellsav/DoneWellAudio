@@ -56,16 +56,6 @@ export class PhaseHistoryBuffer {
     this.frameCount = Math.min(this.frameCount + 1, this.maxFrames)
   }
 
-  getBinHistory(binIndex: number): number[] {
-    const result: number[] = []
-    const start = (this.frameIndex - this.frameCount + this.maxFrames) % this.maxFrames
-    for (let i = 0; i < this.frameCount; i++) {
-      const frameIdx = (start + i) % this.maxFrames
-      result.push(this.history[frameIdx][binIndex])
-    }
-    return result
-  }
-
   /**
    * Phase coherence = |mean phasor of frame-to-frame phase differences|.
    *

@@ -1,4 +1,5 @@
 // Kill The Ring Constants - ISO bands, note frequencies, and configuration
+import type { DetectorSettings } from '@/types/advisory'
 
 // Standard ISO 31-band graphic EQ center frequencies (1/3 octave)
 export const ISO_31_BANDS: readonly number[] = [
@@ -124,7 +125,8 @@ export const SEVERITY_THRESHOLDS = {
 } as const
 
 // Classification weights - optimized for PA feedback detection
-// Feature weights normalized to sum to 1.0 for proper probability distribution
+// Base feature weights sum to 1.0; classifier also applies contextual deltas
+// (Q factor, room modes, persistence, etc.) that shift probabilities further.
 export const CLASSIFIER_WEIGHTS = {
   // Stationarity (low pitch variation = feedback) - primary indicator
   STABILITY_FEEDBACK: 0.28,
@@ -545,7 +547,7 @@ export const OPERATION_MODES: Record<string, ModePreset> = {
 //           Ballroom RT60 0.8–1.5 s, volume 500–2000 m³, Schroeder freq ~63–100 Hz.
 //           A-weighting appropriate for moderate speech SPL (~65–85 dBA).
 //           AGGRESSIVE DETECTION — better false positives than missed real feedback.
-export const DEFAULT_SETTINGS = {
+export const DEFAULT_SETTINGS: DetectorSettings = {
   mode: 'speech' as const, // Speech/Conference is the default for corporate PA
   fftSize: 8192 as const, // 5.9 Hz resolution, 170 ms at 48 kHz — balanced for speech
   smoothingTimeConstant: 0.5, // Faster response for quick detection

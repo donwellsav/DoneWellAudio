@@ -110,15 +110,12 @@ export const KillTheRing = memo(function KillTheRingComponent() {
           e.preventDefault()
           toggleFreeze()
           break
-        case 'f': case 'F':
-          e.preventDefault()
-          toggleFullscreen()
-          break
+        // 'f'/'F' fullscreen toggle is handled by useFullscreen hook — do not duplicate here
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isRunning, toggleFreeze, startWithDevice, stop, toggleFullscreen])
+  }, [isRunning, toggleFreeze, startWithDevice, stop])
 
   // Dismissed advisory IDs — hidden until the advisory disappears and a new one is detected
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())

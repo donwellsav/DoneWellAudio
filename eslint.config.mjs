@@ -16,6 +16,7 @@ const eslintConfig = [
       'no-console': 'warn',
       'prefer-const': 'error',
       '@typescript-eslint/consistent-type-imports': ['warn', { prefer: 'type-imports' }],
+      '@typescript-eslint/no-explicit-any': 'warn',
     },
   },
 ]

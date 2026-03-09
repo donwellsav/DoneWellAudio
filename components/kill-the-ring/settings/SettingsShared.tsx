@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import {
   Collapsible,
   CollapsibleContent,
@@ -24,7 +24,7 @@ export interface TabSettingsProps {
 
 // ── Section (flat, uniform) ──────────────────────────────────────────────────
 
-export function Section({ title, tooltip, showTooltip = true, children }: {
+export const Section = memo(function Section({ title, tooltip, showTooltip = true, children }: {
   title: string
   tooltip?: string
   showTooltip?: boolean
@@ -50,11 +50,11 @@ export function Section({ title, tooltip, showTooltip = true, children }: {
       </div>
     </TooltipProvider>
   )
-}
+})
 
 // ── SectionGroup (collapsible, wraps multiple Sections) ──────────────────────
 
-export function SectionGroup({ title, defaultOpen = true, children }: {
+export const SectionGroup = memo(function SectionGroup({ title, defaultOpen = true, children }: {
   title: string
   defaultOpen?: boolean
   children: React.ReactNode
@@ -71,4 +71,4 @@ export function SectionGroup({ title, defaultOpen = true, children }: {
       </CollapsibleContent>
     </Collapsible>
   )
-}
+})

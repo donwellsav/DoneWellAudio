@@ -17,7 +17,7 @@
 
 import { TrackManager } from './trackManager'
 import { classifyTrackWithAlgorithms, shouldReportIssue, getSeverityUrgency } from './classifier'
-import { generateEQAdvisory } from './eqAdvisor'
+import { generateEQAdvisory, findNearestGEQBand } from './eqAdvisor'
 import {
   MSDHistoryBuffer,
   AmplitudeHistoryBuffer,
@@ -217,25 +217,26 @@ function computeNoiseSidebandScore(spectrum: Float32Array, peakBin: number): num
   const n = spectrum.length
 
   // Near sidebands (±5 to ±15 bins): breath noise characteristic region
-  let nearSum = 0
+  // Convert dB to linear power for correct averaging, then back to dB
+  let nearPower = 0
   let nearCount = 0
   for (let offset = 5; offset <= 15; offset++) {
-    if (peakBin + offset < n) { nearSum += spectrum[peakBin + offset]; nearCount++ }
-    if (peakBin - offset >= 0) { nearSum += spectrum[peakBin - offset]; nearCount++ }
+    if (peakBin + offset < n) { nearPower += Math.pow(10, spectrum[peakBin + offset] / 10); nearCount++ }
+    if (peakBin - offset >= 0) { nearPower += Math.pow(10, spectrum[peakBin - offset] / 10); nearCount++ }
   }
 
   // Far sidebands (±20 to ±40 bins): reference "clean" spectral floor
-  let farSum = 0
+  let farPower = 0
   let farCount = 0
   for (let offset = 20; offset <= 40; offset++) {
-    if (peakBin + offset < n) { farSum += spectrum[peakBin + offset]; farCount++ }
-    if (peakBin - offset >= 0) { farSum += spectrum[peakBin - offset]; farCount++ }
+    if (peakBin + offset < n) { farPower += Math.pow(10, spectrum[peakBin + offset] / 10); farCount++ }
+    if (peakBin - offset >= 0) { farPower += Math.pow(10, spectrum[peakBin - offset] / 10); farCount++ }
   }
 
   if (nearCount === 0 || farCount === 0) return 0
 
-  const nearAvgDb = nearSum / nearCount
-  const farAvgDb = farSum / farCount
+  const nearAvgDb = 10 * Math.log10(nearPower / nearCount)
+  const farAvgDb = 10 * Math.log10(farPower / farCount)
 
   // Excess near-sideband energy above far-sideband floor.
   // Breath noise typically shows 5-15 dB excess in near sidebands.
@@ -626,7 +627,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
                   // If actual decay is within 50% of expected → room mode signature
                   if (actualDecayRate > 0 && actualDecayRate < expectedDecayRate * 1.5) {
                     // Decaying like a room mode — extend band cooldown to suppress re-trigger
-                    const geqBandIdx = Math.round(Math.log2(decay.frequencyHz / 31.25) * 3)
+                    const { bandIndex: geqBandIdx } = findNearestGEQBand(decay.frequencyHz)
                     bandClearedAt.set(geqBandIdx, now)
                   }
                 }
@@ -856,7 +857,10 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       self.postMessage({ type: 'tracksUpdate', tracks: trackManager.getActiveTracks() } satisfies WorkerOutboundMessage)
       break
       } finally {
-        // Return pooled buffers to main thread via zero-copy transfer
+        // Return pooled buffers to main thread via zero-copy transfer.
+        // Include the typed arrays in the message payload so the main thread
+        // can access the transferred buffers (they become valid Float32Arrays
+        // on the receiving side, while detaching on the worker side).
         const returnList: ArrayBuffer[] = []
         if (spectrum.buffer.byteLength > 0) returnList.push(spectrum.buffer as ArrayBuffer)
         if (timeDomain && timeDomain.buffer.byteLength > 0) returnList.push(timeDomain.buffer as ArrayBuffer)

@@ -86,7 +86,7 @@ export class FeedbackHistory {
   private sessionId: string
   private startTime: number
   private events: FeedbackEvent[] = []
-  private hotspots: Map<number, FrequencyHotspot> = new Map()
+  private hotspots: Map<string, FrequencyHotspot> = new Map()
   
   constructor() {
     this.sessionId = this.generateSessionId()
@@ -301,8 +301,8 @@ export class FeedbackHistory {
         isRepeatOffender: false,
         lastEventTime: 0,
       }
-      // Use rounded frequency as key for grouping
-      const key = Math.round(event.frequencyHz / 10) * 10
+      // Use unique ID as key to avoid collision when centerFrequencyHz drifts across 10Hz boundaries
+      const key = `hs_${event.timestamp}_${Math.round(event.frequencyHz)}`
       this.hotspots.set(key, hotspot)
     }
 
@@ -330,15 +330,9 @@ export class FeedbackHistory {
     const allConf = hotspot.events.map(e => e.confidence)
     hotspot.avgConfidence = allConf.reduce((a, b) => a + b, 0) / allConf.length
     
-    // Update center frequency (weighted average) and fix Map key if it drifts
-    const oldKey = Math.round(hotspot.centerFrequencyHz / 10) * 10
+    // Update center frequency (weighted average) — key is stable (ID-based), no re-keying needed
     const allFreqs = hotspot.events.map(e => e.frequencyHz)
     hotspot.centerFrequencyHz = allFreqs.reduce((a, b) => a + b, 0) / allFreqs.length
-    const newKey = Math.round(hotspot.centerFrequencyHz / 10) * 10
-    if (newKey !== oldKey) {
-      this.hotspots.delete(oldKey)
-      this.hotspots.set(newKey, hotspot)
-    }
     
     // Update suggested cut based on history
     const allProminence = hotspot.events.map(e => e.prominenceDb)

@@ -692,7 +692,7 @@ export class FeedbackDetector {
 
     // Clamp neighborhood bins
     const nbMax = Math.floor((n - 3) / 2)
-    const nb = Math.max(2, Math.min(this.config.neighborhoodBins, nbMax))
+    const nb = Math.max(4, Math.min(this.config.neighborhoodBins, nbMax))
     this.effectiveNb = nb
 
     // Ensure room for full neighborhoods with ±1 exclusion
@@ -840,7 +840,7 @@ export class FeedbackDetector {
 
       // When no signal present, skip peak detection. Noise floor continues tracking.
       if (!this._isSignalPresent) {
-        this._clearStalePeaksOnSilence(dt)
+        this._clearStalePeaksOnSilence(dt, now)
         return
       }
     } else {
@@ -855,7 +855,7 @@ export class FeedbackDetector {
       this._rawPeakDb = rawPeak
       this._isSignalPresent = rawPeak >= this._silenceThresholdDb
       if (!this._isSignalPresent) {
-        this._clearStalePeaksOnSilence(dt)
+        this._clearStalePeaksOnSilence(dt, now)
         return
       }
     }
@@ -1432,7 +1432,7 @@ export class FeedbackDetector {
    * When signal gate closes, continue aging active peaks so they clear properly.
    * Prevents ghost advisories from persisting during silence.
    */
-  private _clearStalePeaksOnSilence(dt: number): void {
+  private _clearStalePeaksOnSilence(dt: number, now?: number): void {
     const active = this.active
     const dead = this.deadMs
     if (!active || !dead) return
@@ -1468,7 +1468,7 @@ export class FeedbackDetector {
           this.callbacks.onPeakCleared?.({
             binIndex: i,
             frequencyHz: clearedHz,
-            timestamp: performance.now(),
+            timestamp: now ?? performance.now(),
           })
         }
       }

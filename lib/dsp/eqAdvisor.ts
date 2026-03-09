@@ -61,7 +61,7 @@ export function erbDepthScale(frequencyHz: number): number {
   }
   // Linear interpolation between low and high boundaries
   const t = (frequencyHz - ERB_SETTINGS.LOW_FREQ_HZ) / (ERB_SETTINGS.HIGH_FREQ_HZ - ERB_SETTINGS.LOW_FREQ_HZ)
-  return ERB_SETTINGS.LOW_FREQ_SCALE + t * (1.0 - ERB_SETTINGS.LOW_FREQ_SCALE)
+  return ERB_SETTINGS.LOW_FREQ_SCALE + t * (ERB_SETTINGS.HIGH_FREQ_SCALE - ERB_SETTINGS.LOW_FREQ_SCALE)
 }
 
 /**

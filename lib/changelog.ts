@@ -99,6 +99,13 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    version: '1.0.107',
+    date: '2026-03-09',
+    changes: [
+      { type: 'fix', description: 'Minor stability improvements' },
+    ],
+  },
+  {
     version: '1.0.106',
     date: '2026-03-09',
     changes: [

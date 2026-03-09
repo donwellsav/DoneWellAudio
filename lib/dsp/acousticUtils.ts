@@ -805,27 +805,24 @@ export function roomModeProximityPenalty(
 
   const modes = calculateRoomModes(roomLengthM, roomWidthM, roomHeightM, 500)
 
+  let bestDelta = 0
+  let bestReason: string | null = null
+
   for (const mode of modes.all) {
     const distance = Math.abs(frequencyHz - mode.frequency)
 
-    if (distance <= bandwidth3dB) {
+    if (distance <= bandwidth3dB && bestDelta > -0.15) {
       // Within -3 dB bandwidth — strong room mode match
-      return {
-        delta: -0.15,
-        reason: `Peak ${frequencyHz.toFixed(0)} Hz matches room mode ${mode.label} (${mode.type}) at ${mode.frequency.toFixed(1)} Hz ±${bandwidth3dB.toFixed(1)} Hz`,
-      }
-    }
-
-    if (distance <= 2 * bandwidth3dB) {
+      bestDelta = -0.15
+      bestReason = `Peak ${frequencyHz.toFixed(0)} Hz matches room mode ${mode.label} (${mode.type}) at ${mode.frequency.toFixed(1)} Hz ±${bandwidth3dB.toFixed(1)} Hz`
+    } else if (distance <= 2 * bandwidth3dB && bestDelta > -0.08) {
       // Within 2× bandwidth — mild room mode proximity
-      return {
-        delta: -0.08,
-        reason: `Peak ${frequencyHz.toFixed(0)} Hz near room mode ${mode.label} at ${mode.frequency.toFixed(1)} Hz`,
-      }
+      bestDelta = -0.08
+      bestReason = `Peak ${frequencyHz.toFixed(0)} Hz near room mode ${mode.label} at ${mode.frequency.toFixed(1)} Hz`
     }
   }
 
-  return { delta: 0, reason: null }
+  return { delta: bestDelta, reason: bestReason }
 }
 
 // ============================================================================

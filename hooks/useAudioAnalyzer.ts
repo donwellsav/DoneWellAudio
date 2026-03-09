@@ -234,10 +234,10 @@ export function useAudioAnalyzer(
       },
       // Route raw peaks to the DSP worker (includes time-domain for phase coherence)
       onPeakDetected: (peak, spectrum, sampleRate, fftSize, timeDomain) => {
-        dspWorker.processPeak(peak, spectrum, sampleRate, fftSize, timeDomain)
+        dspWorkerRef.current.processPeak(peak, spectrum, sampleRate, fftSize, timeDomain)
       },
       onPeakCleared: (peak) => {
-        dspWorker.clearPeak(peak.binIndex, peak.frequencyHz, peak.timestamp)
+        dspWorkerRef.current.clearPeak(peak.binIndex, peak.frequencyHz, peak.timestamp)
       },
       // Early warning: comb filter pattern detected with predicted frequencies
       onCombPatternDetected: (pattern) => {
@@ -342,15 +342,15 @@ export function useAudioAnalyzer(
   const switchDevice = useCallback(async (deviceId: string) => {
     deviceIdRef.current = deviceId
     if (!analyzerRef.current) return
-    // Hot-swap: release old mic, start with new device
-    const wasRunning = state.isRunning
+    // Hot-swap: release old mic, start with new device — read imperative state to avoid stale closure
+    const wasRunning = analyzerRef.current.getState().isRunning
     if (wasRunning) {
       analyzerRef.current.stop({ releaseMic: true })
       await analyzerRef.current.start({ deviceId: deviceId || undefined })
       const analyzerState = analyzerRef.current.getState()
       dspWorkerRef.current.init(settingsRef.current, analyzerState.sampleRate, analyzerState.fftSize)
     }
-  }, [state.isRunning])
+  }, [])
 
   const updateSettings = useCallback((newSettings: Partial<DetectorSettings>) => {
     setSettings(prev => ({ ...prev, ...newSettings }))
