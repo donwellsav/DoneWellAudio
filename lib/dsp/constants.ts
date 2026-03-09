@@ -686,11 +686,11 @@ export const FREQ_RANGE_PRESETS = [
 // Color palette for visualizations
 export const VIZ_COLORS = {
   RUNAWAY: '#ef4444', // red-500
-  GROWING: '#f97316', // orange-500
-  RESONANCE: '#eab308', // yellow-500
-  POSSIBLE_RING: '#a855f7', // purple-500
+  GROWING: '#fb923c', // orange-400 (WCAG AA ≥4.5:1 on dark)
+  RESONANCE: '#facc15', // yellow-400 (WCAG AA ≥4.6:1 on dark)
+  POSSIBLE_RING: '#c084fc', // purple-400 (WCAG AA ≥4.5:1 on dark)
   WHISTLE: '#06b6d4', // cyan-500
-  INSTRUMENT: '#22c55e', // green-500
+  INSTRUMENT: '#4ade80', // green-400 (WCAG AA ≥4.8:1 on dark)
   NOISE_FLOOR: '#6b7280', // gray-500
   THRESHOLD: '#3b82f6', // blue-500
   SPECTRUM: '#3b82f6', // blue-500

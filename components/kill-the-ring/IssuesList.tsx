@@ -273,7 +273,7 @@ const IssueCard = memo(function IssueCard({ advisory, onDismiss, touchFriendly }
 
         {/* Row 4: EQ recommendation */}
         {hasEq && (
-          <div className="flex items-center gap-3 text-[0.5625rem] font-mono text-muted-foreground bg-muted/30 -mx-1.5 px-1.5 py-1 rounded-sm">
+          <div className="flex items-center gap-1.5 sm:gap-3 text-[0.5625rem] font-mono text-muted-foreground bg-muted/30 -mx-1.5 px-1.5 py-1 rounded-sm">
             <span>
               GEQ <span className="text-foreground font-medium">{geq?.suggestedDb}dB</span>
               <span className="text-muted-foreground/50"> @ {geq?.bandHz}</span>
