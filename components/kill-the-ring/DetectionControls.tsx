@@ -214,16 +214,20 @@ export const DetectionControls = memo(function DetectionControls({ settings, onM
           >
             Auto
           </button>
-          <div className={`grid grid-cols-3 gap-1 ${settings.algorithmMode === 'auto' ? 'opacity-40 pointer-events-none' : ''}`}>
+          <div className={`grid grid-cols-3 gap-1 ${settings.algorithmMode === 'auto' ? 'pointer-events-none' : ''}`}>
             {([
               ['msd', 'MSD'], ['phase', 'Phase'], ['spectral', 'Spectral'],
               ['comb', 'Comb'], ['ihr', 'IHR'], ['ptmr', 'PTMR'],
             ] as const).map(([key, label]) => {
-              const enabled = settings.enabledAlgorithms?.includes(key) ?? true
+              const isAuto = settings.algorithmMode === 'auto'
+              // In auto mode: all algorithms are auto-selected (MSD readiness shown in AlgorithmStatusBar)
+              const autoActive = isAuto
+              const enabled = isAuto ? autoActive : (settings.enabledAlgorithms?.includes(key) ?? true)
               return (
                 <button
                   key={key}
                   onClick={() => {
+                    if (isAuto) return
                     const current = settings.enabledAlgorithms ?? ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr']
                     let next: Algorithm[]
                     if (enabled) {
@@ -238,9 +242,13 @@ export const DetectionControls = memo(function DetectionControls({ settings, onM
                     onSettingsChange({ enabledAlgorithms: next })
                   }}
                   className={`px-1 py-0.5 rounded text-xs font-medium text-center transition-colors ${
-                    enabled
-                      ? 'bg-primary/20 text-primary border border-primary/40'
-                      : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'
+                    isAuto
+                      ? autoActive
+                        ? 'text-primary/60 border border-primary/20 bg-transparent'
+                        : 'text-muted-foreground/30 border border-transparent'
+                      : enabled
+                        ? 'bg-primary/20 text-primary border border-primary/40'
+                        : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'
                   }`}
                 >
                   {label}

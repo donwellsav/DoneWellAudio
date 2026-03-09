@@ -62,21 +62,29 @@ export const AlgorithmStatusBar = memo(function AlgorithmStatusBar({
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex items-center gap-2 px-2 py-1 text-xs font-mono">
-        {/* Algorithm Mode */}
+        {/* Algorithm Mode + auto-selected indicators */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="text-primary font-semibold">
+            <span className="text-primary font-semibold inline-flex items-center gap-1">
               {ALGORITHM_MODE_LABELS[algorithmMode]}
+              {algorithmMode === 'auto' && (
+                <span className="text-muted-foreground font-normal">
+                  · {msdReady ? 'All' : '−MSD'}
+                </span>
+              )}
             </span>
           </TooltipTrigger>
-          <TooltipContent side="bottom" className="text-xs max-w-[200px]">
+          <TooltipContent side="bottom" className="text-xs max-w-[220px]">
             <p className="font-semibold">Algorithm Mode: {algorithmMode}</p>
             <p className="text-muted-foreground mt-1">
               {algorithmMode === 'combined' && 'MSD + Phase coherence (recommended)'}
               {algorithmMode === 'msd' && 'Magnitude Slope Deviation only'}
               {algorithmMode === 'phase' && 'Phase coherence only'}
               {algorithmMode === 'all' && 'All algorithms active'}
-              {algorithmMode === 'auto' && 'Auto-selects based on content'}
+              {algorithmMode === 'auto' && (msdReady
+                ? 'Auto: all 6 algorithms active (MSD buffer ready)'
+                : 'Auto: 5 algorithms active (waiting for MSD buffer)'
+              )}
             </p>
           </TooltipContent>
         </Tooltip>
