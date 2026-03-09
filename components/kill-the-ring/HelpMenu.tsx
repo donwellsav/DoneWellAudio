@@ -84,41 +84,43 @@ export const HelpMenu = memo(function HelpMenu() {
             <Section title="Quick Start">
               <ol className="list-decimal list-inside space-y-2">
                 <li>Click the flashing <strong>START</strong> speaker button in the header</li>
-                <li>Detected issues appear in the <strong>Active Issues</strong> sidebar, sorted by frequency</li>
+                <li>Detected issues appear in the <strong>Active Issues</strong> panel, sorted by frequency</li>
                 <li>Each issue card shows frequency, pitch, severity, and recommended GEQ/PEQ cuts</li>
-                <li>Tap <strong>Apply</strong> on a card to log the cut to the <strong>EQ Notepad</strong></li>
-                <li>Enable <strong>Show Algorithm Scores</strong> in Settings → Algorithms to see live detection status</li>
-                <li>Use the sidebar sliders to tune detection sensitivity in real time</li>
+                <li>Tap the <strong>copy</strong> icon on a card to copy EQ settings to clipboard</li>
+                <li>Use <strong>Quick Controls</strong> to adjust sensitivity, or switch to <strong>Full Controls</strong> for all settings</li>
                 <li>Review <strong>Feedback History</strong> to track repeat offender frequencies</li>
               </ol>
             </Section>
 
             <Section title="Display Areas">
               <ul className="space-y-2">
-                <li><strong>Large Panel (top):</strong> Selected graph enlarged. Switch between RTA Spectrum, 31-Band GEQ, and Controls.</li>
-                <li><strong>Small Panels (bottom row):</strong> Two configurable panels — choose RTA, GEQ, or Controls for each.</li>
-                <li><strong>Left Sidebar — Issues tab:</strong> Active detected issues with Apply buttons. RUNAWAY issues pulse red.</li>
-                <li><strong>Left Sidebar — EQ Notepad:</strong> Accumulates applied cuts for reference and export.</li>
-                <li><strong>Algorithm Status Bar:</strong> Shows algorithm mode, content type, MSD buffer, and compression status.</li>
+                <li><strong>Desktop — Resizable Split:</strong> RTA spectrum (60%) and GEQ bar view (40%) side by side. Drag the divider to resize.</li>
+                <li><strong>Mobile — Tabbed:</strong> Three tabs — Issues, Graph (RTA + GEQ split), and Settings. Swipe left/right to switch tabs.</li>
+                <li><strong>Issues Panel:</strong> Active detected issues sorted by frequency. RUNAWAY issues pulse red. Copy EQ settings to clipboard.</li>
+                <li><strong>Controls Panel:</strong> Quick/Full toggle, sensitivity sliders, mode selector, frequency range presets, custom presets.</li>
+                <li><strong>Algorithm Status Bar:</strong> Shows algorithm mode, active algorithms (Auto mode), FPS counter, content type, and compression status.</li>
+                <li><strong>Early Warning Panel:</strong> Comb filter predictions with elapsed timer and urgency progress bar.</li>
               </ul>
             </Section>
 
             <Section title="Header Controls">
               <ul className="space-y-2">
                 <li><strong>Start / Stop:</strong> Begin or pause audio analysis. LIVE indicator appears while running.</li>
-                <li><strong>Input Gain:</strong> Digital boost before analysis (-40 to +40 dB, default +15 dB).</li>
-                <li><strong>Mode:</strong> Detection sensitivity preset (see Modes tab).</li>
+                <li><strong>Input Gain Fader:</strong> Vertical fader strip with venue quick-cal pills (Quiet / Med / Loud). Default +6 dB.</li>
+                <li><strong>Layout (L):</strong> Toggle between desktop layouts. Fullscreen (F) for dedicated spectrum view.</li>
+                <li><strong>Freeze (P):</strong> Pause the spectrum display for closer inspection without stopping analysis.</li>
                 <li><strong>Settings / Help / History:</strong> Access configuration, documentation, and feedback history.</li>
               </ul>
             </Section>
 
-            <Section title="Sidebar Controls">
+            <Section title="Detection Controls">
               <ul className="space-y-2">
-                <li><strong>Freq Range:</strong> Vocal (200-8kHz), Monitor (300-3kHz), Full (20-20kHz), Sub (20-250Hz).</li>
-                <li><strong>Music-Aware:</strong> Auto-switches sensitivity when the band starts/stops playing.</li>
-                <li><strong>Threshold:</strong> Primary sensitivity (4-6 dB speech/monitors, 8-10 dB worship/outdoor, 12+ dB live music).</li>
-                <li><strong>Ring:</strong> Resonance detection (2-3 dB ring out/monitors, 4-5 dB normal, 6+ dB live music).</li>
-                <li><strong>Growth:</strong> Amplitude growth rate (0.5-1 dB/s early catch, 3+ dB/s runaway only).</li>
+                <li><strong>Quick / Full Controls:</strong> Pill toggle at top. Quick mode shows essentials; Full mode shows all settings.</li>
+                <li><strong>Freq Range Presets:</strong> Vocal (200–8 kHz), Monitor (300–3 kHz), Full (20–20 kHz), Sub (20–250 Hz).</li>
+                <li><strong>Threshold:</strong> Primary sensitivity (4–6 dB speech/monitors, 8–10 dB worship/outdoor, 12+ dB live music).</li>
+                <li><strong>Mode Selector:</strong> Operation mode presets plus any saved custom presets.</li>
+                <li><strong>Save as Preset:</strong> Save current settings as a named custom preset (up to 5). Load from mode dropdown.</li>
+                <li><strong>Full Controls extras:</strong> Ring, Growth, Music-Aware, Sustain, Confidence, Algorithm grid, A-Weighting, and more.</li>
               </ul>
             </Section>
 
@@ -144,7 +146,7 @@ export const HelpMenu = memo(function HelpMenu() {
                 </div>
                 <div>
                   <p className="font-medium text-foreground text-xs mb-1">Missing Feedback Detection</p>
-                  <p className="text-xs">Lower sidebar Threshold (4-6 dB). Increase Input Gain. Switch to Aggressive or Calibration mode. Increase FFT Size to 16384 for better low-frequency resolution.</p>
+                  <p className="text-xs">Lower sidebar Threshold (4-6 dB). Increase Input Gain on the fader strip. Switch to Ring Out mode for maximum sensitivity. Increase FFT Size to 16384 for better low-frequency resolution.</p>
                 </div>
                 <div>
                   <p className="font-medium text-foreground text-xs mb-1">Compressed Music False Positives</p>
@@ -152,7 +154,7 @@ export const HelpMenu = memo(function HelpMenu() {
                 </div>
                 <div>
                   <p className="font-medium text-foreground text-xs mb-1">Slow or Laggy Display</p>
-                  <p className="text-xs">Reduce FFT Size to 4096. Disable Show Algorithm Scores. Close other browser tabs to free CPU.</p>
+                  <p className="text-xs">Check the FPS counter in the status bar — amber means drops, red means severe. Reduce FFT Size to 4096. Close other browser tabs to free CPU.</p>
                 </div>
               </div>
             </Section>
@@ -214,7 +216,7 @@ export const HelpMenu = memo(function HelpMenu() {
             <Section title="Workflow Best Practices">
               <ol className="list-decimal list-inside space-y-2">
                 <li>Start with <strong>Ring Out</strong> mode during initial system setup</li>
-                <li>Enable <strong>Show Algorithm Scores</strong> to see what each algorithm detects</li>
+                <li>Watch the <strong>Algorithm Status Bar</strong> — Auto mode highlights which algorithms are active</li>
                 <li>Watch the <strong>MSD frame count</strong> — wait for 15+ frames before trusting results</li>
                 <li>If status bar shows <strong>COMPRESSED</strong>, phase coherence is most reliable</li>
                 <li>Use <strong>Comb Pattern</strong> predictions to preemptively address upcoming feedback frequencies</li>
@@ -669,7 +671,7 @@ export const HelpMenu = memo(function HelpMenu() {
                   <div className="bg-muted p-3 rounded font-mono text-xs">
                     <p className="text-foreground font-semibold">Harmonic Series Detection</p>
                     <p>Expected: f<sub>k</sub> = k · f₀ for k = 1, 2, ..., 8</p>
-                    <p>Match tolerance: ±50 cents (configurable 25–100)</p>
+                    <p>Match tolerance: ±200 cents (configurable 25–400)</p>
                     <p className="text-muted-foreground">Sub-harmonics also checked: f₀ = f<sub>detected</sub> / k</p>
                   </div>
 
@@ -712,6 +714,7 @@ export const HelpMenu = memo(function HelpMenu() {
                 <kbd className="font-mono bg-muted px-1.5 py-0.5 rounded text-[0.625rem]">Space</kbd><span>Start / stop analysis</span>
                 <kbd className="font-mono bg-muted px-1.5 py-0.5 rounded text-[0.625rem]">P</kbd><span>Freeze / unfreeze spectrum display</span>
                 <kbd className="font-mono bg-muted px-1.5 py-0.5 rounded text-[0.625rem]">F</kbd><span>Toggle fullscreen</span>
+                <kbd className="font-mono bg-muted px-1.5 py-0.5 rounded text-[0.625rem]">L</kbd><span>Toggle layout</span>
                 <kbd className="font-mono bg-muted px-1.5 py-0.5 rounded text-[0.625rem]">1</kbd><span>Switch to RTA view</span>
                 <kbd className="font-mono bg-muted px-1.5 py-0.5 rounded text-[0.625rem]">2</kbd><span>Switch to GEQ view</span>
                 <kbd className="font-mono bg-muted px-1.5 py-0.5 rounded text-[0.625rem]">3</kbd><span>Switch to Controls view</span>
@@ -739,9 +742,9 @@ export const HelpMenu = memo(function HelpMenu() {
                 <span className="text-muted-foreground">Ring threshold</span><span className="font-mono">3 dB</span>
                 <span className="text-muted-foreground">Growth rate</span><span className="font-mono">1.0 dB/s</span>
                 <span className="text-muted-foreground">Hold time</span><span className="font-mono">4 s</span>
-                <span className="text-muted-foreground">Input gain</span><span className="font-mono">+15 dB</span>
-                <span className="text-muted-foreground">Confidence threshold</span><span className="font-mono">30%</span>
-                <span className="text-muted-foreground">Algorithm mode</span><span className="font-mono">Combined (MSD + Phase)</span>
+                <span className="text-muted-foreground">Input gain</span><span className="font-mono">+6 dB</span>
+                <span className="text-muted-foreground">Confidence threshold</span><span className="font-mono">35%</span>
+                <span className="text-muted-foreground">Algorithm mode</span><span className="font-mono">Auto (content-adaptive)</span>
                 <span className="text-muted-foreground">A-weighting</span><span className="font-mono">Enabled</span>
                 <span className="text-muted-foreground">Sustain time</span><span className="font-mono">250 ms</span>
                 <span className="text-muted-foreground">Clear time</span><span className="font-mono">350 ms</span>
@@ -755,7 +758,7 @@ export const HelpMenu = memo(function HelpMenu() {
             <Section title="Frequency Bands">
               <div className="space-y-2 text-xs">
                 <div>
-                  <strong>LOW (20–300 Hz):</strong> Room modes, sub-bass. Prominence ×1.4, Sustain ×1.5, Q threshold ×0.6.
+                  <strong>LOW (20–300 Hz):</strong> Room modes, sub-bass. Prominence ×1.15, Sustain ×1.2, Q threshold ×0.6.
                   Broadest peaks expected.
                 </div>
                 <div>

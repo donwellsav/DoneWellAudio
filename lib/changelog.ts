@@ -14,6 +14,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.0.117',
+    date: '2026-03-09',
+    highlights: 'Quick controls, custom presets, mobile polish',
+    changes: [
+      { type: 'feat', description: 'Quick/Full controls toggle — pill buttons switch between essential and full detection controls' },
+      { type: 'feat', description: 'Custom detection presets — save up to 5 named presets, load from mode selector dropdown' },
+      { type: 'feat', description: 'Early warning elapsed timer with color-coded urgency and persistence progress bar' },
+      { type: 'feat', description: 'Active algorithm indicators in Auto mode — ring highlights show which algorithms are running' },
+      { type: 'feat', description: 'Frame-drop indicator with live FPS counter in algorithm status bar' },
+      { type: 'feat', description: 'EQ copy-to-clipboard button on issue cards (frequency, GEQ band, PEQ cut in one string)' },
+      { type: 'feat', description: 'Mobile swipe navigation between Issues, Graph, and Settings tabs' },
+      { type: 'feat', description: 'Onboarding step 5: keyboard shortcuts summary (Space, F, P, 1/2/3)' },
+      { type: 'ui', description: 'Mobile tab labels enlarged from 9px to 11px for stage-light readability' },
+      { type: 'ui', description: 'GEQ band labels: raised minimum font to 9px with text shadow for contrast' },
+      { type: 'fix', description: 'Quick/Full controls toggle enlarged with full labels after usability feedback' },
+    ],
+  },
+  {
     version: '1.0.116',
     date: '2026-03-09',
     changes: [
