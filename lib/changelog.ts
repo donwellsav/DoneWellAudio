@@ -14,6 +14,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.76.0',
+    date: '2026-03-09',
+    changes: [
+      { type: 'feat', description: 'Add TXT export: fixed-width plain text report with session info, frequency band breakdown, repeat offenders, hotspot tables, EQ recommendations, and recent events' },
+      { type: 'feat', description: 'Add PDF export: professional multi-page report with dark header, metric boxes, vector bar charts, styled tables (amber/blue/green), event timeline scatter plot, and page footers — uses jsPDF + jspdf-autotable, dynamically imported to keep initial bundle clean' },
+      { type: 'feat', description: 'Consolidate all 4 export formats (TXT, CSV, JSON, PDF) into a single Export dropdown menu' },
+      { type: 'feat', description: 'Extract shared `downloadFile()` helper, tighten SheetHeader spacing' },
+      { type: 'feat', description: '[ ] Open Feedback History panel — Export dropdown and Clear button visible' },
+      { type: 'feat', description: '[ ] Both buttons disabled when no data' },
+      { type: 'feat', description: '[ ] Dropdown shows 4 items: TXT, CSV, JSON, PDF' },
+      { type: 'feat', description: '[ ] TXT export downloads readable `.txt` file' },
+      { type: 'feat', description: '[ ] PDF export shows loading spinner, then downloads multi-page PDF with charts' },
+      { type: 'feat', description: '[ ] CSV/JSON exports still work' },
+      { type: 'feat', description: '[ ] Clear button works with confirmation dialog' },
+      { type: 'feat', description: '[ ] Mobile layout (375x812) renders correctly' },
+      { type: 'feat', description: '[ ] Zero console errors' },
+      { type: 'feat', description: '[ ] `pnpm build` passes' },
+    ],
+  },
+  {
     version: '0.75.0',
     date: '2026-03-09',
     changes: [
