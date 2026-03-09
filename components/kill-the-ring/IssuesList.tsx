@@ -154,9 +154,10 @@ const IssueCard = memo(function IssueCard({ advisory, onDismiss, touchFriendly }
 
       <div className="pl-3 pr-1.5 py-1.5 flex flex-col gap-1">
 
-        {/* Row 1: Frequency hero + dismiss */}
-        <div className="flex items-center justify-between gap-1">
-          <div className="flex items-baseline gap-1.5 min-w-0">
+        {/* Top section: 2-column — frequency LEFT, badges RIGHT */}
+        <div className="flex items-start justify-between gap-2">
+          {/* LEFT: Frequency hero + pitch/band */}
+          <div className="flex flex-col min-w-0">
             <TooltipProvider delayDuration={300}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -171,95 +172,113 @@ const IssueCard = memo(function IssueCard({ advisory, onDismiss, touchFriendly }
                 )}
               </Tooltip>
             </TooltipProvider>
-            {pitchStr && (
-              <span className="text-xs font-mono text-muted-foreground leading-none">{pitchStr}</span>
-            )}
-            {bandHz != null && bandHz !== advisory.trueFrequencyHz && (
-              <span className="text-xs font-mono text-muted-foreground/50 leading-none">
-                → {formatFrequency(bandHz)}
-              </span>
+            {(pitchStr || (bandHz != null && bandHz !== advisory.trueFrequencyHz)) && (
+              <div className="flex items-baseline gap-1 mt-0.5">
+                {pitchStr && (
+                  <span className="text-xs font-mono text-muted-foreground leading-none">{pitchStr}</span>
+                )}
+                {bandHz != null && bandHz !== advisory.trueFrequencyHz && (
+                  <span className="text-xs font-mono text-muted-foreground/50 leading-none">
+                    → {formatFrequency(bandHz)}
+                  </span>
+                )}
+              </div>
             )}
           </div>
 
-          {/* Dismiss */}
-          {onDismiss && (
-            <button
-              onClick={() => onDismiss(advisory.id)}
-              aria-label={`Dismiss ${exactFreqStr} issue`}
-              className={`flex-shrink-0 flex items-center justify-center rounded text-muted-foreground/30 hover:text-muted-foreground hover:bg-muted/60 transition-colors ${
-                touchFriendly ? 'w-9 h-9' : 'w-4 h-4'
-              }`}
-            >
-              <X className={touchFriendly ? 'w-4 h-4' : 'w-2.5 h-2.5'} />
-            </button>
-          )}
+          {/* RIGHT: Badges + EQ + dismiss */}
+          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+            {/* Badges row */}
+            <div className="flex items-center gap-1 flex-wrap justify-end">
+              <span
+                className="inline-flex items-center text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm leading-none"
+                style={{ backgroundColor: `${severityColor}22`, color: severityColor, border: `1px solid ${severityColor}44` }}
+              >
+                {getSeverityText(advisory.severity)}
+              </span>
+
+              {advisory.confidence != null && (
+                <span
+                  className={`inline-flex items-center text-xs font-mono px-1.5 py-0.5 rounded-sm leading-none ${
+                    advisory.confidence >= 0.85
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                      : advisory.confidence >= 0.70
+                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                        : advisory.confidence >= 0.45
+                          ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                          : 'bg-muted text-muted-foreground border border-border'
+                  }`}
+                  title={`${Math.round(advisory.confidence * 100)}% confidence`}
+                >
+                  {Math.round(advisory.confidence * 100)}%
+                </span>
+              )}
+
+              {occurrenceCount >= 3 && (
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex items-center gap-0.5 text-xs text-amber-400 bg-amber-500/20 px-1.5 py-0.5 rounded-sm leading-none border border-amber-500/30">
+                        <TrendingUp className="w-2.5 h-2.5" />
+                        {occurrenceCount}×
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">
+                      Repeat offender: detected {occurrenceCount} times
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+
+              {(advisory.clusterCount ?? 1) > 1 && (
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex items-center text-xs text-sky-400 bg-sky-500/20 px-1.5 py-0.5 rounded-sm leading-none border border-sky-500/30">
+                        +{(advisory.clusterCount ?? 1) - 1}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">
+                      {advisory.clusterCount} peaks merged
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+
+              {isResolved && (
+                <span className="inline-flex items-center text-xs font-medium uppercase tracking-wider px-1.5 py-0.5 rounded-sm leading-none bg-muted text-muted-foreground border border-border">
+                  Resolved
+                </span>
+              )}
+
+              {onDismiss && (
+                <button
+                  onClick={() => onDismiss(advisory.id)}
+                  aria-label={`Dismiss ${exactFreqStr} issue`}
+                  className={`flex-shrink-0 flex items-center justify-center rounded text-muted-foreground/30 hover:text-muted-foreground hover:bg-muted/60 transition-colors ${
+                    touchFriendly ? 'w-9 h-9' : 'w-5 h-5'
+                  }`}
+                >
+                  <X className={touchFriendly ? 'w-4 h-4' : 'w-3 h-3'} />
+                </button>
+              )}
+            </div>
+
+            {/* EQ recommendation — compact, right-aligned */}
+            {hasEq && (
+              <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
+                <span>
+                  GEQ <span className="text-foreground font-medium">{geq?.suggestedDb}dB</span>
+                </span>
+                <span>
+                  PEQ <span className="text-foreground font-medium">Q{(peq?.q ?? 1).toFixed(0)} {peq?.gainDb ?? 0}dB</span>
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Row 2: Badges — severity, confidence, repeat, cluster */}
-        <div className="flex items-center gap-1 flex-wrap">
-          <span
-            className="inline-flex items-center text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm leading-none"
-            style={{ backgroundColor: `${severityColor}22`, color: severityColor, border: `1px solid ${severityColor}44` }}
-          >
-            {getSeverityText(advisory.severity)}
-          </span>
-
-          {advisory.confidence != null && (
-            <span
-              className={`inline-flex items-center text-xs font-mono px-1.5 py-0.5 rounded-sm leading-none ${
-                advisory.confidence >= 0.85
-                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                  : advisory.confidence >= 0.70
-                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                    : advisory.confidence >= 0.45
-                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                      : 'bg-muted text-muted-foreground border border-border'
-              }`}
-              title={`${Math.round(advisory.confidence * 100)}% confidence`}
-            >
-              {Math.round(advisory.confidence * 100)}%
-            </span>
-          )}
-
-          {occurrenceCount >= 3 && (
-            <TooltipProvider delayDuration={300}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex items-center gap-0.5 text-xs text-amber-400 bg-amber-500/20 px-1.5 py-0.5 rounded-sm leading-none border border-amber-500/30">
-                    <TrendingUp className="w-2.5 h-2.5" />
-                    {occurrenceCount}×
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="text-xs">
-                  Repeat offender: detected {occurrenceCount} times
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-
-          {(advisory.clusterCount ?? 1) > 1 && (
-            <TooltipProvider delayDuration={300}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex items-center text-xs text-sky-400 bg-sky-500/20 px-1.5 py-0.5 rounded-sm leading-none border border-sky-500/30">
-                    +{(advisory.clusterCount ?? 1) - 1}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="text-xs">
-                  {advisory.clusterCount} peaks merged
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-
-          {isResolved && (
-            <span className="inline-flex items-center text-xs font-medium uppercase tracking-wider px-1.5 py-0.5 rounded-sm leading-none bg-muted text-muted-foreground border border-border">
-              Resolved
-            </span>
-          )}
-        </div>
-
-        {/* Row 3: Runaway / warning alert */}
+        {/* Runaway / warning alert — full-width below (rare, urgent) */}
         {(isRunaway || isWarning) && !isResolved && (
           <div className={`flex items-center gap-1 text-xs font-bold uppercase tracking-wide ${
             isRunaway ? 'text-red-400' : 'text-amber-400'
@@ -268,19 +287,6 @@ const IssueCard = memo(function IssueCard({ advisory, onDismiss, touchFriendly }
             <span>{isRunaway ? 'Runaway feedback' : 'Growing — act now'}</span>
             {timeToClipStr && <span className="font-mono opacity-80 ml-0.5">{timeToClipStr}</span>}
             <span className="font-mono ml-auto opacity-60">+{velocity.toFixed(0)} dB/s</span>
-          </div>
-        )}
-
-        {/* Row 4: EQ recommendation */}
-        {hasEq && (
-          <div className="flex items-center gap-1.5 sm:gap-3 text-xs font-mono text-muted-foreground bg-muted/30 -mx-1.5 px-1.5 py-1 rounded-sm">
-            <span>
-              GEQ <span className="text-foreground font-medium">{geq?.suggestedDb}dB</span>
-              <span className="text-muted-foreground/50"> @ {geq?.bandHz}</span>
-            </span>
-            <span>
-              PEQ <span className="text-foreground font-medium">Q{(peq?.q ?? 1).toFixed(0)} {peq?.gainDb ?? 0}dB</span>
-            </span>
           </div>
         )}
       </div>

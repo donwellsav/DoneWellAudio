@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.0.103',
+    date: '2026-03-09',
+    changes: [
+      { type: 'ui', description: 'Issue cards: 2-column layout — frequency anchors left, badges and EQ right' },
+    ],
+  },
+  {
     version: '1.0.102',
     date: '2026-03-09',
     changes: [
