@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useCallback, memo } from 'react'
 import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -86,14 +86,67 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
           History
         </TooltipContent>
       </Tooltip>
-      <SheetContent side="right" className="w-full sm:w-[400px] lg:w-[540px] bg-background border-border">
+      <SheetContent side="right" className="sm:max-w-md overflow-y-auto">
         <SheetHeader>
-          <SheetTitle className="flex items-center gap-2 font-bold tracking-tight">
+          <SheetTitle className="text-lg font-bold tracking-tight flex items-center gap-2">
             <History className="h-5 w-5" />
             Feedback History
           </SheetTitle>
+          <SheetDescription className="text-xs">
+            Tracks repeat offenders and frequency hotspots across sessions.
+          </SheetDescription>
         </SheetHeader>
 
+        {/* Export/Clear Actions */}
+        <div className="flex gap-2 pb-3 border-b border-border">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            onClick={handleExportCSV}
+            disabled={hotspots.length === 0}
+          >
+            <Download className="h-3 w-3 mr-1" />
+            CSV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            onClick={handleExportJSON}
+            disabled={hotspots.length === 0}
+          >
+            <Download className="h-3 w-3 mr-1" />
+            JSON
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
+                disabled={hotspots.length === 0}
+              >
+                <Trash2 className="h-3 w-3 mr-1" />
+                Clear
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogTitle>Clear feedback history?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will remove all recorded feedback events and hotspot data. This cannot be undone.
+              </AlertDialogDescription>
+              <div className="flex items-center gap-3 justify-end">
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleClear} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Clear
+                </AlertDialogAction>
+              </div>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+
+        {/* Content */}
         <div className="space-y-4">
           {/* Repeat Offenders Section */}
           {hotspots.filter(h => h.isRepeatOffender).length > 0 && (
@@ -133,89 +186,39 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-bold tracking-tight">All Problem Frequencies</span>
             </div>
-            <ScrollArea className="h-[250px]">
-              <div className="space-y-1.5 pr-3">
-                {hotspots.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground gap-1">
-                    <BarChart3 className="w-5 h-5 text-muted-foreground/30 mb-1" />
-                    <span className="text-sm font-medium">No feedback events recorded yet</span>
-                    <span className="text-xs text-muted-foreground/60">Events will appear here as they are detected</span>
-                  </div>
-                ) : (
-                  hotspots.map((hotspot, i) => (
-                    <div
-                      key={i}
-                      className={`rounded px-2 py-1.5 flex items-center justify-between transition-colors ${
-                        hotspot.isRepeatOffender
-                          ? 'bg-amber-500/10 border-l-2 border-amber-500 hover:bg-amber-500/15'
-                          : 'bg-muted/30 hover:bg-accent/5'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm">
-                          {formatFrequency(hotspot.centerFrequencyHz)}
-                        </span>
-                        {hotspot.isRepeatOffender && (
-                          <TrendingUp className="h-3 w-3 text-amber-400" />
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono">
-                        <span>{hotspot.occurrences}x</span>
-                        <span>{(hotspot.avgConfidence * 100).toFixed(0)}%</span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </ScrollArea>
-          </div>
-
-          {/* Export/Clear Actions */}
-          <div className="flex gap-2 pt-2 border-t border-border">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              onClick={handleExportCSV}
-              disabled={hotspots.length === 0}
-            >
-              <Download className="h-3 w-3 mr-1" />
-              CSV
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              onClick={handleExportJSON}
-              disabled={hotspots.length === 0}
-            >
-              <Download className="h-3 w-3 mr-1" />
-              JSON
-            </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground/50 hover:text-destructive"
-                  disabled={hotspots.length === 0}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogTitle>Clear feedback history?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will remove all recorded feedback events and hotspot data. This cannot be undone.
-                </AlertDialogDescription>
-                <div className="flex items-center gap-3 justify-end">
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleClear} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                    Clear
-                  </AlertDialogAction>
+            <div className="space-y-1.5">
+              {hotspots.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground gap-1">
+                  <BarChart3 className="w-5 h-5 text-muted-foreground/30 mb-1" />
+                  <span className="text-sm font-medium">No feedback events recorded yet</span>
+                  <span className="text-xs text-muted-foreground/60">Events will appear here as they are detected</span>
                 </div>
-              </AlertDialogContent>
-            </AlertDialog>
+              ) : (
+                hotspots.map((hotspot, i) => (
+                  <div
+                    key={i}
+                    className={`rounded px-2 py-1.5 flex items-center justify-between transition-colors ${
+                      hotspot.isRepeatOffender
+                        ? 'bg-amber-500/10 border-l-2 border-amber-500 hover:bg-amber-500/15'
+                        : 'bg-muted/30 hover:bg-accent/5'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm">
+                        {formatFrequency(hotspot.centerFrequencyHz)}
+                      </span>
+                      {hotspot.isRepeatOffender && (
+                        <TrendingUp className="h-3 w-3 text-amber-400" />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono">
+                      <span>{hotspot.occurrences}x</span>
+                      <span>{(hotspot.avgConfidence * 100).toFixed(0)}%</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </SheetContent>
