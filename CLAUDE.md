@@ -36,8 +36,9 @@ contexts/                   # React context providers (PortalContainerContext)
 hooks/                      # Custom React hooks (8 files)
 lib/
   audio/                    # AudioAnalyzer factory
+  canvas/                   # Pure canvas drawing helpers (no React dependency)
   changelog.ts              # Version history (rendered in About tab)
-  dsp/                      # DSP engine (~7,500 lines): detector, classifier, advisor, worker
+  dsp/                      # DSP engine: detector, classifier, advisor, worker (split into focused modules)
   utils/                    # Math helpers, pitch utilities
   utils.ts                  # cn() helper for Tailwind class merging
 types/                      # TypeScript interfaces (advisory.ts)
@@ -52,6 +53,8 @@ types/                      # TypeScript interfaces (advisory.ts)
 - `contexts/PortalContainerContext.tsx` provides a portal mount point for mobile overlays
 - **Security headers:** `next.config.mjs` sets `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and `Permissions-Policy` (microphone only)
 - **No environment variables required** — app is fully client-side with localStorage persistence
+- **Mobile:** MobileLayout uses WAI-ARIA tabs pattern (roving tabindex, ArrowLeft/Right/Home/End keyboard nav); DesktopLayout uses `landscape:flex` CSS toggle — never modify DesktopLayout for mobile-specific changes
+- **Accessibility:** Touch targets ≥44×44px (`min-h-[44px] min-w-[44px]`), `role="status"` sr-only spans for clipboard announcements
 
 ## Coding Conventions
 
@@ -62,6 +65,8 @@ types/                      # TypeScript interfaces (advisory.ts)
 - **Functions/variables:** camelCase
 - **Private class members:** `_prefixed`
 - **Imports:** Use `@/*` path alias (maps to project root)
+- **Code splitting:** Large modules use barrel re-exports (`export * from './subModule'`); dialogs/panels use `React.lazy()` with `.then(m => ({ default: m.X }))` for named exports
+- **Canvas functions:** Pure drawing helpers in `lib/canvas/` — use `{ current: T }` params, not `React.RefObject`
 - **Styling:** Tailwind utility classes + `cn()` from `lib/utils.ts` for conditional classes
 - **No test framework configured** — rely on TypeScript strict mode and manual browser testing
 - **ESLint:** Flat config (`eslint.config.mjs`) with `eslint-config-next` core-web-vitals + typescript + `@typescript-eslint/no-explicit-any` warn
@@ -69,6 +74,6 @@ types/                      # TypeScript interfaces (advisory.ts)
 
 ## CI/CD
 
-- **Versioning:** `0.{PR#}.{PATCH}` — PR merge resets patch to 0 (`auto-version.yml`), direct push increments patch (`patch-on-push.yml`). Both commit with `[skip ci]`.
+- **Versioning:** `1.{MINOR}.{PATCH}` — PR merge bumps minor + resets patch (`auto-version.yml`), direct push increments patch (`patch-on-push.yml`). Both commit with `[skip ci]`.
 - **Deployment:** Vercel auto-deploys on push to `main`; the `[skip ci]` in auto-version commits prevents double-deploys
 - **Version flow:** `package.json` version → `next.config.mjs` reads via `readFileSync` → `NEXT_PUBLIC_APP_VERSION` env → HeaderBar + HelpMenu
