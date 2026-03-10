@@ -44,7 +44,7 @@ export const HeaderBar = memo(function HeaderBar({
   devices, selectedDeviceId, onDeviceChange,
 }: HeaderBarProps) {
   return (
-    <header className="relative flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 px-3 py-2 border-b border-border bg-card/90 backdrop-blur-sm shadow-[0_1px_12px_rgba(0,0,0,0.5),0_1px_0_rgba(75,146,255,0.08)] sm:px-4 sm:py-2 sm:gap-4">
+    <header className="relative flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-1.5 sm:gap-4 px-3 py-2 border-b border-border bg-card/90 backdrop-blur-sm shadow-[0_1px_12px_rgba(0,0,0,0.5),0_1px_0_rgba(75,146,255,0.08)] sm:px-4 sm:py-2">
 
       {/* ── Logo + start button (responsive single block) ─────────── */}
       <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
@@ -73,6 +73,12 @@ export const HeaderBar = memo(function HeaderBar({
             <span className="font-mono text-sm sm:text-base font-black tracking-[0.2em] text-foreground/90">KILL THE</span>
             <span className="font-mono text-base sm:text-lg font-black tracking-[0.2em] text-primary drop-shadow-[0_0_10px_rgba(75,146,255,0.4)]">RING</span>
           </div>
+          <span className="sm:hidden text-xs font-mono font-medium tracking-[0.25em] text-muted-foreground uppercase leading-none">
+            Don Wells AV
+          </span>
+          <span className="sm:hidden text-xs font-mono font-medium tracking-[0.25em] text-muted-foreground uppercase leading-none">
+            v{process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0'}
+          </span>
           <span className="hidden sm:inline text-xs sm:text-sm font-mono font-medium tracking-[0.25em] text-muted-foreground uppercase leading-none">
             Don Wells AV v{process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0'}
           </span>
@@ -80,7 +86,7 @@ export const HeaderBar = memo(function HeaderBar({
       </div>
 
       {/* ── Action icons (right side) ──────────────────── */}
-      <div className="flex items-center justify-end gap-1 sm:gap-2 sm:px-0 text-sm text-muted-foreground sm:flex-shrink-0">
+      <div className="w-full sm:w-auto flex items-center justify-evenly sm:justify-end sm:gap-2 sm:px-0 text-sm text-muted-foreground sm:flex-shrink-0">
 
         {/* Audio source selector */}
         {devices.length > 0 && (
@@ -91,7 +97,7 @@ export const HeaderBar = memo(function HeaderBar({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-12 w-12 sm:h-9 sm:w-9 text-muted-foreground hover:text-foreground transition-all duration-150 active:scale-95"
+                    className="h-14 w-14 sm:h-9 sm:w-9 text-muted-foreground hover:text-foreground transition-all duration-150 active:scale-95"
                     aria-label="Select audio input"
                   >
                     <Mic className="size-6" />
@@ -174,10 +180,10 @@ export const HeaderBar = memo(function HeaderBar({
         )}
 
         <FeedbackHistoryPanel />
-        <Suspense fallback={<div className="h-12 w-12 sm:h-10 sm:w-10" />}>
+        <Suspense fallback={<div className="h-14 w-14 sm:h-10 sm:w-10" />}>
           <LazyHelpMenu />
         </Suspense>
-        <Suspense fallback={<div className="h-12 w-12 sm:h-10 sm:w-10" />}>
+        <Suspense fallback={<div className="h-14 w-14 sm:h-10 sm:w-10" />}>
           <LazySettingsPanel
             settings={settings}
             onSettingsChange={onSettingsChange}
@@ -185,13 +191,6 @@ export const HeaderBar = memo(function HeaderBar({
             onReset={onReset}
           />
         </Suspense>
-      </div>
-
-      {/* ── Branding row (mobile only) ─────────────────── */}
-      <div className="w-full sm:hidden pt-1 text-center">
-        <span className="text-xs font-mono font-medium tracking-[0.25em] text-muted-foreground uppercase leading-none">
-          Don Wells AV v{process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0'}
-        </span>
       </div>
     </header>
   )
