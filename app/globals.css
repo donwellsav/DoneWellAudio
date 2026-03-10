@@ -23,7 +23,7 @@
   --secondary: #141c28;
   --secondary-foreground: #e8e8e8;
   --muted: #262a30;
-  --muted-foreground: #8a94a4;
+  --muted-foreground: #b0b8c8;
   --accent: #4B92FF;
   --accent-foreground: #ffffff;
   --destructive: #ff4444;
@@ -172,7 +172,7 @@
     font-weight: 700;
     letter-spacing: 0.15em;
     text-transform: uppercase;
-    color: var(--muted-foreground);
+    color: var(--foreground);
   }
 
   /* Channel strip vertical gradient */

@@ -25,7 +25,7 @@ export const DetectionTab = memo(function DetectionTab({
   return (
     <div className="mt-4 space-y-4">
 
-      <SectionGroup title="Sensitivity" defaultOpen={true}>
+      <SectionGroup title="Sensitivity">
         <Section
           title="Operation Mode"
           showTooltip={settings.showTooltips}
@@ -159,7 +159,7 @@ export const DetectionTab = memo(function DetectionTab({
 
       <div className="border-t border-border/40" />
 
-      <SectionGroup title="Analysis" defaultOpen={false}>
+      <SectionGroup title="Analysis">
         <Section
           title="FFT Size"
           showTooltip={settings.showTooltips}
@@ -218,7 +218,7 @@ export const DetectionTab = memo(function DetectionTab({
 
       <div className="border-t border-border/40" />
 
-      <SectionGroup title="Filtering" defaultOpen={false}>
+      <SectionGroup title="Filtering">
         <Section
           title="Harmonic Filter"
           showTooltip={settings.showTooltips}

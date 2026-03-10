@@ -17,6 +17,7 @@ import {
 import { LayoutGrid, Maximize2, Mic, Minimize2, Pause, Play } from 'lucide-react'
 import type { OperationMode, DetectorSettings } from '@/types/advisory'
 import type { AudioDevice } from '@/hooks/useAudioDevices'
+import type { CalibrationTabProps } from './settings/CalibrationTab'
 
 interface HeaderBarProps {
   isRunning: boolean
@@ -34,6 +35,7 @@ interface HeaderBarProps {
   devices: AudioDevice[]
   selectedDeviceId: string
   onDeviceChange: (deviceId: string) => void
+  calibration?: Omit<CalibrationTabProps, 'settings'>
 }
 
 export const HeaderBar = memo(function HeaderBar({
@@ -42,6 +44,7 @@ export const HeaderBar = memo(function HeaderBar({
   resetLayout, isFullscreen, toggleFullscreen,
   isFrozen, toggleFreeze,
   devices, selectedDeviceId, onDeviceChange,
+  calibration,
 }: HeaderBarProps) {
   return (
     <header className="relative flex flex-row items-center justify-between gap-2 sm:gap-4 px-3 py-2 border-b border-border bg-card/90 backdrop-blur-sm shadow-[0_1px_12px_rgba(0,0,0,0.5),0_1px_0_rgba(75,146,255,0.08)] sm:px-4 sm:py-2">
@@ -189,6 +192,7 @@ export const HeaderBar = memo(function HeaderBar({
             onSettingsChange={onSettingsChange}
             onModeChange={onModeChange}
             onReset={onReset}
+            calibration={calibration}
           />
         </Suspense>
       </div>

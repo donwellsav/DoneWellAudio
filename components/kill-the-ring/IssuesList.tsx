@@ -23,9 +23,11 @@ interface IssuesListProps {
   touchFriendly?: boolean
   isRunning?: boolean
   onStart?: () => void
+  onFalsePositive?: (advisoryId: string) => void
+  falsePositiveIds?: ReadonlySet<string>
 }
 
-export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10, dismissedIds, onDismiss, onClearAll, onClearResolved, touchFriendly, isRunning, onStart }: IssuesListProps) {
+export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10, dismissedIds, onDismiss, onClearAll, onClearResolved, touchFriendly, isRunning, onStart, onFalsePositive, falsePositiveIds }: IssuesListProps) {
   // Filter dismissed, sort repeat offenders to top by hit count, then slice to max
   const sorted = useMemo(() => {
     const history = getFeedbackHistory()
@@ -112,6 +114,8 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
               advisory={advisory}
               onDismiss={onDismiss}
               touchFriendly={touchFriendly}
+              onFalsePositive={onFalsePositive}
+              isFalsePositive={falsePositiveIds?.has(advisory.id) ?? false}
             />
           ))}
         </>
@@ -124,9 +128,11 @@ interface IssueCardProps {
   advisory: Advisory
   onDismiss?: (id: string) => void
   touchFriendly?: boolean
+  onFalsePositive?: (advisoryId: string) => void
+  isFalsePositive?: boolean
 }
 
-const IssueCard = memo(function IssueCard({ advisory, onDismiss, touchFriendly }: IssueCardProps) {
+const IssueCard = memo(function IssueCard({ advisory, onDismiss, touchFriendly, onFalsePositive, isFalsePositive }: IssueCardProps) {
   const occurrenceCount = useMemo(
     () => getFeedbackHistory().getOccurrenceCount(advisory.trueFrequencyHz),
     [advisory.trueFrequencyHz]
@@ -190,13 +196,15 @@ const IssueCard = memo(function IssueCard({ advisory, onDismiss, touchFriendly }
   return (
     <div
       className={`relative flex flex-col rounded border bg-card/80 transition-all overflow-hidden animate-in fade-in-0 slide-in-from-left-2 duration-200 ${
-        isResolved
-          ? 'border-border/50'
-          : isRunaway
-              ? 'border-red-500/70 animate-emergency-glow'
-              : isWarning
-                ? 'border-amber-500/60 shadow-[0_0_8px_rgba(245,158,11,0.3)] ring-1 ring-amber-500/15'
-                : 'border-border hover:border-border/80'
+        isFalsePositive
+          ? 'border-red-500/30 opacity-50'
+          : isResolved
+            ? 'border-border/50'
+            : isRunaway
+                ? 'border-red-500/70 animate-emergency-glow'
+                : isWarning
+                  ? 'border-amber-500/60 shadow-[0_0_8px_rgba(245,158,11,0.3)] ring-1 ring-amber-500/15'
+                  : 'border-border hover:border-border/80'
       }`}
     >
       {/* Left severity accent */}
@@ -214,7 +222,9 @@ const IssueCard = memo(function IssueCard({ advisory, onDismiss, touchFriendly }
             <TooltipProvider delayDuration={300}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="font-mono text-lg font-bold text-foreground leading-none tracking-wide cursor-default">
+                  <span className={`font-mono text-lg font-bold leading-none tracking-wide cursor-default ${
+                    isFalsePositive ? 'text-red-400/60 line-through' : 'text-foreground'
+                  }`}>
                     {exactFreqStr}
                   </span>
                 </TooltipTrigger>
@@ -316,8 +326,21 @@ const IssueCard = memo(function IssueCard({ advisory, onDismiss, touchFriendly }
             </div>
           </div>
 
-          {/* RIGHT: Copy + Dismiss */}
+          {/* RIGHT: FALSE+ / Copy / Dismiss */}
           <div className="flex items-center gap-0.5 flex-shrink-0 self-center">
+            {onFalsePositive && (
+              <button
+                onClick={() => onFalsePositive(advisory.id)}
+                aria-label={`${isFalsePositive ? 'Unflag' : 'Flag'} ${exactFreqStr} as false positive`}
+                className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1.5 ${
+                  isFalsePositive
+                    ? 'text-red-400 bg-red-500/20 border border-red-500/40'
+                    : 'text-muted-foreground/50 hover:text-red-400 hover:bg-red-500/10 border border-transparent'
+                } ${touchFriendly ? 'h-11 min-w-[44px]' : 'h-5'}`}
+              >
+                FALSE+
+              </button>
+            )}
             {hasEq && (
               <button
                 onClick={handleCopy}

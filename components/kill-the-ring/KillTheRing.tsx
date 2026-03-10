@@ -6,6 +6,7 @@ import { useAudioDevices } from '@/hooks/useAudioDevices'
 import { useAdvisoryLogging } from '@/hooks/useAdvisoryLogging'
 import { useFullscreen } from '@/hooks/useFullscreen'
 import { useFpsMonitor } from '@/hooks/useFpsMonitor'
+import { useCalibrationSession } from '@/hooks/useCalibrationSession'
 import { HeaderBar } from './HeaderBar'
 import { MobileLayout } from './MobileLayout'
 import { DesktopLayout } from './DesktopLayout'
@@ -58,6 +59,7 @@ export const KillTheRing = memo(function KillTheRingComponent() {
 
   const { devices, selectedDeviceId, setSelectedDeviceId } = useAudioDevices()
   const { actualFps, droppedPercent } = useFpsMonitor(isRunning, settings.canvasTargetFps)
+  const calibration = useCalibrationSession(spectrumRef, isRunning)
 
   const activeAdvisoryCount = useMemo(
     () => advisories.filter(a => !a.resolved).length,
@@ -208,6 +210,19 @@ export const KillTheRing = memo(function KillTheRingComponent() {
 
   useAdvisoryLogging(advisories)
 
+  // Forward new advisories to calibration session
+  const prevAdvisoryIdsRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (!calibration.calibrationEnabled) return
+    const prevIds = prevAdvisoryIdsRef.current
+    for (const advisory of advisories) {
+      if (!prevIds.has(advisory.id)) {
+        calibration.onDetection(advisory, spectrumRef.current)
+      }
+    }
+    prevAdvisoryIdsRef.current = new Set(advisories.map(a => a.id))
+  }, [advisories, calibration, spectrumRef])
+
   const resetLayout = useCallback(() => {
     try {
       localStorage.removeItem('react-resizable-panels:ktr-layout-main')
@@ -258,7 +273,8 @@ export const KillTheRing = memo(function KillTheRingComponent() {
 
   const handleSettingsChange = useCallback((newSettings: Partial<typeof settings>) => {
     updateSettings(newSettings)
-  }, [updateSettings])
+    calibration.onSettingsChange(newSettings)
+  }, [updateSettings, calibration])
 
   const handleFreqRangeChange = useCallback((min: number, max: number) => {
     updateSettings({ minFrequency: min, maxFrequency: max })
@@ -273,6 +289,26 @@ export const KillTheRing = memo(function KillTheRingComponent() {
   const autoGainDb = spectrumStatus?.autoGainDb
   const isAutoGain = spectrumStatus?.autoGainEnabled ?? settings.autoGainEnabled
   const isAutoGainLocked = spectrumStatus?.autoGainLocked ?? false
+
+  const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0'
+  const handleCalibrationExport = useCallback(() => {
+    calibration.exportSession(settings, appVersion)
+  }, [calibration, settings, appVersion])
+
+  const calibrationTabProps = useMemo(() => ({
+    room: calibration.room,
+    updateRoom: calibration.updateRoom,
+    clearRoom: calibration.clearRoom,
+    calibrationEnabled: calibration.calibrationEnabled,
+    setCalibrationEnabled: calibration.setCalibrationEnabled,
+    isRecording: calibration.isRecording,
+    ambientCapture: calibration.ambientCapture,
+    captureAmbient: calibration.captureAmbient,
+    isCapturingAmbient: calibration.isCapturingAmbient,
+    spectrumRef,
+    stats: calibration.stats,
+    onExport: handleCalibrationExport,
+  }), [calibration, spectrumRef, handleCalibrationExport])
 
   return (
     <div ref={rootRef} className="flex flex-col h-screen bg-background">
@@ -293,6 +329,7 @@ export const KillTheRing = memo(function KillTheRingComponent() {
         devices={devices}
         selectedDeviceId={selectedDeviceId}
         onDeviceChange={handleDeviceChange}
+        calibration={calibrationTabProps}
       />
 
       {error && !isErrorDismissed && (
@@ -367,6 +404,8 @@ export const KillTheRing = memo(function KillTheRingComponent() {
         onClearRTA={handleClearRTA}
         onClearGEQ={handleClearGEQ}
         onFreqRangeChange={handleFreqRangeChange}
+        onFalsePositive={calibration.calibrationEnabled ? calibration.onFalsePositive : undefined}
+        falsePositiveIds={calibration.calibrationEnabled ? calibration.falsePositiveIds : undefined}
       />
 
       <DesktopLayout
@@ -409,6 +448,8 @@ export const KillTheRing = memo(function KillTheRingComponent() {
         autoGainLocked={isAutoGainLocked}
         actualFps={actualFps}
         droppedPercent={droppedPercent}
+        onFalsePositive={calibration.calibrationEnabled ? calibration.onFalsePositive : undefined}
+        falsePositiveIds={calibration.calibrationEnabled ? calibration.falsePositiveIds : undefined}
       />
 
       <OnboardingOverlay />

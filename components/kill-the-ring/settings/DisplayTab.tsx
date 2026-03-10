@@ -12,14 +12,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { GraduationCap } from 'lucide-react'
-import { Section, type TabSettingsProps } from './SettingsShared'
+import { Section, SettingsGrid, type TabSettingsProps } from './SettingsShared'
 
 export const DisplayTab = memo(function DisplayTab({
   settings,
   onSettingsChange,
 }: TabSettingsProps) {
   return (
-    <div className="mt-4 space-y-4">
+    <div className="mt-4">
+      <SettingsGrid>
 
       <Section
         title="EQ Recommendation Style"
@@ -188,6 +189,7 @@ export const DisplayTab = memo(function DisplayTab({
         </Button>
       </Section>
 
+      </SettingsGrid>
     </div>
   )
 })

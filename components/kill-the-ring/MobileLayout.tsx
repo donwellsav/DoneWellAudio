@@ -44,6 +44,8 @@ interface MobileLayoutProps {
   onClearRTA: () => void
   onClearGEQ: () => void
   onFreqRangeChange: (min: number, max: number) => void
+  onFalsePositive?: (advisoryId: string) => void
+  falsePositiveIds?: ReadonlySet<string>
 }
 
 export const MobileLayout = memo(function MobileLayout({
@@ -57,6 +59,7 @@ export const MobileLayout = memo(function MobileLayout({
   rtaClearedIds, geqClearedIds,
   hasActiveRTAMarkers, hasActiveGEQBars,
   onClearRTA, onClearGEQ, onFreqRangeChange,
+  onFalsePositive, falsePositiveIds,
 }: MobileLayoutProps) {
   // ── Tab navigation ──────────────────────────────────────────
   const TAB_ORDER = ['issues', 'graph', 'settings'] as const
@@ -150,6 +153,8 @@ export const MobileLayout = memo(function MobileLayout({
                 touchFriendly
                 isRunning={isRunning}
                 onStart={start}
+                onFalsePositive={onFalsePositive}
+                falsePositiveIds={falsePositiveIds}
               />
               <EarlyWarningPanel earlyWarning={earlyWarning} />
             </div>

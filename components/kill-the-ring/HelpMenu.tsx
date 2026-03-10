@@ -13,12 +13,6 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion'
 import { HelpCircle, BookOpen, SlidersHorizontal, Cpu, List, Info } from 'lucide-react'
 import { CHANGELOG, type ChangeType } from '@/lib/changelog'
 
@@ -40,7 +34,7 @@ export const HelpMenu = memo(function HelpMenu() {
           <HelpCircle className="size-5 sm:size-6" />
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="sm:max-w-2xl overflow-y-auto channel-strip">
+      <SheetContent side="right" className="sm:max-w-7xl overflow-y-auto channel-strip">
         <SheetHeader>
           <SheetTitle className="text-lg">Kill The Ring Help</SheetTitle>
         </SheetHeader>
@@ -238,7 +232,7 @@ export const HelpMenu = memo(function HelpMenu() {
           </TabsContent>
 
           {/* ═══════════════════════════════════════════════════════════════
-              TAB 3: ALGORITHMS (Accordion-based, merged with Math)
+              TAB 3: ALGORITHMS (flat layout, merged with Math)
               ═══════════════════════════════════════════════════════════════ */}
           <TabsContent value="algorithms" className="mt-4 space-y-4">
             <Section title="7-Algorithm Fusion System">
@@ -249,10 +243,10 @@ export const HelpMenu = memo(function HelpMenu() {
               </p>
             </Section>
 
-            <Accordion type="multiple" className="space-y-1">
-              <AccordionItem value="msd" className="border border-border/40 rounded px-3">
-                <AccordionTrigger className="text-sm py-2">1. MSD — Magnitude Slope Deviation</AccordionTrigger>
-                <AccordionContent className="space-y-3 pb-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+              <div className="border border-border/40 rounded px-3">
+                <h3 className="text-sm py-2 section-label">1. MSD — Magnitude Slope Deviation</h3>
+                <div className="space-y-3 pb-3">
                   <p className="text-sm italic text-muted-foreground">DAFx-16 Paper — Growth pattern analysis</p>
                   <p className="text-sm text-muted-foreground">
                     Feedback amplitude grows exponentially — linear on a dB scale — so its second derivative is near zero.
@@ -305,12 +299,12 @@ export const HelpMenu = memo(function HelpMenu() {
                     <p>Speech: 7 frames (~160 ms) · Classical: 13 frames (~300 ms)</p>
                     <p>Rock/compressed: 50 frames (~1.1 s) at 22% accuracy — use compression detection</p>
                   </div>
-                </AccordionContent>
-              </AccordionItem>
+                </div>
+              </div>
 
-              <AccordionItem value="phase" className="border border-border/40 rounded px-3">
-                <AccordionTrigger className="text-sm py-2">2. Phase Coherence Analysis</AccordionTrigger>
-                <AccordionContent className="space-y-3 pb-3">
+              <div className="border border-border/40 rounded px-3">
+                <h3 className="text-sm py-2 section-label">2. Phase Coherence Analysis</h3>
+                <div className="space-y-3 pb-3">
                   <p className="text-sm italic text-muted-foreground">KU Leuven 2025 / Nyquist stability theory</p>
                   <p className="text-sm text-muted-foreground">
                     True feedback maintains constant phase relationships because it&apos;s a regenerative loop at a fixed frequency.
@@ -354,12 +348,12 @@ export const HelpMenu = memo(function HelpMenu() {
                     <p>Thresholds: C ≥ 0.85 → feedback | 0.65–0.85 → uncertain | &lt; 0.4 → music</p>
                     <p>Min samples: 5 frames | Buffer: 10 frames per bin</p>
                   </div>
-                </AccordionContent>
-              </AccordionItem>
+                </div>
+              </div>
 
-              <AccordionItem value="spectral" className="border border-border/40 rounded px-3">
-                <AccordionTrigger className="text-sm py-2">3. Spectral Flatness + Kurtosis</AccordionTrigger>
-                <AccordionContent className="space-y-3 pb-3">
+              <div className="border border-border/40 rounded px-3">
+                <h3 className="text-sm py-2 section-label">3. Spectral Flatness + Kurtosis</h3>
+                <div className="space-y-3 pb-3">
                   <p className="text-sm italic text-muted-foreground">Wiener entropy — Tone vs. broadband discrimination</p>
                   <p className="text-sm text-muted-foreground">
                     Measures how tone-like (feedback) vs. noise-like (music) the spectrum is around a peak.
@@ -394,12 +388,12 @@ export const HelpMenu = memo(function HelpMenu() {
                     <p>S = 0.6 · flatnessScore + 0.4 · kurtosisScore</p>
                     <p>Analysis bandwidth: ±10 bins around peak</p>
                   </div>
-                </AccordionContent>
-              </AccordionItem>
+                </div>
+              </div>
 
-              <AccordionItem value="comb" className="border border-border/40 rounded px-3">
-                <AccordionTrigger className="text-sm py-2">4. Comb Filter Pattern Detection</AccordionTrigger>
-                <AccordionContent className="space-y-3 pb-3">
+              <div className="border border-border/40 rounded px-3">
+                <h3 className="text-sm py-2 section-label">4. Comb Filter Pattern Detection</h3>
+                <div className="space-y-3 pb-3">
                   <p className="text-sm italic text-muted-foreground">DBX Paper — Acoustic path geometry</p>
                   <p className="text-sm text-muted-foreground">
                     A single acoustic feedback path creates peaks at regularly spaced frequencies
@@ -437,12 +431,12 @@ export const HelpMenu = memo(function HelpMenu() {
                     <p>Once Δf known: f<sub>predicted</sub> = n · Δf for all n where f<sub>predicted</sub> is in analysis range</p>
                     <p className="text-muted-foreground">Allows preemptive EQ cuts before feedback becomes audible.</p>
                   </div>
-                </AccordionContent>
-              </AccordionItem>
+                </div>
+              </div>
 
-              <AccordionItem value="ihr" className="border border-border/40 rounded px-3">
-                <AccordionTrigger className="text-sm py-2">5. Inter-Harmonic Ratio (IHR)</AccordionTrigger>
-                <AccordionContent className="space-y-3 pb-3">
+              <div className="border border-border/40 rounded px-3">
+                <h3 className="text-sm py-2 section-label">5. Inter-Harmonic Ratio (IHR)</h3>
+                <div className="space-y-3 pb-3">
                   <p className="text-sm italic text-muted-foreground">Harmonic vs. inter-harmonic energy analysis</p>
                   <p className="text-sm text-muted-foreground">
                     Compares energy at harmonic positions (k·f₀) to energy at midpoints between harmonics.
@@ -475,12 +469,12 @@ export const HelpMenu = memo(function HelpMenu() {
                     <p>3+ harmonics: score = max(0, 0.3 - IHR)</p>
                     <p className="mt-1 text-muted-foreground">More harmonics → higher bar for feedback classification (instruments naturally have harmonics).</p>
                   </div>
-                </AccordionContent>
-              </AccordionItem>
+                </div>
+              </div>
 
-              <AccordionItem value="ptmr" className="border border-border/40 rounded px-3">
-                <AccordionTrigger className="text-sm py-2">6. Peak-to-Median Ratio (PTMR)</AccordionTrigger>
-                <AccordionContent className="space-y-3 pb-3">
+              <div className="border border-border/40 rounded px-3">
+                <h3 className="text-sm py-2 section-label">6. Peak-to-Median Ratio (PTMR)</h3>
+                <div className="space-y-3 pb-3">
                   <p className="text-sm italic text-muted-foreground">Spectral prominence measurement</p>
                   <p className="text-sm text-muted-foreground">
                     Measures how much a peak stands above the local spectral floor using the median
@@ -509,12 +503,12 @@ export const HelpMenu = memo(function HelpMenu() {
                     <p className="mt-1">&gt; 20 dB → strong feedback | 15–20 dB → weak | &lt; 8 dB → broadband</p>
                     <p className="text-muted-foreground">Normalized to [0,1] over a 15 dB range (8–23 dB).</p>
                   </div>
-                </AccordionContent>
-              </AccordionItem>
+                </div>
+              </div>
 
-              <AccordionItem value="compression" className="border border-border/40 rounded px-3">
-                <AccordionTrigger className="text-sm py-2">7. Compression Detection</AccordionTrigger>
-                <AccordionContent className="space-y-3 pb-3">
+              <div className="border border-border/40 rounded px-3">
+                <h3 className="text-sm py-2 section-label">7. Compression Detection</h3>
+                <div className="space-y-3 pb-3">
                   <p className="text-sm italic text-muted-foreground">DAFx-16 research — Adaptive threshold adjustment</p>
                   <p className="text-sm text-muted-foreground">
                     Dynamically compressed content (rock, pop, EDM) causes MSD false positives because sustained
@@ -548,12 +542,12 @@ export const HelpMenu = memo(function HelpMenu() {
                     <p>When compressed: MSD weight ↓ (0.30 → 0.12), Phase weight ↑ (0.25 → 0.38)</p>
                     <p className="text-muted-foreground">Compressed audio &ldquo;fools&rdquo; MSD (sustained notes look like feedback growth). Phase coherence is amplitude-independent.</p>
                   </div>
-                </AccordionContent>
-              </AccordionItem>
+                </div>
+              </div>
 
-              <AccordionItem value="fusion" className="border border-border/40 rounded px-3">
-                <AccordionTrigger className="text-sm py-2">Fusion Engine — Weighted Voting</AccordionTrigger>
-                <AccordionContent className="space-y-3 pb-3">
+              <div className="border border-border/40 rounded px-3">
+                <h3 className="text-sm py-2 section-label">Fusion Engine — Weighted Voting</h3>
+                <div className="space-y-3 pb-3">
                   <p className="text-sm text-muted-foreground">
                     All 7 algorithms vote together with content-aware weighting. The system automatically
                     detects content type (speech, music, compressed) and applies appropriate weights:
@@ -593,12 +587,12 @@ export const HelpMenu = memo(function HelpMenu() {
                     <p>When comb pattern detected: weight × 2 applied to BOTH numerator AND denominator</p>
                     <p className="text-muted-foreground">Ensures P<sub>feedback</sub> stays in [0,1] while boosting comb&apos;s influence on the final vote.</p>
                   </div>
-                </AccordionContent>
-              </AccordionItem>
+                </div>
+              </div>
 
-              <AccordionItem value="physics" className="border border-border/40 rounded px-3">
-                <AccordionTrigger className="text-sm py-2">Acoustic Physics & References</AccordionTrigger>
-                <AccordionContent className="space-y-3 pb-3">
+              <div className="border border-border/40 rounded px-3">
+                <h3 className="text-sm py-2 section-label">Acoustic Physics & References</h3>
+                <div className="space-y-3 pb-3">
                   <div className="bg-muted p-3 rounded font-mono text-sm space-y-1">
                     <p className="text-foreground font-semibold">FFT Resolution</p>
                     <p>Δf = f<sub>s</sub> / N</p>
@@ -688,9 +682,9 @@ export const HelpMenu = memo(function HelpMenu() {
                       <li><strong>Everest, F.A.:</strong> <em>Master Handbook of Acoustics.</em> Reverberation time effects on feedback, room mode behavior, and standing wave patterns.</li>
                     </ul>
                   </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
+                </div>
+              </div>
+            </div>
 
             <Section title="Understanding Algorithm Scores">
               <ul className="space-y-2">

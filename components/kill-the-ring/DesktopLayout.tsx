@@ -56,6 +56,8 @@ interface DesktopLayoutProps {
   autoGainLocked: boolean
   actualFps?: number
   droppedPercent?: number
+  onFalsePositive?: (advisoryId: string) => void
+  falsePositiveIds?: ReadonlySet<string>
 }
 
 export const DesktopLayout = memo(function DesktopLayout({
@@ -72,6 +74,7 @@ export const DesktopLayout = memo(function DesktopLayout({
   onClearRTA, onClearGEQ, onFreqRangeChange,
   inputLevel, isAutoGain, autoGainDb, autoGainLocked,
   actualFps, droppedPercent,
+  onFalsePositive, falsePositiveIds,
 }: DesktopLayoutProps) {
   return (
     <div className="hidden landscape:flex flex-1 overflow-hidden">
@@ -152,6 +155,8 @@ export const DesktopLayout = memo(function DesktopLayout({
                       onClearAll={onClearAll}
                       isRunning={isRunning}
                       onStart={start}
+                      onFalsePositive={onFalsePositive}
+                      falsePositiveIds={falsePositiveIds}
                     />
                     <EarlyWarningPanel earlyWarning={earlyWarning} />
                   </div>
@@ -208,6 +213,8 @@ export const DesktopLayout = memo(function DesktopLayout({
                 onClearAll={onClearAll}
                 isRunning={isRunning}
                 onStart={start}
+                onFalsePositive={onFalsePositive}
+                falsePositiveIds={falsePositiveIds}
               />
               <EarlyWarningPanel earlyWarning={earlyWarning} />
             </div>

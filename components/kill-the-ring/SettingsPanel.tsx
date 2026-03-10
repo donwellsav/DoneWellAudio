@@ -12,19 +12,22 @@ import {
 } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ResetConfirmDialog } from './ResetConfirmDialog'
-import { Settings, RotateCcw, BarChart3, Monitor, Download, FileJson, Ruler, Cpu, Wrench } from 'lucide-react'
+import { Settings, RotateCcw, BarChart3, Monitor, Download, FileJson, Ruler, Cpu, Wrench, Crosshair } from 'lucide-react'
 import { DetectionTab } from './settings/DetectionTab'
 import { AlgorithmsTab } from './settings/AlgorithmsTab'
 import { DisplayTab } from './settings/DisplayTab'
 import { AdvancedTab } from './settings/AdvancedTab'
 import { RoomTab } from './settings/RoomTab'
-import type { DetectorSettings, Algorithm, OperationMode } from '@/types/advisory'
+import { CalibrationTab } from './settings/CalibrationTab'
+import type { DetectorSettings, Algorithm, OperationMode, SpectrumData } from '@/types/advisory'
+import type { CalibrationTabProps } from './settings/CalibrationTab'
 
 interface SettingsPanelProps {
   settings: DetectorSettings
   onSettingsChange: (settings: Partial<DetectorSettings>) => void
   onModeChange: (mode: OperationMode) => void
   onReset: () => void
+  calibration?: Omit<CalibrationTabProps, 'settings'>
 }
 
 export const SettingsPanel = memo(function SettingsPanel({
@@ -32,6 +35,7 @@ export const SettingsPanel = memo(function SettingsPanel({
   onSettingsChange,
   onModeChange,
   onReset,
+  calibration,
 }: SettingsPanelProps) {
   const [hasSavedDefaults, setHasSavedDefaults] = useState(false)
 
@@ -80,7 +84,7 @@ export const SettingsPanel = memo(function SettingsPanel({
           <Settings className="size-5 sm:size-6" />
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="sm:max-w-xl overflow-y-auto channel-strip">
+      <SheetContent side="right" className="sm:max-w-7xl overflow-y-auto channel-strip">
         <SheetHeader>
           <SheetTitle className="text-lg flex items-center gap-2">
             <Settings className="w-5 h-5" />
@@ -92,27 +96,33 @@ export const SettingsPanel = memo(function SettingsPanel({
         </SheetHeader>
 
         <Tabs defaultValue="detection" className="mt-4">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="detection" className="gap-1 text-sm">
-              <BarChart3 className="w-3.5 h-3.5" />
+          <TabsList className={`grid w-full ${calibration ? 'grid-cols-6' : 'grid-cols-5'}`}>
+            <TabsTrigger value="detection" className="flex-col gap-0.5 text-xs py-2">
+              <BarChart3 className="w-4 h-4" />
               Detection
             </TabsTrigger>
-            <TabsTrigger value="algorithms" className="gap-1 text-sm">
-              <Cpu className="w-3.5 h-3.5" />
+            <TabsTrigger value="algorithms" className="flex-col gap-0.5 text-xs py-2">
+              <Cpu className="w-4 h-4" />
               Algorithms
             </TabsTrigger>
-            <TabsTrigger value="display" className="gap-1 text-sm">
-              <Monitor className="w-3.5 h-3.5" />
+            <TabsTrigger value="display" className="flex-col gap-0.5 text-xs py-2">
+              <Monitor className="w-4 h-4" />
               Display
             </TabsTrigger>
-            <TabsTrigger value="room" className="gap-1 text-sm">
-              <Ruler className="w-3.5 h-3.5" />
+            <TabsTrigger value="room" className="flex-col gap-0.5 text-xs py-2">
+              <Ruler className="w-4 h-4" />
               Room
             </TabsTrigger>
-            <TabsTrigger value="advanced" className="gap-1 text-sm">
-              <Wrench className="w-3.5 h-3.5" />
+            <TabsTrigger value="advanced" className="flex-col gap-0.5 text-xs py-2">
+              <Wrench className="w-4 h-4" />
               Advanced
             </TabsTrigger>
+            {calibration && (
+              <TabsTrigger value="calibrate" className="flex-col gap-0.5 text-xs py-2">
+                <Crosshair className="w-4 h-4" />
+                Calibrate
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="detection">
@@ -134,6 +144,12 @@ export const SettingsPanel = memo(function SettingsPanel({
           <TabsContent value="advanced">
             <AdvancedTab settings={settings} onSettingsChange={onSettingsChange} />
           </TabsContent>
+
+          {calibration && (
+            <TabsContent value="calibrate">
+              <CalibrationTab settings={settings} {...calibration} />
+            </TabsContent>
+          )}
         </Tabs>
 
         <div className="pt-3 mt-2 border-t border-border/40 panel-groove space-y-2">

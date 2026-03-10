@@ -3,7 +3,7 @@
 import { memo } from 'react'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
-import { Section, type TabSettingsProps } from './SettingsShared'
+import { Section, SettingsGrid, type TabSettingsProps } from './SettingsShared'
 import type { AlgorithmMode, Algorithm } from '@/types/advisory'
 
 export const AlgorithmsTab = memo(function AlgorithmsTab({
@@ -11,7 +11,8 @@ export const AlgorithmsTab = memo(function AlgorithmsTab({
   onSettingsChange,
 }: TabSettingsProps) {
   return (
-    <div className="mt-4 space-y-4">
+    <div className="mt-4">
+      <SettingsGrid>
 
       <Section
         title="Algorithm Mode"
@@ -182,6 +183,7 @@ export const AlgorithmsTab = memo(function AlgorithmsTab({
           />
         </div>
       </Section>
+      </SettingsGrid>
     </div>
   )
 })

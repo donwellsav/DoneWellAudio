@@ -18,3 +18,4 @@ export { DesktopLayout } from "./DesktopLayout";
 export { VerticalGainFader } from "./VerticalGainFader";
 export { OnboardingOverlay } from "./OnboardingOverlay";
 export { EarlyWarningPanel } from "./EarlyWarningPanel";
+export { MissedFeedbackButton } from "./MissedFeedbackButton";

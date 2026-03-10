@@ -1,18 +1,14 @@
 'use client'
 
-import { memo, useState } from 'react'
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible'
+import { memo } from 'react'
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { HelpCircle, ChevronDown } from 'lucide-react'
+import { HelpCircle } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import type { DetectorSettings } from '@/types/advisory'
 
 // ── Shared prop types ────────────────────────────────────────────────────────
@@ -22,17 +18,31 @@ export interface TabSettingsProps {
   onSettingsChange: (settings: Partial<DetectorSettings>) => void
 }
 
+// ── Two-column grid wrapper for flat tabs ────────────────────────────────────
+
+export const SettingsGrid = memo(function SettingsGrid({ children, className }: {
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <div className={cn('grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-3', className)}>
+      {children}
+    </div>
+  )
+})
+
 // ── Section (flat, uniform) ──────────────────────────────────────────────────
 
-export const Section = memo(function Section({ title, tooltip, showTooltip = true, children }: {
+export const Section = memo(function Section({ title, tooltip, showTooltip = true, fullWidth, children }: {
   title: string
   tooltip?: string
   showTooltip?: boolean
+  fullWidth?: boolean
   children: React.ReactNode
 }) {
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="space-y-2">
+      <div className={cn('space-y-2', fullWidth && 'sm:col-span-full')}>
         <div className="flex items-center gap-1.5">
           <h3 className="section-label">{title}</h3>
           {tooltip && showTooltip && (
@@ -52,23 +62,20 @@ export const Section = memo(function Section({ title, tooltip, showTooltip = tru
   )
 })
 
-// ── SectionGroup (collapsible, wraps multiple Sections) ──────────────────────
+// ── SectionGroup (static header, two-column grid of children) ────────────────
 
-export const SectionGroup = memo(function SectionGroup({ title, defaultOpen = true, children }: {
+export const SectionGroup = memo(function SectionGroup({ title, children }: {
   title: string
-  defaultOpen?: boolean
   children: React.ReactNode
 }) {
-  const [open, setOpen] = useState(defaultOpen)
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="flex items-center gap-2 w-full py-1.5 section-label panel-groove hover:text-foreground transition-colors">
-        <span className="flex-1 text-left">{title}</span>
-        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? '' : '-rotate-90'}`} />
-      </CollapsibleTrigger>
-      <CollapsibleContent className="space-y-4 pt-2">
+    <div>
+      <div className="py-1.5 section-label panel-groove">
+        {title}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-3 pt-2">
         {children}
-      </CollapsibleContent>
-    </Collapsible>
+      </div>
+    </div>
   )
 })

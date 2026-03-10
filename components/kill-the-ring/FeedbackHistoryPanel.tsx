@@ -22,6 +22,7 @@ import { History, Download, Trash2, AlertTriangle, TrendingUp, BarChart3, Chevro
 import { getFeedbackHistory, type FrequencyHotspot } from '@/lib/dsp/feedbackHistory'
 import { downloadFile } from '@/lib/export/downloadFile'
 import { generateTxtReport } from '@/lib/export/exportTxt'
+import { cn } from '@/lib/utils'
 
 export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
   const [hotspots, setHotspots] = useState<FrequencyHotspot[]>([])
@@ -85,6 +86,15 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
 
   const hasData = hotspots.length > 0
 
+  // Adaptive width + columns based on history size
+  const colCount = hotspots.length >= 12 ? 3 : hotspots.length >= 6 ? 2 : 1
+  const maxW = colCount === 3 ? 'sm:max-w-7xl' : colCount === 2 ? 'sm:max-w-4xl' : 'sm:max-w-xl'
+  const gridCls = colCount === 3
+    ? 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2'
+    : colCount === 2
+      ? 'grid grid-cols-1 sm:grid-cols-2 gap-2'
+      : 'space-y-2'
+
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <Tooltip>
@@ -99,7 +109,7 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
           History
         </TooltipContent>
       </Tooltip>
-      <SheetContent side="right" className="sm:max-w-lg overflow-y-auto channel-strip">
+      <SheetContent side="right" className={cn("overflow-y-auto channel-strip", maxW)}>
         <SheetHeader className="pb-1">
           <SheetTitle className="text-lg flex items-center gap-2">
             <History className="h-5 w-5" />
@@ -185,7 +195,7 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
                 <AlertTriangle className="h-4 w-4 text-amber-400" />
                 <span className="section-label">Repeat Offenders</span>
               </div>
-              <div className="space-y-2">
+              <div className={gridCls}>
                 {hotspots.filter(h => h.isRepeatOffender).slice(0, 5).map((hotspot, i) => (
                   <div
                     key={i}
@@ -216,7 +226,7 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
               <span className="section-label">All Problem Frequencies</span>
             </div>
-            <div className="space-y-1.5">
+            <div className={hotspots.length === 0 ? 'space-y-1.5' : gridCls}>
               {hotspots.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8 text-muted-foreground gap-1">
                   <BarChart3 className="w-5 h-5 text-muted-foreground/50 mb-1" />

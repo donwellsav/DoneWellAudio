@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Section, type TabSettingsProps } from './SettingsShared'
+import { Section, SettingsGrid, type TabSettingsProps } from './SettingsShared'
 import type { ThresholdMode } from '@/types/advisory'
 
 export const AdvancedTab = memo(function AdvancedTab({
@@ -17,7 +17,8 @@ export const AdvancedTab = memo(function AdvancedTab({
   onSettingsChange,
 }: TabSettingsProps) {
   return (
-    <div className="mt-4 space-y-4">
+    <div className="mt-4">
+      <SettingsGrid>
 
       {/* ── Noise Floor ── */}
       <Section
@@ -168,6 +169,7 @@ export const AdvancedTab = memo(function AdvancedTab({
         </div>
       </Section>
 
+      </SettingsGrid>
     </div>
   )
 })
