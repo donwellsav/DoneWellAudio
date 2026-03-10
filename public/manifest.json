@@ -3,10 +3,11 @@
   "short_name": "KillTheRing",
   "description": "Real-time acoustic feedback and ring detection for live sound engineers",
   "start_url": "/",
+  "id": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#1a1a1a",
-  "theme_color": "#1a1a1a",
+  "background_color": "#111214",
+  "theme_color": "#111214",
   "scope": "/",
   "lang": "en",
   "categories": ["music", "utilities", "productivity"],
@@ -30,7 +31,6 @@
       "purpose": "maskable"
     }
   ],
-  "screenshots": [],
   "shortcuts": [
     {
       "name": "Start Detection",
