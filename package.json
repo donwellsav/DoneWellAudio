@@ -1,6 +1,6 @@
 {
   "name": "killthering",
-  "version": "0.76.19",
+  "version": "0.76.20",
   "private": true,
   "scripts": {
     "dev": "next dev",
