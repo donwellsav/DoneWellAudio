@@ -44,6 +44,7 @@ export interface AmbientCapture {
   sampleRate: number
   fftSize: number
   durationSeconds: number
+  micCalibrationApplied?: boolean // Was ECM8000 compensation active during capture?
 }
 
 // ── Session Events ───────────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ export interface CalibrationDetection {
   noiseFloorAtTime: number
   effectiveThresholdAtTime: number
   annotation: 'true_positive' | 'false_positive'
+  micCalibrationApplied?: boolean // Was ECM8000 compensation active at detection time?
   spectrumSnapshot: number[] | null // downsampled FFT at detection time
 }
 
@@ -90,12 +92,23 @@ export interface SpectrumSnapshot {
   noiseFloorDb: number
   peakDb: number
   trigger: 'periodic' | 'detection' | 'ambient_capture'
+  micCalibrationApplied?: boolean // Was ECM8000 compensation active at snapshot time?
 }
 
 export interface ContentTypeTransition {
   timestamp: string
   from: ContentType | string
   to: ContentType | string
+}
+
+// ── Mic Calibration Metadata ─────────────────────────────────────────────────
+
+export interface MicCalibrationMetadata {
+  applied: boolean // Was compensation active at any point during the session?
+  micModel: string // "Behringer ECM8000"
+  calibrationId: string // "CSL 746"
+  calibrationCurve: readonly [number, number][] // [freqHz, responseDd][] — raw curve data
+  compensationNote: string // How to reverse the compensation
 }
 
 // ── Export Format ─────────────────────────────────────────────────────────────
@@ -130,6 +143,7 @@ export interface CalibrationExport {
   missedDetections: MissedDetection[]
   contentTypeTransitions: ContentTypeTransition[]
   summary: CalibrationSummary
+  micCalibration?: MicCalibrationMetadata // Present when mic compensation was used during session
 }
 
 // ── Session Stats (live UI display) ──────────────────────────────────────────

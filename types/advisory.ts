@@ -34,6 +34,7 @@ export interface AnalysisConfig {
   preset: Preset
   mode: OperationMode
   aWeightingEnabled: boolean
+  micCalibrationEnabled: boolean
   // Room acoustics for Schroeder frequency calculation
   roomRT60?: number
   roomVolume?: number
@@ -313,6 +314,7 @@ export interface DetectorSettings {
   harmonicToleranceCents: number // Cents window for harmonic/sub-harmonic matching (25–400, default 200)
   showTooltips: boolean // Show/hide all help tooltips throughout the UI
   aWeightingEnabled: boolean // Apply A-weighting curve to analysis (per IEC 61672-1)
+  micCalibrationEnabled: boolean // Apply mic frequency response compensation (ECM8000 CSL 746)
   // Confidence and filtering
   confidenceThreshold: number // Minimum confidence to display (0.0-1.0, default 0.35)
   // Unified room physics (acoustics + mode calculator)
@@ -371,6 +373,7 @@ export const DEFAULT_CONFIG: AnalysisConfig = {
   preset: 'surgical',
   mode: 'speech', // Matches DEFAULT_SETTINGS.mode for consistency
   aWeightingEnabled: true, // A-weighting on — prioritizes speech intelligibility band (2–5 kHz)
+  micCalibrationEnabled: false, // Mic frequency response compensation off by default
   noiseFloorEnabled: true,
   noiseFloorSampleCount: 160, // Faster noise floor sampling
   noiseFloorAttackMs: 200, // Faster attack for dynamic environments

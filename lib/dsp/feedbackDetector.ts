@@ -1,7 +1,7 @@
 // KillTheRing2 Feedback Detector - Core DSP engine for peak detection
 // Adapted from FeedbackDetector.js with TypeScript and enhancements
 
-import { A_WEIGHTING, LN10_OVER_10, HARMONIC_SETTINGS, MSD_SETTINGS, PERSISTENCE_SCORING, SIGNAL_GATE, HYSTERESIS, PHPR_SETTINGS } from './constants'
+import { A_WEIGHTING, ECM8000_CALIBRATION, LN10_OVER_10, HARMONIC_SETTINGS, MSD_SETTINGS, PERSISTENCE_SCORING, SIGNAL_GATE, HYSTERESIS, PHPR_SETTINGS } from './constants'
 import { 
   medianInPlace, 
   buildPrefixSum, 
@@ -86,6 +86,11 @@ export class FeedbackDetector {
   private aWeightingTable: Float32Array | null = null
   private aWeightingMinDb: number = 0
   private aWeightingMaxDb: number = 0
+
+  // Mic calibration compensation (ECM8000)
+  private micCalibrationTable: Float32Array | null = null
+  private micCalMinDb: number = 0
+  private micCalMaxDb: number = 0
 
   // Analysis bounds
   private startBin: number = 1
@@ -354,7 +359,7 @@ export class FeedbackDetector {
       this.resetHistory()
     }
 
-    if (config.aWeightingEnabled !== undefined) {
+    if (config.aWeightingEnabled !== undefined || config.micCalibrationEnabled !== undefined) {
       this.recomputeAnalysisDbBounds()
       this.noiseFloorDb = null
       this.resetHistory()
@@ -572,6 +577,11 @@ export class FeedbackDetector {
     // Build A-weighting table
     this.aWeightingTable = new Float32Array(n)
     this.computeAWeightingTable()
+
+    // Build mic calibration table
+    this.micCalibrationTable = new Float32Array(n)
+    this.computeMicCalibrationTable()
+
     this.recomputeAnalysisDbBounds()
 
     // MSD history buffers - ring buffer per bin
@@ -661,14 +671,64 @@ export class FeedbackDetector {
     return OFFSET + 20 * Math.log10(ra)
   }
 
-  private recomputeAnalysisDbBounds(): void {
-    if (this.config.aWeightingEnabled) {
-      this.analysisMinDb = -100 + this.aWeightingMinDb
-      this.analysisMaxDb = 0 + this.aWeightingMaxDb
-    } else {
-      this.analysisMinDb = -100
-      this.analysisMaxDb = 0
+  private computeMicCalibrationTable(): void {
+    const table = this.micCalibrationTable
+    if (!table) return
+
+    const sr = this.getSampleRate()
+    const fft = this.config.fftSize
+    const hzPerBin = sr / fft
+    const cal = ECM8000_CALIBRATION
+
+    let min = Infinity
+    let max = -Infinity
+
+    for (let i = 0; i < table.length; i++) {
+      const f = i * hzPerBin
+      // Interpolate the calibration curve and negate (compensation = inverse)
+      let comp = 0
+      if (f <= cal[0][0]) {
+        comp = -cal[0][1]
+      } else if (f >= cal[cal.length - 1][0]) {
+        comp = -cal[cal.length - 1][1]
+      } else {
+        // Find bracketing points and interpolate in log-frequency space
+        for (let j = 1; j < cal.length; j++) {
+          if (f <= cal[j][0]) {
+            const fLow = cal[j - 1][0]
+            const fHigh = cal[j][0]
+            const dBLow = cal[j - 1][1]
+            const dBHigh = cal[j][1]
+            const t = (Math.log(f) - Math.log(fLow)) / (Math.log(fHigh) - Math.log(fLow))
+            comp = -(dBLow + t * (dBHigh - dBLow))
+            break
+          }
+        }
+      }
+
+      if (!Number.isFinite(comp)) comp = 0
+      table[i] = comp
+      if (comp < min) min = comp
+      if (comp > max) max = comp
     }
+
+    this.micCalMinDb = Number.isFinite(min) ? min : 0
+    this.micCalMaxDb = Number.isFinite(max) ? max : 0
+  }
+
+  private recomputeAnalysisDbBounds(): void {
+    let minOffset = 0
+    let maxOffset = 0
+    if (this.config.aWeightingEnabled) {
+      minOffset += this.aWeightingMinDb
+      maxOffset += this.aWeightingMaxDb
+    }
+    if (this.config.micCalibrationEnabled) {
+      minOffset += this.micCalMinDb
+      maxOffset += this.micCalMaxDb
+    }
+    this.analysisMinDb = -100 + minOffset
+    this.analysisMaxDb = 0 + maxOffset
   }
 
   private recomputeDerivedIndices(): void {
@@ -777,6 +837,8 @@ export class FeedbackDetector {
 
     const useAWeighting = this.config.aWeightingEnabled && !!this.aWeightingTable
     const aTable = this.aWeightingTable
+    const useMicCalibration = this.config.micCalibrationEnabled && !!this.micCalibrationTable
+    const micCalTable = this.micCalibrationTable
 
     // ── Auto-gain: measure raw peak BEFORE applying gain ──────────────────
     if (this._autoGainEnabled) {
@@ -875,6 +937,8 @@ export class FeedbackDetector {
 
       // Apply A-weighting if enabled
       if (useAWeighting && aTable) db += aTable[i]
+      // Apply mic calibration compensation (inverse frequency response)
+      if (useMicCalibration && micCalTable) db += micCalTable[i]
       db = clamp(db, this.analysisMinDb, this.analysisMaxDb)
 
       freqDb[i] = db

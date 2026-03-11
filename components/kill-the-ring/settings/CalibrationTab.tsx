@@ -66,6 +66,7 @@ const MIC_OPTIONS: { value: MicType; label: string }[] = [
 
 export interface CalibrationTabProps {
   settings: DetectorSettings
+  onSettingsChange: (changes: Partial<DetectorSettings>) => void
   room: RoomProfile
   updateRoom: (partial: Partial<RoomProfile>) => void
   clearRoom: () => void
@@ -83,6 +84,8 @@ export interface CalibrationTabProps {
 // ── Component ────────────────────────────────────────────────────────────────
 
 export const CalibrationTab = memo(function CalibrationTab({
+  settings,
+  onSettingsChange,
   room,
   updateRoom,
   clearRoom,
@@ -303,6 +306,21 @@ export const CalibrationTab = memo(function CalibrationTab({
             </div>
           )}
         </Section>
+
+        <Section title="Mic Calibration" tooltip="Applies inverse frequency response compensation for the Behringer ECM8000 measurement mic (CSL calibration #746). Flattens the mic's +4.7 dB rise at 10–16 kHz so the RTA shows true SPL.">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-mono">ECM8000 Compensation</Label>
+              <p className="text-[11px] text-muted-foreground font-mono leading-tight">
+                Behringer ECM8000 · CSL 746
+              </p>
+            </div>
+            <Switch
+              checked={settings.micCalibrationEnabled}
+              onCheckedChange={(checked) => onSettingsChange({ micCalibrationEnabled: checked })}
+            />
+          </div>
+        </Section>
       </SectionGroup>
 
       {/* ── Session Controls ──────────────────────────────────────── */}
@@ -350,6 +368,12 @@ export const CalibrationTab = memo(function CalibrationTab({
                     <span className="text-muted-foreground">Snapshots</span>
                     <span className="text-foreground">{stats.snapshotCount}</span>
                   </div>
+                  {settings.micCalibrationEnabled && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Mic Cal</span>
+                      <span className="text-emerald-400 text-xs font-mono">ECM8000 compensated</span>
+                    </div>
+                  )}
                 </>
               )}
             </div>

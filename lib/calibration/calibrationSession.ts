@@ -15,6 +15,7 @@ import type {
   FrequencyBand,
   CalibrationStats,
 } from '@/types/calibration'
+import { ECM8000_CALIBRATION } from '@/lib/dsp/constants'
 
 const TARGET_BINS = 1024
 const MAX_DETECTIONS = 500
@@ -60,11 +61,13 @@ export class CalibrationSession {
   private _contentTypeTransitions: ContentTypeTransition[] = []
   private _falsePositiveIds: Set<string> = new Set()
   private _lastContentType: string = 'unknown'
+  private _currentMicCalEnabled: boolean
 
   constructor(settings: DetectorSettings) {
     this._startTime = Date.now()
     this._initialSettings = { ...settings }
     this._initialPreset = settings.mode
+    this._currentMicCalEnabled = settings.micCalibrationEnabled
   }
 
   get startTime(): number { return this._startTime }
@@ -99,6 +102,7 @@ export class CalibrationSession {
       noiseFloorAtTime: spectrum?.noiseFloorDb ?? -80,
       effectiveThresholdAtTime: spectrum?.effectiveThresholdDb ?? -50,
       annotation: 'true_positive',
+      micCalibrationApplied: this._currentMicCalEnabled,
       spectrumSnapshot: snapshot,
     })
   }
@@ -123,6 +127,9 @@ export class CalibrationSession {
   logSettingsChange(changes: Partial<DetectorSettings>): void {
     if (this._settingsHistory.length >= MAX_SETTINGS_CHANGES) return
     this._settingsHistory.push({ timestamp: now(), changes })
+    if (changes.micCalibrationEnabled !== undefined) {
+      this._currentMicCalEnabled = changes.micCalibrationEnabled
+    }
   }
 
   logNoiseFloor(noiseFloorDb: number, peakDb: number, contentType: string): void {
@@ -138,6 +145,7 @@ export class CalibrationSession {
       noiseFloorDb: spectrum.noiseFloorDb ?? -80,
       peakDb: spectrum.peak,
       trigger,
+      micCalibrationApplied: this._currentMicCalEnabled,
     })
   }
 
@@ -158,8 +166,13 @@ export class CalibrationSession {
     const endTime = Date.now()
     const summary = this._buildSummary()
 
+    // Check if mic calibration was ever active during this session
+    const micCalEverActive = this._initialSettings.micCalibrationEnabled
+      || finalSettings.micCalibrationEnabled
+      || this._settingsHistory.some(e => e.changes.micCalibrationEnabled === true)
+
     return {
-      version: '1.0',
+      version: '1.1',
       appVersion,
       exportedAt: now(),
       room,
@@ -179,6 +192,13 @@ export class CalibrationSession {
       missedDetections: this._missedDetections,
       contentTypeTransitions: this._contentTypeTransitions,
       summary,
+      micCalibration: micCalEverActive ? {
+        applied: true,
+        micModel: 'Behringer ECM8000',
+        calibrationId: 'CSL 746',
+        calibrationCurve: ECM8000_CALIBRATION,
+        compensationNote: 'Compensation = negated calibrationCurve dB values, interpolated in log-frequency space per FFT bin. To recover raw spectrum: rawDb[bin] = compensatedDb[bin] + interpolate(calibrationCurve, binFreqHz).',
+      } : undefined,
     }
   }
 

@@ -35,7 +35,7 @@ interface HeaderBarProps {
   devices: AudioDevice[]
   selectedDeviceId: string
   onDeviceChange: (deviceId: string) => void
-  calibration?: Omit<CalibrationTabProps, 'settings'>
+  calibration?: Omit<CalibrationTabProps, 'settings' | 'onSettingsChange'>
 }
 
 export const HeaderBar = memo(function HeaderBar({

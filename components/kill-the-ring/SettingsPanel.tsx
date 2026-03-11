@@ -27,7 +27,7 @@ interface SettingsPanelProps {
   onSettingsChange: (settings: Partial<DetectorSettings>) => void
   onModeChange: (mode: OperationMode) => void
   onReset: () => void
-  calibration?: Omit<CalibrationTabProps, 'settings'>
+  calibration?: Omit<CalibrationTabProps, 'settings' | 'onSettingsChange'>
 }
 
 export const SettingsPanel = memo(function SettingsPanel({
@@ -147,7 +147,7 @@ export const SettingsPanel = memo(function SettingsPanel({
 
           {calibration && (
             <TabsContent value="calibrate">
-              <CalibrationTab settings={settings} {...calibration} />
+              <CalibrationTab settings={settings} onSettingsChange={onSettingsChange} {...calibration} />
             </TabsContent>
           )}
         </Tabs>

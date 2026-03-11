@@ -113,6 +113,21 @@ export const A_WEIGHTING = {
   MIN_DB: -120, // Clamp for frequencies near 0 Hz
 } as const
 
+// ── Mic Calibration: Behringer ECM8000 (CSL 746) ────────────────────────────
+// Cross-Spectrum Labs measurement, serial D1103249118/CSL 746, 0° on-axis
+// Format: [frequency Hz, response dB relative to 1 kHz]
+// Compensation = negate these values to flatten the mic's frequency response
+export const ECM8000_CALIBRATION: readonly [number, number][] = [
+  [5, -18.33], [6.3, -14.81], [8, -11.98], [10, -9.81], [12.5, -7.96],
+  [16, -6.27], [20, -4.64], [25, -3.11], [31.5, -1.87], [40, -1.07],
+  [50, -0.73], [63, -0.54], [80, -0.15], [100, -0.12], [125, -0.06],
+  [160, -0.01], [200, 0.13], [250, 0.13], [315, 0.12], [400, 0.08],
+  [500, 0.06], [630, 0.05], [800, 0.03], [1000, 0.00], [1250, 0.06],
+  [1600, 0.16], [2000, 0.42], [2500, 0.61], [3150, 1.02], [4000, 1.56],
+  [5000, 2.02], [6300, 2.67], [8000, 3.83], [10000, 4.65], [12500, 4.48],
+  [16000, 4.72], [20000, 2.26], [25000, -2.86],
+] as const
+
 // FFT size options
 export const FFT_SIZE_OPTIONS = [2048, 4096, 8192, 16384, 32768] as const
 
@@ -562,6 +577,7 @@ export const DEFAULT_SETTINGS: DetectorSettings = {
   harmonicToleranceCents: 200, // ±200 cents for harmonic matching; synced with ASSOCIATION_TOLERANCE_CENTS
   showTooltips: true, // Show help tooltips (useful for AV techs)
   aWeightingEnabled: true, // A-WEIGHTING ON — prioritizes speech intelligibility band (2–5 kHz)
+  micCalibrationEnabled: false, // Mic frequency response compensation (ECM8000 CSL 746) — dev only
   // Confidence filtering — catches early quiet feedback while filtering noise
   confidenceThreshold: 0.35, // 35% — compromise: catches early feedback, filters artifacts
   // Room acoustics — defaults to large ballroom / exhibit hall
