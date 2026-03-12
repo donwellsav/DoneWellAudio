@@ -23,6 +23,22 @@ export const SEMITONES_PER_OCTAVE = 12
 export const LN10_OVER_10 = Math.LN10 / 10 // For dB to power conversion
 export const LOG10_E = Math.LOG10E // For power to dB conversion
 
+// Mobile performance: recommended analysisIntervalMs for resource-constrained devices.
+// 40ms (25fps) halves CPU cost with imperceptible detection latency increase
+// (feedback builds over 200ms+, human reaction time ~150ms).
+export const MOBILE_ANALYSIS_INTERVAL_MS = 40
+
+// Precomputed lookup table: dB → linear power for range [-100, 0] at 0.1 dB steps
+// Replaces Math.exp(db * LN10_OVER_10) in the hot loop (4096 calls/frame → 1 array access)
+// 1001 entries × 4 bytes = ~4KB — fits comfortably in L1 cache
+export const EXP_LUT = /* @__PURE__ */ (() => {
+  const table = new Float32Array(1001)
+  for (let i = 0; i <= 1000; i++) {
+    table[i] = Math.pow(10, (i / 10 - 100) / 10)
+  }
+  return table
+})()
+
 // ============================================================================
 // ACOUSTIC CONSTANTS (from Sound Insulation textbook, Carl Hopkins 2007)
 // ============================================================================
