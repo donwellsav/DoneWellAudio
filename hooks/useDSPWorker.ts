@@ -27,6 +27,8 @@ import type {
 } from '@/types/advisory'
 import type { WorkerInboundMessage, WorkerOutboundMessage } from '@/lib/dsp/dspWorker'
 
+import type { SnapshotBatch } from '@/types/data'
+
 export interface DSPWorkerCallbacks {
   onAdvisory?: (advisory: Advisory) => void
   onAdvisoryCleared?: (advisoryId: string) => void
@@ -34,6 +36,8 @@ export interface DSPWorkerCallbacks {
   onTracksUpdate?: (tracks: TrackedPeak[]) => void
   onReady?: () => void
   onError?: (message: string) => void
+  /** Called when a snapshot batch is ready for upload (free tier only) */
+  onSnapshotBatch?: (batch: SnapshotBatch) => void
 }
 
 export interface DSPWorkerHandle {
@@ -55,6 +59,10 @@ export interface DSPWorkerHandle {
   reset: () => void
   /** Terminate the worker */
   terminate: () => void
+  /** Enable anonymous spectral snapshot collection (free tier only) */
+  enableCollection: (sessionId: string, fftSize: number, sampleRate: number) => void
+  /** Disable spectral snapshot collection */
+  disableCollection: () => void
 }
 
 /**
@@ -111,6 +119,12 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
           busyRef.current = false  // Also clears backpressure (fixes stall on early-break paths)
           if (msg.spectrum.buffer.byteLength > 0) specPoolRef.current.push(msg.spectrum)
           if (msg.timeDomain && msg.timeDomain.buffer.byteLength > 0) tdPoolRef.current.push(msg.timeDomain)
+          break
+        case 'snapshotBatch':
+          if (msg.batch) callbacksRef.current.onSnapshotBatch?.(msg.batch)
+          break
+        case 'collectionStats':
+          // Stats available but no callback needed yet — could be used by a future UI
           break
         case 'error':
           busyRef.current = false  // Unblock pipeline so analysis continues after soft error
@@ -239,6 +253,17 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
     postMessage({ type: 'reset' })
   }, [postMessage])
 
+  const enableCollection = useCallback(
+    (sessionId: string, collectionFftSize: number, collectionSampleRate: number) => {
+      postMessage({ type: 'enableCollection', sessionId, fftSize: collectionFftSize, sampleRate: collectionSampleRate })
+    },
+    [postMessage]
+  )
+
+  const disableCollection = useCallback(() => {
+    postMessage({ type: 'disableCollection' })
+  }, [postMessage])
+
   const terminate = useCallback(() => {
     workerRef.current?.terminate()
     workerRef.current = null
@@ -260,5 +285,7 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
     clearPeak,
     reset,
     terminate,
+    enableCollection,
+    disableCollection,
   }
 }

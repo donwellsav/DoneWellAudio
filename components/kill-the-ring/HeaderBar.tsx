@@ -19,6 +19,7 @@ import { useDetection } from '@/contexts/DetectionContext'
 import type { OperationMode, DetectorSettings } from '@/types/advisory'
 import type { AudioDevice } from '@/hooks/useAudioDevices'
 import type { CalibrationTabProps } from './settings/CalibrationTab'
+import type { DataCollectionTabProps } from './SettingsPanel'
 
 interface HeaderBarProps {
   isRunning: boolean
@@ -37,6 +38,7 @@ interface HeaderBarProps {
   selectedDeviceId: string
   onDeviceChange: (deviceId: string) => void
   calibration?: Omit<CalibrationTabProps, 'settings' | 'onSettingsChange'>
+  dataCollection?: DataCollectionTabProps
 }
 
 export const HeaderBar = memo(function HeaderBar({
@@ -46,6 +48,7 @@ export const HeaderBar = memo(function HeaderBar({
   isFrozen, toggleFreeze,
   devices, selectedDeviceId, onDeviceChange,
   calibration,
+  dataCollection,
 }: HeaderBarProps) {
   const { advisories, dismissedIds, onClearAll } = useDetection()
   const hasAdvisories = isRunning && advisories.some(a => !dismissedIds.has(a.id))
@@ -216,6 +219,7 @@ export const HeaderBar = memo(function HeaderBar({
             onModeChange={onModeChange}
             onReset={onReset}
             calibration={calibration}
+            dataCollection={dataCollection}
           />
         </Suspense>
       </div>

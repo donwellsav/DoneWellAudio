@@ -17,5 +17,6 @@ export { MobileLayout } from "./MobileLayout";
 export { DesktopLayout } from "./DesktopLayout";
 export { VerticalGainFader } from "./VerticalGainFader";
 export { OnboardingOverlay } from "./OnboardingOverlay";
+export { DataConsentDialog } from "./DataConsentDialog";
 export { EarlyWarningPanel } from "./EarlyWarningPanel";
 export { MissedFeedbackButton } from "./MissedFeedbackButton";

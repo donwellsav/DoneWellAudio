@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { AudioAnalyzer, createAudioAnalyzer } from '@/lib/audio/createAudioAnalyzer'
-import { useDSPWorker, type DSPWorkerCallbacks } from './useDSPWorker'
+import { useDSPWorker, type DSPWorkerCallbacks, type DSPWorkerHandle } from './useDSPWorker'
 import { useAdvisoryMap } from './useAdvisoryMap'
 import type {
   Advisory,
@@ -76,13 +76,16 @@ export interface UseAudioAnalyzerReturn extends UseAudioAnalyzerState {
   spectrumRef: React.RefObject<SpectrumData | null>
   /** Direct ref to latest tracked peaks — canvas reads this imperatively */
   tracksRef: React.RefObject<TrackedPeak[]>
+  /** DSP worker handle — used by useDataCollection to enable/disable snapshot collection */
+  dspWorker: DSPWorkerHandle
 }
 
 /** Internal state — advisories owned by useAdvisoryMap */
 type InternalAnalyzerState = Omit<UseAudioAnalyzerState, 'advisories'>
 
 export function useAudioAnalyzer(
-  initialSettings: Partial<DetectorSettings> = {}
+  initialSettings: Partial<DetectorSettings> = {},
+  externalCallbacks?: { onSnapshotBatch?: (batch: import('@/types/data').SnapshotBatch) => void }
 ): UseAudioAnalyzerReturn {
   const [settings, setSettings] = useState<DetectorSettings>(() => ({
     ...DEFAULT_SETTINGS,
@@ -123,6 +126,10 @@ export function useAudioAnalyzer(
 
   // ── DSP Worker callbacks — stable refs, never change identity ───────────────
 
+  // Keep external callbacks ref in sync
+  const externalCallbacksRef = useRef(externalCallbacks)
+  useEffect(() => { externalCallbacksRef.current = externalCallbacks }, [externalCallbacks])
+
   // Stable callbacks object — created once, never triggers re-renders
   const stableCallbacks = useRef<DSPWorkerCallbacks>({
     onAdvisory,
@@ -135,6 +142,9 @@ export function useAudioAnalyzer(
     onError: (message) => {
       // Surface worker errors as non-fatal amber warning (not the red error banner)
       setState(prev => ({ ...prev, workerError: message }))
+    },
+    onSnapshotBatch: (batch) => {
+      externalCallbacksRef.current?.onSnapshotBatch?.(batch)
     },
   }).current
 
@@ -311,5 +321,6 @@ export function useAudioAnalyzer(
     resetSettings,
     spectrumRef,
     tracksRef,
+    dspWorker,
   }
 }

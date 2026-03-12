@@ -28,6 +28,8 @@ import type {
   DetectorSettings,
   TrackedPeak,
 } from '@/types/advisory'
+import type { SnapshotWorkerInbound, SnapshotWorkerOutbound } from '@/types/data'
+import type { SnapshotCollector } from '@/lib/data/snapshotCollector'
 import { DEFAULT_SETTINGS } from './constants'
 
 // ─── Message types ──────────────────────────────────────────────────────────
@@ -62,6 +64,8 @@ export type WorkerInboundMessage =
   | {
       type: 'reset'
     }
+  // Snapshot collection messages (free tier only, dynamically loaded)
+  | SnapshotWorkerInbound
 
 export type WorkerOutboundMessage =
   | { type: 'advisory'; advisory: Advisory }
@@ -71,6 +75,8 @@ export type WorkerOutboundMessage =
   | { type: 'returnBuffers'; spectrum: Float32Array; timeDomain?: Float32Array }
   | { type: 'ready' }
   | { type: 'error'; message: string }
+  // Snapshot collection responses
+  | SnapshotWorkerOutbound
 
 // ─── Worker state ────────────────────────────────────────────────────────────
 
@@ -78,6 +84,13 @@ let settings: DetectorSettings = { ...DEFAULT_SETTINGS }
 let sampleRate = 48000
 let fftSize = 8192
 let peakProcessCount = 0
+
+// ─── Snapshot collection (free tier only, dynamically loaded) ────────────────
+// The SnapshotCollector module is NEVER statically imported — it is loaded via
+// dynamic import() only when the main thread sends 'enableCollection'. This
+// ensures premium-tier bundles never include data collection code.
+
+let snapshotCollector: SnapshotCollector | null = null
 
 // ─── Module instances ────────────────────────────────────────────────────────
 
@@ -190,6 +203,46 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       decayAnalyzer.reset()
       classificationLabelHistory.clear()
       peakProcessCount = 0
+      snapshotCollector?.reset()
+      break
+    }
+
+    // ── Snapshot collection (free tier only) ──────────────────────────────
+
+    case 'enableCollection': {
+      // Dynamic import — only loads the module when free-tier user consents.
+      // Webpack/Turbopack code-splits this into a separate chunk that premium
+      // tier bundles never request.
+      import('../data/snapshotCollector').then(({ SnapshotCollector: Collector }) => {
+        snapshotCollector = new Collector(msg.sessionId, msg.fftSize, msg.sampleRate)
+        const stats = snapshotCollector.getStats()
+        self.postMessage({
+          type: 'collectionStats',
+          bufferSize: stats.bufferSize,
+          taggedEvents: stats.taggedEvents,
+          bytesCollected: stats.bytesCollected,
+        } satisfies WorkerOutboundMessage)
+      }).catch(err => {
+        self.postMessage({
+          type: 'error',
+          message: `[enableCollection] Failed to load collector: ${err instanceof Error ? err.message : String(err)}`,
+        } satisfies WorkerOutboundMessage)
+      })
+      break
+    }
+
+    case 'disableCollection': {
+      snapshotCollector = null
+      break
+    }
+
+    case 'getSnapshotBatch': {
+      if (snapshotCollector?.hasPendingBatches) {
+        const batch = snapshotCollector.extractBatch()
+        self.postMessage({ type: 'snapshotBatch', batch } satisfies WorkerOutboundMessage)
+      } else {
+        self.postMessage({ type: 'snapshotBatch', batch: null } satisfies WorkerOutboundMessage)
+      }
       break
     }
 
@@ -239,6 +292,11 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
             advisoryManager.setBandCooldown(cd.bandIndex, cd.timestamp)
           }
         }
+      }
+
+      // ── Snapshot collection (must run BEFORE finally transfers buffers) ──
+      if (snapshotCollector) {
+        snapshotCollector.recordFrame(spectrum)
       }
 
       // Compute algorithm scores for this peak
@@ -300,6 +358,22 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       // Post all advisory actions to main thread
       for (const action of actions) {
         self.postMessage(action satisfies WorkerOutboundMessage)
+      }
+
+      // ── Mark feedback event for snapshot collection ──
+      if (snapshotCollector && actions.length > 0) {
+        snapshotCollector.markFeedbackEvent(
+          track.trueFrequencyHz,
+          track.trueAmplitudeDb,
+          classification.severity,
+          classification.confidence,
+          contentType
+        )
+        // Notify main thread that a batch is ready for upload
+        if (snapshotCollector.hasPendingBatches) {
+          const batch = snapshotCollector.extractBatch()
+          self.postMessage({ type: 'snapshotBatch', batch } satisfies WorkerOutboundMessage)
+        }
       }
 
       // Post tracks update if any advisory was created/updated

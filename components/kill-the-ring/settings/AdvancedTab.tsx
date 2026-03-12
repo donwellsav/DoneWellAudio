@@ -9,13 +9,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { Database, Shield } from 'lucide-react'
 import { Section, SettingsGrid, type TabSettingsProps } from './SettingsShared'
 import type { ThresholdMode } from '@/types/advisory'
+import type { ConsentStatus } from '@/types/data'
+
+export interface AdvancedTabProps extends TabSettingsProps {
+  /** Current data collection consent status */
+  consentStatus?: ConsentStatus
+  /** Whether collection is actively running */
+  isCollecting?: boolean
+  /** Called when user toggles collection on */
+  onEnableCollection?: () => void
+  /** Called when user toggles collection off */
+  onDisableCollection?: () => void
+}
 
 export const AdvancedTab = memo(function AdvancedTab({
   settings,
   onSettingsChange,
-}: TabSettingsProps) {
+  consentStatus,
+  isCollecting,
+  onEnableCollection,
+  onDisableCollection,
+}: AdvancedTabProps) {
   return (
     <div className="mt-4">
       <SettingsGrid>
@@ -169,7 +187,56 @@ export const AdvancedTab = memo(function AdvancedTab({
         </div>
       </Section>
 
+      {/* ── Data Collection ── */}
+      {consentStatus !== undefined && (
+        <Section
+          title="Data Collection"
+          showTooltip={settings.showTooltips}
+          tooltip="Share anonymous frequency data to improve feedback detection. No audio, device IDs, or personal data is collected."
+        >
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Database className="w-4 h-4 text-primary" />
+                <span className="text-sm text-muted-foreground font-mono tracking-wide">
+                  Share spectral data
+                </span>
+              </div>
+              <Switch
+                checked={consentStatus === 'accepted'}
+                onCheckedChange={(checked) => {
+                  if (checked) onEnableCollection?.()
+                  else onDisableCollection?.()
+                }}
+              />
+            </div>
+
+            {isCollecting && (
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs text-emerald-500 font-mono">Collecting</span>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              {PRIVACY_SUMMARY.map((point, i) => (
+                <div key={i} className="flex items-start gap-1.5">
+                  <Shield className="w-3 h-3 flex-shrink-0 mt-0.5 text-emerald-500/60" />
+                  <span className="text-xs text-muted-foreground/70 font-mono leading-snug">{point}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Section>
+      )}
+
       </SettingsGrid>
     </div>
   )
 })
+
+const PRIVACY_SUMMARY = [
+  'Magnitude spectrum only \u2014 no audio',
+  'No device IDs or IP addresses',
+  'Random session IDs, never linked to accounts',
+]

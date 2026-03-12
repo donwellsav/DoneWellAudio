@@ -16,11 +16,14 @@ import { Settings, RotateCcw, BarChart3, Monitor, Download, FileJson, Ruler, Cpu
 import { DetectionTab } from './settings/DetectionTab'
 import { AlgorithmsTab } from './settings/AlgorithmsTab'
 import { DisplayTab } from './settings/DisplayTab'
-import { AdvancedTab } from './settings/AdvancedTab'
+import { AdvancedTab, type AdvancedTabProps } from './settings/AdvancedTab'
 import { RoomTab } from './settings/RoomTab'
 import { CalibrationTab } from './settings/CalibrationTab'
 import type { DetectorSettings, Algorithm, OperationMode } from '@/types/advisory'
 import type { CalibrationTabProps } from './settings/CalibrationTab'
+
+/** Data collection props forwarded to AdvancedTab */
+export type DataCollectionTabProps = Pick<AdvancedTabProps, 'consentStatus' | 'isCollecting' | 'onEnableCollection' | 'onDisableCollection'>
 
 interface SettingsPanelProps {
   settings: DetectorSettings
@@ -28,6 +31,7 @@ interface SettingsPanelProps {
   onModeChange: (mode: OperationMode) => void
   onReset: () => void
   calibration?: Omit<CalibrationTabProps, 'settings' | 'onSettingsChange'>
+  dataCollection?: DataCollectionTabProps
 }
 
 export const SettingsPanel = memo(function SettingsPanel({
@@ -36,6 +40,7 @@ export const SettingsPanel = memo(function SettingsPanel({
   onModeChange,
   onReset,
   calibration,
+  dataCollection,
 }: SettingsPanelProps) {
   const [hasSavedDefaults, setHasSavedDefaults] = useState(false)
 
@@ -144,7 +149,7 @@ export const SettingsPanel = memo(function SettingsPanel({
           </TabsContent>
 
           <TabsContent value="advanced">
-            <AdvancedTab settings={settings} onSettingsChange={onSettingsChange} />
+            <AdvancedTab settings={settings} onSettingsChange={onSettingsChange} {...dataCollection} />
           </TabsContent>
 
           {calibration && (

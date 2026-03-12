@@ -13,6 +13,8 @@ import { DesktopLayout } from './DesktopLayout'
 import { PortalContainerProvider } from '@/contexts/PortalContainerContext'
 
 const LazyOnboardingOverlay = lazy(() => import('./OnboardingOverlay').then(m => ({ default: m.OnboardingOverlay })))
+const LazyDataConsentDialog = lazy(() => import('./DataConsentDialog').then(m => ({ default: m.DataConsentDialog })))
+import { useDataCollection } from '@/hooks/useDataCollection'
 import { AudioStateProvider } from '@/contexts/AudioStateContext'
 import { DetectionProvider } from '@/contexts/DetectionContext'
 import type { OperationMode } from '@/types/advisory'
@@ -43,6 +45,9 @@ function getErrorGuidance(error: string): string {
 }
 
 export const KillTheRing = memo(function KillTheRingComponent() {
+  // Data collection: consent + uploader + worker wiring
+  const dataCollection = useDataCollection()
+
   const {
     isRunning,
     isStarting,
@@ -53,13 +58,19 @@ export const KillTheRing = memo(function KillTheRingComponent() {
     spectrumRef,
     advisories,
     earlyWarning,
+    sampleRate,
+    fftSize,
     settings,
     start,
     stop,
     switchDevice,
     updateSettings,
     resetSettings,
-  } = useAudioAnalyzer()
+    dspWorker,
+  } = useAudioAnalyzer({}, { onSnapshotBatch: dataCollection.handleSnapshotBatch })
+
+  // Wire the DSP worker handle into data collection (breaks circular dep)
+  dataCollection.workerRef.current = dspWorker
 
   const { devices, selectedDeviceId, setSelectedDeviceId } = useAudioDevices()
   const { actualFps, droppedPercent } = useFpsMonitor(isRunning, settings.canvasTargetFps)
@@ -87,9 +98,9 @@ export const KillTheRing = memo(function KillTheRingComponent() {
   }, [])
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(rootRef)
 
-  // Wrap start to always pass the persisted device preference
-  const startWithDevice = useCallback(() => {
-    start({ deviceId: selectedDeviceId || undefined })
+  // Wrap start to always pass the persisted device preference + trigger data consent
+  const startWithDevice = useCallback(async () => {
+    await start({ deviceId: selectedDeviceId || undefined })
   }, [start, selectedDeviceId])
 
   const handleRetry = useCallback(() => {
@@ -100,6 +111,14 @@ export const KillTheRing = memo(function KillTheRingComponent() {
   // Auto-unfreeze when stopping analysis
   useEffect(() => {
     if (!isRunning) setIsFrozen(false)
+  }, [isRunning])
+
+  // Trigger data collection consent prompt when audio starts
+  useEffect(() => {
+    if (isRunning) {
+      dataCollection.promptIfNeeded(fftSize, sampleRate)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only trigger on isRunning transition
   }, [isRunning])
 
   // Keyboard shortcuts
@@ -246,6 +265,13 @@ export const KillTheRing = memo(function KillTheRingComponent() {
     onExport: handleCalibrationExport,
   }), [calibration, spectrumRef, handleCalibrationExport])
 
+  const dataCollectionTabProps = useMemo(() => ({
+    consentStatus: dataCollection.consentStatus,
+    isCollecting: dataCollection.isCollecting,
+    onEnableCollection: dataCollection.handleReEnable,
+    onDisableCollection: dataCollection.handleRevoke,
+  }), [dataCollection.consentStatus, dataCollection.isCollecting, dataCollection.handleReEnable, dataCollection.handleRevoke])
+
   return (
     <div ref={rootCallbackRef} className="flex flex-col h-screen bg-background">
       <PortalContainerProvider value={isFullscreen ? rootEl : null}>
@@ -334,6 +360,7 @@ export const KillTheRing = memo(function KillTheRingComponent() {
             selectedDeviceId={selectedDeviceId}
             onDeviceChange={handleDeviceChange}
             calibration={calibrationTabProps}
+            dataCollection={dataCollectionTabProps}
           />
           <MobileLayout
             mobileTab={mobileTab}
@@ -369,6 +396,14 @@ export const KillTheRing = memo(function KillTheRingComponent() {
 
       <Suspense fallback={null}>
         <LazyOnboardingOverlay />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <LazyDataConsentDialog
+          visible={dataCollection.showConsentDialog}
+          onAccept={dataCollection.handleAccept}
+          onDecline={dataCollection.handleDecline}
+        />
       </Suspense>
       </PortalContainerProvider>
     </div>
