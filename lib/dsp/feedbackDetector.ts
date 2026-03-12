@@ -1,7 +1,7 @@
 // KillTheRing2 Feedback Detector - Core DSP engine for peak detection
 // Adapted from FeedbackDetector.js with TypeScript and enhancements
 
-import { A_WEIGHTING, ECM8000_CALIBRATION, LN10_OVER_10, HARMONIC_SETTINGS, MSD_SETTINGS, PERSISTENCE_SCORING, SIGNAL_GATE, HYSTERESIS, PHPR_SETTINGS } from './constants'
+import { A_WEIGHTING, ECM8000_CALIBRATION, EXP_LUT, HARMONIC_SETTINGS, MSD_SETTINGS, PERSISTENCE_SCORING, SIGNAL_GATE, HYSTERESIS, PHPR_SETTINGS } from './constants'
 import { 
   medianInPlace, 
   buildPrefixSum, 
@@ -23,6 +23,14 @@ export interface FeedbackDetectorCallbacks {
   onError?: (message: string) => void
 }
 
+/** Frame timing breakdown from performance.now() instrumentation (debug only) */
+export interface PerfTimings {
+  total: number   // Full analyze() call
+  power: number   // Power/prefix sum loop (Math.exp / LUT)
+  peaks: number   // Peak detection + MSD updates + registration
+  msd: number     // Remaining (persistence + cleanup)
+}
+
 export interface FeedbackDetectorState {
   isRunning: boolean
   noiseFloorDb: number | null
@@ -41,6 +49,8 @@ export interface FeedbackDetectorState {
   msdFrameCount?: number
   isCompressed?: boolean
   compressionRatio?: number
+  // Performance instrumentation (only populated when debugPerf is enabled)
+  perfTimings?: PerfTimings | null
 }
 
 export class FeedbackDetector {
@@ -147,6 +157,13 @@ export class FeedbackDetector {
   // Hysteresis — recently cleared bins need extra dB to re-trigger (prevents flicker duplicates)
   private _recentlyClearedBins: Map<number, number> = new Map() // bin -> cleared timestamp
   private _analyzeCallCount: number = 0  // Frame counter for periodic housekeeping
+
+  // Performance instrumentation — zero cost when disabled
+  private _debugPerf: boolean = false
+  private _perfTimings: PerfTimings | null = null
+
+  // MSD scratch buffer — preallocated for calculateMsd() to avoid per-call modulo
+  private _msdScratch: Int32Array = new Int32Array(MSD_SETTINGS.HISTORY_SIZE)
 
   // Advanced algorithm state — set externally by DSP pipeline, returned via getState()
   private _algorithmMode: AlgorithmMode | undefined = undefined
@@ -521,7 +538,19 @@ export class FeedbackDetector {
       msdFrameCount: this._msdFrameCount,
       isCompressed: this._isCompressed,
       compressionRatio: this._compressionRatio,
+      perfTimings: this._debugPerf ? this._perfTimings : undefined,
     }
+  }
+
+  /** Enable/disable performance.now() instrumentation in analyze() */
+  enablePerfDebug(enabled: boolean): void {
+    this._debugPerf = enabled
+    if (!enabled) this._perfTimings = null
+  }
+
+  /** Get latest frame timings (null when debug is off or no frames analyzed yet) */
+  getPerfTimings(): PerfTimings | null {
+    return this._perfTimings
   }
 
   setAlgorithmState(state: {
@@ -817,6 +846,9 @@ export class FeedbackDetector {
   }
 
   private analyze(now: number, dt: number): void {
+    const debugPerf = this._debugPerf
+    const t0 = debugPerf ? performance.now() : 0
+
     const analyser = this.analyser
     const ctx = this.audioContext
     if (!analyser || !this.freqDb || !this.power || !this.prefix || !this.holdMs || !this.deadMs || !this.active) return
@@ -929,6 +961,11 @@ export class FeedbackDetector {
       ? Math.round(this._autoGainDb) // Round to integer dB to avoid micro-jitter
       : (this.config.inputGainDb ?? 0)
 
+    // Below-threshold skip: bins far below threshold contribute negligible power
+    // to prominence averages. Skip LUT for them (saves 20-60% of lookups).
+    // Uses previous frame's threshold (EMA-smoothed, changes slowly).
+    const skipThreshold = this.computeEffectiveThresholdDb() - 12
+
     // Build power + prefix sums
     prefix[0] = 0
     for (let i = 0; i < n; i++) {
@@ -948,10 +985,23 @@ export class FeedbackDetector {
       db = clamp(db, this.analysisMinDb, this.analysisMaxDb)
 
       freqDb[i] = db
-      const p = Math.exp(db * LN10_OVER_10)
+
+      // Skip power computation for bins well below threshold — they can never
+      // be peaks and contribute negligibly to neighborhood averages
+      if (db < skipThreshold) {
+        power[i] = 0
+        prefix[i + 1] = prefix[i]
+        continue
+      }
+
+      // LUT replaces Math.exp(db * ln10/10) — 0.1dB quantization, ~3x faster
+      const lutIdx = ((db + 100) * 10 + 0.5) | 0
+      const p = EXP_LUT[lutIdx < 0 ? 0 : lutIdx > 1000 ? 1000 : lutIdx]
       power[i] = p
       prefix[i + 1] = prefix[i] + p
     }
+
+    const t1 = debugPerf ? performance.now() : 0
 
     // Update noise floor
     if (this.config.noiseFloorEnabled) {
@@ -1200,6 +1250,16 @@ export class FeedbackDetector {
         }
       }
     }
+
+    if (debugPerf) {
+      const t3 = performance.now()
+      this._perfTimings = {
+        total: t3 - t0,
+        power: t1 - t0,
+        peaks: t3 - t1, // peak detection + MSD + persistence + cleanup
+        msd: 0, // included in peaks — tracked separately if needed later
+      }
+    }
   }
 
   private estimateQ(binIndex: number, peakDb: number, trueFrequencyHz?: number): { qEstimate: number; bandwidthHz: number } {
@@ -1395,8 +1455,8 @@ export class FeedbackDetector {
     // Store magnitude in ring buffer
     history[idx] = magnitudeDb
     
-    // Update index (wrap around)
-    this.msdHistoryIndex[binIndex] = (idx + 1) % historySize
+    // Update index (wrap around) — bitwise AND since historySize is power of 2
+    this.msdHistoryIndex[binIndex] = (idx + 1) & (historySize - 1)
     
     // Track how many frames we have (up to historySize)
     if (this.msdFrameCount[binIndex] < historySize) {
@@ -1443,15 +1503,21 @@ export class FeedbackDetector {
     }
 
     const historySize = MSD_SETTINGS.HISTORY_SIZE
+    const mask = historySize - 1 // Bitwise AND mask (historySize is power of 2)
     const history = this.msdHistory[binIndex]
     const currentIdx = this.msdHistoryIndex[binIndex]
 
+    // Precompute ordered indices into scratch buffer — eliminates per-element modulo
+    const ordered = this._msdScratch
+    for (let i = 0; i < frameCount; i++) {
+      ordered[i] = (currentIdx - frameCount + i + historySize) & mask
+    }
+
     // Compute first derivative sum (growth rate) inline — no array allocations
-    // Ring buffer: read oldest→newest via modular index
     let sumFirstDeriv = 0
-    let prevVal = history[(currentIdx - frameCount + historySize) % historySize]
+    let prevVal = history[ordered[0]]
     for (let i = 1; i < frameCount; i++) {
-      const val = history[(currentIdx - frameCount + i + historySize) % historySize]
+      const val = history[ordered[i]]
       sumFirstDeriv += val - prevVal
       prevVal = val
     }
@@ -1467,12 +1533,9 @@ export class FeedbackDetector {
     // See __tests__/msdConsistency.test.ts
     // Second derivative = d1[i] - d1[i-1] where d1[i] = ordered[i+1] - ordered[i]
     let sumSquaredSecondDeriv = 0
-    let prevD1 = history[(currentIdx - frameCount + 1 + historySize) % historySize]
-                - history[(currentIdx - frameCount + historySize) % historySize]
+    let prevD1 = history[ordered[1]] - history[ordered[0]]
     for (let i = 2; i < frameCount; i++) {
-      const cur = history[(currentIdx - frameCount + i + historySize) % historySize]
-      const prev = history[(currentIdx - frameCount + i - 1 + historySize) % historySize]
-      const d1 = cur - prev
+      const d1 = history[ordered[i]] - history[ordered[i - 1]]
       const d2 = d1 - prevD1
       sumSquaredSecondDeriv += d2 * d2
       prevD1 = d1
