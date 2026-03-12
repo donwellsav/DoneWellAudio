@@ -353,6 +353,7 @@ export interface DetectorSettings {
   showThresholdLine: boolean // Show effective threshold line on RTA graph
   canvasTargetFps: number // Target FPS for canvas rendering (15-60, default 30)
   quickControlsMode: boolean // Show simplified controls (true) or full controls (false)
+  faderMode: 'gain' | 'sensitivity' // Vertical fader strip mode: input gain (white) or sensitivity (blue)
 }
 
 // Default configuration - optimized for Corporate/Conference PA (Speech mode)

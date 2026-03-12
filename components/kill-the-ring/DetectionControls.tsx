@@ -225,6 +225,18 @@ export const DetectionControls = memo(function DetectionControls({ settings, onM
               onChange={(v) => onSettingsChange({ feedbackThresholdDb: 52 - v })}
             />
             <div className="flex items-center justify-end gap-1.5 mt-0.5">
+              <button
+                onClick={() => onSettingsChange({ faderMode: settings.faderMode === 'sensitivity' ? 'gain' : 'sensitivity' })}
+                className={`text-sm font-mono transition-colors ${
+                  settings.faderMode === 'sensitivity'
+                    ? 'text-blue-400 hover:text-blue-300'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title={settings.faderMode === 'sensitivity' ? 'Sensitivity shown on fader strip — click to switch back to gain' : 'Show sensitivity on the fader strip'}
+              >
+                {settings.faderMode === 'sensitivity' ? '◆ On fader' : '◇ Use fader'}
+              </button>
+              <div className="w-px h-3 bg-border/50" />
               <label htmlFor="show-threshold-line" className="text-sm text-muted-foreground cursor-pointer">Show on RTA</label>
               <Switch
                 id="show-threshold-line"

@@ -343,6 +343,7 @@ export const KillTheRing = memo(function KillTheRingComponent() {
             onModeChange={handleModeChange}
             onReset={resetSettings}
             onFreqRangeChange={handleFreqRangeChange}
+            noiseFloorDb={noiseFloorDb}
           />
 
           <DesktopLayout

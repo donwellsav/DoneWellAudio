@@ -66,8 +66,20 @@ export const DetectionTab = memo(function DetectionTab({
               onValueChange={([v]) => onSettingsChange({ feedbackThresholdDb: 52 - v })}
               min={2} max={50} step={1}
             />
-            <div className="flex justify-between text-sm text-muted-foreground font-mono">
-              <span>Conservative</span><span>Aggressive</span>
+            <div className="flex justify-between items-center text-sm text-muted-foreground font-mono">
+              <span>Conservative</span>
+              <button
+                onClick={() => onSettingsChange({ faderMode: settings.faderMode === 'sensitivity' ? 'gain' : 'sensitivity' })}
+                className={`text-sm font-mono transition-colors ${
+                  settings.faderMode === 'sensitivity'
+                    ? 'text-blue-400 hover:text-blue-300'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title={settings.faderMode === 'sensitivity' ? 'Sensitivity shown on fader strip' : 'Show on fader strip'}
+              >
+                {settings.faderMode === 'sensitivity' ? '◆ On fader' : '◇ Use fader'}
+              </button>
+              <span>Aggressive</span>
             </div>
           </div>
         </Section>

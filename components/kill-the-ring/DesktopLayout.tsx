@@ -284,6 +284,10 @@ export const DesktopLayout = memo(function DesktopLayout({
           isRunning={isRunning}
           onToggle={isRunning ? stop : start}
           noiseFloorDb={noiseFloorDb}
+          faderMode={settings.faderMode}
+          onFaderModeChange={(mode) => onSettingsChange({ faderMode: mode })}
+          sensitivityValue={settings.feedbackThresholdDb}
+          onSensitivityChange={(db) => onSettingsChange({ feedbackThresholdDb: db })}
         />
       </div>
     </div>

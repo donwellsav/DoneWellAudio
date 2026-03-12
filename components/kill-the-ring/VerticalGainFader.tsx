@@ -2,6 +2,9 @@
 
 import { useRef, useEffect, useCallback, useState, memo } from 'react'
 
+// Sensitivity preset quick-access values
+const SENSITIVITY_PRESETS = [[40, 'Safe'], [25, 'Norm'], [8, 'Hot']] as const
+
 interface VerticalGainFaderProps {
   value: number
   onChange: (value: number) => void
@@ -17,6 +20,11 @@ interface VerticalGainFaderProps {
   isRunning: boolean
   onToggle: () => void
   noiseFloorDb?: number | null
+  // Dual-mode fader
+  faderMode: 'gain' | 'sensitivity'
+  onFaderModeChange: (mode: 'gain' | 'sensitivity') => void
+  sensitivityValue: number // feedbackThresholdDb (2-50)
+  onSensitivityChange: (db: number) => void
 }
 
 export const VerticalGainFader = memo(function VerticalGainFader({
@@ -34,6 +42,10 @@ export const VerticalGainFader = memo(function VerticalGainFader({
   isRunning,
   onToggle,
   noiseFloorDb,
+  faderMode,
+  onFaderModeChange,
+  sensitivityValue,
+  onSensitivityChange,
 }: VerticalGainFaderProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
@@ -51,8 +63,15 @@ export const VerticalGainFader = memo(function VerticalGainFader({
   const prevDrawnRef = useRef(-1)
   const rafIdRef = useRef(0)
 
+  const isSensitivity = faderMode === 'sensitivity'
   const normalizedLevel = Math.max(0, Math.min(1, (level + 60) / 60))
-  const displayValue = autoGainEnabled && autoGainDb != null ? autoGainDb : value
+  const displayValue = isSensitivity
+    ? sensitivityValue
+    : autoGainEnabled && autoGainDb != null ? autoGainDb : value
+
+  // Sensitivity mode: effective min/max for the inverted range
+  const effectiveMin = isSensitivity ? 2 : min
+  const effectiveMax = isSensitivity ? 50 : max
 
   // Sync incoming prop to target ref
   useEffect(() => {
@@ -173,25 +192,41 @@ export const VerticalGainFader = memo(function VerticalGainFader({
     return () => cancelAnimationFrame(rafIdRef.current)
   }, [drawMeter])
 
-  // Vertical drag: top = max, bottom = min
+  // Vertical drag: top = max, bottom = min (gain) OR top = 2, bottom = 50 (sensitivity, inverted)
   const updateValueFromY = (clientY: number) => {
     const track = trackRef.current
     if (!track) return
     const rect = track.getBoundingClientRect()
     const y = Math.max(0, Math.min(rect.height, clientY - rect.top))
-    const ratio = 1 - y / rect.height
-    if (autoGainEnabled && onAutoGainToggle) {
-      onAutoGainToggle(false)
-    }
-    pendingValueRef.current = Math.round(min + ratio * (max - min))
-    if (!rafCoalesceRef.current) {
-      rafCoalesceRef.current = requestAnimationFrame(() => {
-        rafCoalesceRef.current = 0
-        if (pendingValueRef.current !== null) {
-          onChange(pendingValueRef.current)
-          pendingValueRef.current = null
-        }
-      })
+    const ratio = 1 - y / rect.height // 0 = bottom, 1 = top
+
+    if (isSensitivity) {
+      // Inverted: top = 2 (most sensitive), bottom = 50 (least sensitive)
+      const db = Math.round(50 - ratio * 48)
+      pendingValueRef.current = Math.max(2, Math.min(50, db))
+      if (!rafCoalesceRef.current) {
+        rafCoalesceRef.current = requestAnimationFrame(() => {
+          rafCoalesceRef.current = 0
+          if (pendingValueRef.current !== null) {
+            onSensitivityChange(pendingValueRef.current)
+            pendingValueRef.current = null
+          }
+        })
+      }
+    } else {
+      if (autoGainEnabled && onAutoGainToggle) {
+        onAutoGainToggle(false)
+      }
+      pendingValueRef.current = Math.round(min + ratio * (max - min))
+      if (!rafCoalesceRef.current) {
+        rafCoalesceRef.current = requestAnimationFrame(() => {
+          rafCoalesceRef.current = 0
+          if (pendingValueRef.current !== null) {
+            onChange(pendingValueRef.current)
+            pendingValueRef.current = null
+          }
+        })
+      }
     }
   }
 
@@ -239,21 +274,67 @@ export const VerticalGainFader = memo(function VerticalGainFader({
   const commitEdit = (raw: string) => {
     const parsed = parseInt(raw, 10)
     if (!isNaN(parsed)) {
-      if (autoGainEnabled && onAutoGainToggle) {
-        onAutoGainToggle(false)
+      if (isSensitivity) {
+        onSensitivityChange(Math.max(2, Math.min(50, parsed)))
+      } else {
+        if (autoGainEnabled && onAutoGainToggle) {
+          onAutoGainToggle(false)
+        }
+        onChange(Math.max(min, Math.min(max, parsed)))
       }
-      onChange(Math.max(min, Math.min(max, parsed)))
     }
     setEditing(false)
   }
 
-  const valueLabel = `${displayValue > 0 ? '+' : ''}${displayValue}`
+  // Display values differ per mode
+  const valueLabel = isSensitivity
+    ? `${sensitivityValue}`
+    : `${displayValue > 0 ? '+' : ''}${displayValue}`
 
   // Thumb position: percentage from bottom
-  const thumbBottom = ((displayValue - min) / (max - min)) * 100
+  const thumbBottom = isSensitivity
+    ? ((50 - sensitivityValue) / 48) * 100  // Inverted: 50 at bottom (0%), 2 at top (100%)
+    : ((displayValue - min) / (max - min)) * 100
+
+  // Keyboard step handler
+  const handleKeyStep = (direction: 1 | -1) => {
+    if (isSensitivity) {
+      // Up/Right = more sensitive (lower dB), Down/Left = less sensitive (higher dB)
+      onSensitivityChange(Math.max(2, Math.min(50, sensitivityValue - direction)))
+    } else {
+      if (autoGainEnabled && onAutoGainToggle) onAutoGainToggle(false)
+      onChange(Math.max(min, Math.min(max, value + direction)))
+    }
+  }
 
   return (
     <div className="flex flex-col h-full items-center py-2 gap-1.5 select-none">
+
+      {/* Mode toggle — segmented pill */}
+      <div className="flex-shrink-0 flex w-full rounded-md overflow-hidden border border-border/60">
+        <button
+          onClick={() => onFaderModeChange('gain')}
+          className={`flex-1 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+            !isSensitivity
+              ? 'bg-white/15 text-foreground'
+              : 'bg-transparent text-muted-foreground hover:text-foreground/70'
+          }`}
+          title="Input gain fader"
+        >
+          Gain
+        </button>
+        <button
+          onClick={() => onFaderModeChange('sensitivity')}
+          className={`flex-1 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+            isSensitivity
+              ? 'bg-blue-500/20 text-blue-400'
+              : 'bg-transparent text-muted-foreground hover:text-foreground/70'
+          }`}
+          title="Detection sensitivity fader"
+        >
+          Sens
+        </button>
+      </div>
 
       {/* dB readout — click to edit */}
       {editing ? (
@@ -266,31 +347,42 @@ export const VerticalGainFader = memo(function VerticalGainFader({
           onKeyDown={(e) => {
             if (e.key === 'Enter') commitEdit((e.target as HTMLInputElement).value)
             if (e.key === 'Escape') setEditing(false)
-            if (e.key === 'ArrowUp') { e.preventDefault(); onChange(Math.min(max, value + 1)) }
-            if (e.key === 'ArrowDown') { e.preventDefault(); onChange(Math.max(min, value - 1)) }
+            if (e.key === 'ArrowUp') { e.preventDefault(); handleKeyStep(1) }
+            if (e.key === 'ArrowDown') { e.preventDefault(); handleKeyStep(-1) }
           }}
         />
       ) : (
         <button
           className={`font-mono text-center transition-colors cursor-text flex-shrink-0 tabular-nums text-sm leading-tight ${
-            autoGainEnabled ? 'text-primary hover:text-primary/80' : 'text-foreground hover:text-primary'
+            isSensitivity
+              ? 'text-blue-400 hover:text-blue-300'
+              : autoGainEnabled ? 'text-primary hover:text-primary/80' : 'text-foreground hover:text-primary'
           }`}
           onClick={() => setEditing(true)}
           onWheel={(e) => {
             e.preventDefault()
-            if (autoGainEnabled && onAutoGainToggle) onAutoGainToggle(false)
-            onChange(e.deltaY < 0 ? Math.min(max, value + 1) : Math.max(min, value - 1))
+            handleKeyStep(e.deltaY < 0 ? 1 : -1)
           }}
-          title={autoGainEnabled ? (autoGainLocked ? 'Gain locked — click to edit' : 'Calibrating — click to edit') : 'Click to type, scroll ±1dB'}
-          aria-label={`Input gain ${valueLabel}dB, click to edit`}
+          title={
+            isSensitivity
+              ? `Sensitivity: ${sensitivityValue}dB threshold — click to type`
+              : autoGainEnabled ? (autoGainLocked ? 'Gain locked — click to edit' : 'Calibrating — click to edit') : 'Click to type, scroll ±1dB'
+          }
+          aria-label={
+            isSensitivity
+              ? `Sensitivity ${sensitivityValue}dB, click to edit`
+              : `Input gain ${valueLabel}dB, click to edit`
+          }
         >
           {valueLabel}
-          <span className="block text-sm text-muted-foreground">dB</span>
+          <span className={`block text-sm ${isSensitivity ? 'text-blue-400/60' : 'text-muted-foreground'}`}>
+            {isSensitivity ? 'Sens' : 'dB'}
+          </span>
         </button>
       )}
 
-      {/* Auto/Manual toggle */}
-      {onAutoGainToggle && (
+      {/* Auto/Manual toggle — gain mode only */}
+      {!isSensitivity && onAutoGainToggle && (
         <button
           onClick={() => onAutoGainToggle(!autoGainEnabled)}
           className={`flex-shrink-0 px-1 py-0.5 rounded text-sm font-bold uppercase tracking-wider transition-colors ${
@@ -329,36 +421,61 @@ export const VerticalGainFader = memo(function VerticalGainFader({
           onTouchStart={handleTouchStart}
           role="slider"
           aria-orientation="vertical"
-          aria-valuemin={min}
-          aria-valuemax={max}
+          aria-valuemin={effectiveMin}
+          aria-valuemax={effectiveMax}
           aria-valuenow={displayValue}
-          aria-label="Input gain"
+          aria-label={isSensitivity ? 'Detection sensitivity' : 'Input gain'}
           tabIndex={0}
           onKeyDown={(e) => {
-            if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
-              if (autoGainEnabled && onAutoGainToggle) onAutoGainToggle(false)
-              onChange(Math.min(max, value + 1))
-            }
-            if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
-              if (autoGainEnabled && onAutoGainToggle) onAutoGainToggle(false)
-              onChange(Math.max(min, value - 1))
-            }
+            if (e.key === 'ArrowUp' || e.key === 'ArrowRight') handleKeyStep(1)
+            if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') handleKeyStep(-1)
           }}
         >
+          {/* Fader slot line — subtle center groove behind thumb */}
+          <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-white/[0.04] pointer-events-none" />
           <canvas
             ref={canvasRef}
             className="w-full h-full"
           />
-          {/* Gain thumb — horizontal bar */}
+          {/* Fader thumb — console-style capsule knob with ridges */}
           <div
-            className={`absolute left-1/2 -translate-x-1/2 translate-y-1/2 w-11 h-2.5 rounded-[2px] border-2 shadow-md pointer-events-none transition-[box-shadow] ${
-              autoGainEnabled ? 'border-primary bg-primary/90' : 'border-background bg-white'
+            className={`absolute left-1/2 -translate-x-1/2 translate-y-1/2 w-11 h-6 rounded-[5px] border-2 pointer-events-none transition-all duration-150 ${
+              isSensitivity
+                ? 'border-cyan-300/60 bg-gradient-to-b from-blue-800 to-blue-950'
+                : autoGainEnabled
+                  ? 'border-primary bg-gradient-to-b from-primary/90 to-primary'
+                  : 'border-white/80 bg-gradient-to-b from-gray-100 to-gray-300'
             }`}
-            style={{ bottom: `${thumbBottom}%` }}
+            style={{
+              bottom: `${thumbBottom}%`,
+              boxShadow: isSensitivity
+                ? '0 2px 8px rgba(0,210,210,0.3), 0 1px 3px rgba(0,0,0,0.5)'
+                : autoGainEnabled
+                  ? '0 2px 8px rgba(139,92,246,0.3), 0 1px 3px rgba(0,0,0,0.4)'
+                  : '0 2px 8px rgba(255,255,255,0.15), 0 1px 3px rgba(0,0,0,0.4)',
+            }}
             aria-hidden="true"
-          />
-          {/* Noise floor overlay */}
-          {noiseFloorDb != null && (
+          >
+            {/* Groove ridges — console fader tactile lines */}
+            <div className={`absolute inset-x-2 top-[5px] h-[1.5px] rounded-full ${isSensitivity ? 'bg-blue-400/25' : autoGainEnabled ? 'bg-white/25' : 'bg-gray-500/40'}`} />
+            <div className={`absolute inset-x-1.5 top-1/2 -translate-y-1/2 h-[2px] rounded-full ${isSensitivity ? 'bg-cyan-300/50' : autoGainEnabled ? 'bg-white/40' : 'bg-gray-500/60'}`} />
+            <div className={`absolute inset-x-2 bottom-[5px] h-[1.5px] rounded-full ${isSensitivity ? 'bg-blue-400/25' : autoGainEnabled ? 'bg-white/25' : 'bg-gray-500/40'}`} />
+          </div>
+          {/* Upward arrow hints — guide new engineers to push sensitivity up */}
+          {isSensitivity && sensitivityValue >= 25 && (
+            <div
+              className={`absolute inset-x-0 pointer-events-none flex flex-col items-center gap-2 transition-opacity duration-500 ${
+                sensitivityValue >= 35 ? 'opacity-100' : 'opacity-50'
+              }`}
+              style={{ bottom: `${Math.max(thumbBottom + 8, 15)}%` }}
+              aria-hidden="true"
+            >
+              <span className="text-white/15 text-[10px] font-mono leading-none">▲</span>
+              <span className="text-white/10 text-[10px] font-mono leading-none">▲</span>
+            </div>
+          )}
+          {/* Noise floor overlay — gain mode only */}
+          {!isSensitivity && noiseFloorDb != null && (
             <div className="absolute bottom-0 inset-x-0 flex flex-col items-center pb-1.5 pointer-events-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
               <span className="text-sm font-mono font-semibold text-white/70 leading-none">
                 Floor
@@ -371,22 +488,41 @@ export const VerticalGainFader = memo(function VerticalGainFader({
         </div>
       </div>
 
-      {/* Venue quick-cal pills */}
+      {/* Quick presets — mode-dependent */}
       <div className="flex-shrink-0 flex flex-col items-center gap-1 w-full">
-        {([[-12, 'Loud'], [-18, 'Med'], [-24, 'Quiet']] as const).map(([db, label]) => (
-          <button
-            key={db}
-            onClick={() => onAutoGainTargetChange(db)}
-            className={`w-full px-1 py-1.5 rounded font-mono text-sm font-bold uppercase tracking-[0.15em] transition-all duration-150 active:scale-95 ${
-              autoGainEnabled && autoGainTargetDb === db
-                ? 'bg-primary/20 border border-primary/50 text-primary'
-                : 'bg-card/40 border border-transparent text-muted-foreground hover:bg-muted'
-            }`}
-            title={`${label}: auto-gain target ${db} dBFS`}
-          >
-            {label}
-          </button>
-        ))}
+        {isSensitivity ? (
+          // Sensitivity presets: Safe (40dB), Norm (25dB), Hot (8dB)
+          SENSITIVITY_PRESETS.map(([db, label]) => (
+            <button
+              key={db}
+              onClick={() => onSensitivityChange(db)}
+              className={`w-full px-1 py-1.5 rounded font-mono text-sm font-bold uppercase tracking-[0.15em] transition-all duration-150 active:scale-95 ${
+                sensitivityValue === db
+                  ? 'bg-blue-500/20 border border-blue-500/50 text-blue-400'
+                  : 'bg-card/40 border border-transparent text-muted-foreground hover:bg-muted'
+              }`}
+              title={`${label}: ${db}dB threshold`}
+            >
+              {label}
+            </button>
+          ))
+        ) : (
+          // Venue presets: Loud (-12), Med (-18), Quiet (-24)
+          ([[-12, 'Loud'], [-18, 'Med'], [-24, 'Quiet']] as const).map(([db, label]) => (
+            <button
+              key={db}
+              onClick={() => onAutoGainTargetChange(db)}
+              className={`w-full px-1 py-1.5 rounded font-mono text-sm font-bold uppercase tracking-[0.15em] transition-all duration-150 active:scale-95 ${
+                autoGainEnabled && autoGainTargetDb === db
+                  ? 'bg-primary/20 border border-primary/50 text-primary'
+                  : 'bg-card/40 border border-transparent text-muted-foreground hover:bg-muted'
+              }`}
+              title={`${label}: auto-gain target ${db} dBFS`}
+            >
+              {label}
+            </button>
+          ))
+        )}
       </div>
 
       {/* Start/stop toggle */}

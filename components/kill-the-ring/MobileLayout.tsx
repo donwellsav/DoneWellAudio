@@ -7,6 +7,7 @@ import { SpectrumCanvas } from './SpectrumCanvas'
 import { GEQBarView } from './GEQBarView'
 import { DetectionControls } from './DetectionControls'
 import { InputMeterSlider } from './InputMeterSlider'
+import { VerticalGainFader } from './VerticalGainFader'
 import { ResetConfirmDialog } from './ResetConfirmDialog'
 import { useAudioState } from '@/contexts/AudioStateContext'
 import { useDetection } from '@/contexts/DetectionContext'
@@ -24,15 +25,16 @@ interface MobileLayoutProps {
   onModeChange: (mode: OperationMode) => void
   onReset: () => void
   onFreqRangeChange: (min: number, max: number) => void
+  noiseFloorDb: number | null
 }
 
 export const MobileLayout = memo(function MobileLayout({
   mobileTab, setMobileTab,
   settings, onSettingsChange, onModeChange, onReset,
-  onFreqRangeChange,
+  onFreqRangeChange, noiseFloorDb,
 }: MobileLayoutProps) {
   const {
-    isRunning, isStarting, error, start,
+    isRunning, isStarting, error, start, stop,
     isFrozen, toggleFreeze,
     spectrumRef,
     inputLevel, isAutoGain, autoGainDb, autoGainLocked,
@@ -106,13 +108,15 @@ export const MobileLayout = memo(function MobileLayout({
 
   return (
     <>
-      {/* ── Mobile: 3-tab sliding content area (portrait only) ───── */}
-      <div
-        className="landscape:hidden flex-1 flex flex-col overflow-hidden"
-        style={{ touchAction: 'pan-y' }}
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-      >
+      {/* ── Mobile: 3-tab sliding content area + fader sidecar (portrait only) ───── */}
+      <div className="landscape:hidden flex-1 flex overflow-hidden">
+        {/* Sliding tab area — takes remaining width */}
+        <div
+          className="flex-1 flex flex-col overflow-hidden min-w-0"
+          style={{ touchAction: 'pan-y' }}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+        >
         <div
           className="flex-1 min-h-0 flex transition-transform duration-200 ease-out will-change-transform"
           style={{ transform: `translateX(-${tabIndex * 100}%)` }}
@@ -248,6 +252,28 @@ export const MobileLayout = memo(function MobileLayout({
               }
             />
           </div>
+        </div>
+        </div>
+        {/* Fader sidecar — persistent across all tabs */}
+        <div className="flex-shrink-0 w-16 border-l border-border/50 channel-strip">
+          <VerticalGainFader
+            value={settings.inputGainDb}
+            onChange={(v) => onSettingsChange({ inputGainDb: v })}
+            level={inputLevel}
+            autoGainEnabled={isAutoGain}
+            autoGainDb={autoGainDb}
+            autoGainLocked={autoGainLocked}
+            onAutoGainToggle={(enabled) => onSettingsChange({ autoGainEnabled: enabled })}
+            autoGainTargetDb={settings.autoGainTargetDb}
+            onAutoGainTargetChange={(db) => onSettingsChange({ autoGainTargetDb: db, autoGainEnabled: true })}
+            isRunning={isRunning}
+            onToggle={isRunning ? stop : start}
+            noiseFloorDb={noiseFloorDb}
+            faderMode={settings.faderMode}
+            onFaderModeChange={(mode) => onSettingsChange({ faderMode: mode })}
+            sensitivityValue={settings.feedbackThresholdDb}
+            onSensitivityChange={(db) => onSettingsChange({ feedbackThresholdDb: db })}
+          />
         </div>
       </div>
 
