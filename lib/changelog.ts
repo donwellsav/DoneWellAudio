@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.78.0',
+    date: '2026-03-12',
+    changes: [
+      { type: 'feat', description: 'Reduces dead space above Settings/Help tab icons on mobile by tightening SheetContent gap, SheetHeader padding, and Tabs margin (all behind `max-sm:` — zero desktop impact)' },
+      { type: 'feat', description: 'Shortens sheet descriptions (Settings, Help, Feedback History) to fit on one line at 375px, giving each header a clean 2-line layout' },
+      { type: 'feat', description: '[ ] Mobile (375px): Open Settings sheet — header is 2 lines, tab icons closer to header' },
+      { type: 'feat', description: '[ ] Mobile (375px): Open Help sheet — same compact header' },
+      { type: 'feat', description: '[ ] Mobile (375px): Open Feedback History — same compact header' },
+      { type: 'feat', description: '[ ] Desktop (1400px): All three sheets look identical to before' },
+    ],
+  },
+  {
     version: '0.77.1',
     date: '2026-03-12',
     changes: [
