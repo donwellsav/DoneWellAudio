@@ -611,13 +611,17 @@ describe.skip('Proposed V2 Weights — Regression Tests', () => {
   // MUSIC_V2:    msd:0.05, phase:0.30, spectral:0.12, comb:0.10, ihr:0.18, ptmr:0.15, existing:0.10
   // COMPRESS_V2: msd:0.08, phase:0.30, spectral:0.15, comb:0.10, ihr:0.15, ptmr:0.12, existing:0.10
   // DEFAULT_V2:  msd:0.25, phase:0.22, spectral:0.12, comb:0.08, ihr:0.13, ptmr:0.12, existing:0.08
+  //
+  // Note: customWeights uses Partial<typeof FUSION_WEIGHTS.DEFAULT> which has
+  // literal types from `as const`. Cast to number to allow proposed values.
+  type W = Record<string, number>
 
   it('V2 SPEECH: sustained vowel no longer false positive', () => {
     const result = fuse(
       { msd: 0.9, phase: 0.8, spectral: 0.5, comb: 0, ihr: 0.2, ptmr: 0.6 },
       'speech',
       0.7,
-      { customWeights: { msd: 0.35, phase: 0.20, spectral: 0.10, comb: 0.05, ihr: 0.10, ptmr: 0.15, existing: 0.05 } }
+      { customWeights: { msd: 0.35, phase: 0.20, spectral: 0.10, comb: 0.05, ihr: 0.10, ptmr: 0.15, existing: 0.05 } as W }
     )
     // With V2 weights, this should score BELOW threshold
     expect(result.feedbackProbability).toBeLessThan(0.60)
@@ -629,7 +633,7 @@ describe.skip('Proposed V2 Weights — Regression Tests', () => {
       { msd: 0.1, phase: 0.9, spectral: 0.9, comb: 0, ihr: 0.9, ptmr: 0.9 },
       'speech',
       0.8,
-      { customWeights: { msd: 0.35, phase: 0.20, spectral: 0.10, comb: 0.05, ihr: 0.10, ptmr: 0.15, existing: 0.05 } }
+      { customWeights: { msd: 0.35, phase: 0.20, spectral: 0.10, comb: 0.05, ihr: 0.10, ptmr: 0.15, existing: 0.05 } as W }
     )
     // With V2 weights, PTMR at 0.15 and IHR at 0.10 should compensate for low MSD
     console.log(`[V2 SPEECH FN] limiter-clamped: probability=${result.feedbackProbability.toFixed(3)}, verdict=${result.verdict}`)
@@ -640,7 +644,7 @@ describe.skip('Proposed V2 Weights — Regression Tests', () => {
       { msd: 0.6, phase: 0.3, spectral: 0.8, comb: 0, ihr: 0.8, ptmr: 0.7 },
       'music',
       0.6,
-      { customWeights: { msd: 0.05, phase: 0.30, spectral: 0.12, comb: 0.10, ihr: 0.18, ptmr: 0.15, existing: 0.10 } }
+      { customWeights: { msd: 0.05, phase: 0.30, spectral: 0.12, comb: 0.10, ihr: 0.18, ptmr: 0.15, existing: 0.10 } as W }
     )
     // With V2 weights, IHR at 0.18 and PTMR at 0.15 should push this above threshold
     console.log(`[V2 MUSIC FN] dense mix: probability=${result.feedbackProbability.toFixed(3)}, verdict=${result.verdict}`)
@@ -651,7 +655,7 @@ describe.skip('Proposed V2 Weights — Regression Tests', () => {
       { msd: 0.8, phase: 0.2, spectral: 0.8, comb: 0, ihr: 0.9, ptmr: 0.8, compressed: true },
       'unknown',
       0.7,
-      { customWeights: { msd: 0.08, phase: 0.30, spectral: 0.15, comb: 0.10, ihr: 0.15, ptmr: 0.12, existing: 0.10 } }
+      { customWeights: { msd: 0.08, phase: 0.30, spectral: 0.15, comb: 0.10, ihr: 0.15, ptmr: 0.12, existing: 0.10 } as W }
     )
     // With V2 weights, reduced phase dependency and increased IHR/spectral
     // should detect feedback even when phase is ruined by compressor pumping
