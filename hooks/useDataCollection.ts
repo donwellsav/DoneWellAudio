@@ -102,7 +102,9 @@ export function useDataCollection(): DataCollectionHandle {
     audioParamsRef.current = { fftSize, sampleRate }
 
     const consent = loadConsent()
-    if (consent.status === 'not_asked') {
+    if (consent.status === 'not_asked' || consent.status === 'prompted') {
+      // Show dialog for first-time users AND users who saw the dialog
+      // but never responded (dismissed without clicking Accept/Decline)
       markPrompted()
       setConsentStatus('prompted')
       setShowConsentDialog(true)
@@ -110,7 +112,7 @@ export function useDataCollection(): DataCollectionHandle {
       // Already consented — enable collection immediately
       enableCollection(fftSize, sampleRate)
     }
-    // 'declined' or 'prompted' — do nothing
+    // 'declined' — respect the explicit decline, don't re-prompt
   }, [enableCollection])
 
   // ─── User actions ─────────────────────────────────────────────────────
