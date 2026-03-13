@@ -9,36 +9,30 @@ import { DetectionControls } from './DetectionControls'
 import { InputMeterSlider } from './InputMeterSlider'
 import { VerticalGainFader } from './VerticalGainFader'
 import { ResetConfirmDialog } from './ResetConfirmDialog'
-import { useAudioState } from '@/contexts/AudioStateContext'
-import { useDetection } from '@/contexts/DetectionContext'
+import { useAudio } from '@/contexts/AudioAnalyzerContext'
+import { useAdvisories } from '@/contexts/AdvisoryContext'
+import { useUI } from '@/contexts/UIContext'
 import { Button } from '@/components/ui/button'
 import { RotateCcw, AlertTriangle, BarChart3, Settings2 } from 'lucide-react'
-import type { DetectorSettings, OperationMode } from '@/types/advisory'
+import type { DetectorSettings } from '@/types/advisory'
 
 const TAB_ORDER = ['issues', 'graph', 'settings'] as const
 
 interface MobileLayoutProps {
-  mobileTab: 'issues' | 'graph' | 'settings'
-  setMobileTab: (tab: 'issues' | 'graph' | 'settings') => void
-  settings: DetectorSettings
   onSettingsChange: (s: Partial<DetectorSettings>) => void
-  onModeChange: (mode: OperationMode) => void
-  onReset: () => void
-  onFreqRangeChange: (min: number, max: number) => void
-  noiseFloorDb: number | null
 }
 
 export const MobileLayout = memo(function MobileLayout({
-  mobileTab, setMobileTab,
-  settings, onSettingsChange, onModeChange, onReset,
-  onFreqRangeChange, noiseFloorDb,
+  onSettingsChange,
 }: MobileLayoutProps) {
   const {
     isRunning, isStarting, error, start, stop,
-    isFrozen, toggleFreeze,
-    spectrumRef,
+    spectrumRef, settings, handleModeChange, resetSettings, handleFreqRangeChange,
     inputLevel, isAutoGain, autoGainDb, autoGainLocked,
-  } = useAudioState()
+    noiseFloorDb,
+  } = useAudio()
+
+  const { isFrozen, toggleFreeze, mobileTab, setMobileTab } = useUI()
 
   const {
     advisories, activeAdvisoryCount, earlyWarning,
@@ -47,7 +41,8 @@ export const MobileLayout = memo(function MobileLayout({
     hasActiveRTAMarkers, hasActiveGEQBars,
     onClearRTA, onClearGEQ,
     onFalsePositive, falsePositiveIds,
-  } = useDetection()
+  } = useAdvisories()
+
   // ── Tab navigation ──────────────────────────────────────────
   const tabIndex = TAB_ORDER.indexOf(mobileTab)
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
@@ -85,13 +80,13 @@ export const MobileLayout = memo(function MobileLayout({
   }, [])
 
   const onTouchEnd = useCallback((e: React.TouchEvent) => {
-    const start = touchStartRef.current
-    if (!start) return
+    const startPos = touchStartRef.current
+    if (!startPos) return
     touchStartRef.current = null
 
     const touch = e.changedTouches[0]
-    const deltaX = touch.clientX - start.x
-    const deltaY = touch.clientY - start.y
+    const deltaX = touch.clientX - startPos.x
+    const deltaY = touch.clientY - startPos.y
 
     // Only trigger if horizontal swipe is dominant and exceeds threshold
     if (Math.abs(deltaX) < 50 || Math.abs(deltaX) < Math.abs(deltaY)) return
@@ -198,7 +193,7 @@ export const MobileLayout = memo(function MobileLayout({
                   Clear
                 </button>
               )}
-              <SpectrumCanvas spectrumRef={spectrumRef} advisories={advisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} onStart={!isRunning && !isStarting ? start : undefined} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={onFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} />
+              <SpectrumCanvas spectrumRef={spectrumRef} advisories={advisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} onStart={!isRunning && !isStarting ? start : undefined} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} />
             </div>
             {/* GEQ — bottom half */}
             <div className="flex-1 min-h-0 bg-card/40 rounded border border-border/40 overflow-hidden relative">
@@ -240,11 +235,11 @@ export const MobileLayout = memo(function MobileLayout({
             <div className="border-t border-border" />
             <section>
               <h3 className="section-label mb-2">Detection Controls</h3>
-              <DetectionControls settings={settings} onModeChange={onModeChange} onSettingsChange={onSettingsChange} />
+              <DetectionControls settings={settings} onModeChange={handleModeChange} onSettingsChange={onSettingsChange} />
             </section>
             <div className="border-t border-border" />
             <ResetConfirmDialog
-              onConfirm={onReset}
+              onConfirm={resetSettings}
               trigger={
                 <Button variant="outline" className="w-full h-11 text-sm font-medium">
                   <RotateCcw className="h-4 w-4 mr-2" />

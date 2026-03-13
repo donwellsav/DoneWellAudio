@@ -8,23 +8,18 @@ import { GEQBarView } from './GEQBarView'
 import { DetectionControls } from './DetectionControls'
 import { AlgorithmStatusBar } from './AlgorithmStatusBar'
 import { VerticalGainFader } from './VerticalGainFader'
-import { useAudioState } from '@/contexts/AudioStateContext'
-import { useDetection } from '@/contexts/DetectionContext'
+import { useAudio } from '@/contexts/AudioAnalyzerContext'
+import { useAdvisories } from '@/contexts/AdvisoryContext'
+import { useUI } from '@/contexts/UIContext'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AlertTriangle, PanelLeftClose, Columns2 } from 'lucide-react'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import type { ImperativePanelHandle } from 'react-resizable-panels'
-import type { DetectorSettings, OperationMode } from '@/types/advisory'
-import type { SpectrumStatus } from '@/hooks/useAudioAnalyzer'
+import type { DetectorSettings } from '@/types/advisory'
 
 interface DesktopLayoutProps {
-  layoutKey: number
-  settings: DetectorSettings
   onSettingsChange: (s: Partial<DetectorSettings>) => void
-  onModeChange: (mode: OperationMode) => void
-  spectrumStatus: SpectrumStatus | null
-  noiseFloorDb: number | null
   issuesPanelOpen: boolean
   issuesPanelRef: React.RefObject<ImperativePanelHandle | null>
   activeSidebarTab: 'issues' | 'controls'
@@ -32,27 +27,25 @@ interface DesktopLayoutProps {
   openIssuesPanel: () => void
   closeIssuesPanel: () => void
   setIssuesPanelOpen: (open: boolean) => void
-  onFreqRangeChange: (min: number, max: number) => void
   actualFps?: number
   droppedPercent?: number
 }
 
 export const DesktopLayout = memo(function DesktopLayout({
-  layoutKey,
-  settings, onSettingsChange, onModeChange,
-  spectrumStatus, noiseFloorDb,
+  onSettingsChange,
   issuesPanelOpen, issuesPanelRef,
   activeSidebarTab, setActiveSidebarTab,
   openIssuesPanel, closeIssuesPanel, setIssuesPanelOpen,
-  onFreqRangeChange,
   actualFps, droppedPercent,
 }: DesktopLayoutProps) {
   const {
     isRunning, isStarting, error, start, stop,
-    isFrozen, toggleFreeze,
-    spectrumRef,
+    spectrumRef, settings, handleModeChange, handleFreqRangeChange,
+    spectrumStatus, noiseFloorDb,
     inputLevel, isAutoGain, autoGainDb, autoGainLocked,
-  } = useAudioState()
+  } = useAudio()
+
+  const { isFrozen, toggleFreeze, layoutKey } = useUI()
 
   const {
     advisories, activeAdvisoryCount, earlyWarning,
@@ -61,7 +54,8 @@ export const DesktopLayout = memo(function DesktopLayout({
     hasActiveRTAMarkers, hasActiveGEQBars,
     onClearRTA, onClearGEQ,
     onFalsePositive, falsePositiveIds,
-  } = useDetection()
+  } = useAdvisories()
+
   return (
     <div className="hidden landscape:flex flex-1 overflow-hidden">
       <ResizablePanelGroup key={layoutKey} direction="horizontal" autoSaveId="ktr-layout-main-v4">
@@ -150,7 +144,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                 )}
                 {activeSidebarTab === 'controls' && (
                   <div className="animate-in fade-in-0 duration-150">
-                    <DetectionControls settings={settings} onModeChange={onModeChange} onSettingsChange={onSettingsChange} />
+                    <DetectionControls settings={settings} onModeChange={handleModeChange} onSettingsChange={onSettingsChange} />
                   </div>
                 )}
               </div>
@@ -239,7 +233,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                     </span>
                   </div>
                   <div className="flex-1 min-h-0">
-                    <SpectrumCanvas spectrumRef={spectrumRef} advisories={advisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} onStart={!isRunning && !isStarting ? start : undefined} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={onFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} />
+                    <SpectrumCanvas spectrumRef={spectrumRef} advisories={advisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} onStart={!isRunning && !isStarting ? start : undefined} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} />
                   </div>
                 </div>
               </div>

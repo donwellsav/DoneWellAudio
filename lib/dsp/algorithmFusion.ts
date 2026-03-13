@@ -104,42 +104,58 @@ export const COMB_CONSTANTS = {
   MAX_PATH_LENGTH: COMB_PATTERN_SETTINGS.MAX_PATH_LENGTH,
 } as const
 
+// Three-model consensus (Claude+Gemini+ChatGPT): 'existing' is a legacy
+// prominence metric that overlaps with spectral/MSD. Reduced to near-zero
+// and redistributed to IHR (harmonic discrimination) and PTMR (peak shape).
 export const FUSION_WEIGHTS = {
   DEFAULT: {
     msd: 0.30,
     phase: 0.25,
     spectral: 0.12,
     comb: 0.08,
-    ihr: 0.08,
-    ptmr: 0.07,
-    existing: 0.10,
+    ihr: 0.11,
+    ptmr: 0.10,
+    existing: 0.04,
   },
+  // SPEECH MSD reduced from 0.40 to 0.33 (effective 42.1% → ~34.7%)
+  // Three-model consensus: 0.40 caused false positives on sustained vowels.
+  // Gemini: 'Ummmm' scored 0.710. ChatGPT: 'Wooooo!' scored 0.720.
+  // Redistributed to phase (+0.04) and ptmr (+0.03) for better discrimination.
   SPEECH: {
-    msd: 0.40,
-    phase: 0.20,
+    msd: 0.33,
+    phase: 0.24,
     spectral: 0.10,
     comb: 0.05,
-    ihr: 0.05,
-    ptmr: 0.10,
-    existing: 0.10,
+    ihr: 0.08,
+    ptmr: 0.16,
+    existing: 0.04,
   },
+  // MUSIC MSD reduced from 0.15 to 0.08. DAFx-16 paper reports 22% accuracy
+  // on rock music. Giving MSD 15% of the vote means it's wrong 78% of the
+  // time but still influencing 15% of the decision. At 0.08, it's a weak
+  // corroborator, not a lead vote.
   MUSIC: {
-    msd: 0.15,
+    msd: 0.08,
     phase: 0.35,
     spectral: 0.10,
     comb: 0.08,
-    ihr: 0.12,
-    ptmr: 0.05,
-    existing: 0.15,
+    ihr: 0.21,
+    ptmr: 0.13,
+    existing: 0.05,
   },
+  // COMPRESSED phase reduced from 0.38 to 0.30 (effective 41.3% → ~33%)
+  // Three-model consensus: single-feature conviction risk. Phase at 41.3%
+  // effective could convict on Auto-Tuned vocals (ChatGPT) and
+  // pitch-corrected worship content (Gemini).
+  // Redistributed to spectral/ihr/ptmr for broader corroboration.
   COMPRESSED: {
     msd: 0.12,
-    phase: 0.38,
-    spectral: 0.15,
+    phase: 0.30,
+    spectral: 0.18,
     comb: 0.08,
-    ihr: 0.10,
-    ptmr: 0.07,
-    existing: 0.10,
+    ihr: 0.16,
+    ptmr: 0.12,
+    existing: 0.04,
   },
 } as const
 
@@ -385,7 +401,9 @@ export function fuseAlgorithmResults(
   scores: AlgorithmScores,
   contentType: ContentType = 'unknown',
   existingScore: number = 0.5,
-  config: FusionConfig = DEFAULT_FUSION_CONFIG
+  config: FusionConfig = DEFAULT_FUSION_CONFIG,
+  /** Peak frequency in Hz. When provided, enables frequency-aware scoring. */
+  peakFrequencyHz?: number
 ): FusedDetectionResult {
   const reasons: string[] = []
   const contributingAlgorithms: string[] = []
@@ -445,7 +463,14 @@ export function fuseAlgorithmResults(
   }
 
   if (activeAlgorithms.includes('phase') && scores.phase) {
-    weightedSum += scores.phase.feedbackScore * weights.phase
+    // Low-frequency phase suppression: below 200 Hz, FFT phase resolution
+    // is too coarse for reliable coherence measurement (8 bins at 50 Hz).
+    // Reduce phase influence by 50% to prevent phase noise from tanking
+    // detection of low-frequency feedback. Source: Gemini deep-think.
+    const phaseScore = (peakFrequencyHz !== undefined && peakFrequencyHz < 200)
+      ? scores.phase.feedbackScore * 0.5
+      : scores.phase.feedbackScore
+    weightedSum += phaseScore * weights.phase
     totalWeight += weights.phase
     contributingAlgorithms.push('Phase')
     if (scores.phase.isFeedbackLikely) {
@@ -462,6 +487,12 @@ export function fuseAlgorithmResults(
     }
   }
 
+  // Comb doubling: when acoustic comb pattern detected, comb weight doubles
+  // from base (e.g., 0.08 to 0.16). Both numerator and denominator are
+  // adjusted so feedbackProbability stays in [0,1]. This is intentional:
+  // comb detection is a strong physical indicator of a closed feedback loop.
+  // However, totalWeight becomes 1.08, diluting other algorithms by ~7.4%.
+  // See: ChatGPT-CTX finding #3, Gemini deep-think finding #6.
   if (activeAlgorithms.includes('comb') && scores.comb && scores.comb.hasPattern) {
     const combWeight = weights.comb * 2
     weightedSum += scores.comb.confidence * combWeight
@@ -502,17 +533,36 @@ export function fuseAlgorithmResults(
     contributingAlgorithms.push('Legacy')
   }
 
-  const feedbackProbability = totalWeight > 0
+  let feedbackProbability = totalWeight > 0
     ? Math.min(weightedSum / totalWeight, 1)
     : 0
 
+  // IHR penalty gate: rich harmonic content (>= 3 harmonics) reduces probability
+  // by 35%. This converts IHR from a weak linear contributor to a discriminative
+  // veto. Source: ChatGPT multiplicative gate proposal + Gemini deep-think.
+  // Musical instruments have rich harmonic series; feedback is a singular tone.
+  if (scores.ihr?.isMusicLike === true && (scores.ihr?.harmonicsFound ?? 0) >= 3) {
+    feedbackProbability *= 0.65
+  }
+
+  // PTMR breadth gate: very broad spectral peak (PTMR < 0.2) is unlikely to be
+  // feedback. Reduces probability by 20% to penalize wide-spectrum energy.
+  if ((scores.ptmr?.feedbackScore ?? 1) < 0.2) {
+    feedbackProbability *= 0.80
+  }
+
+  // ChatGPT-CTX finding: existing was inflating confidence via agreement list
+  // while containing correlated MSD-flavored evidence (double-counting)
+  // Removed from confidence to prevent correlated double-vote
+  // FIX-003: comb now included when active — fixes asymmetry where comb could
+  // flip verdict without confidence being aware of the score shift
   const algorithmScoresList = [
     scores.msd?.feedbackScore,
     scores.phase?.feedbackScore,
     scores.spectral?.feedbackScore,
     scores.ihr?.feedbackScore,
     scores.ptmr?.feedbackScore,
-    existingScore,
+    (scores.comb?.hasPattern ? scores.comb.confidence : undefined),
   ].filter((s): s is number => s !== undefined && s !== null)
 
   const mean     = algorithmScoresList.reduce((a, b) => a + b, 0) / algorithmScoresList.length

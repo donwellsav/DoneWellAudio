@@ -24,8 +24,14 @@ jobs:
       - name: Type-check
         run: npx tsc --noEmit
 
+      - name: Lint
+        run: pnpm lint
+
       - name: Test
         run: pnpm test
 
       - name: Build
         run: pnpm build
+
+      - name: Bundle size
+        run: du -sh .next/static/chunks/ | tee bundle-size.txt

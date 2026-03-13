@@ -15,42 +15,31 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { LayoutGrid, Maximize2, Mic, Minimize2, Pause, Play, Trash2 } from 'lucide-react'
-import { useDetection } from '@/contexts/DetectionContext'
-import type { OperationMode, DetectorSettings } from '@/types/advisory'
-import type { AudioDevice } from '@/hooks/useAudioDevices'
+import { useAdvisories } from '@/contexts/AdvisoryContext'
+import { useAudio } from '@/contexts/AudioAnalyzerContext'
+import { useUI } from '@/contexts/UIContext'
+import type { DetectorSettings } from '@/types/advisory'
 import type { CalibrationTabProps } from './settings/CalibrationTab'
 import type { DataCollectionTabProps } from './SettingsPanel'
 
 interface HeaderBarProps {
-  isRunning: boolean
-  start: () => void
-  stop: () => void
-  settings: DetectorSettings
   onSettingsChange: (s: Partial<DetectorSettings>) => void
-  onModeChange: (mode: OperationMode) => void
-  onReset: () => void
-  resetLayout: () => void
-  isFullscreen: boolean
-  toggleFullscreen: () => void
-  isFrozen: boolean
-  toggleFreeze: () => void
-  devices: AudioDevice[]
-  selectedDeviceId: string
-  onDeviceChange: (deviceId: string) => void
   calibration?: Omit<CalibrationTabProps, 'settings' | 'onSettingsChange'>
   dataCollection?: DataCollectionTabProps
 }
 
 export const HeaderBar = memo(function HeaderBar({
-  isRunning, start, stop,
-  settings, onSettingsChange, onModeChange, onReset,
-  resetLayout, isFullscreen, toggleFullscreen,
-  isFrozen, toggleFreeze,
-  devices, selectedDeviceId, onDeviceChange,
+  onSettingsChange,
   calibration,
   dataCollection,
 }: HeaderBarProps) {
-  const { advisories, dismissedIds, onClearAll } = useDetection()
+  const {
+    isRunning, start, stop,
+    settings, handleModeChange, resetSettings,
+    devices, selectedDeviceId, handleDeviceChange,
+  } = useAudio()
+  const { resetLayout, isFullscreen, toggleFullscreen, isFrozen, toggleFreeze } = useUI()
+  const { advisories, dismissedIds, onClearAll } = useAdvisories()
   const hasAdvisories = isRunning && advisories.some(a => !dismissedIds.has(a.id))
 
   return (
@@ -119,7 +108,7 @@ export const HeaderBar = memo(function HeaderBar({
               </TooltipContent>
             </Tooltip>
             <DropdownMenuContent align="end" className="max-w-[360px]">
-              <DropdownMenuRadioGroup value={selectedDeviceId} onValueChange={onDeviceChange}>
+              <DropdownMenuRadioGroup value={selectedDeviceId} onValueChange={handleDeviceChange}>
                 <DropdownMenuRadioItem value="" className="text-sm">
                   Default (System)
                 </DropdownMenuRadioItem>
@@ -216,8 +205,8 @@ export const HeaderBar = memo(function HeaderBar({
           <LazySettingsPanel
             settings={settings}
             onSettingsChange={onSettingsChange}
-            onModeChange={onModeChange}
-            onReset={onReset}
+            onModeChange={handleModeChange}
+            onReset={resetSettings}
             calibration={calibration}
             dataCollection={dataCollection}
           />

@@ -38,13 +38,15 @@ function fuse(
   input: ScoreInput,
   contentType: 'speech' | 'music' | 'compressed' | 'unknown' = 'unknown',
   existingScore: number = 0.5,
-  config?: Partial<FusionConfig>
+  config?: Partial<FusionConfig>,
+  peakFrequencyHz?: number
 ) {
   return fuseAlgorithmResults(
     buildScores(input),
     contentType,
     existingScore,
-    { ...DEFAULT_FUSION_CONFIG, ...config }
+    { ...DEFAULT_FUSION_CONFIG, ...config },
+    peakFrequencyHz
   )
 }
 
@@ -91,11 +93,12 @@ describe('Effective Weights — Comb Absent', () => {
    * Effective share = algorithmWeight / totalNoComb.
    */
 
-  it('SPEECH MSD effective weight is 42.1%', () => {
+  it('SPEECH MSD effective weight is 34.7% (FIX-004: reduced from 42.1%)', () => {
     const w = FUSION_WEIGHTS.SPEECH
     const totalNoComb = 1 - w.comb
     const effectiveMsd = w.msd / totalNoComb
-    expect(effectiveMsd).toBeCloseTo(0.421, 2)
+    // FIX-004: MSD reduced from 0.40→0.33, effective 42.1% → 34.7%
+    expect(effectiveMsd).toBeCloseTo(0.347, 2)
   })
 
   it('MUSIC Phase effective weight is 38.0%', () => {
@@ -105,18 +108,20 @@ describe('Effective Weights — Comb Absent', () => {
     expect(effectivePhase).toBeCloseTo(0.380, 2)
   })
 
-  it('COMPRESSED Phase effective weight is 41.3%', () => {
+  it('COMPRESSED Phase effective weight is ~32.6% (FIX-005: reduced from 41.3%)', () => {
     const w = FUSION_WEIGHTS.COMPRESSED
     const totalNoComb = 1 - w.comb
     const effectivePhase = w.phase / totalNoComb
-    expect(effectivePhase).toBeCloseTo(0.413, 2)
+    // FIX-005: phase reduced from 0.38 → 0.30, effective 41.3% → 32.6%
+    expect(effectivePhase).toBeCloseTo(0.326, 2)
   })
 
-  it('MUSIC existing effective weight is 16.3%', () => {
+  it('MUSIC existing effective weight is 5.4%', () => {
     const w = FUSION_WEIGHTS.MUSIC
     const totalNoComb = 1 - w.comb
     const effectiveExisting = w.existing / totalNoComb
-    expect(effectiveExisting).toBeCloseTo(0.163, 2)
+    // FIX-002: existing reduced from 0.15 → 0.05, effective 16.3% → 5.4%
+    expect(effectiveExisting).toBeCloseTo(0.054, 2)
   })
 })
 
@@ -146,9 +151,11 @@ describe('Single-Algorithm Isolation', () => {
     expect(result.feedbackProbability).toBeLessThan(0.60)
   })
 
-  it('MSD+Phase+Spectral all=1.0 exceeds 0.60', () => {
+  it('MSD+Phase+Spectral all=1.0 exceeds 0.60 (with PTMR support)', () => {
+    // ADV-001: ptmr=0 now triggers PTMR breadth gate (×0.80), so provide
+    // minimal PTMR support to avoid penalty
     const result = fuse(
-      { msd: 1.0, phase: 1.0, spectral: 1.0, comb: 0, ihr: 0, ptmr: 0 },
+      { msd: 1.0, phase: 1.0, spectral: 1.0, comb: 0, ihr: 0, ptmr: 0.3 },
       'unknown',
       0
     )
@@ -312,19 +319,27 @@ describe('Gemini Vulnerability Scenarios — COMPRESSED Profile', () => {
    * (MSD=0.8), pure tone underneath (Spectral=0.8, IHR=0.9, PTMR=0.8),
    * Existing=0.7.
    *
-   * EXPECTED: FALSE NEGATIVE — real feedback missed because compressor
-   * destroys the very signal (phase) that COMPRESSED mode relies on most.
-   * Gemini calculated: 0.508
-   * ROOT CAUSE: Phase weight of 0.38 is a single point of failure.
+   * PRE-FIX-005: FALSE NEGATIVE — real feedback missed because compressor
+   * destroyed the very signal (phase) that COMPRESSED mode relied on most.
+   * Gemini calculated: 0.508. ROOT CAUSE: Phase weight of 0.38 was a
+   * single point of failure.
+   *
+   * POST-FIX-005: IMPROVED — redistributing phase weight to spectral/ihr/ptmr
+   * means the strong non-phase signals (spectral=0.8, ihr=0.9, ptmr=0.8)
+   * now carry enough weight to cross the threshold. Real feedback detected!
    */
-  it('FALSE NEGATIVE: compressor-pumped feedback misses detection', () => {
+  it('FN IMPROVED: compressor-pumped feedback now detected (FIX-005)', () => {
     const result = fuse(
       { msd: 0.8, phase: 0.2, spectral: 0.8, comb: 0, ihr: 0.9, ptmr: 0.8, compressed: true },
       'unknown',
       0.7
     )
-    expect(result.feedbackProbability).toBeLessThan(0.60)
-    console.log(`[COMPRESSED FN] pumping: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
+    // FIX-005: phase redistribution allows non-phase algorithms to detect.
+    // Prob crosses 0.60 but compressed thresholdMultiplier (1.5) raises
+    // FEEDBACK threshold to 0.90, so verdict stays POSSIBLE_FEEDBACK.
+    expect(result.feedbackProbability).toBeGreaterThan(0.60)
+    expect(result.verdict).toBe('POSSIBLE_FEEDBACK')
+    console.log(`[COMPRESSED FN IMPROVED] pumping: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
   })
 })
 
@@ -358,14 +373,18 @@ describe('Consensus Vulnerability: DEFAULT Profile', () => {
 })
 
 describe('Consensus Vulnerability: SPEECH Profile', () => {
-  it('V3 — FP: MSD-only conviction', () => {
+  it('V3 — FP FIXED: MSD-only conviction no longer reaches FEEDBACK (FIX-004)', () => {
     const result = fuse(
       { msd: 1.0, phase: 0, spectral: 0.60, ihr: 0.40, ptmr: 0.60, comb: 0 },
       'speech',
       0.80
     )
-    expect(result.feedbackProbability).toBeGreaterThan(0.60)
-    console.log(`[V3 SPEECH FP] msd-only: prob=${result.feedbackProbability.toFixed(3)}, conf=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
+    // FIX-004: SPEECH MSD reduced from 0.40→0.33.
+    // Before: prob=0.634 (FEEDBACK). After: prob≈0.579 (POSSIBLE_FEEDBACK).
+    // MSD-only conviction no longer crosses the 0.60 threshold.
+    expect(result.feedbackProbability).toBeLessThan(0.60)
+    expect(result.verdict).not.toBe('FEEDBACK')
+    console.log(`[V3 SPEECH FP FIXED] msd-only: prob=${result.feedbackProbability.toFixed(3)}, conf=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
   })
 
   it('V4 — FN: No MSD (feedback invisible to dominant algorithm)', () => {
@@ -416,14 +435,16 @@ describe('Consensus Vulnerability: COMB Pattern', () => {
 })
 
 describe('Consensus Vulnerability: COMPRESSED Profile', () => {
-  it('V8 — FP: Phase conviction under compression', () => {
+  it('V8 — FP FIXED: Phase conviction under compression no longer reaches FEEDBACK (FIX-005)', () => {
     const result = fuse(
       { msd: 0, phase: 1.0, spectral: 0.40, ihr: 0.40, ptmr: 0.60, compressed: true, comb: 0 },
       'unknown',
       0.80
     )
-    expect(result.feedbackProbability).toBeGreaterThan(0.60)
-    console.log(`[V8 COMPRESSED FP] phase-conviction: prob=${result.feedbackProbability.toFixed(3)}, conf=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
+    // FIX-005: COMPRESSED phase reduced 0.38→0.30, prob drops below 0.60
+    expect(result.feedbackProbability).toBeLessThan(0.60)
+    expect(result.verdict).not.toBe('FEEDBACK')
+    console.log(`[V8 COMPRESSED FP FIXED] phase-conviction: prob=${result.feedbackProbability.toFixed(3)}, conf=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
   })
 })
 
@@ -599,7 +620,51 @@ describe('Edge Cases', () => {
 })
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 8. PROPOSED V2 WEIGHTS — Regression Tests
+// 8. LOW-FREQUENCY PHASE SUPPRESSION (ADV-002)
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('Low-Frequency Phase Suppression (ADV-002)', () => {
+  const highPhaseScores = { msd: 0.5, phase: 1.0, spectral: 0.5, comb: 0, ihr: 0.5, ptmr: 0.5 }
+
+  it('phase is suppressed at 100 Hz (below 200 Hz threshold)', () => {
+    const normal = fuse(highPhaseScores, 'unknown', 0.5, undefined, undefined)
+    const lowFreq = fuse(highPhaseScores, 'unknown', 0.5, undefined, 100)
+
+    // Low-frequency version should have lower probability due to phase × 0.5
+    expect(lowFreq.feedbackProbability).toBeLessThan(normal.feedbackProbability)
+    console.log(`[ADV-002] normal=${normal.feedbackProbability.toFixed(3)}, lowFreq=${lowFreq.feedbackProbability.toFixed(3)}`)
+  })
+
+  it('phase is NOT suppressed at 500 Hz (above 200 Hz threshold)', () => {
+    const normal = fuse(highPhaseScores, 'unknown', 0.5, undefined, undefined)
+    const midFreq = fuse(highPhaseScores, 'unknown', 0.5, undefined, 500)
+
+    // Above 200 Hz: no suppression, same probability
+    expect(midFreq.feedbackProbability).toBeCloseTo(normal.feedbackProbability, 10)
+  })
+
+  it('phase is NOT suppressed when peakFrequencyHz is undefined', () => {
+    const withoutFreq = fuse(highPhaseScores, 'unknown', 0.5, undefined, undefined)
+    const withHighFreq = fuse(highPhaseScores, 'unknown', 0.5, undefined, 1000)
+
+    // Both should be identical: no suppression
+    expect(withoutFreq.feedbackProbability).toBeCloseTo(withHighFreq.feedbackProbability, 10)
+  })
+
+  it('suppression at 50 Hz reduces phase influence significantly', () => {
+    // Use MUSIC profile where phase is dominant (35% weight)
+    const normal = fuse(highPhaseScores, 'music', 0.5, undefined, undefined)
+    const subBass = fuse(highPhaseScores, 'music', 0.5, undefined, 50)
+
+    const delta = normal.feedbackProbability - subBass.feedbackProbability
+    // Phase score halved × 35% nominal weight → expect noticeable drop
+    expect(delta).toBeGreaterThan(0.05)
+    console.log(`[ADV-002 MUSIC] delta=${delta.toFixed(3)} (normal=${normal.feedbackProbability.toFixed(3)}, subBass=${subBass.feedbackProbability.toFixed(3)})`)
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 9. PROPOSED V2 WEIGHTS — Regression Tests
 //
 // When implementing weight changes based on Gemini's recommendations,
 // uncomment these tests and update the expected values.
