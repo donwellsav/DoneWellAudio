@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.92.1',
+    date: '2026-03-13',
+    changes: [
+      { type: 'fix', description: 'test: DSP unit tests for fusion weights, MSD, phase coherence (#93)' },
+    ],
+  },
+  {
     version: '0.92.0',
     date: '2026-03-13',
     changes: [
