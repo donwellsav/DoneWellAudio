@@ -14,6 +14,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.91.0',
+    date: '2026-03-13',
+    changes: [
+      { type: 'feat', description: '**Root cause found**: `SnapshotUploader` used `CompressionStream(\'gzip\')` to compress payloads before POST. Next.js `request.json()` does NOT decompress gzip request bodies → 400 "Invalid JSON" → no retry (4xx = client error) → batch silently lost to IndexedDB' },
+      { type: 'feat', description: 'All modern browsers support `CompressionStream`, so **100% of real browser uploads were failing**. Test scripts worked because they send plain JSON.' },
+      { type: 'feat', description: '**Fix**: Removed `compressPayload()` entirely (payloads are 2-10KB, compression unnecessary)' },
+      { type: 'feat', description: 'Added edge function request logging and pipeline test scripts' },
+      { type: 'feat', description: '[ ] `npx tsc --noEmit` passes' },
+      { type: 'feat', description: '[ ] `pnpm test` — 195 tests pass' },
+      { type: 'feat', description: '[ ] `pnpm build` succeeds' },
+      { type: 'feat', description: '[ ] After deploy: open killthering.com, start analysis, trigger feedback → verify new rows in `spectral_snapshots`' },
+      { type: 'feat', description: '[ ] Run `node scripts/test-pipeline.mjs` to verify server-side still works' },
+    ],
+  },
+  {
     version: '0.89.1',
     date: '2026-03-13',
     changes: [
