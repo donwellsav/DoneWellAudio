@@ -158,6 +158,22 @@ export const RTA_M_CALIBRATION: readonly [number, number][] = [
   [20000, -1.0],
 ] as const
 
+// ── Mic Calibration: Smartphone (Generic MEMS) ──────────────────────────────
+// Typical bottom-port MEMS microphone response (Knowles/Goertek/InvenSense)
+// Based on published MEMS mic datasheets (SPH0645, ICS-43434, BME680)
+// Characteristics: steep LF roll-off from small acoustic port, flat midrange,
+// presence peak ~8-12 kHz from diaphragm resonance, HF roll-off above 15 kHz
+// Format: [frequency Hz, response dB relative to 1 kHz]
+export const SMARTPHONE_MEMS_CALIBRATION: readonly [number, number][] = [
+  [20, -12.0], [25, -10.5], [31.5, -9.0], [40, -7.5], [50, -6.0],
+  [63, -4.5], [80, -3.0], [100, -1.8], [125, -1.0], [160, -0.5],
+  [200, -0.2], [250, -0.1], [315, 0.0], [400, 0.0], [500, 0.0],
+  [630, 0.0], [800, 0.0], [1000, 0.0], [1250, 0.1], [1600, 0.2],
+  [2000, 0.3], [2500, 0.5], [3150, 0.8], [4000, 1.2], [5000, 1.8],
+  [6300, 2.5], [8000, 3.5], [10000, 3.8], [12500, 2.5], [16000, 0.0],
+  [20000, -6.0],
+] as const
+
 // ── Mic Calibration Profiles ─────────────────────────────────────────────────
 
 import type { MicCalibrationProfile } from '@/types/advisory'
@@ -181,6 +197,12 @@ export const MIC_CALIBRATION_PROFILES: Record<Exclude<MicCalibrationProfile, 'no
     model: 'dbx RTA-M',
     calibrationId: 'Cut Sheet Rev A',
     curve: RTA_M_CALIBRATION,
+  },
+  smartphone: {
+    label: 'Smartphone (Generic MEMS)',
+    model: 'Generic MEMS Microphone',
+    calibrationId: 'Typical MEMS Response',
+    curve: SMARTPHONE_MEMS_CALIBRATION,
   },
 } as const
 

@@ -149,7 +149,7 @@ export const HelpMenu = memo(function HelpMenu() {
                     <li><strong>Display:</strong> Tooltips, graph font size, max issues, EQ style, RTA dB range, spectrum line width.</li>
                     <li><strong>Room:</strong> Room acoustics presets, RT60, volume, Schroeder frequency, modal overlap.</li>
                     <li><strong>Advanced:</strong> Save/load defaults, reset to factory settings.</li>
-                    <li><strong>Calibrate:</strong> Room profile (dimensions, materials, mics), ambient noise capture, measurement mic compensation (Behringer ECM8000 or dbx RTA-M), calibration session recording with live stats and JSON export (v1.1 with per-event mic cal flags).</li>
+                    <li><strong>Calibrate:</strong> Room profile (dimensions, materials, mics), ambient noise capture, measurement mic compensation (Behringer ECM8000, dbx RTA-M, or Smartphone MEMS), calibration session recording with live stats and JSON export (v1.1 with per-event mic cal flags).</li>
                   </ul>
                 </HelpSection>
 
@@ -699,11 +699,13 @@ export const HelpMenu = memo(function HelpMenu() {
 
                   <div className="bg-background/80 px-3 py-2 rounded font-mono text-sm border border-border/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)] space-y-0.5">
                     <p className="text-foreground font-semibold">Measurement Mic Calibration Compensation</p>
-                    <p>Supported profiles: Behringer ECM8000, dbx RTA-M (select in Calibrate tab)</p>
+                    <p>Supported profiles: Behringer ECM8000, dbx RTA-M, Smartphone MEMS (select in Calibrate tab)</p>
                     <p className="mt-1 text-foreground font-medium">ECM8000 (CSL calibration #746)</p>
                     <p>38-point 1/3-octave curve | Max deviation: +4.7 dB @ 16 kHz</p>
                     <p className="mt-1 text-foreground font-medium">dbx RTA-M (digitized from cut sheet)</p>
                     <p>31-point curve | Max deviation: ±1.5 dB (near-flat response mic)</p>
+                    <p className="mt-1 text-foreground font-medium">Smartphone (Generic MEMS)</p>
+                    <p>31-point curve | Compensates −12 dB LF roll-off + 3.8 dB presence peak (8–10 kHz)</p>
                     <p className="mt-1">Compensation: negate the curve → flatten mic response → true SPL</p>
                     <p className="text-muted-foreground">Applied in DSP hot loop alongside A-weighting. Both offsets stack additively per FFT bin.</p>
                     <p className="text-muted-foreground">Calibration export v1.1 includes per-event flags and the full curve for reversal.</p>
@@ -802,7 +804,7 @@ export const HelpMenu = memo(function HelpMenu() {
                 <span className="text-muted-foreground">Confidence threshold</span><span className="font-mono">35%</span>
                 <span className="text-muted-foreground">Algorithm mode</span><span className="font-mono">Auto (content-adaptive)</span>
                 <span className="text-muted-foreground">A-weighting</span><span className="font-mono">Enabled</span>
-                <span className="text-muted-foreground">Mic calibration</span><span className="font-mono">None (ECM8000 / RTA-M available)</span>
+                <span className="text-muted-foreground">Mic calibration</span><span className="font-mono">None (ECM8000 / RTA-M / Smartphone available)</span>
                 <span className="text-muted-foreground">Sustain time</span><span className="font-mono">300 ms</span>
                 <span className="text-muted-foreground">Clear time</span><span className="font-mono">400 ms</span>
                 <span className="text-muted-foreground">Threshold mode</span><span className="font-mono">Hybrid</span>
