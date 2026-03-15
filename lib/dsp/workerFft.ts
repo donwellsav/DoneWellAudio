@@ -223,6 +223,7 @@ export interface FrameStats {
 export interface AlgorithmResult {
   algorithmScores: AlgorithmScores
   contentType: ContentType
+  /** @deprecated Legacy existing score — retained for API compatibility but no longer used in fusion. */
   existingScore: number
 }
 

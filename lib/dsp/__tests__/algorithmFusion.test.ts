@@ -370,7 +370,7 @@ describe('fuseAlgorithmResults', () => {
     const result = fuseAlgorithmResults(feedbackScores(), 'unknown', 0.5)
     expect(result.contributingAlgorithms).toContain('MSD')
     expect(result.contributingAlgorithms).toContain('Phase')
-    expect(result.contributingAlgorithms).toContain('Legacy') // existingScore
+    // Legacy/existing weight removed — no longer contributes
   })
 
   it('generates reasons array for detected issues', () => {
@@ -386,15 +386,15 @@ describe('fuseAlgorithmResults', () => {
 
   it('handles all-null scores gracefully', () => {
     const result = fuseAlgorithmResults(emptyScores(), 'unknown', 0.5)
-    // Only legacy/existing contributes
-    expect(result.contributingAlgorithms).toContain('Legacy')
+    // No algorithms contribute (existing weight removed), probability should be 0
+    expect(result.feedbackProbability).toBe(0)
     expect(result.feedbackProbability).toBeGreaterThanOrEqual(0)
     expect(result.feedbackProbability).toBeLessThanOrEqual(1)
   })
 
   it('uses speech weights for speech content', () => {
     const result = fuseAlgorithmResults(feedbackScores(), 'speech', 0.5)
-    // Speech mode upweights MSD (0.40 vs 0.30 default)
+    // Speech mode upweights MSD (0.33 vs 0.30 default)
     expect(result.contributingAlgorithms).toContain('MSD')
   })
 
@@ -462,7 +462,7 @@ describe('confidence formula', () => {
     // When all algorithms agree (uniform scores), variance=0 → agreement=1
     // confidence = 1.0 * probability + 0 * 0.5 = probability
     const result = fuseAlgorithmResults(uniformScores(0.9), 'unknown', 0.9)
-    // With uniform scores and existing=0.9, probability ≈ 0.9, agreement ≈ 1
+    // With uniform scores at 0.9, probability ≈ 0.9, agreement ≈ 1
     // So confidence ≈ probability
     expect(result.confidence).toBeGreaterThan(0.7)
     expect(result.confidence).toBeLessThanOrEqual(1)
@@ -559,7 +559,7 @@ describe('content-weight interaction', () => {
 
   it('speech mode uses SPEECH weights', () => {
     const result = fuseAlgorithmResults(feedbackScoresForWeight(), 'speech', 0.8)
-    // Speech mode upweights MSD (0.40) vs default (0.30)
+    // Speech mode upweights MSD (0.33) vs default (0.30)
     expect(result.contributingAlgorithms).toContain('MSD')
     expect(result.verdict).toBe('FEEDBACK')
   })

@@ -297,7 +297,7 @@ React State Update → UI Render
 
 ## Advanced Detection Algorithms
 
-Kill The Ring uses seven complementary detection algorithms based on peer-reviewed academic research. Each algorithm exploits a different physical property of acoustic feedback.
+Kill The Ring uses six complementary detection algorithms based on peer-reviewed academic research. Each algorithm exploits a different physical property of acoustic feedback.
 
 ### 1. MSD (Magnitude Slope Deviation) - DAFx-16 Paper
 
@@ -348,9 +348,9 @@ Where:
 
 **Implementation:** `lib/dsp/advancedDetection.ts` - `PhaseHistoryBuffer` class
 
-### 3. Spectral Flatness + Kurtosis
+### 3. Spectral Flatness / Compression
 
-**Physical principle:** Feedback is a **near-pure tone** with very low spectral flatness (Wiener entropy) around the peak frequency. The amplitude distribution also has high kurtosis (peaky, not Gaussian).
+**Physical principle:** Feedback is a **near-pure tone** with very low spectral flatness (Wiener entropy) around the peak frequency. The amplitude distribution also has high kurtosis (peaky, not Gaussian). This algorithm also incorporates compression detection — dynamically compressed audio (common in rock/pop music) has sustained notes that look like early-stage feedback. By analyzing crest factor and dynamic range alongside spectral flatness, the system adapts its thresholds to avoid false positives on compressed content.
 
 **Formulas:**
 
@@ -371,7 +371,15 @@ K = E[(X-μ)⁴] / (E[(X-μ)²])² - 3
 | Speech | 0.05-0.15 | 1-5 |
 | Music | > 0.1 | < 3 |
 
-**Implementation:** `lib/dsp/advancedDetection.ts` - `calculateSpectralFlatness()` function
+**Compression detection criteria:**
+- Normal crest factor: ~12 dB (peak-to-RMS)
+- Compressed crest factor: < 6 dB
+- Normal dynamic range: > 20 dB
+- Compressed dynamic range: < 8 dB
+
+When compression is detected, the system raises the MSD threshold, increases required analysis frames, and weights phase coherence more heavily.
+
+**Implementation:** `lib/dsp/advancedDetection.ts` - `calculateSpectralFlatness()` function, `AmplitudeHistoryBuffer` class
 
 ### 4. Comb Filter Pattern Detection - DBX Paper
 
@@ -396,24 +404,7 @@ If we detect 3+ peaks at regular frequency spacing, it strongly indicates a feed
 
 **Implementation:** `lib/dsp/advancedDetection.ts` - `detectCombPattern()` function
 
-### 5. Compression Detection
-
-**Physical principle:** Dynamically compressed audio (common in rock/pop music) has sustained notes that look like early-stage feedback - sustained amplitude with low MSD. We detect compression by analyzing crest factor and dynamic range.
-
-**Detection criteria:**
-- Normal crest factor: ~12 dB (peak-to-RMS)
-- Compressed crest factor: < 6 dB
-- Normal dynamic range: > 20 dB
-- Compressed dynamic range: < 8 dB
-
-When compression is detected, the system:
-1. Raises the MSD threshold
-2. Increases required analysis frames
-3. Weights phase coherence more heavily
-
-**Implementation:** `lib/dsp/advancedDetection.ts` - `AmplitudeHistoryBuffer` class
-
-### 6. IHR (Inter-Harmonic Ratio)
+### 5. IHR (Inter-Harmonic Ratio)
 
 **Physical principle:** Feedback produces pure tones — the energy at the fundamental frequency far exceeds energy at non-harmonically-related frequencies. Musical instruments produce rich harmonic series with energy spread across many partials.
 
@@ -421,7 +412,7 @@ IHR measures the ratio of harmonically-related peak energy to unrelated spectral
 
 **Implementation:** `lib/dsp/algorithmFusion.ts` — computed during fusion scoring
 
-### 7. PTMR (Peak-to-Median Ratio)
+### 6. PTMR (Peak-to-Median Ratio)
 
 **Physical principle:** Feedback creates very narrow spectral peaks — essentially a single frequency bin (or a few bins) rising far above the local neighborhood. Music and speech produce broad spectral energy across many bins.
 
@@ -438,22 +429,22 @@ All algorithm scores are combined using a weighted voting system with content-aw
 ### Fusion Formula
 
 ```
-Score_feedback = w₁·S_MSD + w₂·S_phase + w₃·S_spectral + w₄·S_comb + w₅·S_existing
+Score_feedback = w₁·S_MSD + w₂·S_phase + w₃·S_spectral + w₄·S_comb + w₅·S_IHR + w₆·S_PTMR
 ```
 
 ### Content-Aware Weights
 
-| Content Type | MSD | Phase | Spectral | Comb | Existing |
-|--------------|-----|-------|----------|------|----------|
-| Speech | 0.45 | 0.25 | 0.15 | 0.05 | 0.10 |
-| Music | 0.20 | 0.40 | 0.15 | 0.10 | 0.15 |
-| Compressed | 0.15 | 0.45 | 0.20 | 0.10 | 0.10 |
-| Unknown | 0.35 | 0.30 | 0.15 | 0.10 | 0.10 |
+| Content Type | MSD  | Phase | Spectral | Comb | IHR  | PTMR |
+|--------------|------|-------|----------|------|------|------|
+| Default      | 0.30 | 0.25  | 0.12     | 0.08 | 0.13 | 0.12 |
+| Speech       | 0.33 | 0.24  | 0.10     | 0.05 | 0.10 | 0.18 |
+| Music        | 0.08 | 0.35  | 0.10     | 0.08 | 0.24 | 0.15 |
+| Compressed   | 0.12 | 0.30  | 0.18     | 0.08 | 0.18 | 0.14 |
 
 ### Decision Matrix
 
-| MSD Score | Phase Score | Existing Score | Verdict |
-|-----------|-------------|----------------|---------|
+| MSD Score | Phase Score | IHR/PTMR | Verdict |
+|-----------|-------------|----------|---------|
 | High | High | High | **FEEDBACK** (confirmed) |
 | High | High | Low | POSSIBLE_FEEDBACK (early) |
 | High | Low | High | POSSIBLE_FEEDBACK (room mode?) |

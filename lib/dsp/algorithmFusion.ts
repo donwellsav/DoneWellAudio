@@ -104,18 +104,18 @@ export const COMB_CONSTANTS = {
   MAX_PATH_LENGTH: COMB_PATTERN_SETTINGS.MAX_PATH_LENGTH,
 } as const
 
-// Three-model consensus (Claude+Gemini+ChatGPT): 'existing' is a legacy
-// prominence metric that overlaps with spectral/MSD. Reduced to near-zero
-// and redistributed to IHR (harmonic discrimination) and PTMR (peak shape).
+// Three-model consensus (Claude+Gemini+ChatGPT): 'existing' was a legacy
+// prominence metric that overlapped with spectral/MSD (double-counting).
+// Removed entirely and redistributed to IHR (harmonic discrimination) and
+// PTMR (peak shape) — the two novel algorithms measuring unique properties.
 export const FUSION_WEIGHTS = {
   DEFAULT: {
     msd: 0.30,
     phase: 0.25,
     spectral: 0.12,
     comb: 0.08,
-    ihr: 0.11,
-    ptmr: 0.10,
-    existing: 0.04,
+    ihr: 0.13,
+    ptmr: 0.12,
   },
   // SPEECH MSD reduced from 0.40 to 0.33 (effective 42.1% → ~34.7%)
   // Three-model consensus: 0.40 caused false positives on sustained vowels.
@@ -126,9 +126,8 @@ export const FUSION_WEIGHTS = {
     phase: 0.24,
     spectral: 0.10,
     comb: 0.05,
-    ihr: 0.08,
-    ptmr: 0.16,
-    existing: 0.04,
+    ihr: 0.10,
+    ptmr: 0.18,
   },
   // MUSIC MSD reduced from 0.15 to 0.08. DAFx-16 paper reports 22% accuracy
   // on rock music. Giving MSD 15% of the vote means it's wrong 78% of the
@@ -139,9 +138,8 @@ export const FUSION_WEIGHTS = {
     phase: 0.35,
     spectral: 0.10,
     comb: 0.08,
-    ihr: 0.21,
-    ptmr: 0.13,
-    existing: 0.05,
+    ihr: 0.24,
+    ptmr: 0.15,
   },
   // COMPRESSED phase reduced from 0.38 to 0.30 (effective 41.3% → ~33%)
   // Three-model consensus: single-feature conviction risk. Phase at 41.3%
@@ -153,9 +151,8 @@ export const FUSION_WEIGHTS = {
     phase: 0.30,
     spectral: 0.18,
     comb: 0.08,
-    ihr: 0.16,
-    ptmr: 0.12,
-    existing: 0.04,
+    ihr: 0.18,
+    ptmr: 0.14,
   },
 } as const
 
@@ -400,7 +397,7 @@ export function calculatePTMR(
 export function fuseAlgorithmResults(
   scores: AlgorithmScores,
   contentType: ContentType = 'unknown',
-  existingScore: number = 0.5,
+  _existingScore: number = 0.5,
   config: FusionConfig = DEFAULT_FUSION_CONFIG,
   /** Peak frequency in Hz. When provided, enables frequency-aware scoring. */
   peakFrequencyHz?: number
@@ -408,7 +405,7 @@ export function fuseAlgorithmResults(
   const reasons: string[] = []
   const contributingAlgorithms: string[] = []
 
-  let weights: { msd: number; phase: number; spectral: number; comb: number; ihr: number; ptmr: number; existing: number }
+  let weights: { msd: number; phase: number; spectral: number; comb: number; ihr: number; ptmr: number }
   if (scores.compression?.isCompressed) {
     weights = { ...FUSION_WEIGHTS.COMPRESSED }
     reasons.push(`Compression detected (ratio ~${scores.compression.estimatedRatio.toFixed(1)}:1)`)
@@ -424,29 +421,29 @@ export function fuseAlgorithmResults(
     weights = { ...weights, ...config.customWeights }
   }
 
-  let activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'existing']
+  let activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr']
   switch (config.mode) {
     case 'msd':
-      activeAlgorithms = ['msd', 'ihr', 'ptmr', 'existing']
+      activeAlgorithms = ['msd', 'ihr', 'ptmr']
       break
     case 'phase':
-      activeAlgorithms = ['phase', 'ihr', 'ptmr', 'existing']
+      activeAlgorithms = ['phase', 'ihr', 'ptmr']
       break
     case 'combined':
-      activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'existing']
+      activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr']
       break
     case 'all':
-      activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'existing']
+      activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr']
       break
     case 'auto':
       if (scores.msd && scores.msd.framesAnalyzed >= config.msdMinFrames) {
-        activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'existing']
+        activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr']
       } else {
-        activeAlgorithms = ['phase', 'spectral', 'comb', 'ihr', 'ptmr', 'existing']
+        activeAlgorithms = ['phase', 'spectral', 'comb', 'ihr', 'ptmr']
       }
       break
     case 'custom':
-      activeAlgorithms = [...(config.enabledAlgorithms ?? ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr']), 'existing']
+      activeAlgorithms = config.enabledAlgorithms ?? ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr']
       break
   }
 
@@ -527,12 +524,6 @@ export function fuseAlgorithmResults(
     }
   }
 
-  if (activeAlgorithms.includes('existing')) {
-    weightedSum += existingScore * weights.existing
-    totalWeight += weights.existing
-    contributingAlgorithms.push('Legacy')
-  }
-
   let feedbackProbability = totalWeight > 0
     ? Math.min(weightedSum / totalWeight, 1)
     : 0
@@ -551,11 +542,9 @@ export function fuseAlgorithmResults(
     feedbackProbability *= 0.80
   }
 
-  // ChatGPT-CTX finding: existing was inflating confidence via agreement list
-  // while containing correlated MSD-flavored evidence (double-counting)
-  // Removed from confidence to prevent correlated double-vote
   // FIX-003: comb now included when active — fixes asymmetry where comb could
   // flip verdict without confidence being aware of the score shift
+  // Note: 'existing' weight was fully removed (see FUSION_WEIGHTS comment)
   const algorithmScoresList = [
     scores.msd?.feedbackScore,
     scores.phase?.feedbackScore,

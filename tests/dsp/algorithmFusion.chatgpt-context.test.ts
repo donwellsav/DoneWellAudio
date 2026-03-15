@@ -4,17 +4,17 @@
  * CRITICAL FINDINGS UNIQUE TO THIS ANALYSIS:
  *
  * 1. EFFECTIVE WEIGHT DISCOVERY: When comb is absent (most of the time),
- *    totalWeight drops to 0.92 (DEFAULT/MUSIC/COMPRESSED) or 0.95 (SPEECH).
- *    This silently amplifies the dominant algorithm:
- *      - SPEECH MSD: not 40%, actually 42.1%
- *      - COMPRESSED Phase: not 38%, reduced to 30% (effective ~32.6%) by FIX-005
+ *    totalWeight drops to 1.0 - combWeight. With existing removed, the
+ *    no-comb totals are 0.92 for all profiles. This silently amplifies
+ *    the dominant algorithm:
+ *      - SPEECH MSD: not 33%, actually 34.7%
+ *      - COMPRESSED Phase: not 30%, effective ~32.6% (FIX-005)
  *      - MUSIC Phase: not 35%, actually 38.0%
  *
- * 2. EXISTING DOUBLE-COUNTS: computeExistingScore() includes MSD-flavored
- *    evidence (peak.msdIsHowl, low peak.msd, persistence, high Q).
- *    This creates a correlated second MSD vote. WORSE: existing is included
- *    in the confidence agreement list (line 509-516) but comb is NOT.
- *    So existing inflates BOTH probability AND confidence.
+ * 2. EXISTING DOUBLE-COUNTS: (FIXED) The existing weight has been removed
+ *    from all fusion profiles. The _existingScore parameter is kept for
+ *    API compatibility but ignored. This eliminates the correlated
+ *    double-vote problem that ChatGPT identified.
  *
  * 3. COMB VERDICT FLIP: Same scores with/without comb can flip verdict
  *    from POSSIBLE_FEEDBACK to FEEDBACK, but comb is excluded from the
@@ -70,7 +70,7 @@ describe('Effective Weights (Comb Absent — Normal Operation)', () => {
     // When comb is absent, totalWeight = 1.00 - 0.08 = 0.92
     // Effective MSD = 0.30 / 0.92 = 0.326
     const w = FUSION_WEIGHTS.DEFAULT
-    const totalNoComb = w.msd + w.phase + w.spectral + w.ihr + w.ptmr + w.existing
+    const totalNoComb = w.msd + w.phase + w.spectral + w.ihr + w.ptmr
     const effectiveMsd = w.msd / totalNoComb
     expect(effectiveMsd).toBeCloseTo(0.326, 2)
     console.log(`[EFFECTIVE] DEFAULT MSD: nominal ${w.msd}, effective ${effectiveMsd.toFixed(3)} (${(effectiveMsd*100).toFixed(1)}%)`)
@@ -78,7 +78,7 @@ describe('Effective Weights (Comb Absent — Normal Operation)', () => {
 
   it('SPEECH effective MSD share is ~34.7% (FIX-004: reduced from 42.1%)', () => {
     const w = FUSION_WEIGHTS.SPEECH
-    const totalNoComb = w.msd + w.phase + w.spectral + w.ihr + w.ptmr + w.existing
+    const totalNoComb = w.msd + w.phase + w.spectral + w.ihr + w.ptmr
     const effectiveMsd = w.msd / totalNoComb
     // FIX-004: MSD reduced from 0.40→0.33, effective 42.1% → 34.7%
     expect(effectiveMsd).toBeCloseTo(0.347, 2)
@@ -87,7 +87,7 @@ describe('Effective Weights (Comb Absent — Normal Operation)', () => {
 
   it('MUSIC effective Phase share is ~38.0%, not 35%', () => {
     const w = FUSION_WEIGHTS.MUSIC
-    const totalNoComb = w.msd + w.phase + w.spectral + w.ihr + w.ptmr + w.existing
+    const totalNoComb = w.msd + w.phase + w.spectral + w.ihr + w.ptmr
     const effectivePhase = w.phase / totalNoComb
     expect(effectivePhase).toBeCloseTo(0.380, 2)
     console.log(`[EFFECTIVE] MUSIC Phase: nominal ${w.phase}, effective ${effectivePhase.toFixed(3)} (${(effectivePhase*100).toFixed(1)}%)`)
@@ -95,20 +95,11 @@ describe('Effective Weights (Comb Absent — Normal Operation)', () => {
 
   it('COMPRESSED effective Phase share is ~32.6% (FIX-005: reduced from 41.3%)', () => {
     const w = FUSION_WEIGHTS.COMPRESSED
-    const totalNoComb = w.msd + w.phase + w.spectral + w.ihr + w.ptmr + w.existing
+    const totalNoComb = w.msd + w.phase + w.spectral + w.ihr + w.ptmr
     const effectivePhase = w.phase / totalNoComb
     // FIX-005: phase reduced from 0.38 → 0.30, effective 41.3% → 32.6%
     expect(effectivePhase).toBeCloseTo(0.326, 2)
     console.log(`[EFFECTIVE] COMPRESSED Phase: nominal ${w.phase}, effective ${effectivePhase.toFixed(3)} (${(effectivePhase*100).toFixed(1)}%)`)
-  })
-
-  it('MUSIC effective existing share is ~5.4% (FIX-002: reduced from 16.3%)', () => {
-    const w = FUSION_WEIGHTS.MUSIC
-    const totalNoComb = w.msd + w.phase + w.spectral + w.ihr + w.ptmr + w.existing
-    const effectiveExisting = w.existing / totalNoComb
-    // FIX-002: existing reduced from 0.15 → 0.05, effective 16.3% → 5.4%
-    expect(effectiveExisting).toBeCloseTo(0.054, 2)
-    console.log(`[EFFECTIVE] MUSIC existing: nominal ${w.existing}, effective ${effectiveExisting.toFixed(3)} (${(effectiveExisting*100).toFixed(1)}%)`)
   })
 })
 
@@ -153,8 +144,8 @@ describe('ChatGPT-5.4 Stress Cases — DEFAULT Profile', () => {
     console.log(`[GPT-CTX DEFAULT FN] spectral-only: prob=${result.feedbackProbability.toFixed(4)}, conf=${result.confidence.toFixed(4)}, verdict=${result.verdict}`)
     // Three algorithms at 0.80 → probability should be high
     // But combined weight of spectral+ihr+ptmr = 0.27/0.92 = 29.3% of decision
-    // So max contribution = 0.29 * 0.80 = 0.234. Plus existing 0.20*0.109 = 0.022
-    // Total ≈ 0.256. UNCERTAIN. The system structurally cannot detect here.
+    // So max contribution = 0.29 * 0.80 = 0.234 (existing removed, no additional contribution).
+    // UNCERTAIN. The system structurally cannot detect here.
     expect(result.verdict).not.toBe('FEEDBACK')
     expect(result.feedbackProbability).toBeLessThan(0.35)
   })
@@ -166,8 +157,8 @@ describe('ChatGPT-5.4 Stress Cases — SPEECH Profile', () => {
    * MSD=1.00, Phase=0.00, Spectral=0.60, IHR=0.40, PTMR=0.60, Existing=0.80
    *
    * ChatGPT calculated: probability=0.6526, verdict=FEEDBACK
-   * FAILURE: MSD alone (42.1% effective) + existing double-count = FEEDBACK verdict
-   * with ZERO phase evidence. This should never happen.
+   * FAILURE (pre-fix): MSD alone (42.1% effective) + existing double-count = FEEDBACK verdict
+   * with ZERO phase evidence. existing weight now removed; MSD effective share reduced to 34.7%.
    */
   it('FP: MSD-only detection with zero phase reaches FEEDBACK', () => {
     const result = fuse(
@@ -176,7 +167,7 @@ describe('ChatGPT-5.4 Stress Cases — SPEECH Profile', () => {
       0.80
     )
     console.log(`[GPT-CTX SPEECH FP] MSD-only: prob=${result.feedbackProbability.toFixed(4)}, conf=${result.confidence.toFixed(4)}, verdict=${result.verdict}`)
-    // MSD at 42.1% + existing at 10.5% (with MSD-flavored evidence) = conviction without phase
+    // MSD at 34.7% effective (existing removed) — no more correlated double-vote
     expect(result.feedbackProbability).toBeGreaterThan(0.55)
   })
 
@@ -191,7 +182,9 @@ describe('ChatGPT-5.4 Stress Cases — SPEECH Profile', () => {
       0.0
     )
     console.log(`[GPT-CTX SPEECH FN] no-MSD: prob=${result.feedbackProbability.toFixed(4)}, conf=${result.confidence.toFixed(4)}, verdict=${result.verdict}`)
-    expect(result.feedbackProbability).toBeLessThan(0.35)
+    // With existing weight removed, non-MSD algos have slightly more influence.
+    // Probability rises from ~0.25 to ~0.37 — still a false negative.
+    expect(result.feedbackProbability).toBeLessThan(0.40)
   })
 })
 
@@ -199,7 +192,8 @@ describe('ChatGPT-5.4 Stress Cases — MUSIC Profile', () => {
   /**
    * FALSE POSITIVE: Phase=1.0, Spectral=0.80, Existing=0.80, MSD=0
    * ChatGPT calculated: probability=0.6978, verdict=FEEDBACK
-   * FAILURE: Phase at 38% effective + existing at 16.3% = conviction on stable music.
+   * FAILURE (pre-fix): Phase at 38% effective + existing at 16.3% = conviction on stable music.
+   * existing weight now removed; Phase effective share is 38.0%.
    */
   it('FP: phase-dominant music detection reaches FEEDBACK with zero MSD', () => {
     const result = fuse(
@@ -253,7 +247,9 @@ describe('ChatGPT-5.4 Stress Cases — COMPRESSED Profile', () => {
       0.0
     )
     console.log(`[GPT-CTX COMPRESS FN] no-phase: prob=${result.feedbackProbability.toFixed(4)}, conf=${result.confidence.toFixed(4)}, verdict=${result.verdict}`)
-    expect(result.feedbackProbability).toBeLessThan(0.35)
+    // With existing weight removed, IHR+PTMR have more influence.
+    // Probability rises from ~0.25 to ~0.38 — still a false negative.
+    expect(result.feedbackProbability).toBeLessThan(0.40)
   })
 })
 
@@ -305,52 +301,47 @@ describe('Comb Verdict Flip (ChatGPT Discovery)', () => {
 })
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 4. EXISTING DOUBLE-COUNT VALIDATION
+// 4. EXISTING WEIGHT REMOVAL VALIDATION
 //
-// ChatGPT discovered that `existing` participates in BOTH probability
-// AND confidence, while containing MSD-flavored evidence from
-// computeExistingScore(). This creates correlated double-counting.
+// The `existing` weight has been removed from all fusion profiles.
+// The _existingScore parameter is kept for API compat but ignored.
+// These tests verify that existingScore no longer affects results.
 // ═════════════════════════════════════════════════════════════════════════════
 
-describe('Existing Double-Count (ChatGPT Discovery)', () => {
-  it('existing inflates both probability AND confidence', () => {
+describe('Existing Weight Removed (ChatGPT Discovery → Fixed)', () => {
+  it('existing score no longer affects probability or confidence', () => {
     // High existing score
-    const withExisting = fuse(
+    const withHighExisting = fuse(
       { msd: 0.50, phase: 0.50, spectral: 0.50, comb: 0, ihr: 0.50, ptmr: 0.50 },
       'unknown',
-      0.90 // High existing score
+      0.90 // High existing score — should be ignored
     )
 
     // Low existing score
-    const withoutExisting = fuse(
+    const withLowExisting = fuse(
       { msd: 0.50, phase: 0.50, spectral: 0.50, comb: 0, ihr: 0.50, ptmr: 0.50 },
       'unknown',
-      0.10 // Low existing score
+      0.10 // Low existing score — should be ignored
     )
 
-    // Both probability AND confidence should change
-    console.log(`[DOUBLE-COUNT] high existing: prob=${withExisting.feedbackProbability.toFixed(4)}, conf=${withExisting.confidence.toFixed(4)}`)
-    console.log(`[DOUBLE-COUNT] low existing: prob=${withoutExisting.feedbackProbability.toFixed(4)}, conf=${withoutExisting.confidence.toFixed(4)}`)
+    // Both should produce identical results since existing is ignored
+    console.log(`[EXISTING REMOVED] high existing: prob=${withHighExisting.feedbackProbability.toFixed(4)}, conf=${withHighExisting.confidence.toFixed(4)}`)
+    console.log(`[EXISTING REMOVED] low existing: prob=${withLowExisting.feedbackProbability.toFixed(4)}, conf=${withLowExisting.confidence.toFixed(4)}`)
 
-    expect(withExisting.feedbackProbability).toBeGreaterThan(withoutExisting.feedbackProbability)
-    // Existing also affects confidence through the agreement list
-    // High existing (0.90) INCREASES variance with other scores at 0.50,
-    // which actually DECREASES agreement and thus confidence.
-    // This is counterintuitive: a very high existing score can HURT confidence.
+    expect(withHighExisting.feedbackProbability).toBeCloseTo(withLowExisting.feedbackProbability, 10)
+    expect(withHighExisting.confidence).toBeCloseTo(withLowExisting.confidence, 10)
   })
 
-  it('MSD-heavy existing creates correlated double vote in SPEECH', () => {
-    // In SPEECH mode, MSD weight is 42.1% effective.
-    // If existing also contains MSD-flavored evidence (peak.msdIsHowl),
-    // the effective MSD influence is 42.1% + some portion of 10.5% = ~48-52%
+  it('MSD no longer double-counts via existing in SPEECH', () => {
+    // With existing removed, MSD influence is limited to its own weight (34.7% effective).
+    // No correlated double-vote from existing.
     const result = fuse(
       { msd: 0.90, phase: 0.30, spectral: 0.30, comb: 0, ihr: 0.30, ptmr: 0.30 },
       'speech',
-      0.90 // High existing (carrying MSD-flavored evidence)
+      0.90 // Ignored — existing weight removed
     )
-    console.log(`[DOUBLE-COUNT] SPEECH MSD+existing: prob=${result.feedbackProbability.toFixed(4)}, verdict=${result.verdict}`)
-    // The combination of MSD (42.1%) + correlated existing (10.5%)
-    // gives MSD-flavored evidence >50% of the decision
+    console.log(`[EXISTING REMOVED] SPEECH MSD-only: prob=${result.feedbackProbability.toFixed(4)}, verdict=${result.verdict}`)
+    // MSD weight is now 34.7% effective (0.33 / 0.95) — no existing amplification
   })
 })
 
@@ -369,12 +360,9 @@ describe('Structural Recall Floor (MSD + Phase Both Absent)', () => {
       'unknown',
       1.0
     )
-    // spectral(0.12) + ihr(0.08) + ptmr(0.07) + existing(0.10) = 0.37
+    // spectral(0.12) + ihr(0.13) + ptmr(0.12) = 0.37
     // Divided by totalWeight = 0.37 (only those contribute)
-    // So all at 1.0 → probability = 1.0... wait, that's not right.
-    // Actually totalWeight = sum of active weights = 0.12+0.08+0.07+0.10 = 0.37
-    // weightedSum = 1.0*0.12 + 1.0*0.08 + 1.0*0.07 + 1.0*0.10 = 0.37
-    // probability = 0.37 / 0.37 = 1.0
+    // So all at 1.0 → probability = 0.37 / 0.37 = 1.0
     // WAIT — the renormalization DOES rescue this!
     // The issue is that confidence will be low because the agreement list
     // includes null MSD and phase as excluded, reducing algorithm count.
@@ -382,8 +370,8 @@ describe('Structural Recall Floor (MSD + Phase Both Absent)', () => {
   })
 
   it('SPEECH: max possible score without MSD is limited by phase weight', () => {
-    // MSD=0 removes 42.1% of decision power
-    // Remaining: phase(21.1%) + spectral(10.5%) + ihr(5.3%) + ptmr(10.5%) + existing(10.5%) = 57.9%
+    // MSD=0 removes 34.7% of decision power
+    // Remaining: phase(25.3%) + spectral(10.5%) + ihr(10.5%) + ptmr(18.9%) = 65.3%
     const result = fuse(
       { msd: 0.0, phase: 1.0, spectral: 1.0, comb: 0, ihr: 1.0, ptmr: 1.0 },
       'speech',
@@ -403,7 +391,7 @@ describe('Three-Model Final Consensus', () => {
   /**
    * ALL MODELS AGREE on these architectural fixes:
    *
-   * 1. Remove existing from fusion weights → pre-gate or fallback only
+   * 1. Remove existing from fusion weights → DONE (existing weight removed from all profiles)
    *    - Claude: redundant with 6 specialized algorithms
    *    - Gemini (blind): "blunt instrument"
    *    - Gemini (context): "correlated second vote, double-counts MSD"

@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.96.0',
+    date: '2026-03-14',
+    highlights: 'Documentation overhaul, remove legacy existing weight from fusion',
+    changes: [
+      { type: 'refactor', description: 'Remove legacy `existing` weight from algorithm fusion — redistribute to IHR and PTMR' },
+      { type: 'fix', description: 'Consolidate from 7 to 6 detection algorithms — merge Compression Detection into Spectral Flatness' },
+      { type: 'fix', description: 'Update fusion weight tables in HelpMenu and README to match current code' },
+      { type: 'fix', description: 'CLAUDE.md: comprehensive rewrite with audio pipeline, known bugs, performance constraints' },
+      { type: 'fix', description: 'BEGINNER-GUIDE: add test suite instructions (335 tests)' },
+    ],
+  },
+  {
     version: '0.95.0',
     date: '2026-03-13',
     highlights: 'Sentry error reporting, dead code cleanup, repo rename, docs refresh',

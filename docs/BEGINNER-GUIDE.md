@@ -60,9 +60,11 @@ pnpm dev              # Start dev server on http://localhost:3000
 ### Verifying Your Changes
 Before pushing any code:
 ```bash
-pnpm build            # Must complete with 0 errors
+npx tsc --noEmit      # Type-check — must have 0 errors
+pnpm test             # Run 335 DSP unit tests — must all pass
+pnpm build            # Production build — must complete with 0 errors
 ```
-There's no test suite — the build IS the test. If it compiles, TypeScript caught the obvious bugs.
+The DSP engine has 335 unit tests across 14 test suites covering algorithm fusion, classification, EQ advisories, MSD, phase coherence, compression detection, and more. Always run them before committing.
 
 ---
 

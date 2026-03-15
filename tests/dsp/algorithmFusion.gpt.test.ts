@@ -280,23 +280,25 @@ describe('Cross-Model Consensus Vulnerabilities', () => {
    * Test: verify that removing "existing" and boosting IHR/PTMR
    * reduces the sustained vowel false positive.
    */
-  it('CONSENSUS: deprecating "existing" weight reduces false positives', () => {
-    const withExisting = fuse(
+  it('CONSENSUS: "existing" weight has been removed from all profiles', () => {
+    // The existing weight has been removed from all 4 fusion profiles.
+    // The _existingScore parameter is kept for API compat but ignored.
+    // Verify that changing existingScore has no effect on results.
+    const withHighExisting = fuse(
       { msd: 0.92, phase: 0.6, spectral: 0.6, comb: 0, ihr: 0.2, ptmr: 0.7 },
       'speech',
-      0.8 // high existing score amplifies the false positive
+      0.9 // high existing score — should be ignored
     )
 
-    const withoutExisting = fuse(
+    const withLowExisting = fuse(
       { msd: 0.92, phase: 0.6, spectral: 0.6, comb: 0, ihr: 0.2, ptmr: 0.7 },
       'speech',
-      0.8,
-      { customWeights: { msd: 0.40, phase: 0.20, spectral: 0.10, comb: 0.05, ihr: 0.10, ptmr: 0.15, existing: 0.00 } as Record<string, number> }
+      0.1 // low existing score — should be ignored
     )
 
-    // Removing existing and boosting IHR/PTMR should lower the score
-    // because IHR=0.2 (music-like harmonics) now has more influence
-    console.log(`[CONSENSUS] with existing: ${withExisting.feedbackProbability.toFixed(3)}, without: ${withoutExisting.feedbackProbability.toFixed(3)}`)
+    // Both should produce identical results since existing is ignored
+    expect(withHighExisting.feedbackProbability).toBeCloseTo(withLowExisting.feedbackProbability, 10)
+    console.log(`[CONSENSUS] existing removed: high=${withHighExisting.feedbackProbability.toFixed(3)}, low=${withLowExisting.feedbackProbability.toFixed(3)}`)
   })
 })
 

@@ -2,7 +2,7 @@
 
 // Help menu for Kill The Ring application
 // 5-tab layout: Guide, Modes, Algorithms, Reference, About
-// Updated with all 7 detection algorithms (MSD, Phase, Spectral, Comb, IHR, PTMR, Compression)
+// Updated with all 6 detection algorithms (MSD, Phase, Spectral/Compression, Comb, IHR, PTMR)
 import { useState, memo } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -77,7 +77,7 @@ export const HelpMenu = memo(function HelpMenu() {
             <HelpSection title="What is Kill The Ring?">
               <p>
                 A real-time acoustic feedback detection and analysis tool for professional live sound engineers.
-                Uses 7 detection algorithms from peer-reviewed acoustic research to identify feedback frequencies,
+                Uses 6 detection algorithms from peer-reviewed acoustic research to identify feedback frequencies,
                 resonant rings, and problematic tones — then delivers specific EQ recommendations with pitch translation.
               </p>
             </HelpSection>
@@ -302,9 +302,9 @@ export const HelpMenu = memo(function HelpMenu() {
               TAB 3: ALGORITHMS (flat layout, merged with Math)
               ═══════════════════════════════════════════════════════════════ */}
           <TabsContent value="algorithms" className="mt-4 space-y-4">
-            <HelpSection title="7-Algorithm Fusion System">
+            <HelpSection title="6-Algorithm Fusion System">
               <p>
-                Kill The Ring uses 7 detection algorithms from peer-reviewed acoustic research. Each exploits
+                Kill The Ring uses 6 detection algorithms from peer-reviewed acoustic research. Each exploits
                 a different physical property of feedback vs. musical content. They vote together with
                 content-aware weighting for maximum accuracy and minimal false positives.
               </p>
@@ -422,7 +422,7 @@ export const HelpMenu = memo(function HelpMenu() {
               </div>
 
               <div className="bg-card/80 rounded border p-3">
-                <h3 className="section-label mb-2 text-primary">3. Spectral Flatness + Kurtosis</h3>
+                <h3 className="section-label mb-2 text-primary">3. Spectral Flatness / Compression</h3>
                 <div className="space-y-2.5 pt-2">
                   <p className="text-sm italic text-muted-foreground">Wiener entropy — Tone vs. broadband discrimination</p>
                   <p className="text-sm text-muted-foreground">
@@ -457,6 +457,13 @@ export const HelpMenu = memo(function HelpMenu() {
                     <p className="text-foreground font-semibold">Combined Score</p>
                     <p>S = 0.6 · flatnessScore + 0.4 · kurtosisScore</p>
                     <p>Analysis bandwidth: ±10 bins around peak</p>
+                  </div>
+                  <div className="bg-background/80 px-3 py-2 rounded font-mono text-sm border border-border/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)] space-y-0.5">
+                    <p className="text-foreground font-semibold">Compression Detection</p>
+                    <p>Crest Factor: CF = peak_dB - RMS_dB</p>
+                    <p>Uncompressed: CF = 12-14 dB | Compressed: CF &lt; 6 dB</p>
+                    <p>Dynamic Range: DR = max(peak_dB) - min(RMS_dB)</p>
+                    <p>When compressed: MSD weight drops, Phase weight increases automatically</p>
                   </div>
                 </div>
               </div>
@@ -576,44 +583,6 @@ export const HelpMenu = memo(function HelpMenu() {
                 </div>
               </div>
 
-              <div className="bg-card/80 rounded border p-3">
-                <h3 className="section-label mb-2 text-primary">7. Compression Detection</h3>
-                <div className="space-y-2.5 pt-2">
-                  <p className="text-sm italic text-muted-foreground">DAFx-16 research — Adaptive threshold adjustment</p>
-                  <p className="text-sm text-muted-foreground">
-                    Dynamically compressed content (rock, pop, EDM) causes MSD false positives because sustained
-                    notes have flat amplitude curves similar to early feedback. Compression detection identifies this
-                    and shifts fusion weights toward phase coherence.
-                  </p>
-                  <ul className="space-y-1 text-sm text-muted-foreground">
-                    <li><strong>Crest Factor:</strong> Peak-to-RMS ratio. Normal: 12-14 dB. Compressed: &lt;6 dB</li>
-                    <li><strong>Dynamic Range:</strong> Normal: &gt;20 dB. Compressed: &lt;8 dB</li>
-                    <li><strong>Adaptation:</strong> MSD weight drops, Phase Coherence weight increases automatically</li>
-                  </ul>
-
-                  <div className="bg-background/80 px-3 py-2 rounded font-mono text-sm border border-border/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)] space-y-0.5">
-                    <p className="text-foreground font-semibold">Crest Factor (Peak-to-RMS Ratio)</p>
-                    <p>CF = peak<sub>dB</sub> - RMS<sub>dB</sub></p>
-                    <p>Uncompressed audio: CF ≈ 12–14 dB (typical speech/music)</p>
-                    <p>Compressed audio: CF &lt; 6 dB (ratio ~4–8:1)</p>
-                  </div>
-                  <div className="bg-background/80 px-3 py-2 rounded font-mono text-sm border border-border/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)] space-y-0.5">
-                    <p className="text-foreground font-semibold">Dynamic Range</p>
-                    <p>DR = max(peak<sub>dB</sub>) - min(RMS<sub>dB</sub>) over analysis window</p>
-                    <p>Uncompressed: DR &gt; 20 dB | Compressed: DR &lt; 8 dB</p>
-                  </div>
-                  <div className="bg-background/80 px-3 py-2 rounded font-mono text-sm border border-border/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)] space-y-0.5">
-                    <p className="text-foreground font-semibold">Detection</p>
-                    <p>isCompressed = (CF &lt; 6) OR (DR &lt; 8)</p>
-                    <p>Estimated ratio: R = 12 / max(CF, 1)</p>
-                  </div>
-                  <div className="bg-background/80 px-3 py-2 rounded font-mono text-sm border border-border/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
-                    <p className="text-foreground font-semibold">Impact on Fusion</p>
-                    <p>When compressed: MSD weight ↓ (0.30 → 0.12), Phase weight ↑ (0.25 → 0.38)</p>
-                    <p className="text-muted-foreground">Compressed audio &ldquo;fools&rdquo; MSD (sustained notes look like feedback growth). Phase coherence is amplitude-independent.</p>
-                  </div>
-                </div>
-              </div>
               </div>
             </div>
 
@@ -625,15 +594,15 @@ export const HelpMenu = memo(function HelpMenu() {
                 <h3 className="section-label mb-2 text-primary">Fusion Engine — Weighted Voting</h3>
                 <div className="space-y-2.5 pt-2">
                   <p className="text-sm text-muted-foreground">
-                    All 7 algorithms vote together with content-aware weighting. The system automatically
+                    All 6 algorithms vote together with content-aware weighting. The system automatically
                     detects content type (speech, music, compressed) and applies appropriate weights:
                   </p>
                   <div className="bg-background/80 p-3 rounded text-sm font-mono space-y-1 border border-border/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
-                    <p className="font-semibold text-foreground">Weights: [MSD, Phase, Spectral, Comb, IHR, PTMR, Legacy]</p>
-                    <p>Speech:     [0.40, 0.20, 0.10, 0.05, 0.05, 0.10, 0.10]</p>
-                    <p>Music:      [0.15, 0.35, 0.10, 0.08, 0.12, 0.05, 0.15]</p>
-                    <p>Compressed: [0.12, 0.38, 0.15, 0.08, 0.10, 0.07, 0.10]</p>
-                    <p>Default:    [0.30, 0.25, 0.12, 0.08, 0.08, 0.07, 0.10]</p>
+                    <p className="font-semibold text-foreground">Weights: [MSD, Phase, Spectral, Comb, IHR, PTMR]</p>
+                    <p>Speech:     [0.33, 0.24, 0.10, 0.05, 0.10, 0.18]</p>
+                    <p>Music:      [0.08, 0.35, 0.10, 0.08, 0.24, 0.15]</p>
+                    <p>Compressed: [0.12, 0.30, 0.18, 0.08, 0.18, 0.14]</p>
+                    <p>Default:    [0.30, 0.25, 0.12, 0.08, 0.13, 0.12]</p>
                   </div>
 
                   <div className="bg-background/80 px-3 py-2 rounded font-mono text-sm border border-border/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)] space-y-0.5">
@@ -643,7 +612,7 @@ export const HelpMenu = memo(function HelpMenu() {
                   </div>
                   <div className="bg-background/80 px-3 py-2 rounded font-mono text-sm border border-border/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)] space-y-0.5">
                     <p className="text-foreground font-semibold">Agreement (Inter-Algorithm Consensus)</p>
-                    <p>agreement = 1 - √[ var(S₁, S₂, ..., S₇) ]</p>
+                    <p>agreement = 1 - √[ var(S₁, S₂, ..., S₆) ]</p>
                     <p className="mt-1 text-muted-foreground">High agreement = algorithms agree → high confidence. Low agreement = disagreement → uncertainty.</p>
                   </div>
                   <div className="bg-background/80 px-3 py-2 rounded font-mono text-sm border border-border/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)] space-y-0.5">
@@ -944,7 +913,7 @@ export const HelpMenu = memo(function HelpMenu() {
                 <HelpSection title="About">
                   <p>
                     Kill The Ring is a professional real-time acoustic feedback detection and analysis tool
-                    for live sound engineers. It uses 7 detection algorithms from peer-reviewed acoustic
+                    for live sound engineers. It uses 6 detection algorithms from peer-reviewed acoustic
                     research to identify feedback frequencies and deliver EQ recommendations with pitch translation.
                   </p>
                   <p className="mt-2">
@@ -958,7 +927,7 @@ export const HelpMenu = memo(function HelpMenu() {
                     <span className="text-muted-foreground">Platform</span><span className="font-mono">Progressive Web App</span>
                     <span className="text-muted-foreground">Framework</span><span className="font-mono">Next.js + React 19</span>
                     <span className="text-muted-foreground">Audio</span><span className="font-mono">Web Audio API + Web Workers</span>
-                    <span className="text-muted-foreground">Algorithms</span><span className="font-mono">7 (MSD, Phase, Spectral, Comb, IHR, PTMR, Compression)</span>
+                    <span className="text-muted-foreground">Algorithms</span><span className="font-mono">6 (MSD, Phase, Spectral/Compression, Comb, IHR, PTMR)</span>
                     <span className="text-muted-foreground">Offline</span><span className="font-mono">Service worker cached</span>
                   </div>
                 </HelpSection>

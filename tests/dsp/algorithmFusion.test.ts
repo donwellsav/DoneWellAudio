@@ -57,25 +57,25 @@ function fuse(
 describe('Fusion Weight Profiles', () => {
   it('DEFAULT weights sum to 1.0', () => {
     const w = FUSION_WEIGHTS.DEFAULT
-    const sum = w.msd + w.phase + w.spectral + w.comb + w.ihr + w.ptmr + w.existing
+    const sum = w.msd + w.phase + w.spectral + w.comb + w.ihr + w.ptmr
     expect(sum).toBeCloseTo(1.0, 10)
   })
 
   it('SPEECH weights sum to 1.0', () => {
     const w = FUSION_WEIGHTS.SPEECH
-    const sum = w.msd + w.phase + w.spectral + w.comb + w.ihr + w.ptmr + w.existing
+    const sum = w.msd + w.phase + w.spectral + w.comb + w.ihr + w.ptmr
     expect(sum).toBeCloseTo(1.0, 10)
   })
 
   it('MUSIC weights sum to 1.0', () => {
     const w = FUSION_WEIGHTS.MUSIC
-    const sum = w.msd + w.phase + w.spectral + w.comb + w.ihr + w.ptmr + w.existing
+    const sum = w.msd + w.phase + w.spectral + w.comb + w.ihr + w.ptmr
     expect(sum).toBeCloseTo(1.0, 10)
   })
 
   it('COMPRESSED weights sum to 1.0', () => {
     const w = FUSION_WEIGHTS.COMPRESSED
-    const sum = w.msd + w.phase + w.spectral + w.comb + w.ihr + w.ptmr + w.existing
+    const sum = w.msd + w.phase + w.spectral + w.comb + w.ihr + w.ptmr
     expect(sum).toBeCloseTo(1.0, 10)
   })
 })
@@ -116,13 +116,6 @@ describe('Effective Weights — Comb Absent', () => {
     expect(effectivePhase).toBeCloseTo(0.326, 2)
   })
 
-  it('MUSIC existing effective weight is 5.4%', () => {
-    const w = FUSION_WEIGHTS.MUSIC
-    const totalNoComb = 1 - w.comb
-    const effectiveExisting = w.existing / totalNoComb
-    // FIX-002: existing reduced from 0.15 → 0.05, effective 16.3% → 5.4%
-    expect(effectiveExisting).toBeCloseTo(0.054, 2)
-  })
 })
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -393,7 +386,9 @@ describe('Consensus Vulnerability: SPEECH Profile', () => {
       'speech',
       0
     )
-    expect(result.feedbackProbability).toBeLessThan(0.35)
+    // With existing weight removed, non-MSD algos have slightly more influence.
+    // Probability rises from ~0.33 to ~0.37 — still a false negative.
+    expect(result.feedbackProbability).toBeLessThan(0.40)
     console.log(`[V4 SPEECH FN] no-msd: prob=${result.feedbackProbability.toFixed(3)}, conf=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
   })
 })
@@ -476,14 +471,14 @@ describe('Baseline: Obvious Cases', () => {
     expect(result.verdict).not.toBe('FEEDBACK')
   })
 
-  it('Silence: no algorithm data → low probability', () => {
+  it('Silence: no algorithm data → zero probability', () => {
     const result = fuse(
       {}, // All null
       'unknown',
       0.5
     )
-    // Only 'existing' contributes with score 0.5
-    expect(result.feedbackProbability).toBeLessThan(0.55)
+    // No algorithms contribute (existing weight removed), result should be 0.0
+    expect(result.feedbackProbability).toBe(0.0)
   })
 
   it('Feedback with comb pattern: comb doubles weight and boosts score', () => {
@@ -520,8 +515,8 @@ describe('Edge Cases', () => {
       'speech',
       0.5
     )
-    // With only MSD (0.9) and existing (0.5), we want at least POSSIBLE_FEEDBACK
-    // Current behavior: confidence may be too low due to variance between 0.9 and 0.5
+    // With only MSD (0.9) contributing (existing weight removed), we want at least POSSIBLE_FEEDBACK
+    // Current behavior: confidence may be low due to single-algorithm detection
     console.log(`[DA-004] MSD-only: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
     // At minimum, probability should reflect the strong MSD signal
     expect(result.feedbackProbability).toBeGreaterThan(0.5)
@@ -533,7 +528,7 @@ describe('Edge Cases', () => {
     const speech = fuse(scores, 'speech', 0.5)
     const music = fuse(scores, 'music', 0.5)
 
-    // SPEECH weights MSD at 0.40, MUSIC at 0.15
+    // SPEECH weights MSD at 0.33, MUSIC at 0.08
     // With same feedbackScores, SPEECH should produce higher probability
     // because MSD (0.5) * 0.40 > MSD (0.5) * 0.15 only matters when
     // combined with other weights. All scores equal means probability ≈ 0.5 for both.
@@ -551,7 +546,7 @@ describe('Edge Cases', () => {
     expect(result.reasons.some(r => r.includes('Compression detected'))).toBe(true)
   })
 
-  it('Algorithm mode "msd" only uses MSD + IHR + PTMR + existing', () => {
+  it('Algorithm mode "msd" only uses MSD + IHR + PTMR', () => {
     const result = fuse(
       { msd: 0.9, phase: 0.9, spectral: 0.9, comb: 0.9, ihr: 0.9, ptmr: 0.9 },
       'unknown',
@@ -671,11 +666,11 @@ describe('Low-Frequency Phase Suppression (ADV-002)', () => {
 // ═════════════════════════════════════════════════════════════════════════════
 
 describe.skip('Proposed V2 Weights — Regression Tests', () => {
-  // V2 weights based on Gemini analysis + Claude audit:
-  // SPEECH_V2:   msd:0.35, phase:0.20, spectral:0.10, comb:0.05, ihr:0.10, ptmr:0.15, existing:0.05
-  // MUSIC_V2:    msd:0.05, phase:0.30, spectral:0.12, comb:0.10, ihr:0.18, ptmr:0.15, existing:0.10
-  // COMPRESS_V2: msd:0.08, phase:0.30, spectral:0.15, comb:0.10, ihr:0.15, ptmr:0.12, existing:0.10
-  // DEFAULT_V2:  msd:0.25, phase:0.22, spectral:0.12, comb:0.08, ihr:0.13, ptmr:0.12, existing:0.08
+  // V2 weights based on Gemini analysis + Claude audit (existing removed):
+  // SPEECH_V2:   msd:0.35, phase:0.20, spectral:0.10, comb:0.05, ihr:0.10, ptmr:0.20
+  // MUSIC_V2:    msd:0.05, phase:0.30, spectral:0.12, comb:0.10, ihr:0.18, ptmr:0.25
+  // COMPRESS_V2: msd:0.08, phase:0.30, spectral:0.15, comb:0.10, ihr:0.15, ptmr:0.22
+  // DEFAULT_V2:  msd:0.25, phase:0.22, spectral:0.12, comb:0.08, ihr:0.13, ptmr:0.20
   //
   // Note: customWeights uses Partial<typeof FUSION_WEIGHTS.DEFAULT> which has
   // literal types from `as const`. Cast to number to allow proposed values.
@@ -686,7 +681,7 @@ describe.skip('Proposed V2 Weights — Regression Tests', () => {
       { msd: 0.9, phase: 0.8, spectral: 0.5, comb: 0, ihr: 0.2, ptmr: 0.6 },
       'speech',
       0.7,
-      { customWeights: { msd: 0.35, phase: 0.20, spectral: 0.10, comb: 0.05, ihr: 0.10, ptmr: 0.15, existing: 0.05 } as W }
+      { customWeights: { msd: 0.35, phase: 0.20, spectral: 0.10, comb: 0.05, ihr: 0.10, ptmr: 0.20 } as W }
     )
     // With V2 weights, this should score BELOW threshold
     expect(result.feedbackProbability).toBeLessThan(0.60)
@@ -698,7 +693,7 @@ describe.skip('Proposed V2 Weights — Regression Tests', () => {
       { msd: 0.1, phase: 0.9, spectral: 0.9, comb: 0, ihr: 0.9, ptmr: 0.9 },
       'speech',
       0.8,
-      { customWeights: { msd: 0.35, phase: 0.20, spectral: 0.10, comb: 0.05, ihr: 0.10, ptmr: 0.15, existing: 0.05 } as W }
+      { customWeights: { msd: 0.35, phase: 0.20, spectral: 0.10, comb: 0.05, ihr: 0.10, ptmr: 0.20 } as W }
     )
     // With V2 weights, PTMR at 0.15 and IHR at 0.10 should compensate for low MSD
     console.log(`[V2 SPEECH FN] limiter-clamped: probability=${result.feedbackProbability.toFixed(3)}, verdict=${result.verdict}`)
@@ -709,7 +704,7 @@ describe.skip('Proposed V2 Weights — Regression Tests', () => {
       { msd: 0.6, phase: 0.3, spectral: 0.8, comb: 0, ihr: 0.8, ptmr: 0.7 },
       'music',
       0.6,
-      { customWeights: { msd: 0.05, phase: 0.30, spectral: 0.12, comb: 0.10, ihr: 0.18, ptmr: 0.15, existing: 0.10 } as W }
+      { customWeights: { msd: 0.05, phase: 0.30, spectral: 0.12, comb: 0.10, ihr: 0.18, ptmr: 0.25 } as W }
     )
     // With V2 weights, IHR at 0.18 and PTMR at 0.15 should push this above threshold
     console.log(`[V2 MUSIC FN] dense mix: probability=${result.feedbackProbability.toFixed(3)}, verdict=${result.verdict}`)
@@ -720,7 +715,7 @@ describe.skip('Proposed V2 Weights — Regression Tests', () => {
       { msd: 0.8, phase: 0.2, spectral: 0.8, comb: 0, ihr: 0.9, ptmr: 0.8, compressed: true },
       'unknown',
       0.7,
-      { customWeights: { msd: 0.08, phase: 0.30, spectral: 0.15, comb: 0.10, ihr: 0.15, ptmr: 0.12, existing: 0.10 } as W }
+      { customWeights: { msd: 0.08, phase: 0.30, spectral: 0.15, comb: 0.10, ihr: 0.15, ptmr: 0.22 } as W }
     )
     // With V2 weights, reduced phase dependency and increased IHR/spectral
     // should detect feedback even when phase is ruined by compressor pumping
