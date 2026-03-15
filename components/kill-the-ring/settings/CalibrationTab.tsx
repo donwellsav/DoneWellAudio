@@ -312,7 +312,7 @@ export const CalibrationTab = memo(function CalibrationTab({
             <Label className="text-sm font-mono">Measurement Mic</Label>
             <Select
               value={settings.micCalibrationProfile}
-              onValueChange={(value) => onSettingsChange({ micCalibrationProfile: value as 'none' | 'ecm8000' | 'rta-m' })}
+              onValueChange={(value) => onSettingsChange({ micCalibrationProfile: value as 'none' | 'ecm8000' | 'rta-m' | 'smartphone' })}
             >
               <SelectTrigger className="h-8 text-sm font-mono">
                 <SelectValue />
@@ -321,13 +321,16 @@ export const CalibrationTab = memo(function CalibrationTab({
                 <SelectItem value="none">None</SelectItem>
                 <SelectItem value="ecm8000">Behringer ECM8000 (CSL 746)</SelectItem>
                 <SelectItem value="rta-m">dbx RTA-M</SelectItem>
+                <SelectItem value="smartphone">Smartphone (Generic MEMS)</SelectItem>
               </SelectContent>
             </Select>
             {settings.micCalibrationProfile !== 'none' && (
               <p className="text-[11px] text-muted-foreground font-mono leading-tight">
                 {settings.micCalibrationProfile === 'ecm8000'
                   ? 'Compensates +4.7 dB HF rise (10–16 kHz)'
-                  : 'Compensates ±1.5 dB LF/HF roll-off'}
+                  : settings.micCalibrationProfile === 'smartphone'
+                    ? 'Compensates −12 dB LF roll-off + MEMS resonance peak'
+                    : 'Compensates ±1.5 dB LF/HF roll-off'}
               </p>
             )}
           </div>
@@ -383,7 +386,7 @@ export const CalibrationTab = memo(function CalibrationTab({
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Mic Cal</span>
                       <span className="text-emerald-400 text-xs font-mono">
-                        {settings.micCalibrationProfile === 'ecm8000' ? 'ECM8000' : 'RTA-M'} compensated
+                        {settings.micCalibrationProfile === 'ecm8000' ? 'ECM8000' : settings.micCalibrationProfile === 'smartphone' ? 'MEMS' : 'RTA-M'} compensated
                       </span>
                     </div>
                   )}

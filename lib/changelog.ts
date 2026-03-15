@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.97.0',
+    date: '2026-03-15',
+    highlights: 'Smartphone mic calibration, autoresearch framework',
+    changes: [
+      { type: 'feat', description: 'Add Smartphone (Generic MEMS) mic calibration profile — compensates −12 dB LF roll-off and +3.8 dB presence peak typical of all smartphone MEMS microphones' },
+      { type: 'feat', description: 'Add autoresearch framework for autonomous DSP fusion weight optimization (scenarios, evaluator, program loop)' },
+    ],
+  },
+  {
     version: '0.96.0',
     date: '2026-03-14',
     highlights: 'Documentation overhaul, remove legacy existing weight from fusion',

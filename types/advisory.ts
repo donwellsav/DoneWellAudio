@@ -6,7 +6,7 @@ export type { AlgorithmScores, FusedDetectionResult, InterHarmonicResult, PTMRRe
 export type Algorithm = 'msd' | 'phase' | 'spectral' | 'comb' | 'ihr' | 'ptmr'
 export type AlgorithmMode = 'auto' | 'custom' | 'msd' | 'phase' | 'combined' | 'all' // legacy modes kept for backward compat
 export type ContentType = 'speech' | 'music' | 'compressed' | 'unknown'
-export type MicCalibrationProfile = 'none' | 'ecm8000' | 'rta-m'
+export type MicCalibrationProfile = 'none' | 'ecm8000' | 'rta-m' | 'smartphone'
 
 export type ThresholdMode = 'absolute' | 'relative' | 'hybrid'
 // Professional live sound operation modes — each configures detection for a specific scenario
