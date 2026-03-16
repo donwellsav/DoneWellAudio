@@ -260,10 +260,7 @@ export const MobileLayout = memo(function MobileLayout({
             autoGainDb={autoGainDb}
             autoGainLocked={autoGainLocked}
             onAutoGainToggle={(enabled) => onSettingsChange({ autoGainEnabled: enabled })}
-            autoGainTargetDb={settings.autoGainTargetDb}
-            onAutoGainTargetChange={(db) => onSettingsChange({ autoGainTargetDb: db, autoGainEnabled: true })}
             isRunning={isRunning}
-            onToggle={isRunning ? stop : start}
             noiseFloorDb={noiseFloorDb}
             faderMode={settings.faderMode}
             onFaderModeChange={(mode) => onSettingsChange({ faderMode: mode })}

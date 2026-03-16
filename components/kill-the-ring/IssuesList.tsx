@@ -144,13 +144,12 @@ interface IssueCardProps {
 const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, onDismiss, touchFriendly, onFalsePositive, isFalsePositive }: IssueCardProps) {
   // Memoize derived values that only change when the advisory object changes
   const {
-    severityColor, pitchStr, exactFreqStr, peq,
+    severityColor, pitchStr, exactFreqStr,
     velocity, isRunaway, isWarning, isResolved, timeToClipStr,
   } = useMemo(() => {
     const _severityColor = getSeverityColor(advisory.severity)
     const _pitchStr = advisory.advisory?.pitch ? formatPitch(advisory.advisory.pitch) : null
     const _exactFreqStr = advisory.trueFrequencyHz != null ? formatFrequency(advisory.trueFrequencyHz) : '---'
-    const _peq = advisory.advisory?.peq
     const _velocity = advisory.velocityDbPerSec ?? 0
     const _isRunaway = _velocity >= RUNAWAY_VELOCITY_THRESHOLD || advisory.isRunaway
     const _isWarning = _velocity >= WARNING_VELOCITY_THRESHOLD && !_isRunaway
@@ -165,7 +164,6 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, onDismiss
       : null
     return {
       severityColor: _severityColor, pitchStr: _pitchStr, exactFreqStr: _exactFreqStr,
-      peq: _peq,
       velocity: _velocity, isRunaway: _isRunaway, isWarning: _isWarning,
       isResolved: _isResolved, timeToClipStr: _timeToClipStr,
     }
@@ -182,17 +180,13 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, onDismiss
   const handleCopy = useCallback(() => {
     const parts: string[] = [exactFreqStr]
     if (pitchStr) parts.push(`(${pitchStr})`)
-    if (peq) {
-      parts.push('—')
-      parts.push(`PEQ: Q${(peq.q ?? 1).toFixed(0)} ${peq.gainDb ?? 0}dB`)
-    }
     navigator.clipboard.writeText(parts.join(' ')).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     }).catch(() => {
       // Clipboard API not available (insecure context, etc.)
     })
-  }, [exactFreqStr, pitchStr, peq])
+  }, [exactFreqStr, pitchStr])
 
   // Build tooltip detail string for niche metadata
   const detailParts = useMemo(() => {
@@ -251,11 +245,6 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, onDismiss
             <div className="flex items-baseline gap-x-2 gap-y-0.5 flex-wrap mt-0.5">
               {pitchStr && (
                 <span className="text-sm font-mono text-muted-foreground leading-none">{pitchStr}</span>
-              )}
-              {peq && (
-                <span className="text-sm font-mono text-muted-foreground leading-none">
-                  PEQ <span className="text-foreground font-medium">Q{(peq.q ?? 1).toFixed(0)} {peq.gainDb ?? 0}dB</span>
-                </span>
               )}
               {!isResolved && (
                 <span className="text-sm text-muted-foreground leading-none font-mono">{ageStr}</span>
@@ -336,10 +325,9 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, onDismiss
           {/* RIGHT: Copy / Dismiss + FALSE+ below */}
           <div className="flex flex-col items-end gap-0.5 flex-shrink-0 self-center">
             <div className="flex items-center gap-0.5">
-              {peq && (
-                <button
+              <button
                   onClick={handleCopy}
-                  aria-label={`Copy ${exactFreqStr} EQ recommendation`}
+                  aria-label={`Copy ${exactFreqStr} frequency info`}
                   className={`rounded transition-colors flex items-center justify-center ${
                     copied
                       ? 'text-emerald-400'
@@ -351,9 +339,8 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, onDismiss
                     : <Copy className={touchFriendly ? 'w-4 h-4' : 'w-3 h-3'} />
                   }
                 </button>
-              )}
               {copied && (
-                <span className="sr-only" role="status">EQ recommendation copied</span>
+                <span className="sr-only" role="status">Frequency info copied</span>
               )}
               {onDismiss && (
                 <button

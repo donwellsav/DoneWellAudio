@@ -2,9 +2,6 @@
 
 import { useRef, useEffect, useCallback, useState, useMemo, memo } from 'react'
 
-// Sensitivity preset quick-access values
-const SENSITIVITY_PRESETS = [[40, 'Safe'], [25, 'Norm'], [8, 'Hot']] as const
-
 interface VerticalGainFaderProps {
   value: number
   onChange: (value: number) => void
@@ -15,10 +12,7 @@ interface VerticalGainFaderProps {
   autoGainDb?: number
   autoGainLocked?: boolean
   onAutoGainToggle?: (enabled: boolean) => void
-  autoGainTargetDb: number
-  onAutoGainTargetChange: (db: number) => void
   isRunning: boolean
-  onToggle: () => void
   noiseFloorDb?: number | null
   // Dual-mode fader
   faderMode: 'gain' | 'sensitivity'
@@ -38,10 +32,7 @@ export const VerticalGainFader = memo(function VerticalGainFader({
   autoGainDb,
   autoGainLocked = false,
   onAutoGainToggle,
-  autoGainTargetDb,
-  onAutoGainTargetChange,
   isRunning,
-  onToggle,
   noiseFloorDb,
   faderMode,
   onFaderModeChange,
@@ -617,61 +608,6 @@ export const VerticalGainFader = memo(function VerticalGainFader({
         </div>
       </div>
 
-      {/* Quick presets — mode-dependent */}
-      <div className="flex-shrink-0 flex flex-col items-center gap-1 w-full">
-        {isSensitivity ? (
-          // Sensitivity presets: Safe (40dB), Norm (25dB), Hot (8dB)
-          SENSITIVITY_PRESETS.map(([db, label]) => (
-            <button
-              key={db}
-              onClick={() => onSensitivityChange(db)}
-              className={`w-full px-1 py-1.5 rounded font-mono text-sm font-bold uppercase tracking-[0.15em] transition-all duration-150 active:scale-95 ${
-                sensitivityValue === db
-                  ? 'bg-blue-500/20 border border-blue-500/50 text-blue-400'
-                  : 'bg-card/40 border border-transparent text-muted-foreground hover:bg-muted'
-              }`}
-              title={`${label}: ${db}dB threshold`}
-            >
-              {label}
-            </button>
-          ))
-        ) : (
-          // Venue presets: Loud (-12), Med (-18), Quiet (-24)
-          ([[-12, 'Loud'], [-18, 'Med'], [-24, 'Quiet']] as const).map(([db, label]) => (
-            <button
-              key={db}
-              onClick={() => onAutoGainTargetChange(db)}
-              className={`w-full px-1 py-1.5 rounded font-mono text-sm font-bold uppercase tracking-[0.15em] transition-all duration-150 active:scale-95 ${
-                autoGainEnabled && autoGainTargetDb === db
-                  ? 'bg-primary/20 border border-primary/50 text-primary'
-                  : 'bg-card/40 border border-transparent text-muted-foreground hover:bg-muted'
-              }`}
-              title={`${label}: auto-gain target ${db} dBFS`}
-            >
-              {label}
-            </button>
-          ))
-        )}
-      </div>
-
-      {/* Start/stop toggle */}
-      <button
-        onClick={onToggle}
-        aria-label={isRunning ? 'Stop analysis' : 'Start analysis'}
-        className="relative flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-      >
-        <div className={`absolute inset-0.5 rounded-full border-2 transition-colors duration-300 ${isRunning ? 'border-primary' : 'border-primary/50'}`} />
-        {isRunning && (
-          <div className="absolute inset-0.5 rounded-full border border-primary/40 animate-led-blink" />
-        )}
-        <svg
-          className={`w-4 h-4 relative z-10 transition-colors duration-300 ${isRunning ? 'text-primary drop-shadow-[0_0_4px_rgba(75,146,255,0.4)]' : 'text-muted-foreground hover:text-primary'}`}
-          viewBox="0 0 24 24"
-          fill="currentColor"
-        >
-          <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.31-2.5-4.06v8.12c1.48-.75 2.5-2.29 2.5-4.06zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-        </svg>
-      </button>
     </div>
   )
 })
