@@ -234,10 +234,10 @@ export const DesktopLayout = memo(function DesktopLayout({
                       </span>
                       <button
                         onClick={toggleRtaFullscreen}
-                        className="px-1 py-0.5 rounded text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        className="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
                         aria-label={isRtaFullscreen ? 'Exit RTA fullscreen' : 'RTA fullscreen'}
                       >
-                        {isRtaFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                        {isRtaFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
                       </button>
                     </div>
                   </div>
