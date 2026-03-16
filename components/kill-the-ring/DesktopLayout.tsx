@@ -13,7 +13,7 @@ import { useAdvisories } from '@/contexts/AdvisoryContext'
 import { useUI } from '@/contexts/UIContext'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { AlertTriangle, PanelLeftClose, Columns2 } from 'lucide-react'
+import { AlertTriangle, PanelLeftClose, Columns2, Maximize2, Minimize2 } from 'lucide-react'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import type { ImperativePanelHandle } from 'react-resizable-panels'
 import type { DetectorSettings } from '@/types/advisory'
@@ -45,7 +45,7 @@ export const DesktopLayout = memo(function DesktopLayout({
     inputLevel, isAutoGain, autoGainDb, autoGainLocked,
   } = useAudio()
 
-  const { isFrozen, toggleFreeze, layoutKey, rtaContainerRef } = useUI()
+  const { isFrozen, toggleFreeze, layoutKey, rtaContainerRef, isRtaFullscreen, toggleRtaFullscreen } = useUI()
 
   const {
     advisories, activeAdvisoryCount, earlyWarning,
@@ -226,11 +226,20 @@ export const DesktopLayout = memo(function DesktopLayout({
                         </button>
                       )}
                     </div>
-                    <span className="text-sm text-muted-foreground font-mono whitespace-nowrap">
-                      {isRunning && noiseFloorDb != null
-                        ? `${noiseFloorDb.toFixed(0)}dB`
-                        : 'Ready'}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm text-muted-foreground font-mono whitespace-nowrap">
+                        {isRunning && noiseFloorDb != null
+                          ? `${noiseFloorDb.toFixed(0)}dB`
+                          : 'Ready'}
+                      </span>
+                      <button
+                        onClick={toggleRtaFullscreen}
+                        className="px-1 py-0.5 rounded text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label={isRtaFullscreen ? 'Exit RTA fullscreen' : 'RTA fullscreen'}
+                      >
+                        {isRtaFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
                   </div>
                   <div className="flex-1 min-h-0">
                     <SpectrumCanvas spectrumRef={spectrumRef} advisories={advisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} onStart={!isRunning && !isStarting ? start : undefined} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} />

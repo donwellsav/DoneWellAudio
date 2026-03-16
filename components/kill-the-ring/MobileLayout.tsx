@@ -13,7 +13,7 @@ import { useAudio } from '@/contexts/AudioAnalyzerContext'
 import { useAdvisories } from '@/contexts/AdvisoryContext'
 import { useUI } from '@/contexts/UIContext'
 import { Button } from '@/components/ui/button'
-import { RotateCcw, AlertTriangle, BarChart3, Settings2 } from 'lucide-react'
+import { RotateCcw, AlertTriangle, BarChart3, Settings2, Maximize2, Minimize2 } from 'lucide-react'
 import type { DetectorSettings } from '@/types/advisory'
 
 const TAB_ORDER = ['issues', 'graph', 'settings'] as const
@@ -32,7 +32,7 @@ export const MobileLayout = memo(function MobileLayout({
     noiseFloorDb,
   } = useAudio()
 
-  const { isFrozen, toggleFreeze, mobileTab, setMobileTab, rtaContainerRef } = useUI()
+  const { isFrozen, toggleFreeze, mobileTab, setMobileTab, rtaContainerRef, isRtaFullscreen, toggleRtaFullscreen } = useUI()
 
   const {
     advisories, activeAdvisoryCount, earlyWarning,
@@ -171,7 +171,16 @@ export const MobileLayout = memo(function MobileLayout({
           >
             {/* RTA — top half */}
             <div ref={rtaContainerRef} className="flex-1 min-h-0 bg-card/40 rounded border border-border/40 overflow-hidden relative">
-              <span className="absolute top-1 left-1.5 z-20 text-sm text-muted-foreground font-mono font-bold uppercase tracking-[0.2em] pointer-events-none">RTA</span>
+              <div className="absolute top-1 left-1.5 z-20 flex items-center gap-1">
+                <span className="text-sm text-muted-foreground font-mono font-bold uppercase tracking-[0.2em]">RTA</span>
+                <button
+                  onClick={toggleRtaFullscreen}
+                  className="min-h-[44px] min-w-[44px] rounded text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
+                  aria-label={isRtaFullscreen ? 'Exit RTA fullscreen' : 'RTA fullscreen'}
+                >
+                  {isRtaFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </button>
+              </div>
               {isRunning && (
                 <button
                   onClick={toggleFreeze}
@@ -301,7 +310,16 @@ export const MobileLayout = memo(function MobileLayout({
         <div className="flex-1 flex flex-col gap-0.5 overflow-hidden p-0.5">
           {/* RTA — top half */}
           <div className="flex-1 min-h-0 bg-card/40 rounded border border-border/40 overflow-hidden relative">
-            <span className="absolute top-1 left-1.5 z-20 text-sm text-muted-foreground font-mono font-bold uppercase tracking-[0.2em] pointer-events-none">RTA</span>
+            <div className="absolute top-1 left-1.5 z-20 flex items-center gap-1">
+              <span className="text-sm text-muted-foreground font-mono font-bold uppercase tracking-[0.2em]">RTA</span>
+              <button
+                onClick={toggleRtaFullscreen}
+                className="min-h-[44px] min-w-[44px] rounded text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
+                aria-label={isRtaFullscreen ? 'Exit RTA fullscreen' : 'RTA fullscreen'}
+              >
+                {isRtaFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </button>
+            </div>
             {isRunning && (
               <button
                 onClick={toggleFreeze}
