@@ -57,7 +57,7 @@ export const DesktopLayout = memo(function DesktopLayout({
   } = useAdvisories()
 
   return (
-    <div className="hidden landscape:flex flex-1 overflow-hidden">
+    <div className="hidden md:landscape:flex flex-1 overflow-hidden">
       <ResizablePanelGroup key={layoutKey} direction="horizontal" autoSaveId="ktr-layout-main-v4">
         {/* Sidebar panel */}
         <ResizablePanel defaultSize={20} minSize={8} maxSize={30} collapsible>

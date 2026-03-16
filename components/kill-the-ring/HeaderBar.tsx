@@ -128,7 +128,7 @@ export const HeaderBar = memo(function HeaderBar({
               variant="ghost"
               size="icon"
               onClick={resetLayout}
-              className="hidden landscape:flex h-10 w-10 text-muted-foreground hover:text-foreground transition-all duration-150 active:scale-95"
+              className="hidden md:landscape:flex h-10 w-10 text-muted-foreground hover:text-foreground transition-all duration-150 active:scale-95"
               aria-label="Reset panel layout"
             >
               <LayoutGrid className="size-6" />
@@ -145,7 +145,7 @@ export const HeaderBar = memo(function HeaderBar({
               variant="ghost"
               size="icon"
               onClick={toggleFullscreen}
-              className="hidden landscape:flex h-10 w-10 text-muted-foreground hover:text-foreground transition-all duration-150 active:scale-95"
+              className="hidden md:landscape:flex h-10 w-10 text-muted-foreground hover:text-foreground transition-all duration-150 active:scale-95"
               aria-label="Toggle fullscreen"
             >
               {isFullscreen ? <Minimize2 className="size-6" /> : <Maximize2 className="size-6" />}
@@ -163,7 +163,7 @@ export const HeaderBar = memo(function HeaderBar({
                 variant="ghost"
                 size="icon"
                 onClick={toggleFreeze}
-                className={`hidden landscape:flex h-10 w-10 ${
+                className={`hidden md:landscape:flex h-10 w-10 ${
                   isFrozen ? 'text-blue-400' : 'text-muted-foreground hover:text-foreground'
                 }`}
                 aria-label={isFrozen ? 'Unfreeze spectrum' : 'Freeze spectrum'}
