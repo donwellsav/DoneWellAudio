@@ -336,7 +336,7 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, onDismiss
           {/* RIGHT: Copy / Dismiss + FALSE+ below */}
           <div className="flex flex-col items-end gap-0.5 flex-shrink-0 self-center">
             <div className="flex items-center gap-0.5">
-              {hasEq && (
+              {peq && (
                 <button
                   onClick={handleCopy}
                   aria-label={`Copy ${exactFreqStr} EQ recommendation`}
