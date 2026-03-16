@@ -144,19 +144,17 @@ interface IssueCardProps {
 const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, onDismiss, touchFriendly, onFalsePositive, isFalsePositive }: IssueCardProps) {
   // Memoize derived values that only change when the advisory object changes
   const {
-    severityColor, pitchStr, exactFreqStr, geq, peq, bandHz,
-    velocity, isRunaway, isWarning, isResolved, hasEq, timeToClipStr,
+    severityColor, pitchStr, exactFreqStr, peq,
+    velocity, isRunaway, isWarning, isResolved, timeToClipStr,
   } = useMemo(() => {
     const _severityColor = getSeverityColor(advisory.severity)
     const _pitchStr = advisory.advisory?.pitch ? formatPitch(advisory.advisory.pitch) : null
     const _exactFreqStr = advisory.trueFrequencyHz != null ? formatFrequency(advisory.trueFrequencyHz) : '---'
-    const _geq = advisory.advisory?.geq
     const _peq = advisory.advisory?.peq
     const _velocity = advisory.velocityDbPerSec ?? 0
     const _isRunaway = _velocity >= RUNAWAY_VELOCITY_THRESHOLD || advisory.isRunaway
     const _isWarning = _velocity >= WARNING_VELOCITY_THRESHOLD && !_isRunaway
     const _isResolved = advisory.resolved === true
-    const _hasEq = !!(_geq && _peq)
     const _timeToClipMs = advisory.predictedTimeToClipMs ?? (
       _velocity > 0 && advisory.trueAmplitudeDb < 0
         ? ((0 - advisory.trueAmplitudeDb) / _velocity) * 1000
@@ -167,9 +165,9 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, onDismiss
       : null
     return {
       severityColor: _severityColor, pitchStr: _pitchStr, exactFreqStr: _exactFreqStr,
-      geq: _geq, peq: _peq, bandHz: _geq?.bandHz,
+      peq: _peq,
       velocity: _velocity, isRunaway: _isRunaway, isWarning: _isWarning,
-      isResolved: _isResolved, hasEq: _hasEq, timeToClipStr: _timeToClipStr,
+      isResolved: _isResolved, timeToClipStr: _timeToClipStr,
     }
   }, [advisory])
 
@@ -184,11 +182,9 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, onDismiss
   const handleCopy = useCallback(() => {
     const parts: string[] = [exactFreqStr]
     if (pitchStr) parts.push(`(${pitchStr})`)
-    if (hasEq) {
+    if (peq) {
       parts.push('—')
-      if (geq) parts.push(`GEQ: ${formatFrequency(geq.bandHz)} ${geq.suggestedDb}dB`)
-      if (geq && peq) parts.push('|')
-      if (peq) parts.push(`PEQ: Q${(peq.q ?? 1).toFixed(0)} ${peq.gainDb ?? 0}dB`)
+      parts.push(`PEQ: Q${(peq.q ?? 1).toFixed(0)} ${peq.gainDb ?? 0}dB`)
     }
     navigator.clipboard.writeText(parts.join(' ')).then(() => {
       setCopied(true)
@@ -196,7 +192,7 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, onDismiss
     }).catch(() => {
       // Clipboard API not available (insecure context, etc.)
     })
-  }, [exactFreqStr, pitchStr, hasEq, geq, peq])
+  }, [exactFreqStr, pitchStr, peq])
 
   // Build tooltip detail string for niche metadata
   const detailParts = useMemo(() => {
@@ -256,15 +252,9 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, onDismiss
               {pitchStr && (
                 <span className="text-sm font-mono text-muted-foreground leading-none">{pitchStr}</span>
               )}
-              {bandHz != null && bandHz !== advisory.trueFrequencyHz && (
+              {peq && (
                 <span className="text-sm font-mono text-muted-foreground leading-none">
-                  → {formatFrequency(bandHz)}
-                </span>
-              )}
-              {hasEq && (
-                <span className="text-sm font-mono text-muted-foreground leading-none">
-                  GEQ <span className="text-foreground font-medium">{geq?.suggestedDb}dB</span>
-                  {' '}PEQ <span className="text-foreground font-medium">Q{(peq?.q ?? 1).toFixed(0)} {peq?.gainDb ?? 0}dB</span>
+                  PEQ <span className="text-foreground font-medium">Q{(peq.q ?? 1).toFixed(0)} {peq.gainDb ?? 0}dB</span>
                 </span>
               )}
               {!isResolved && (
