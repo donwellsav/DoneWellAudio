@@ -7,6 +7,7 @@
 
 import { freqToLogPosition, clamp } from '@/lib/utils/mathHelpers'
 import { getSeverityColor } from '@/lib/dsp/eqAdvisor'
+import { getSeverityUrgency } from '@/lib/dsp/severityUtils'
 import { formatFrequency } from '@/lib/utils/pitchUtils'
 import { CANVAS_SETTINGS, VIZ_COLORS } from '@/lib/dsp/constants'
 import type { SpectrumData, Advisory } from '@/types/advisory'
@@ -382,7 +383,47 @@ export function drawMarkers(
   const visibleAdvisories = advisories
     .filter(a => !clearedIds?.has(a.id))
     .slice(-7)
-  for (const advisory of visibleAdvisories) {
+
+  // Pre-compute label positions and determine which labels to show when overlapping.
+  // Higher-severity (more problematic) advisories win; ties broken by confidence.
+  const labelFont = `${fontSize + 3}px monospace`
+  ctx.font = labelFont
+  const labelPadding = 8
+  const labelShowFlags: boolean[] = new Array(visibleAdvisories.length).fill(false)
+
+  // Build priority-sorted indices (most problematic first)
+  const indices = visibleAdvisories.map((_, i) => i)
+  indices.sort((a, b) => {
+    const urgA = getSeverityUrgency(visibleAdvisories[a].severity)
+    const urgB = getSeverityUrgency(visibleAdvisories[b].severity)
+    if (urgB !== urgA) return urgB - urgA
+    return visibleAdvisories[b].confidence - visibleAdvisories[a].confidence
+  })
+
+  // Compute label x-ranges (center ± half-width + padding)
+  const labelXRanges: Array<{ left: number; right: number }> = visibleAdvisories.map(advisory => {
+    const freq = advisory.trueFrequencyHz
+    const x = freqToLogPosition(freq, range.freqMin, range.freqMax) * plotWidth
+    const halfWidth = ctx.measureText(formatFrequency(freq)).width / 2 + labelPadding
+    return { left: x - halfWidth, right: x + halfWidth }
+  })
+
+  // Greedily accept labels in priority order, reject overlaps
+  const accepted: number[] = []
+  for (const idx of indices) {
+    const range_i = labelXRanges[idx]
+    const overlaps = accepted.some(a => {
+      const range_a = labelXRanges[a]
+      return range_i.left < range_a.right && range_i.right > range_a.left
+    })
+    if (!overlaps) {
+      labelShowFlags[idx] = true
+      accepted.push(idx)
+    }
+  }
+
+  for (let i = 0; i < visibleAdvisories.length; i++) {
+    const advisory = visibleAdvisories[i]
     const freq = advisory.trueFrequencyHz
     const db = advisory.trueAmplitudeDb
     const x = freqToLogPosition(freq, range.freqMin, range.freqMax) * plotWidth
@@ -413,11 +454,13 @@ export function drawMarkers(
     ctx.arc(x, y, peakMarkerRadius, 0, Math.PI * 2)
     ctx.fill()
 
-    // Frequency label
-    ctx.fillStyle = color
-    ctx.font = `${fontSize + 3}px monospace`
-    ctx.textAlign = 'center'
-    ctx.fillText(formatFrequency(freq), x, y - 10)
+    // Frequency label — only show if not occluded by a higher-priority label
+    if (labelShowFlags[i]) {
+      ctx.fillStyle = color
+      ctx.font = labelFont
+      ctx.textAlign = 'center'
+      ctx.fillText(formatFrequency(freq), x, y - 10)
+    }
   }
 }
 
