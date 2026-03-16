@@ -10,7 +10,7 @@
 
 ## Project Overview
 
-**Kill The Ring** (killthering.com) is a browser-based real-time acoustic feedback detection PWA for live sound engineers. It captures microphone input via the Web Audio API, identifies feedback frequencies using six fused detection algorithms, and delivers EQ recommendations with pitch translation. Version 0.98.0. Repository: github.com/donwellsav/killthering.
+**Kill The Ring** (killthering.com) is a browser-based real-time acoustic feedback detection PWA for live sound engineers. It captures microphone input via the Web Audio API, identifies feedback frequencies using six fused detection algorithms, and delivers EQ recommendations with pitch translation. Version 0.107.0. Repository: github.com/donwellsav/killthering.
 
 ## Tech Stack
 
@@ -20,7 +20,7 @@
 | Language | TypeScript 5.7 (strict mode, zero `any`) |
 | UI | shadcn/ui (New York), Tailwind CSS v4, Radix primitives |
 | Audio | Web Audio API (AnalyserNode, 8192-point FFT at 50fps) |
-| DSP Offload | Web Worker (dspWorker.ts, ~430 lines) |
+| DSP Offload | Web Worker (dspWorker.ts, ~460 lines) |
 | Visualization | HTML5 Canvas at 30fps |
 | State | React 19 hooks + 4 context providers (no external state library) |
 | Testing | Vitest (373 tests, 15 suites, under 2s) |

@@ -2,6 +2,23 @@
 
 All notable changes to Kill The Ring are documented in this file.
 
+## [0.107.0] - 2026-03-16
+
+### UI Improvements
+
+- **Permanent Clear All button** — Trash icon now always visible in header; clears advisory cards, GEQ bars, and RTA markers in a single click. Visually dimmed when nothing to clear.
+- **FALSE+ button repositioned** — Moved from inline with Copy/Dismiss to its own row beneath them in each advisory card, improving visual hierarchy and reducing misclick risk.
+
+### ML Data Pipeline (Phase 1 + 2)
+
+- **Snapshot enrichment** — Every snapshot batch now includes intermediate algorithm scores (MSD, phase, spectral, comb, IHR, PTMR) plus fused probability and confidence (v1.1 schema, backward-compatible)
+- **Always-on FALSE+ button** — User feedback available on all advisory cards (not just calibration mode); flows to DSP worker for ground truth labeling of pending snapshot batches
+- **Ingest API v1.1** — Accepts optional `algorithmScores` and `userFeedback` fields with validation
+
+### Tests
+
+- 373 tests (368 passed, 4 skipped, 1 todo) across 15 suites
+
 ## [0.105.0] - 2026-03-15
 
 ### Bug Fixes (12 resolved)
