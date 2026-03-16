@@ -27,6 +27,8 @@ export const LOG10_E = Math.LOG10E // For power to dB conversion
 // 40ms (25fps) halves CPU cost with imperceptible detection latency increase
 // (feedback builds over 200ms+, human reaction time ~150ms).
 export const MOBILE_ANALYSIS_INTERVAL_MS = 40
+/** Max advisories shown on mobile (cards, RTA markers, GEQ bars). */
+export const MOBILE_MAX_DISPLAYED_ISSUES = 5
 
 // Precomputed lookup table: dB → linear power for range [-100, 0] at 0.1 dB steps
 // Replaces Math.exp(db * LN10_OVER_10) in the hot loop (4096 calls/frame → 1 array access)

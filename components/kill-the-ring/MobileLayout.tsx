@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useRef, useCallback } from 'react'
+import { memo, useRef, useCallback, useMemo } from 'react'
 import { IssuesList } from './IssuesList'
 import { EarlyWarningPanel } from './EarlyWarningPanel'
 import { SpectrumCanvas } from './SpectrumCanvas'
@@ -15,6 +15,7 @@ import { useUI } from '@/contexts/UIContext'
 import { Button } from '@/components/ui/button'
 import { RotateCcw, AlertTriangle, BarChart3, Settings2, Maximize2, Minimize2 } from 'lucide-react'
 import type { DetectorSettings } from '@/types/advisory'
+import { MOBILE_MAX_DISPLAYED_ISSUES } from '@/lib/dsp/constants'
 
 const TAB_ORDER = ['issues', 'graph', 'settings'] as const
 
@@ -42,6 +43,12 @@ export const MobileLayout = memo(function MobileLayout({
     onClearRTA, onClearGEQ,
     onFalsePositive, falsePositiveIds,
   } = useAdvisories()
+
+  // Limit advisories to top 5 most problematic on mobile (already sorted by urgency + amplitude)
+  const mobileAdvisories = useMemo(
+    () => advisories.slice(0, MOBILE_MAX_DISPLAYED_ISSUES),
+    [advisories]
+  )
 
   // ── Tab navigation ──────────────────────────────────────────
   const tabIndex = TAB_ORDER.indexOf(mobileTab)
@@ -143,8 +150,8 @@ export const MobileLayout = memo(function MobileLayout({
                 <span className="text-primary font-mono">{activeAdvisoryCount}</span>
               </h2>
               <IssuesList
-                advisories={advisories}
-                maxIssues={settings.maxDisplayedIssues}
+                advisories={mobileAdvisories}
+                maxIssues={MOBILE_MAX_DISPLAYED_ISSUES}
                 dismissedIds={dismissedIds}
                 onDismiss={onDismiss}
                 onClearAll={onClearAll}
@@ -202,7 +209,7 @@ export const MobileLayout = memo(function MobileLayout({
                   Clear
                 </button>
               )}
-              <SpectrumCanvas spectrumRef={spectrumRef} advisories={advisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} onStart={!isRunning && !isStarting ? start : undefined} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} />
+              <SpectrumCanvas spectrumRef={spectrumRef} advisories={mobileAdvisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} onStart={!isRunning && !isStarting ? start : undefined} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} />
             </div>
             {/* GEQ — bottom half */}
             <div className="flex-1 min-h-0 bg-card/40 rounded border border-border/40 overflow-hidden relative">
@@ -215,7 +222,7 @@ export const MobileLayout = memo(function MobileLayout({
                   Clear
                 </button>
               )}
-              <GEQBarView advisories={advisories} graphFontSize={settings.graphFontSize} clearedIds={geqClearedIds} />
+              <GEQBarView advisories={mobileAdvisories} graphFontSize={settings.graphFontSize} clearedIds={geqClearedIds} />
             </div>
           </div>
 
@@ -280,18 +287,18 @@ export const MobileLayout = memo(function MobileLayout({
         </div>
       </div>
 
-      {/* ── Landscape mobile: 40% Issues / 60% Graph + fader sidecar (< md only) ── */}
+      {/* ── Landscape mobile: 40% Issues / 55% Graphs / 5% fader sidecar (< md only) ── */}
       <div className="hidden landscape:flex md:landscape:hidden flex-1 overflow-hidden">
-        {/* Issues — 35% */}
-        <div className="w-[35%] flex flex-col overflow-hidden border-r border-border/50">
+        {/* Issues — 40% */}
+        <div className="w-[40%] flex flex-col overflow-hidden border-r border-border/50">
           <div className="flex-1 overflow-y-auto p-2">
             <h2 className="section-label mb-1 flex items-center justify-between">
               <span>Issues</span>
               <span className="text-primary font-mono">{activeAdvisoryCount}</span>
             </h2>
             <IssuesList
-              advisories={advisories}
-              maxIssues={settings.maxDisplayedIssues}
+              advisories={mobileAdvisories}
+              maxIssues={MOBILE_MAX_DISPLAYED_ISSUES}
               dismissedIds={dismissedIds}
               onDismiss={onDismiss}
               onClearAll={onClearAll}
@@ -306,8 +313,8 @@ export const MobileLayout = memo(function MobileLayout({
             <EarlyWarningPanel earlyWarning={earlyWarning} />
           </div>
         </div>
-        {/* Graph — 60% */}
-        <div className="flex-1 flex flex-col gap-0.5 overflow-hidden p-0.5">
+        {/* Graphs — 55% */}
+        <div className="w-[55%] flex flex-col gap-0.5 overflow-hidden p-0.5">
           {/* RTA — top half */}
           <div ref={rtaContainerRef} className="flex-1 min-h-0 bg-card/40 rounded border border-border/40 overflow-hidden relative">
             <div className="absolute top-1 left-1.5 z-20 flex items-center gap-1">
@@ -341,7 +348,7 @@ export const MobileLayout = memo(function MobileLayout({
                 Clear
               </button>
             )}
-            <SpectrumCanvas spectrumRef={spectrumRef} advisories={advisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} onStart={!isRunning && !isStarting ? start : undefined} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} />
+            <SpectrumCanvas spectrumRef={spectrumRef} advisories={mobileAdvisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} onStart={!isRunning && !isStarting ? start : undefined} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} />
           </div>
           {/* GEQ — bottom half */}
           <div className="flex-1 min-h-0 bg-card/40 rounded border border-border/40 overflow-hidden relative">
@@ -354,11 +361,11 @@ export const MobileLayout = memo(function MobileLayout({
                 Clear
               </button>
             )}
-            <GEQBarView advisories={advisories} graphFontSize={settings.graphFontSize} clearedIds={geqClearedIds} />
+            <GEQBarView advisories={mobileAdvisories} graphFontSize={settings.graphFontSize} clearedIds={geqClearedIds} />
           </div>
         </div>
-        {/* Right fader sidecar */}
-        <div className="flex-shrink-0 w-16 border-l border-border/50 channel-strip">
+        {/* Right fader sidecar — 5% */}
+        <div className="w-[5%] min-w-[3rem] flex-shrink-0 border-l border-border/50 channel-strip">
           <VerticalGainFader
             value={settings.inputGainDb}
             onChange={(v) => onSettingsChange({ inputGainDb: v })}
