@@ -1,6 +1,6 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
-> **Last updated March 2026. 119 TypeScript/TSX files, 373 tests (368 pass, 4 skip, 1 todo), 15 suites.**
+> **Last updated March 2026. 137 TypeScript/TSX files, 373 tests (368 pass, 4 skip, 1 todo), 15 suites. Version 0.107.0.**
 
 ## CRITICAL RULES
 
@@ -20,7 +20,7 @@
 | Language | TypeScript 5.7 (strict mode, zero `any`) |
 | UI | shadcn/ui (New York), Tailwind CSS v4, Radix primitives |
 | Audio | Web Audio API (AnalyserNode, 8192-point FFT at 50fps) |
-| DSP Offload | Web Worker (dspWorker.ts, ~460 lines) |
+| DSP Offload | Web Worker (dspWorker.ts, ~458 lines) |
 | Visualization | HTML5 Canvas at 30fps |
 | State | React 19 hooks + 4 context providers (no external state library) |
 | Testing | Vitest (373 tests, 15 suites, under 2s) |
@@ -52,7 +52,7 @@ Mic -> getUserMedia -> GainNode -> AnalyserNode (8192 FFT)
     -> postMessage(peak, spectrum, timeDomain) [transferable]
       -> Web Worker: AlgorithmEngine.computeScores()
       -> fuseAlgorithmResults() [content-adaptive weights]
-      -> classifyTrackWithAlgorithms() [10 features]
+      -> classifyTrackWithAlgorithms() [11 features]
       -> shouldReportIssue() [mode-specific gate]
       -> generateEQAdvisory() [GEQ + PEQ + shelf + pitch]
       -> AdvisoryManager.createOrUpdate() [3-layer dedup]
@@ -107,19 +107,19 @@ COMPRESSED: MSD=0.12  Phase=0.30  Spectral=0.18  Comb=0.08  IHR=0.18  PTMR=0.14
 
 | Bug | Fix | Version |
 |-----|-----|---------|
-| Auto-gain EMA coefficients stale in `updateConfig()` | `_recomputeEmaCoefficients()` called from both `start()` and `updateConfig()` | v0.98.0+ |
-| Confidence formula floors at 0.5 (UNCERTAIN unreachable) | Changed to `prob * (0.5 + 0.5 * agreement)` | v0.98.0+ |
-| Post-override normalization undoes RUNAWAY pFeedback=0.85 | Normalization before overrides; overrides are final | v0.98.0+ |
-| `existing` weight (0.04) double-counts features | Removed from all profiles, redistributed to IHR+PTMR | v0.98.0+ |
-| Comb weight doubling dilutes others by 7.4% | Doubled weight in numerator only, base weight in denominator | v0.98.0+ |
-| No worker crash recovery | Auto-restart: 500ms debounce, max 3 retries, Sentry logging | v0.98.0+ |
-| SpectrumCanvas missing devicePixelRatio (blurry on Retina) | Full DPR scaling: buffer, CSS style, `ctx.scale(dpr, dpr)` | v0.98.0+ |
+| Auto-gain EMA coefficients stale in `updateConfig()` | `_recomputeEmaCoefficients()` called from both `start()` and `updateConfig()` | v0.105.0 |
+| Confidence formula floors at 0.5 (UNCERTAIN unreachable) | Changed to `prob * (0.5 + 0.5 * agreement)` | v0.105.0 |
+| Post-override normalization undoes RUNAWAY pFeedback=0.85 | Normalization before overrides; overrides are final | v0.105.0 |
+| `existing` weight (0.04) double-counts features | Removed from all profiles, redistributed to IHR+PTMR | v0.105.0 |
+| Comb weight doubling dilutes others by 7.4% | Doubled weight in numerator only, base weight in denominator | v0.105.0 |
+| No worker crash recovery | Auto-restart: 500ms debounce, max 3 retries, Sentry logging | v0.105.0 |
+| SpectrumCanvas missing devicePixelRatio (blurry on Retina) | Full DPR scaling: buffer, CSS style, `ctx.scale(dpr, dpr)` | v0.105.0 |
 | Dual MSD implementations | Consolidated into single `MSDPool` class in `msdPool.ts` | v0.98.0 |
-| Only axial room modes (tangential + oblique missing) | `calculateRoomModes()` now handles all three mode types | v0.98.0+ |
-| PRIOR_PROBABILITY = 0.33 (uniform priors) | Per-class priors: feedback=0.45, whistle=0.27, instrument=0.27 | v0.98.0+ |
-| Settings slider fires per-frame (no debounce) | 100ms debounce with merge accumulation in `KillTheRing.tsx` | v0.98.0+ |
-| TS2688: Missing @serwist/next type definition | Types declared in `tsconfig.json` | v0.98.0+ |
-| Persistence thresholds frame-count-based (FUTURE-002) | ms-based thresholds with runtime `Math.ceil(ms / intervalMs)` | v0.98.0+ |
+| Only axial room modes (tangential + oblique missing) | `calculateRoomModes()` now handles all three mode types | v0.105.0 |
+| PRIOR_PROBABILITY = 0.33 (uniform priors) | Per-class priors: feedback=0.45, whistle=0.27, instrument=0.27 | v0.105.0 |
+| Settings slider fires per-frame (no debounce) | 100ms debounce with merge accumulation in `KillTheRing.tsx` | v0.105.0 |
+| TS2688: Missing @serwist/next type definition | Types declared in `tsconfig.json` | v0.98.0 |
+| Persistence thresholds frame-count-based (FUTURE-002) | ms-based thresholds with runtime `Math.ceil(ms / intervalMs)` | v0.105.0 |
 
 ### High (P1)
 
@@ -154,13 +154,21 @@ app/                          # Next.js App Router
   page.tsx (5)                #   Entry -> KillTheRingClient
   global-error.tsx (56)       #   Sentry error boundary
   sw.ts (38)                  #   Serwist service worker
-  api/v1/ingest/route.ts (147)#   Spectral snapshot ingest (rate-limited, IP-stripped)
+  api/v1/ingest/route.ts (160)#   Spectral snapshot ingest (v1.1 schema, rate-limited, IP-stripped)
 components/
   kill-the-ring/ (23 files)   # Domain components + barrel index.ts
+    KillTheRing.tsx (423)     #   Root orchestrator, settings debounce, FP handling
+    HeaderBar.tsx (220)       #   Header bar with permanent Clear All button
+    IssuesList.tsx (416)      #   Advisory cards with FALSE+ below Copy/Dismiss
     settings/ (7 files)       # Settings tab components
   ui/ (20 files)              # shadcn/ui primitives
 contexts/ (4 files)           # React context providers
+  AudioAnalyzerContext (246)  #   Engine lifecycle, settings, devices, spectrum (28 fields)
+  AdvisoryContext (190)       #   Advisory state, dismiss/clear/FP, derived booleans
+  UIContext (107)             #   Mobile tab, freeze, fullscreen, layout reset
+  PortalContainerContext (23) #   Portal mount for mobile overlays
 hooks/ (11 files)             # Custom hooks
+  useDSPWorker.ts (359)       #   Worker lifecycle, crash recovery, userFeedback
 lib/
   dsp/ (17 modules)           # DSP engine (8,057 lines):
     feedbackDetector.ts (1662)#   Core: peak detection, MSD pool, auto-gain, persistence
@@ -170,9 +178,9 @@ lib/
     algorithmFusion.ts (823)  #   6-algo fusion, comb, IHR, PTMR, MINDS, CombStabilityTracker
     feedbackHistory.ts (467)  #   Session history, repeat offenders, hotspot tracking
     trackManager.ts (466)     #   Track lifecycle, cents-based association (100-cent tolerance)
-    dspWorker.ts (434)        #   Worker orchestrator, temporal smoothing
+    dspWorker.ts (458)        #   Worker orchestrator, temporal smoothing, ML score extraction
     eqAdvisor.ts (402)        #   GEQ/PEQ/shelf recs, ERB scaling, MINDS depth
-    workerFft.ts (369)        #   Radix-2 FFT, AlgorithmEngine, phase extraction
+    workerFft.ts (389)        #   Radix-2 FFT, AlgorithmEngine, phase extraction
     advisoryManager.ts (292)  #   3-layer dedup, band cooldown, memory bounds (max 200)
     msdPool.ts (267)          #   Consolidated MSD pool (sparse, LRU eviction, 64KB)
     msdAnalysis.ts (170)      #   [DEPRECATED] Worker-side MSD + AmplitudeHistoryBuffer + PhaseHistoryBuffer
@@ -185,12 +193,13 @@ lib/
   export/ (3 files)           # PDF/TXT/CSV/JSON export
   calibration/ (3 files)      # Room profile, session recording, JSON export
   storage/ktrStorage.ts (183) # Typed localStorage abstraction
-  data/ (4 files)             # Anonymous spectral collection (opt-out)
+  data/ (4 files)             # Anonymous spectral collection (opt-out, v1.1 with algo scores)
+    snapshotCollector.ts (324)#   Batch collection, algorithm score enrichment, user feedback
   utils/ (2 files)            # Math helpers, pitch utilities
 types/
   advisory.ts (~384)          # All DSP interfaces (Advisory, DetectorSettings, Track, etc.)
   calibration.ts (~157)       # Room profile, calibration export types
-  data.ts (~126)              # Consent, snapshot, worker message types
+  data.ts (~153)              # Consent, snapshot, worker message types, MarkerAlgorithmScores
 tests/
   dsp/ (7 files)              # Integration/scenario tests (~135 tests)
   vitest.config.ts            # Test configuration
@@ -249,7 +258,7 @@ tests/
 - **CSP:** Restrictive prod policy, relaxed dev policy with hot reload support
 - **Permissions-Policy:** `microphone=(self), camera=(), geolocation=()`
 - **Zero XSS vectors:** No direct HTML injection, no dynamic code execution
-- **API:** Ingest endpoint validates schema, rate-limits (6/60s per session), caps payload (512KB), strips IP
+- **API:** Ingest endpoint validates v1.0/v1.1 schema, rate-limits (6/60s per session), caps payload (512KB), strips IP
 - **Worker:** Inbound messages type-validated via `WorkerOutboundMessage` switch; outbound postMessage lacks compile-time Set validation (minor gap)
 - **localStorage:** 37 touchpoints, all via ktrStorage.ts abstraction with try/catch
 
@@ -268,3 +277,16 @@ tests/
 - **Data collection:** Anonymous spectral snapshots (opt-out). No PII. Random session UUIDs. IP stripped server-side.
 - **Consent:** Opt-out model (US). Needs opt-in for GDPR jurisdictions before EU launch.
 - **Storage:** Settings and history in localStorage only. Never transmitted unless user explicitly exports.
+
+## ML Data Pipeline (v0.106.0+)
+
+- **Snapshot enrichment:** Every `FeedbackMarker` includes `MarkerAlgorithmScores` with all 6 algorithm scores (MSD, phase, spectral, comb, IHR, PTMR) plus fused probability and confidence. Schema version `1.1` (backward-compatible with `1.0`).
+- **Ground truth labeling:** Always-on FALSE+ button on every advisory card (not just calibration mode). User feedback flows via `userFeedback` worker message to `snapshotCollector.applyUserFeedback()`, labeling pending batch events as `correct` or `false_positive`.
+- **Ingest API v1.1:** `app/api/v1/ingest/route.ts` accepts optional `algorithmScores` and `userFeedback` fields with validation. Backward-compatible — v1.0 payloads still accepted.
+- **Data flow:** Advisory card → `handleFalsePositive()` in `KillTheRing.tsx` → `dspWorker.sendUserFeedback()` → worker `applyUserFeedback()` → snapshot batch labeled for future ML training.
+- **Future:** ONNX Runtime Web as 7th fusion algorithm (weight ~0.10–0.12). Deferred until sufficient ground-truth-labeled data is collected (~10K+ events).
+
+## UI Features (v0.107.0+)
+
+- **Permanent Clear All button:** Trash icon always visible in header. Calls `onClearAll()` + `onClearGEQ()` + `onClearRTA()` in one click. Visually dimmed (`text-muted-foreground/30`) when nothing to clear.
+- **FALSE+ card layout:** FALSE+ button renders on its own row beneath Copy/Dismiss icons in each `IssueCard`, improving visual hierarchy and reducing misclick risk.
