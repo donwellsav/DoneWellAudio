@@ -12,6 +12,7 @@ import { PortalContainerProvider } from '@/contexts/PortalContainerContext'
 const LazyOnboardingOverlay = lazy(() => import('./OnboardingOverlay').then(m => ({ default: m.OnboardingOverlay })))
 // Consent dialog removed — collection is opt-out via Settings → Advanced
 import { useDataCollection } from '@/hooks/useDataCollection'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { AudioAnalyzerProvider, useAudio } from '@/contexts/AudioAnalyzerContext'
 import { AdvisoryProvider } from '@/contexts/AdvisoryContext'
 import { UIProvider, useUI } from '@/contexts/UIContext'
@@ -255,6 +256,18 @@ const KillTheRingInner = memo(function KillTheRingInner({
       }
     }
   }, [])
+
+  // ── Auto-apply smartphone MEMS mic calibration on mobile devices ───────
+
+  const isMobile = useIsMobile()
+  const mobileCalAppliedRef = useRef(false)
+
+  useEffect(() => {
+    if (isMobile && !mobileCalAppliedRef.current && settings.micCalibrationProfile === 'none') {
+      mobileCalAppliedRef.current = true
+      updateSettings({ micCalibrationProfile: 'smartphone' })
+    }
+  }, [isMobile, settings.micCalibrationProfile, updateSettings])
 
   // ── Panel management ────────────────────────────────────────────────────
 
