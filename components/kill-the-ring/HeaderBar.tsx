@@ -39,8 +39,8 @@ export const HeaderBar = memo(function HeaderBar({
     devices, selectedDeviceId, handleDeviceChange,
   } = useAudio()
   const { resetLayout, isFullscreen, toggleFullscreen, isFrozen, toggleFreeze } = useUI()
-  const { advisories, dismissedIds, onClearAll } = useAdvisories()
-  const hasAdvisories = isRunning && advisories.some(a => !dismissedIds.has(a.id))
+  const { advisories, dismissedIds, onClearAll, onClearGEQ, onClearRTA, hasActiveGEQBars, hasActiveRTAMarkers } = useAdvisories()
+  const hasClearableContent = advisories.some(a => !dismissedIds.has(a.id)) || hasActiveGEQBars || hasActiveRTAMarkers
 
   return (
     <header className="relative flex flex-row items-center justify-between gap-2 sm:gap-4 px-3 py-2 border-b border-border bg-card/90 backdrop-blur-sm shadow-[0_1px_12px_rgba(0,0,0,0.5),0_1px_0_rgba(75,146,255,0.08)] sm:px-4 sm:py-2">
@@ -178,24 +178,27 @@ export const HeaderBar = memo(function HeaderBar({
           </Tooltip>
         )}
 
-        {hasAdvisories && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onClearAll}
-                className="h-10 w-10 text-muted-foreground hover:text-red-400 transition-all duration-150 active:scale-95"
-                aria-label="Clear all advisories"
-              >
-                <Trash2 className="size-5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-sm">
-              Clear all
-            </TooltipContent>
-          </Tooltip>
-        )}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => { onClearAll(); onClearGEQ(); onClearRTA() }}
+              disabled={!hasClearableContent}
+              className={`h-10 w-10 transition-all duration-150 active:scale-95 ${
+                hasClearableContent
+                  ? 'text-muted-foreground hover:text-red-400'
+                  : 'text-muted-foreground/30 cursor-default'
+              }`}
+              aria-label="Clear all advisories, GEQ, and RTA markers"
+            >
+              <Trash2 className="size-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-sm">
+            Clear all
+          </TooltipContent>
+        </Tooltip>
 
         <FeedbackHistoryPanel />
         <Suspense fallback={<div className="h-10 w-10" />}>

@@ -343,8 +343,40 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, onDismiss
             </div>
           </div>
 
-          {/* RIGHT: FALSE+ / Copy / Dismiss */}
-          <div className="flex items-center gap-0.5 flex-shrink-0 self-center">
+          {/* RIGHT: Copy / Dismiss + FALSE+ below */}
+          <div className="flex flex-col items-end gap-0.5 flex-shrink-0 self-center">
+            <div className="flex items-center gap-0.5">
+              {hasEq && (
+                <button
+                  onClick={handleCopy}
+                  aria-label={`Copy ${exactFreqStr} EQ recommendation`}
+                  className={`rounded transition-colors flex items-center justify-center ${
+                    copied
+                      ? 'text-emerald-400'
+                      : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60'
+                  } ${touchFriendly ? 'w-11 h-11' : 'w-5 h-5'}`}
+                >
+                  {copied
+                    ? <Check className={touchFriendly ? 'w-4 h-4' : 'w-3 h-3'} />
+                    : <Copy className={touchFriendly ? 'w-4 h-4' : 'w-3 h-3'} />
+                  }
+                </button>
+              )}
+              {copied && (
+                <span className="sr-only" role="status">EQ recommendation copied</span>
+              )}
+              {onDismiss && (
+                <button
+                  onClick={() => onDismiss(advisory.id)}
+                  aria-label={`Dismiss ${exactFreqStr} issue`}
+                  className={`rounded text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60 transition-colors flex items-center justify-center ${
+                    touchFriendly ? 'w-11 h-11' : 'w-5 h-5'
+                  }`}
+                >
+                  <X className={touchFriendly ? 'w-4 h-4' : 'w-3 h-3'} />
+                </button>
+              )}
+            </div>
             {onFalsePositive && (
               <button
                 onClick={() => onFalsePositive(advisory.id)}
@@ -356,36 +388,6 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, onDismiss
                 } ${touchFriendly ? 'h-11 min-w-[44px]' : 'h-5'}`}
               >
                 FALSE+
-              </button>
-            )}
-            {hasEq && (
-              <button
-                onClick={handleCopy}
-                aria-label={`Copy ${exactFreqStr} EQ recommendation`}
-                className={`rounded transition-colors flex items-center justify-center ${
-                  copied
-                    ? 'text-emerald-400'
-                    : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60'
-                } ${touchFriendly ? 'w-11 h-11' : 'w-5 h-5'}`}
-              >
-                {copied
-                  ? <Check className={touchFriendly ? 'w-4 h-4' : 'w-3 h-3'} />
-                  : <Copy className={touchFriendly ? 'w-4 h-4' : 'w-3 h-3'} />
-                }
-              </button>
-            )}
-            {copied && (
-              <span className="sr-only" role="status">EQ recommendation copied</span>
-            )}
-            {onDismiss && (
-              <button
-                onClick={() => onDismiss(advisory.id)}
-                aria-label={`Dismiss ${exactFreqStr} issue`}
-                className={`rounded text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60 transition-colors flex items-center justify-center ${
-                  touchFriendly ? 'w-11 h-11' : 'w-5 h-5'
-                }`}
-              >
-                <X className={touchFriendly ? 'w-4 h-4' : 'w-3 h-3'} />
               </button>
             )}
           </div>
