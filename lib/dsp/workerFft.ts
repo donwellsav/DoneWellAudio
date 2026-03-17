@@ -22,6 +22,7 @@ import type { MSDResult } from './advancedDetection'
 import type { AlgorithmScores } from './advancedDetection'
 import { MSDPool } from './msdPool'
 import { MSD_SETTINGS } from './constants'
+import { MLInferenceEngine } from './mlInference'
 import type { ContentType, DetectedPeak, Track } from '@/types/advisory'
 
 // ── Extracted magic numbers ─────────────────────────────────────────────────
@@ -240,6 +241,11 @@ export class AlgorithmEngine {
   private lastFrameTimestamp: number = -1
   private specMax = -Infinity
   private rmsDb = -100
+  private _mlEngine = new MLInferenceEngine()
+  /** Previous frame's fused probability — fed into ML feature vector (1-frame lag) */
+  private _lastFusedProb = 0.5
+  /** Previous frame's fused confidence — fed into ML feature vector (1-frame lag) */
+  private _lastFusedConf = 0.5
 
   /** Allocate buffers for the given FFT size. */
   init(fftSize: number): void {
@@ -249,6 +255,7 @@ export class AlgorithmEngine {
     this.ampBuffer.reset()
     ensureFftBuffers(fftSize)
     this.lastFrameTimestamp = -1
+    this._mlEngine.warmup() // Non-blocking async ONNX load
   }
 
   /**
@@ -363,6 +370,22 @@ export class AlgorithmEngine {
     // Phase coherence for this specific peak bin
     const phaseResult = this.phaseBuffer?.calculateCoherence(binIndex) ?? null
 
+    // ML meta-model: build feature vector from 6 algo scores + fusion context
+    const mlFeatures = new Float32Array([
+      msdResult?.feedbackScore ?? 0.5,
+      phaseResult?.feedbackScore ?? 0.5,
+      spectralResult?.feedbackScore ?? 0.5,
+      combResult?.hasPattern ? combResult.confidence : 0,
+      ihrResult?.feedbackScore ?? 0.5,
+      ptmrResult?.feedbackScore ?? 0.5,
+      this._lastFusedProb,
+      this._lastFusedConf,
+      contentType === 'speech' ? 1 : 0,
+      contentType === 'music' ? 1 : 0,
+      contentType === 'compressed' ? 1 : 0,
+    ])
+    const mlResult = this._mlEngine.predictCached(mlFeatures)
+
     const algorithmScores: AlgorithmScores = {
       msd: msdResult,
       phase: phaseResult,
@@ -371,11 +394,21 @@ export class AlgorithmEngine {
       compression: compressionResult,
       ihr: ihrResult,
       ptmr: ptmrResult,
+      ml: mlResult,
     }
 
     const existingScore = computeExistingScore(peak)
 
     return { algorithmScores, contentType, existingScore }
+  }
+
+  /**
+   * Feed back the fusion result from the current frame so the ML model
+   * can use it as input for the next frame's prediction (1-frame lag).
+   */
+  updateLastFusion(probability: number, confidence: number): void {
+    this._lastFusedProb = probability
+    this._lastFusedConf = confidence
   }
 
   reset(): void {
@@ -385,5 +418,10 @@ export class AlgorithmEngine {
     this.lastFrameTimestamp = -1
     this.specMax = -Infinity
     this.rmsDb = -100
+    this._lastFusedProb = 0.5
+    this._lastFusedConf = 0.5
+    this._mlEngine.dispose()
+    this._mlEngine = new MLInferenceEngine()
+    this._mlEngine.warmup()
   }
 }

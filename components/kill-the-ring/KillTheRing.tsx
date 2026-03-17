@@ -201,11 +201,55 @@ const KillTheRingInner = memo(function KillTheRingInner({
       )
     }
 
+    // Remove from confirmed set if it was confirmed (mutually exclusive)
+    setConfirmedIds(prev => {
+      if (!prev.has(advisoryId)) return prev
+      const next = new Set(prev)
+      next.delete(advisoryId)
+      return next
+    })
+
     // Chain to calibration handler if active
     if (calibration.calibrationEnabled) {
       calibration.onFalsePositive(advisoryId)
     }
   }, [advisories, fpIds, dspWorker, calibration])
+
+  // ── Confirm Feedback (positive label for ML training) ──────────────────
+  // Symmetric to FALSE+: marks an advisory as confirmed real feedback.
+  // CONFIRM and FALSE+ are mutually exclusive toggles.
+
+  const [confirmedIds, setConfirmedIds] = useState<Set<string>>(new Set())
+  const handleConfirmFeedback = useCallback((advisoryId: string) => {
+    // Toggle confirmed state
+    setConfirmedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(advisoryId)) {
+        next.delete(advisoryId)
+      } else {
+        next.add(advisoryId)
+      }
+      return next
+    })
+
+    // Remove from FP set if it was flagged (mutually exclusive)
+    setFpIds(prev => {
+      if (!prev.has(advisoryId)) return prev
+      const next = new Set(prev)
+      next.delete(advisoryId)
+      return next
+    })
+
+    // Send confirmed_feedback to worker for snapshot labeling
+    const advisory = advisories.find(a => a.id === advisoryId)
+    if (advisory) {
+      const isConfirming = !confirmedIds.has(advisoryId)
+      dspWorker.sendUserFeedback(
+        advisory.trueFrequencyHz,
+        isConfirming ? 'confirmed_feedback' : 'correct'
+      )
+    }
+  }, [advisories, confirmedIds, dspWorker])
 
   // Merge calibration FP IDs with standalone FP IDs
   const mergedFpIds = useMemo<ReadonlySet<string>>(() => {
@@ -307,6 +351,8 @@ const KillTheRingInner = memo(function KillTheRingInner({
     <AdvisoryProvider
       onFalsePositive={handleFalsePositive}
       falsePositiveIds={mergedFpIds}
+      onConfirmFeedback={handleConfirmFeedback}
+      confirmedIds={confirmedIds}
     >
       <UIProvider rootRef={rootRef}>
         <FullscreenPortalGate rootEl={rootEl}>

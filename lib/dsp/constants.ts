@@ -30,6 +30,18 @@ export const MOBILE_ANALYSIS_INTERVAL_MS = 40
 /** Max advisories shown on mobile (cards, RTA markers, GEQ bars). */
 export const MOBILE_MAX_DISPLAYED_ISSUES = 5
 
+/** ML inference engine settings — 7th fusion algorithm (false positive filter) */
+export const ML_SETTINGS = {
+  /** Weight in fusion (0 to disable ML contribution) */
+  DEFAULT_WEIGHT: 0.10,
+  /** Model URL (relative to public/) — static asset or fetched from registry */
+  MODEL_PATH: '/models/ktr-fp-filter-v1.onnx',
+  /** Max inference time in ms before skipping (safety timeout) */
+  MAX_INFERENCE_MS: 2,
+  /** Feature count for the meta-model input vector */
+  FEATURE_COUNT: 11,
+} as const
+
 // Precomputed lookup table: dB → linear power for range [-100, 0] at 0.1 dB steps
 // Replaces Math.exp(db * LN10_OVER_10) in the hot loop (4096 calls/frame → 1 array access)
 // 1001 entries × 4 bytes = ~4KB — fits comfortably in L1 cache

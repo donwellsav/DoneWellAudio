@@ -28,10 +28,12 @@ interface IssuesListProps {
   onStart?: () => void
   onFalsePositive?: (advisoryId: string) => void
   falsePositiveIds?: ReadonlySet<string>
+  onConfirmFeedback?: (advisoryId: string) => void
+  confirmedIds?: ReadonlySet<string>
   isLowSignal?: boolean
 }
 
-export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10, dismissedIds, onDismiss, onClearAll, onClearResolved, touchFriendly, isRunning, onStart, onFalsePositive, falsePositiveIds, isLowSignal }: IssuesListProps) {
+export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10, dismissedIds, onDismiss, onClearAll, onClearResolved, touchFriendly, isRunning, onStart, onFalsePositive, falsePositiveIds, onConfirmFeedback, confirmedIds, isLowSignal }: IssuesListProps) {
   // Filter dismissed, sort repeat offenders to top by hit count, then slice to max.
   // We attach occurrenceCount here so IssueCard doesn't need to re-query feedbackHistory.
   const latestSorted = useMemo(() => {
@@ -171,6 +173,8 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
               touchFriendly={touchFriendly}
               onFalsePositive={onFalsePositive}
               isFalsePositive={falsePositiveIds?.has(advisory.id) ?? false}
+              onConfirmFeedback={onConfirmFeedback}
+              isConfirmed={confirmedIds?.has(advisory.id) ?? false}
             />
           ))}
         </>
@@ -186,9 +190,11 @@ interface IssueCardProps {
   touchFriendly?: boolean
   onFalsePositive?: (advisoryId: string) => void
   isFalsePositive?: boolean
+  onConfirmFeedback?: (advisoryId: string) => void
+  isConfirmed?: boolean
 }
 
-const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, onDismiss, touchFriendly, onFalsePositive, isFalsePositive }: IssueCardProps) {
+const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, onDismiss, touchFriendly, onFalsePositive, isFalsePositive, onConfirmFeedback, isConfirmed }: IssueCardProps) {
   // Memoize derived values that only change when the advisory object changes
   const {
     severityColor, pitchStr, exactFreqStr,
@@ -401,18 +407,35 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, onDismiss
                 </button>
               )}
             </div>
-            {onFalsePositive && (
-              <button
-                onClick={() => onFalsePositive(advisory.id)}
-                aria-label={`${isFalsePositive ? 'Unflag' : 'Flag'} ${exactFreqStr} as false positive`}
-                className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1 ${
-                  isFalsePositive
-                    ? 'text-red-400 bg-red-500/20 border border-red-500/40'
-                    : 'text-muted-foreground/50 hover:text-red-400 hover:bg-red-500/10 border border-transparent'
-                } ${touchFriendly ? 'h-7 min-w-[36px]' : 'h-5'}`}
-              >
-                FALSE+
-              </button>
+            {(onConfirmFeedback || onFalsePositive) && (
+              <div className="flex items-center gap-1">
+                {onConfirmFeedback && (
+                  <button
+                    onClick={() => onConfirmFeedback(advisory.id)}
+                    aria-label={`${isConfirmed ? 'Unconfirm' : 'Confirm'} ${exactFreqStr} as real feedback`}
+                    className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1 ${
+                      isConfirmed
+                        ? 'text-emerald-400 bg-emerald-500/20 border border-emerald-500/40'
+                        : 'text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-500/10 border border-transparent'
+                    } ${touchFriendly ? 'h-7 min-w-[36px]' : 'h-5'}`}
+                  >
+                    CONFIRM
+                  </button>
+                )}
+                {onFalsePositive && (
+                  <button
+                    onClick={() => onFalsePositive(advisory.id)}
+                    aria-label={`${isFalsePositive ? 'Unflag' : 'Flag'} ${exactFreqStr} as false positive`}
+                    className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1 ${
+                      isFalsePositive
+                        ? 'text-red-400 bg-red-500/20 border border-red-500/40'
+                        : 'text-muted-foreground/50 hover:text-red-400 hover:bg-red-500/10 border border-transparent'
+                    } ${touchFriendly ? 'h-7 min-w-[36px]' : 'h-5'}`}
+                  >
+                    FALSE+
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </div>

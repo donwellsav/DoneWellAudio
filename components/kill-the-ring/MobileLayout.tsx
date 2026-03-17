@@ -41,6 +41,7 @@ export const MobileLayout = memo(function MobileLayout({
     hasActiveRTAMarkers, hasActiveGEQBars,
     onClearRTA, onClearGEQ,
     onFalsePositive, falsePositiveIds,
+    onConfirmFeedback, confirmedIds,
   } = useAdvisories()
 
   // Limit advisories to top 5 most problematic on mobile (already sorted by urgency + amplitude)
@@ -160,6 +161,8 @@ export const MobileLayout = memo(function MobileLayout({
                 onStart={start}
                 onFalsePositive={onFalsePositive}
                 falsePositiveIds={falsePositiveIds}
+                onConfirmFeedback={onConfirmFeedback}
+                confirmedIds={confirmedIds}
                 isLowSignal={isRunning && inputLevel < -45}
               />
               <EarlyWarningPanel earlyWarning={earlyWarning} />
@@ -307,6 +310,8 @@ export const MobileLayout = memo(function MobileLayout({
               onStart={start}
               onFalsePositive={onFalsePositive}
               falsePositiveIds={falsePositiveIds}
+              onConfirmFeedback={onConfirmFeedback}
+              confirmedIds={confirmedIds}
               isLowSignal={isRunning && inputLevel < -45}
             />
             <EarlyWarningPanel earlyWarning={earlyWarning} />

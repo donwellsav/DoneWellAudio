@@ -345,6 +345,9 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         algorithmScores, contentType, existingScore, fusionConfig
       )
 
+      // Feed fusion result back to AlgorithmEngine for ML's next-frame input
+      algorithmEngine.updateLastFusion(fusionResult.feedbackProbability, fusionResult.confidence)
+
       // Classify track with full algorithm context
       const classification = classifyTrackWithAlgorithms(
         track, algorithmScores, fusionResult, settings, peakFrequencies
@@ -372,8 +375,10 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
           comb: algorithmScores.comb?.confidence ?? null,
           ihr: algorithmScores.ihr?.feedbackScore ?? null,
           ptmr: algorithmScores.ptmr?.feedbackScore ?? null,
+          ml: algorithmScores.ml?.feedbackScore ?? null,
           fusedProbability: fusionResult.feedbackProbability,
           fusedConfidence: fusionResult.confidence,
+          modelVersion: algorithmScores.ml?.modelVersion ?? null,
         }
         snapshotCollector.markFeedbackEvent(
           track.trueFrequencyHz,

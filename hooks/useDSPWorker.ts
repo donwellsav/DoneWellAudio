@@ -64,8 +64,8 @@ export interface DSPWorkerHandle {
   enableCollection: (sessionId: string, fftSize: number, sampleRate: number) => void
   /** Disable spectral snapshot collection */
   disableCollection: () => void
-  /** Send user feedback (false positive / correct) to the worker for snapshot enrichment */
-  sendUserFeedback: (frequencyHz: number, feedback: 'correct' | 'false_positive') => void
+  /** Send user feedback (false positive / correct / confirmed) to the worker for snapshot enrichment */
+  sendUserFeedback: (frequencyHz: number, feedback: 'correct' | 'false_positive' | 'confirmed_feedback') => void
 }
 
 /**
@@ -325,7 +325,7 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
   }, [postMessage])
 
   const sendUserFeedback = useCallback(
-    (frequencyHz: number, feedback: 'correct' | 'false_positive') => {
+    (frequencyHz: number, feedback: 'correct' | 'false_positive' | 'confirmed_feedback') => {
       postMessage({ type: 'userFeedback', frequencyHz, feedback })
     },
     [postMessage]

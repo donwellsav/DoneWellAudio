@@ -26,6 +26,7 @@ export interface AdvisoryContextValue {
   hasActiveRTAMarkers: boolean
   hasActiveGEQBars: boolean
   falsePositiveIds: ReadonlySet<string> | undefined
+  confirmedIds: ReadonlySet<string> | undefined
 
   // Actions
   onDismiss: (id: string) => void
@@ -34,6 +35,7 @@ export interface AdvisoryContextValue {
   onClearRTA: () => void
   onClearGEQ: () => void
   onFalsePositive: ((advisoryId: string) => void) | undefined
+  onConfirmFeedback: ((advisoryId: string) => void) | undefined
 }
 
 const AdvisoryContext = createContext<AdvisoryContextValue | null>(null)
@@ -43,6 +45,8 @@ const AdvisoryContext = createContext<AdvisoryContextValue | null>(null)
 interface AdvisoryProviderProps {
   onFalsePositive: ((advisoryId: string) => void) | undefined
   falsePositiveIds: ReadonlySet<string> | undefined
+  onConfirmFeedback: ((advisoryId: string) => void) | undefined
+  confirmedIds: ReadonlySet<string> | undefined
   children: ReactNode
 }
 
@@ -65,6 +69,8 @@ const EMPTY_CLEAR_STATE: ClearState = {
 export function AdvisoryProvider({
   onFalsePositive,
   falsePositiveIds,
+  onConfirmFeedback,
+  confirmedIds,
   children,
 }: AdvisoryProviderProps) {
   // ── Source-of-truth from audio context ─────────────────────────────────
@@ -150,12 +156,14 @@ export function AdvisoryProvider({
     hasActiveRTAMarkers,
     hasActiveGEQBars,
     falsePositiveIds,
+    confirmedIds,
     onDismiss,
     onClearAll,
     onClearResolved,
     onClearRTA,
     onClearGEQ,
     onFalsePositive,
+    onConfirmFeedback,
   }), [
     advisories,
     activeAdvisoryCount,
@@ -166,12 +174,14 @@ export function AdvisoryProvider({
     hasActiveRTAMarkers,
     hasActiveGEQBars,
     falsePositiveIds,
+    confirmedIds,
     onDismiss,
     onClearAll,
     onClearResolved,
     onClearRTA,
     onClearGEQ,
     onFalsePositive,
+    onConfirmFeedback,
   ])
 
   return (

@@ -1,6 +1,6 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
-> **Last updated March 2026. 144 TypeScript/TSX files, 445 tests (441 pass, 4 skip, 1 todo), 25 suites. Version 0.127.0.**
+> **Last updated March 2026. 144 TypeScript/TSX files, 463 tests (459 pass, 4 skip, 1 todo), 26 suites. Version 0.128.0.**
 
 ## CRITICAL RULES
 
@@ -35,7 +35,7 @@ pnpm dev              # Dev server on :3000 (Turbopack, no SW)
 pnpm build            # Production build (webpack, generates SW)
 pnpm start            # Production server
 pnpm lint             # ESLint (flat config)
-pnpm test             # Vitest (444 tests: 440 pass + 4 skip + 1 todo)
+pnpm test             # Vitest (464 tests: 459 pass + 4 skip + 1 todo)
 pnpm test:watch       # Vitest watch mode
 pnpm test:coverage    # Vitest with V8 coverage
 npx tsc --noEmit      # Type-check (run BEFORE pnpm build)
@@ -159,13 +159,13 @@ app/                          # Next.js App Router
   page.tsx (5)                #   Entry -> KillTheRingClient
   global-error.tsx (56)       #   Sentry error boundary
   sw.ts (38)                  #   Serwist service worker
-  api/v1/ingest/route.ts (160)#   Spectral snapshot ingest (v1.1 schema, rate-limited, IP-stripped)
+  api/v1/ingest/route.ts (160)#   Spectral snapshot ingest (v1.0/1.1/1.2 schema, rate-limited, IP-stripped)
 components/
   kill-the-ring/ (29 files)   # Domain components + barrel index.ts
     help/ (6 files)           # Help tab components (mirrors settings/ pattern)
     KillTheRing.tsx (436)     #   Root orchestrator, settings debounce, FP handling
     HeaderBar.tsx (220)       #   Header bar with permanent Clear All button
-    IssuesList.tsx (440)      #   Advisory cards with FALSE+ below Copy/Dismiss, 3s stability
+    IssuesList.tsx (440)      #   Advisory cards with CONFIRM + FALSE+ buttons, 3s stability
     settings/ (7 files)       # Settings tab components
   ui/ (20 files)              # shadcn/ui primitives
 contexts/ (8 files)           # React context providers
@@ -180,7 +180,7 @@ contexts/ (8 files)           # React context providers
 hooks/ (11 files)             # Custom hooks
   useDSPWorker.ts (359)       #   Worker lifecycle, crash recovery, userFeedback
 lib/
-  dsp/ (17 modules)           # DSP engine (8,057 lines):
+  dsp/ (18 modules)           # DSP engine + ML inference:
     feedbackDetector.ts (1721)#   Core: peak detection, MSD pool, auto-gain, persistence
     constants.ts (961)        #   All tuning constants, 8 mode presets, ECM8000 cal curve, mobile constants
     acousticUtils.ts (861)    #   Room modes, Schroeder, RT60, vibrato, cumulative growth
@@ -198,13 +198,14 @@ lib/
     phaseCoherence.ts (129)   #   Phase coherence via circular statistics
     decayAnalyzer.ts (86)     #   RT60 decay comparison for room mode suppression
     severityUtils.ts (18)     #   Severity urgency mapping
+    mlInference.ts (~180)     #   ONNX Runtime Web ML inference, predictCached(), lazy model loading
     advancedDetection.ts (16) #   Barrel re-export
   canvas/spectrumDrawing.ts(605)# Pure canvas drawing (no React), RTA label overlap suppression
   export/ (3 files)           # PDF/TXT/CSV/JSON export
   calibration/ (3 files)      # Room profile, session recording, JSON export
   storage/ktrStorage.ts (183) # Typed localStorage abstraction
   data/ (4 files)             # Anonymous spectral collection (opt-out, v1.1 with algo scores)
-    snapshotCollector.ts (324)#   Batch collection, algorithm score enrichment, user feedback
+    snapshotCollector.ts (343)#   Batch collection, algorithm score enrichment, user feedback, label balance tracking
   utils/ (2 files)            # Math helpers, pitch utilities
 types/
   advisory.ts (~384)          # All DSP interfaces (Advisory, DetectorSettings, Track, etc.)
@@ -218,6 +219,15 @@ hooks/__tests__/ (4 files)    # Hook unit tests (useAdvisoryMap, useFpsMonitor, 
 contexts/__tests__/ (2 files) # Context unit tests (AdvisoryContext, UIContext)
 lib/storage/__tests__/ (1 file)  # ktrStorage unit tests
 lib/export/__tests__/ (3 files)  # Export module unit tests (txt, pdf, downloadFile)
+lib/dsp/__tests__/ (1 file)     # mlInference unit tests (12 tests)
+public/models/                  # ML model assets
+  manifest.json                 #   Model registry (version, metrics, architecture)
+  ktr-fp-filter-v1.onnx         #   Bootstrap ONNX model (929 params, 4KB)
+scripts/ml/                     # ML training pipeline
+  create_bootstrap_model.py     #   Generate ONNX from gate logic (numpy-only)
+  export_training_data.py       #   Pull labeled events from Supabase to CSV
+  train_fp_filter.py            #   Train MLP, export ONNX, update manifest
+.github/workflows/ml-train.yml  # Weekly/manual ML training workflow
 ```
 
 ## Key Performance Constraints
@@ -270,7 +280,7 @@ lib/export/__tests__/ (3 files)  # Export module unit tests (txt, pdf, downloadF
 
 ## Security Notes
 
-- **CSP:** Nonce-based `script-src` in prod (middleware.ts), `'unsafe-inline'` in dev for hot reload. `style-src 'unsafe-inline'` in both (required by Tailwind/React).
+- **CSP:** Nonce-based `script-src` in prod (middleware.ts), `'unsafe-inline'` in dev for hot reload. `style-src 'unsafe-inline'` in both (required by Tailwind/React). `suppressHydrationWarning` on `<html>` and `<body>` to prevent nonce mismatch (browsers strip nonce from DOM).
 - **Permissions-Policy:** `microphone=(self), camera=(), geolocation=()`
 - **Zero XSS vectors:** No direct HTML injection, no dynamic code execution
 - **API:** Ingest endpoint validates v1.0/v1.1 schema, rate-limits (6/60s per session), caps payload (512KB), strips IP
@@ -299,7 +309,10 @@ lib/export/__tests__/ (3 files)  # Export module unit tests (txt, pdf, downloadF
 - **Ground truth labeling:** Always-on FALSE+ button on every advisory card (not just calibration mode). User feedback flows via `userFeedback` worker message to `snapshotCollector.applyUserFeedback()`, labeling pending batch events as `correct` or `false_positive`.
 - **Ingest API v1.1:** `app/api/v1/ingest/route.ts` accepts optional `algorithmScores` and `userFeedback` fields with validation. Backward-compatible — v1.0 payloads still accepted.
 - **Data flow:** Advisory card → `handleFalsePositive()` in `KillTheRing.tsx` → `dspWorker.sendUserFeedback()` → worker `applyUserFeedback()` → snapshot batch labeled for future ML training.
-- **Future:** ONNX Runtime Web as 7th fusion algorithm (weight ~0.10–0.12). Deferred until sufficient ground-truth-labeled data is collected (~10K+ events).
+- **ML inference (v0.128.0):** ONNX Runtime Web as 7th fusion algorithm (weight 0.10). Bootstrap model (929 params, MLP 11→32→16→1) encodes existing gate logic. Lazy-loaded in worker via `import('onnxruntime-web')`. `predictCached()` pattern: async inference with synchronous cached reads. Previous-frame fused probability breaks circular dependency.
+- **CONFIRM button (v0.128.0):** Symmetric labeling alongside FALSE+ for balanced ML training data. Mutual exclusion: CONFIRM removes from fpIds, FALSE+ removes from confirmedIds. Label balance tracking in snapshotCollector.
+- **Cloud training pipeline (v0.128.0):** Supabase `spectral_snapshots` table with 12 ML columns. `scripts/ml/` with numpy-only trainer, export script, bootstrap model generator. GitHub Actions workflow (`ml-train.yml`) for weekly scheduled or manual training runs.
+- **Ingest API v1.2 (v0.128.0):** Accepts `confirmed_feedback` user feedback, ML algorithm score, and model version. Backward-compatible with v1.0/v1.1.
 
 ## UI Features (v0.107.0+)
 

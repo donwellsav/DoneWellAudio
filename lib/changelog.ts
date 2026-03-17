@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.128.0',
+    date: '2026-03-17',
+    highlights: 'ML pipeline + CSP hydration fix',
+    changes: [
+      { type: 'feat', description: 'ML false positive filter as 7th fusion algorithm — ONNX Runtime Web inference in Web Worker with 11-input meta-model' },
+      { type: 'feat', description: 'Bootstrap ONNX model (929 params) encoding existing gate logic (IHR, PTMR, formant, chromatic, comb stability)' },
+      { type: 'feat', description: 'CONFIRM feedback button on advisory cards — symmetric labeling for balanced ML training data' },
+      { type: 'feat', description: 'Cloud training pipeline: Supabase schema, export script, numpy-only trainer, GitHub Actions workflow' },
+      { type: 'fix', description: 'CSP nonce hydration mismatch — add suppressHydrationWarning to body element, remove unused headers() import' },
+    ],
+  },
+  {
     version: '0.127.0',
     date: '2026-03-17',
     highlights: 'Security scanning in CI — pnpm audit + Dependabot',

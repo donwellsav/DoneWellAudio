@@ -57,25 +57,25 @@ function fuse(
 describe('Fusion Weight Profiles', () => {
   it('DEFAULT weights sum to 1.0', () => {
     const w = FUSION_WEIGHTS.DEFAULT
-    const sum = w.msd + w.phase + w.spectral + w.comb + w.ihr + w.ptmr
+    const sum = w.msd + w.phase + w.spectral + w.comb + w.ihr + w.ptmr + w.ml
     expect(sum).toBeCloseTo(1.0, 10)
   })
 
   it('SPEECH weights sum to 1.0', () => {
     const w = FUSION_WEIGHTS.SPEECH
-    const sum = w.msd + w.phase + w.spectral + w.comb + w.ihr + w.ptmr
+    const sum = w.msd + w.phase + w.spectral + w.comb + w.ihr + w.ptmr + w.ml
     expect(sum).toBeCloseTo(1.0, 10)
   })
 
   it('MUSIC weights sum to 1.0', () => {
     const w = FUSION_WEIGHTS.MUSIC
-    const sum = w.msd + w.phase + w.spectral + w.comb + w.ihr + w.ptmr
+    const sum = w.msd + w.phase + w.spectral + w.comb + w.ihr + w.ptmr + w.ml
     expect(sum).toBeCloseTo(1.0, 10)
   })
 
   it('COMPRESSED weights sum to 1.0', () => {
     const w = FUSION_WEIGHTS.COMPRESSED
-    const sum = w.msd + w.phase + w.spectral + w.comb + w.ihr + w.ptmr
+    const sum = w.msd + w.phase + w.spectral + w.comb + w.ihr + w.ptmr + w.ml
     expect(sum).toBeCloseTo(1.0, 10)
   })
 })
@@ -93,27 +93,28 @@ describe('Effective Weights — Comb Absent', () => {
    * Effective share = algorithmWeight / totalNoComb.
    */
 
-  it('SPEECH MSD effective weight is 34.7% (FIX-004: reduced from 42.1%)', () => {
+  it('SPEECH MSD effective weight is ~31.3% (reduced from 34.7% after ML redistribution)', () => {
     const w = FUSION_WEIGHTS.SPEECH
     const totalNoComb = 1 - w.comb
     const effectiveMsd = w.msd / totalNoComb
-    // FIX-004: MSD reduced from 0.40→0.33, effective 42.1% → 34.7%
-    expect(effectiveMsd).toBeCloseTo(0.347, 2)
+    // MSD 0.30 / (1 - 0.04) = 0.3125
+    expect(effectiveMsd).toBeCloseTo(0.3125, 2)
   })
 
-  it('MUSIC Phase effective weight is 38.0%', () => {
+  it('MUSIC Phase effective weight is ~34.4% (reduced from 38.0% after ML redistribution)', () => {
     const w = FUSION_WEIGHTS.MUSIC
     const totalNoComb = 1 - w.comb
     const effectivePhase = w.phase / totalNoComb
-    expect(effectivePhase).toBeCloseTo(0.380, 2)
+    // Phase 0.32 / (1 - 0.07) = 0.3441
+    expect(effectivePhase).toBeCloseTo(0.344, 2)
   })
 
-  it('COMPRESSED Phase effective weight is ~32.6% (FIX-005: reduced from 41.3%)', () => {
+  it('COMPRESSED Phase effective weight is ~29.0% (reduced from 32.6% after ML redistribution)', () => {
     const w = FUSION_WEIGHTS.COMPRESSED
     const totalNoComb = 1 - w.comb
     const effectivePhase = w.phase / totalNoComb
-    // FIX-005: phase reduced from 0.38 → 0.30, effective 41.3% → 32.6%
-    expect(effectivePhase).toBeCloseTo(0.326, 2)
+    // Phase 0.27 / (1 - 0.07) = 0.2903
+    expect(effectivePhase).toBeCloseTo(0.290, 2)
   })
 
 })
@@ -420,7 +421,10 @@ describe('Consensus Vulnerability: COMB Pattern', () => {
     const scores = { msd: 0.60, phase: 0.60, spectral: 0.60, ihr: 0.60, ptmr: 0.60, comb: 0 }
 
     const noComb = fuse(scores, 'unknown', 0.40)
-    expect(noComb.feedbackProbability).toBeLessThan(0.60)
+    // With uniform scores of 0.60, weighted average ≈ 0.60
+    // (ML is null/unavailable so excluded from fusion). Comb absent → no doubling.
+    // Floating point: 0.6000000000000001, so use closeTo.
+    expect(noComb.feedbackProbability).toBeCloseTo(0.60, 10)
 
     const withComb = fuse({ ...scores, comb: 0.80 }, 'unknown', 0.40)
     expect(withComb.feedbackProbability).toBeGreaterThan(0.60)
@@ -655,6 +659,102 @@ describe('Low-Frequency Phase Suppression (ADV-002)', () => {
     // Phase score halved × 35% nominal weight → expect noticeable drop
     expect(delta).toBeGreaterThan(0.05)
     console.log(`[ADV-002 MUSIC] delta=${delta.toFixed(3)} (normal=${normal.feedbackProbability.toFixed(3)}, subBass=${subBass.feedbackProbability.toFixed(3)})`)
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ML 7th ALGORITHM — Backward compatibility and integration
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('ML 7th Algorithm Integration', () => {
+  it('fusion with ml: null produces same results as before (backward compat)', () => {
+    // buildScores returns ml: null by default
+    const scores = buildScores({ msd: 0.8, phase: 0.9, spectral: 0.7, ihr: 0.6, ptmr: 0.8 })
+    expect(scores.ml).toBeNull()
+
+    const result = fuseAlgorithmResults(scores, 'unknown', 0.5)
+    // ML null → excluded from fusion, result driven by 5 algorithms only
+    expect(result.feedbackProbability).toBeGreaterThan(0)
+    expect(result.feedbackProbability).toBeLessThanOrEqual(1)
+    expect(result.contributingAlgorithms).not.toContain('ML')
+  })
+
+  it('fusion with ML available includes ML in weighted sum', () => {
+    const scores = buildScores({ msd: 0.8, phase: 0.9, spectral: 0.7, ihr: 0.6, ptmr: 0.8 })
+    // Simulate ML model available with a high feedback score
+    scores.ml = {
+      feedbackScore: 0.95,
+      modelConfidence: 1.0,
+      isAvailable: true,
+      modelVersion: 'ktr-fp-v1',
+    }
+
+    const result = fuseAlgorithmResults(scores, 'unknown', 0.5)
+    expect(result.contributingAlgorithms).toContain('ML')
+    expect(result.reasons.some(r => r.startsWith('ML:'))).toBe(true)
+  })
+
+  it('ML score at 0 reduces fusion probability compared to ML unavailable', () => {
+    const baseScores = { msd: 0.8, phase: 0.9, spectral: 0.7, ihr: 0.6, ptmr: 0.8 }
+
+    const withoutML = fuseAlgorithmResults(buildScores(baseScores), 'unknown', 0.5)
+
+    const scoresWithML = buildScores(baseScores)
+    scoresWithML.ml = {
+      feedbackScore: 0.0, // ML says "not feedback"
+      modelConfidence: 1.0,
+      isAvailable: true,
+      modelVersion: 'ktr-fp-v1',
+    }
+    const withML = fuseAlgorithmResults(scoresWithML, 'unknown', 0.5)
+
+    // ML at 0 should pull probability down relative to ML absent
+    expect(withML.feedbackProbability).toBeLessThan(withoutML.feedbackProbability)
+  })
+
+  it('ML score at 1.0 increases fusion probability compared to ML unavailable', () => {
+    const baseScores = { msd: 0.5, phase: 0.5, spectral: 0.5, ihr: 0.5, ptmr: 0.5 }
+
+    const withoutML = fuseAlgorithmResults(buildScores(baseScores), 'unknown', 0.5)
+
+    const scoresWithML = buildScores(baseScores)
+    scoresWithML.ml = {
+      feedbackScore: 1.0, // ML says "definitely feedback"
+      modelConfidence: 1.0,
+      isAvailable: true,
+      modelVersion: 'ktr-fp-v1',
+    }
+    const withML = fuseAlgorithmResults(scoresWithML, 'unknown', 0.5)
+
+    // ML at 1.0 should pull probability up
+    expect(withML.feedbackProbability).toBeGreaterThan(withoutML.feedbackProbability)
+  })
+
+  it('ML score is included in agreement/confidence calculation', () => {
+    const baseScores = { msd: 0.9, phase: 0.9, spectral: 0.9, ihr: 0.9, ptmr: 0.9 }
+
+    // ML agrees with all algorithms
+    const agreeing = buildScores(baseScores)
+    agreeing.ml = { feedbackScore: 0.9, modelConfidence: 1.0, isAvailable: true, modelVersion: 'v1' }
+
+    // ML disagrees with all algorithms
+    const disagreeing = buildScores(baseScores)
+    disagreeing.ml = { feedbackScore: 0.1, modelConfidence: 1.0, isAvailable: true, modelVersion: 'v1' }
+
+    const agreeResult = fuseAlgorithmResults(agreeing, 'unknown', 0.5)
+    const disagreeResult = fuseAlgorithmResults(disagreeing, 'unknown', 0.5)
+
+    // When ML disagrees, confidence should be lower (higher variance)
+    expect(agreeResult.confidence).toBeGreaterThan(disagreeResult.confidence)
+  })
+
+  it('all weight profiles include ml and sum to 1.0', () => {
+    for (const [name, w] of Object.entries(FUSION_WEIGHTS)) {
+      const sum = w.msd + w.phase + w.spectral + w.comb + w.ihr + w.ptmr + w.ml
+      expect(sum).toBeCloseTo(1.0, 10)
+      expect(w.ml).toBe(0.10)
+      console.log(`[ML WEIGHT] ${name}: ml=${w.ml}, sum=${sum.toFixed(4)}`)
+    }
   })
 })
 

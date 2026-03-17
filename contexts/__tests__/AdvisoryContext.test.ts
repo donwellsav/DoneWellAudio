@@ -61,7 +61,7 @@ function wrapper({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react/no-children-prop
   return createElement(
     AdvisoryProvider,
-    { onFalsePositive: undefined, falsePositiveIds: undefined, children },
+    { onFalsePositive: undefined, falsePositiveIds: undefined, onConfirmFeedback: undefined, confirmedIds: undefined, children },
   )
 }
 

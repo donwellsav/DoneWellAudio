@@ -1,4 +1,3 @@
-import { headers } from 'next/headers'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
@@ -40,17 +39,14 @@ export const metadata: Metadata = {
   },
 }
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const hdrs = await headers()
-  const nonce = hdrs.get('x-nonce') ?? undefined
-
   return (
     <html lang="en" className={`${geist.variable} ${geistMono.variable}`} suppressHydrationWarning>
-      <body className="font-sans antialiased" nonce={nonce}>
+      <body className="font-sans antialiased" suppressHydrationWarning>
         {children}
       </body>
     </html>

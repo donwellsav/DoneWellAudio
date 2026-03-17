@@ -53,6 +53,7 @@ export const DesktopLayout = memo(function DesktopLayout({
     hasActiveRTAMarkers, hasActiveGEQBars,
     onClearRTA, onClearGEQ,
     onFalsePositive, falsePositiveIds,
+    onConfirmFeedback, confirmedIds,
   } = useAdvisories()
 
   return (
@@ -136,6 +137,8 @@ export const DesktopLayout = memo(function DesktopLayout({
                       onStart={start}
                       onFalsePositive={onFalsePositive}
                       falsePositiveIds={falsePositiveIds}
+                      onConfirmFeedback={onConfirmFeedback}
+                      confirmedIds={confirmedIds}
                       isLowSignal={isRunning && inputLevel < -45}
                     />
                     <EarlyWarningPanel earlyWarning={earlyWarning} />
@@ -195,6 +198,8 @@ export const DesktopLayout = memo(function DesktopLayout({
                 onStart={start}
                 onFalsePositive={onFalsePositive}
                 falsePositiveIds={falsePositiveIds}
+                onConfirmFeedback={onConfirmFeedback}
+                confirmedIds={confirmedIds}
                 isLowSignal={isRunning && inputLevel < -45}
               />
               <EarlyWarningPanel earlyWarning={earlyWarning} />
