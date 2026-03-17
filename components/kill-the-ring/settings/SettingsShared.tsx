@@ -25,7 +25,7 @@ export const SettingsGrid = memo(function SettingsGrid({ children, className }: 
   className?: string
 }) {
   return (
-    <div className={cn('grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-3', className)}>
+    <div className={cn('grid grid-cols-1 @sm:grid-cols-2 @3xl:grid-cols-3 gap-x-6 gap-y-3', className)}>
       {children}
     </div>
   )
@@ -73,7 +73,7 @@ export const SectionGroup = memo(function SectionGroup({ title, children }: {
       <div className="py-1.5 section-label panel-groove">
         {title}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-3 pt-3">
+      <div className="grid grid-cols-1 @sm:grid-cols-2 @3xl:grid-cols-3 gap-x-6 gap-y-3 pt-3">
         {children}
       </div>
     </div>

@@ -405,13 +405,11 @@ const KillTheRingInner = memo(function KillTheRingInner({
             </div>
           )}
 
-          <HeaderBar
+          <HeaderBar />
+          <MobileLayout
             onSettingsChange={handleSettingsChange}
             calibration={calibrationTabProps}
             dataCollection={dataCollectionTabProps}
-          />
-          <MobileLayout
-            onSettingsChange={handleSettingsChange}
           />
 
           <DesktopLayout
@@ -425,6 +423,8 @@ const KillTheRingInner = memo(function KillTheRingInner({
             setIssuesPanelOpen={setIssuesPanelOpen}
             actualFps={actualFps}
             droppedPercent={droppedPercent}
+            calibration={calibrationTabProps}
+            dataCollection={dataCollectionTabProps}
           />
         </FullscreenPortalGate>
       </UIProvider>

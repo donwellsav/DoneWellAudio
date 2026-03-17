@@ -126,7 +126,7 @@ export const RoomTab = memo(function RoomTab({
           {/* Preset grid */}
           <div className="space-y-2">
             <span className="text-sm text-muted-foreground font-mono tracking-wide">Room Preset</span>
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-1 @[300px]:grid-cols-2 gap-1.5">
               {(Object.keys(ROOM_PRESETS) as RoomPresetKey[]).map((key) => {
                 const preset = ROOM_PRESETS[key]
                 const isSelected = settings.roomPreset === key

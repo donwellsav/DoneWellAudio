@@ -192,7 +192,7 @@ export const CalibrationTab = memo(function CalibrationTab({
         </Section>
 
         <Section title="Materials">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 @[350px]:grid-cols-3 gap-2">
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">Floor</Label>
               <Select value={room.floor} onValueChange={(v: FloorMaterial) => updateRoom({ floor: v })}>

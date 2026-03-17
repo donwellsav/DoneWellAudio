@@ -5,28 +5,32 @@ import { IssuesList } from './IssuesList'
 import { EarlyWarningPanel } from './EarlyWarningPanel'
 import { SpectrumCanvas } from './SpectrumCanvas'
 import { GEQBarView } from './GEQBarView'
-import { DetectionControls } from './DetectionControls'
+import { UnifiedControls, type DataCollectionTabProps } from './UnifiedControls'
+import { LandscapeSettingsSheet } from './LandscapeSettingsSheet'
 import { InputMeterSlider } from './InputMeterSlider'
 import { VerticalGainFader } from './VerticalGainFader'
-import { ResetConfirmDialog } from './ResetConfirmDialog'
 import { useEngine } from '@/contexts/EngineContext'
 import { useSettings } from '@/contexts/SettingsContext'
 import { useMetering } from '@/contexts/MeteringContext'
 import { useAdvisories } from '@/contexts/AdvisoryContext'
 import { useUI } from '@/contexts/UIContext'
-import { Button } from '@/components/ui/button'
-import { RotateCcw, AlertTriangle, BarChart3, Settings2, Maximize2, Minimize2 } from 'lucide-react'
+import { AlertTriangle, BarChart3, Settings2, Maximize2, Minimize2 } from 'lucide-react'
 import type { DetectorSettings } from '@/types/advisory'
+import type { CalibrationTabProps } from './settings/CalibrationTab'
 import { MOBILE_MAX_DISPLAYED_ISSUES } from '@/lib/dsp/constants'
 
 const TAB_ORDER = ['issues', 'graph', 'settings'] as const
 
 interface MobileLayoutProps {
   onSettingsChange: (s: Partial<DetectorSettings>) => void
+  calibration?: Omit<CalibrationTabProps, 'settings' | 'onSettingsChange'>
+  dataCollection?: DataCollectionTabProps
 }
 
 export const MobileLayout = memo(function MobileLayout({
   onSettingsChange,
+  calibration,
+  dataCollection,
 }: MobileLayoutProps) {
   const { isRunning, isStarting, error, start, stop } = useEngine()
   const { settings, handleModeChange, resetSettings, handleFreqRangeChange } = useSettings()
@@ -251,19 +255,13 @@ export const MobileLayout = memo(function MobileLayout({
               />
             </section>
             <div className="border-t border-border" />
-            <section>
-              <h3 className="section-label mb-2">Detection Controls</h3>
-              <DetectionControls settings={settings} onModeChange={handleModeChange} onSettingsChange={onSettingsChange} />
-            </section>
-            <div className="border-t border-border" />
-            <ResetConfirmDialog
-              onConfirm={resetSettings}
-              trigger={
-                <Button variant="outline" className="w-full h-11 text-sm font-medium">
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Reset to Defaults
-                </Button>
-              }
+            <UnifiedControls
+              settings={settings}
+              onModeChange={handleModeChange}
+              onSettingsChange={onSettingsChange}
+              onReset={resetSettings}
+              calibration={calibration}
+              dataCollection={dataCollection}
             />
           </div>
         </div>
@@ -295,8 +293,18 @@ export const MobileLayout = memo(function MobileLayout({
         <div className="w-[40%] flex flex-col overflow-hidden border-r border-border/50">
           <div className="flex-1 overflow-y-auto p-2">
             <h2 className="section-label mb-1 flex items-center justify-between">
-              <span>Issues</span>
-              <span className="text-primary font-mono">{activeAdvisoryCount}</span>
+              <span className="flex items-center gap-1.5">
+                Issues
+                <span className="text-primary font-mono">{activeAdvisoryCount}</span>
+              </span>
+              <LandscapeSettingsSheet
+                settings={settings}
+                onSettingsChange={onSettingsChange}
+                onModeChange={handleModeChange}
+                onReset={resetSettings}
+                calibration={calibration}
+                dataCollection={dataCollection}
+              />
             </h2>
             <IssuesList
               advisories={mobileAdvisories}

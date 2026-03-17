@@ -4,7 +4,6 @@ import { memo, lazy, Suspense } from 'react'
 import { FeedbackHistoryPanel } from './FeedbackHistoryPanel'
 
 const LazyHelpMenu = lazy(() => import('./HelpMenu').then(m => ({ default: m.HelpMenu })))
-const LazySettingsPanel = lazy(() => import('./SettingsPanel').then(m => ({ default: m.SettingsPanel })))
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -17,25 +16,9 @@ import {
 import { LayoutGrid, Maximize2, Mic, Minimize2, Pause, Play, Trash2 } from 'lucide-react'
 import { useAdvisories } from '@/contexts/AdvisoryContext'
 import { useEngine } from '@/contexts/EngineContext'
-import { useSettings } from '@/contexts/SettingsContext'
 import { useUI } from '@/contexts/UIContext'
-import type { DetectorSettings } from '@/types/advisory'
-import type { CalibrationTabProps } from './settings/CalibrationTab'
-import type { DataCollectionTabProps } from './SettingsPanel'
-
-interface HeaderBarProps {
-  onSettingsChange: (s: Partial<DetectorSettings>) => void
-  calibration?: Omit<CalibrationTabProps, 'settings' | 'onSettingsChange'>
-  dataCollection?: DataCollectionTabProps
-}
-
-export const HeaderBar = memo(function HeaderBar({
-  onSettingsChange,
-  calibration,
-  dataCollection,
-}: HeaderBarProps) {
+export const HeaderBar = memo(function HeaderBar() {
   const { isRunning, start, stop, devices, selectedDeviceId, handleDeviceChange } = useEngine()
-  const { settings, handleModeChange, resetSettings } = useSettings()
   const { resetLayout, isFullscreen, toggleFullscreen, isFrozen, toggleFreeze, isRtaFullscreen, toggleRtaFullscreen } = useUI()
   const { advisories, dismissedIds, onClearAll, onClearGEQ, onClearRTA, hasActiveGEQBars, hasActiveRTAMarkers } = useAdvisories()
   const hasClearableContent = advisories.some(a => !dismissedIds.has(a.id)) || hasActiveGEQBars || hasActiveRTAMarkers
@@ -201,16 +184,6 @@ export const HeaderBar = memo(function HeaderBar({
         <FeedbackHistoryPanel />
         <Suspense fallback={<div className="h-10 w-10" />}>
           <LazyHelpMenu />
-        </Suspense>
-        <Suspense fallback={<div className="h-10 w-10" />}>
-          <LazySettingsPanel
-            settings={settings}
-            onSettingsChange={onSettingsChange}
-            onModeChange={handleModeChange}
-            onReset={resetSettings}
-            calibration={calibration}
-            dataCollection={dataCollection}
-          />
         </Suspense>
       </div>
     </header>

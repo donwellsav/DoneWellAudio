@@ -5,7 +5,7 @@ import { IssuesList } from './IssuesList'
 import { EarlyWarningPanel } from './EarlyWarningPanel'
 import { SpectrumCanvas } from './SpectrumCanvas'
 import { GEQBarView } from './GEQBarView'
-import { DetectionControls } from './DetectionControls'
+import { UnifiedControls, type DataCollectionTabProps } from './UnifiedControls'
 import { AlgorithmStatusBar } from './AlgorithmStatusBar'
 import { VerticalGainFader } from './VerticalGainFader'
 import { useEngine } from '@/contexts/EngineContext'
@@ -19,6 +19,7 @@ import { AlertTriangle, PanelLeftClose, Columns2, Maximize2, Minimize2 } from 'l
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import type { ImperativePanelHandle } from 'react-resizable-panels'
 import type { DetectorSettings } from '@/types/advisory'
+import type { CalibrationTabProps } from './settings/CalibrationTab'
 
 interface DesktopLayoutProps {
   onSettingsChange: (s: Partial<DetectorSettings>) => void
@@ -31,6 +32,8 @@ interface DesktopLayoutProps {
   setIssuesPanelOpen: (open: boolean) => void
   actualFps?: number
   droppedPercent?: number
+  calibration?: Omit<CalibrationTabProps, 'settings' | 'onSettingsChange'>
+  dataCollection?: DataCollectionTabProps
 }
 
 export const DesktopLayout = memo(function DesktopLayout({
@@ -39,9 +42,10 @@ export const DesktopLayout = memo(function DesktopLayout({
   activeSidebarTab, setActiveSidebarTab,
   openIssuesPanel, closeIssuesPanel, setIssuesPanelOpen,
   actualFps, droppedPercent,
+  calibration, dataCollection,
 }: DesktopLayoutProps) {
   const { isRunning, isStarting, error, start, stop } = useEngine()
-  const { settings, handleModeChange, handleFreqRangeChange } = useSettings()
+  const { settings, handleModeChange, handleFreqRangeChange, resetSettings } = useSettings()
   const { spectrumRef, spectrumStatus, noiseFloorDb, inputLevel, isAutoGain, autoGainDb, autoGainLocked } = useMetering()
 
   const { isFrozen, toggleFreeze, layoutKey, rtaContainerRef, isRtaFullscreen, toggleRtaFullscreen } = useUI()
@@ -146,7 +150,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                 )}
                 {activeSidebarTab === 'controls' && (
                   <div className="animate-in fade-in-0 duration-150">
-                    <DetectionControls settings={settings} onModeChange={handleModeChange} onSettingsChange={onSettingsChange} />
+                    <UnifiedControls settings={settings} onModeChange={handleModeChange} onSettingsChange={onSettingsChange} onReset={resetSettings} calibration={calibration} dataCollection={dataCollection} />
                   </div>
                 )}
               </div>
