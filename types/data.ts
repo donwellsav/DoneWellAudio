@@ -48,14 +48,18 @@ export interface MarkerAlgorithmScores {
   ihr: number | null
   /** Peak-to-Median Ratio feedback score [0,1] */
   ptmr: number | null
+  /** ML model feedback score [0,1] (null if model unavailable) */
+  ml: number | null
   /** Fused feedback probability [0,1] */
   fusedProbability: number
   /** Fusion confidence [0,1] */
   fusedConfidence: number
+  /** ML model version string (null if model unavailable) */
+  modelVersion: string | null
 }
 
 /** User feedback on a detection event (v1.1+) */
-export type UserFeedback = 'correct' | 'false_positive'
+export type UserFeedback = 'correct' | 'false_positive' | 'confirmed_feedback'
 
 /** Feedback event marker for tagging snapshots */
 export interface FeedbackMarker {
@@ -75,7 +79,7 @@ export interface FeedbackMarker {
 
 /** A batch of tagged snapshots ready for upload */
 export interface SnapshotBatch {
-  version: '1.0' | '1.1'
+  version: '1.0' | '1.1' | '1.2'
   /** Random UUID, not linked to any user account */
   sessionId: string
   /** ISO 8601 */

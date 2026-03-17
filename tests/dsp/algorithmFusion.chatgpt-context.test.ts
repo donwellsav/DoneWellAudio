@@ -70,35 +70,37 @@ describe('Effective Weights (Comb Absent — Normal Operation)', () => {
     // When comb is absent, totalWeight = 1.00 - 0.08 = 0.92
     // Effective MSD = 0.30 / 0.92 = 0.326
     const w = FUSION_WEIGHTS.DEFAULT
-    const totalNoComb = w.msd + w.phase + w.spectral + w.ihr + w.ptmr
+    const totalNoComb = w.msd + w.phase + w.spectral + w.ihr + w.ptmr + w.ml
     const effectiveMsd = w.msd / totalNoComb
-    expect(effectiveMsd).toBeCloseTo(0.326, 2)
+    // DEFAULT MSD 0.27 / (1 - 0.07) = 0.2903
+    expect(effectiveMsd).toBeCloseTo(0.290, 2)
     console.log(`[EFFECTIVE] DEFAULT MSD: nominal ${w.msd}, effective ${effectiveMsd.toFixed(3)} (${(effectiveMsd*100).toFixed(1)}%)`)
   })
 
-  it('SPEECH effective MSD share is ~34.7% (FIX-004: reduced from 42.1%)', () => {
+  it('SPEECH effective MSD share is ~31.3% (reduced from 34.7% after ML redistribution)', () => {
     const w = FUSION_WEIGHTS.SPEECH
-    const totalNoComb = w.msd + w.phase + w.spectral + w.ihr + w.ptmr
+    const totalNoComb = w.msd + w.phase + w.spectral + w.ihr + w.ptmr + w.ml
     const effectiveMsd = w.msd / totalNoComb
-    // FIX-004: MSD reduced from 0.40→0.33, effective 42.1% → 34.7%
-    expect(effectiveMsd).toBeCloseTo(0.347, 2)
+    // SPEECH MSD 0.30 / (1 - 0.04) = 0.3125
+    expect(effectiveMsd).toBeCloseTo(0.3125, 2)
     console.log(`[EFFECTIVE] SPEECH MSD: nominal ${w.msd}, effective ${effectiveMsd.toFixed(3)} (${(effectiveMsd*100).toFixed(1)}%)`)
   })
 
-  it('MUSIC effective Phase share is ~38.0%, not 35%', () => {
+  it('MUSIC effective Phase share is ~34.4% (reduced from 38.0% after ML redistribution)', () => {
     const w = FUSION_WEIGHTS.MUSIC
-    const totalNoComb = w.msd + w.phase + w.spectral + w.ihr + w.ptmr
+    const totalNoComb = w.msd + w.phase + w.spectral + w.ihr + w.ptmr + w.ml
     const effectivePhase = w.phase / totalNoComb
-    expect(effectivePhase).toBeCloseTo(0.380, 2)
+    // MUSIC Phase 0.32 / (1 - 0.07) = 0.3441
+    expect(effectivePhase).toBeCloseTo(0.344, 2)
     console.log(`[EFFECTIVE] MUSIC Phase: nominal ${w.phase}, effective ${effectivePhase.toFixed(3)} (${(effectivePhase*100).toFixed(1)}%)`)
   })
 
-  it('COMPRESSED effective Phase share is ~32.6% (FIX-005: reduced from 41.3%)', () => {
+  it('COMPRESSED effective Phase share is ~29.0% (reduced from 32.6% after ML redistribution)', () => {
     const w = FUSION_WEIGHTS.COMPRESSED
-    const totalNoComb = w.msd + w.phase + w.spectral + w.ihr + w.ptmr
+    const totalNoComb = w.msd + w.phase + w.spectral + w.ihr + w.ptmr + w.ml
     const effectivePhase = w.phase / totalNoComb
-    // FIX-005: phase reduced from 0.38 → 0.30, effective 41.3% → 32.6%
-    expect(effectivePhase).toBeCloseTo(0.326, 2)
+    // COMPRESSED Phase 0.27 / (1 - 0.07) = 0.2903
+    expect(effectivePhase).toBeCloseTo(0.290, 2)
     console.log(`[EFFECTIVE] COMPRESSED Phase: nominal ${w.phase}, effective ${effectivePhase.toFixed(3)} (${(effectivePhase*100).toFixed(1)}%)`)
   })
 })

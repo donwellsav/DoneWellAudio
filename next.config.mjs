@@ -13,12 +13,8 @@ const withSerwist = withSerwistInit({
   disable: process.env.NODE_ENV === "development",
 });
 
-// CSP removed — Next.js inline scripts for hydration/routing are incompatible
-// with a strict script-src policy without nonce support. The restrictive CSP was
-// causing blank pages in production. Since KTR is a client-side PWA with no
-// user-generated content, XSS risk is minimal. Re-evaluate when Next.js ships
-// built-in nonce-based CSP support.
-
+// CSP is handled by middleware.ts (per-request nonce-based script-src).
+// Non-CSP security headers remain here as static config.
 const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'X-Frame-Options', value: 'SAMEORIGIN' },

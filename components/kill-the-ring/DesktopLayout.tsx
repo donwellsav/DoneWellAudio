@@ -8,7 +8,9 @@ import { GEQBarView } from './GEQBarView'
 import { DetectionControls } from './DetectionControls'
 import { AlgorithmStatusBar } from './AlgorithmStatusBar'
 import { VerticalGainFader } from './VerticalGainFader'
-import { useAudio } from '@/contexts/AudioAnalyzerContext'
+import { useEngine } from '@/contexts/EngineContext'
+import { useSettings } from '@/contexts/SettingsContext'
+import { useMetering } from '@/contexts/MeteringContext'
 import { useAdvisories } from '@/contexts/AdvisoryContext'
 import { useUI } from '@/contexts/UIContext'
 import { Button } from '@/components/ui/button'
@@ -38,12 +40,9 @@ export const DesktopLayout = memo(function DesktopLayout({
   openIssuesPanel, closeIssuesPanel, setIssuesPanelOpen,
   actualFps, droppedPercent,
 }: DesktopLayoutProps) {
-  const {
-    isRunning, isStarting, error, start, stop,
-    spectrumRef, settings, handleModeChange, handleFreqRangeChange,
-    spectrumStatus, noiseFloorDb,
-    inputLevel, isAutoGain, autoGainDb, autoGainLocked,
-  } = useAudio()
+  const { isRunning, isStarting, error, start, stop } = useEngine()
+  const { settings, handleModeChange, handleFreqRangeChange } = useSettings()
+  const { spectrumRef, spectrumStatus, noiseFloorDb, inputLevel, isAutoGain, autoGainDb, autoGainLocked } = useMetering()
 
   const { isFrozen, toggleFreeze, layoutKey, rtaContainerRef, isRtaFullscreen, toggleRtaFullscreen } = useUI()
 
@@ -54,10 +53,11 @@ export const DesktopLayout = memo(function DesktopLayout({
     hasActiveRTAMarkers, hasActiveGEQBars,
     onClearRTA, onClearGEQ,
     onFalsePositive, falsePositiveIds,
+    onConfirmFeedback, confirmedIds,
   } = useAdvisories()
 
   return (
-    <div className="hidden md:landscape:flex flex-1 overflow-hidden">
+    <div className="hidden tablet:flex tablet:landscape:hidden md:landscape:flex flex-1 overflow-hidden">
       <ResizablePanelGroup key={layoutKey} direction="horizontal" autoSaveId="ktr-layout-main-v4">
         {/* Sidebar panel */}
         <ResizablePanel defaultSize={20} minSize={8} maxSize={30} collapsible>
@@ -137,6 +137,8 @@ export const DesktopLayout = memo(function DesktopLayout({
                       onStart={start}
                       onFalsePositive={onFalsePositive}
                       falsePositiveIds={falsePositiveIds}
+                      onConfirmFeedback={onConfirmFeedback}
+                      confirmedIds={confirmedIds}
                       isLowSignal={isRunning && inputLevel < -45}
                     />
                     <EarlyWarningPanel earlyWarning={earlyWarning} />
@@ -196,6 +198,8 @@ export const DesktopLayout = memo(function DesktopLayout({
                 onStart={start}
                 onFalsePositive={onFalsePositive}
                 falsePositiveIds={falsePositiveIds}
+                onConfirmFeedback={onConfirmFeedback}
+                confirmedIds={confirmedIds}
                 isLowSignal={isRunning && inputLevel < -45}
               />
               <EarlyWarningPanel earlyWarning={earlyWarning} />

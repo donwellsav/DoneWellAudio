@@ -34,6 +34,18 @@ export interface CombPatternResult {
   confidence: number
 }
 
+/** ML model score result — output of the 7th fusion algorithm */
+export interface MLScoreResult {
+  /** Probability that this peak is feedback [0, 1] */
+  feedbackScore: number
+  /** Model confidence / calibration quality [0, 1] */
+  modelConfidence: number
+  /** True if the model is loaded and produced this score */
+  isAvailable: boolean
+  /** Model version string for tracking */
+  modelVersion: string
+}
+
 export interface AlgorithmScores {
   msd: MSDResult | null
   phase: PhaseCoherenceResult | null
@@ -44,6 +56,8 @@ export interface AlgorithmScores {
   ihr: InterHarmonicResult | null
   /** Peak-to-median ratio — high PTMR = narrow spectral peak (feedback) */
   ptmr: PTMRResult | null
+  /** ML meta-model FP filter — 7th fusion algorithm (null if model not loaded) */
+  ml: MLScoreResult | null
 }
 
 export interface FusedDetectionResult {
@@ -175,36 +189,40 @@ export const combStabilityTracker = new CombStabilityTracker()
 // PTMR (peak shape) — the two novel algorithms measuring unique properties.
 export const FUSION_WEIGHTS = {
   DEFAULT: {
-    msd: 0.30,
-    phase: 0.25,
-    spectral: 0.12,
-    comb: 0.08,
-    ihr: 0.13,
-    ptmr: 0.12,
+    msd: 0.27,
+    phase: 0.23,
+    spectral: 0.11,
+    comb: 0.07,
+    ihr: 0.12,
+    ptmr: 0.10,
+    ml: 0.10,
   },
   // SPEECH MSD reduced from 0.40 to 0.33 (effective 42.1% → ~34.7%)
   // Three-model consensus: 0.40 caused false positives on sustained vowels.
   // Gemini: 'Ummmm' scored 0.710. ChatGPT: 'Wooooo!' scored 0.720.
   // Redistributed to phase (+0.04) and ptmr (+0.03) for better discrimination.
+  // ML weight (~10%) redistributed proportionally from all existing algorithms.
   SPEECH: {
-    msd: 0.33,
-    phase: 0.24,
-    spectral: 0.10,
-    comb: 0.05,
-    ihr: 0.10,
-    ptmr: 0.18,
+    msd: 0.30,
+    phase: 0.22,
+    spectral: 0.09,
+    comb: 0.04,
+    ihr: 0.09,
+    ptmr: 0.16,
+    ml: 0.10,
   },
   // MUSIC MSD reduced from 0.15 to 0.08. DAFx-16 paper reports 22% accuracy
   // on rock music. Giving MSD 15% of the vote means it's wrong 78% of the
   // time but still influencing 15% of the decision. At 0.08, it's a weak
   // corroborator, not a lead vote.
   MUSIC: {
-    msd: 0.08,
-    phase: 0.35,
-    spectral: 0.10,
-    comb: 0.08,
-    ihr: 0.24,
-    ptmr: 0.15,
+    msd: 0.07,
+    phase: 0.32,
+    spectral: 0.09,
+    comb: 0.07,
+    ihr: 0.22,
+    ptmr: 0.13,
+    ml: 0.10,
   },
   // COMPRESSED phase reduced from 0.38 to 0.30 (effective 41.3% → ~33%)
   // Three-model consensus: single-feature conviction risk. Phase at 41.3%
@@ -212,12 +230,13 @@ export const FUSION_WEIGHTS = {
   // pitch-corrected worship content (Gemini).
   // Redistributed to spectral/ihr/ptmr for broader corroboration.
   COMPRESSED: {
-    msd: 0.12,
-    phase: 0.30,
-    spectral: 0.18,
-    comb: 0.08,
-    ihr: 0.18,
-    ptmr: 0.14,
+    msd: 0.11,
+    phase: 0.27,
+    spectral: 0.16,
+    comb: 0.07,
+    ihr: 0.16,
+    ptmr: 0.13,
+    ml: 0.10,
   },
 } as const
 
@@ -470,7 +489,7 @@ export function fuseAlgorithmResults(
   const reasons: string[] = []
   const contributingAlgorithms: string[] = []
 
-  let weights: { msd: number; phase: number; spectral: number; comb: number; ihr: number; ptmr: number }
+  let weights: { msd: number; phase: number; spectral: number; comb: number; ihr: number; ptmr: number; ml: number }
   if (scores.compression?.isCompressed) {
     weights = { ...FUSION_WEIGHTS.COMPRESSED }
     reasons.push(`Compression detected (ratio ~${scores.compression.estimatedRatio.toFixed(1)}:1)`)
@@ -486,29 +505,29 @@ export function fuseAlgorithmResults(
     weights = { ...weights, ...config.customWeights }
   }
 
-  let activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr']
+  let activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml']
   switch (config.mode) {
     case 'msd':
-      activeAlgorithms = ['msd', 'ihr', 'ptmr']
+      activeAlgorithms = ['msd', 'ihr', 'ptmr', 'ml']
       break
     case 'phase':
-      activeAlgorithms = ['phase', 'ihr', 'ptmr']
+      activeAlgorithms = ['phase', 'ihr', 'ptmr', 'ml']
       break
     case 'combined':
-      activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr']
+      activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml']
       break
     case 'all':
-      activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr']
+      activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml']
       break
     case 'auto':
       if (scores.msd && scores.msd.framesAnalyzed >= config.msdMinFrames) {
-        activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr']
+        activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml']
       } else {
-        activeAlgorithms = ['phase', 'spectral', 'comb', 'ihr', 'ptmr']
+        activeAlgorithms = ['phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml']
       }
       break
     case 'custom':
-      activeAlgorithms = config.enabledAlgorithms ?? ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr']
+      activeAlgorithms = config.enabledAlgorithms ?? ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml']
       break
   }
 
@@ -613,6 +632,15 @@ export function fuseAlgorithmResults(
     }
   }
 
+  // ML meta-model: 7th algorithm for false positive reduction.
+  // Only contributes when model is loaded and available (graceful degradation).
+  if (activeAlgorithms.includes('ml') && scores.ml?.isAvailable) {
+    weightedSum += scores.ml.feedbackScore * weights.ml
+    totalWeight += weights.ml
+    contributingAlgorithms.push('ML')
+    reasons.push(`ML: ${(scores.ml.feedbackScore * 100).toFixed(0)}% (${scores.ml.modelVersion})`)
+  }
+
   let feedbackProbability = totalWeight > 0
     ? Math.min(weightedSum / totalWeight, 1)
     : 0
@@ -641,6 +669,7 @@ export function fuseAlgorithmResults(
     scores.ihr?.feedbackScore,
     scores.ptmr?.feedbackScore,
     (scores.comb?.hasPattern ? scores.comb.confidence : undefined),
+    scores.ml?.isAvailable ? scores.ml.feedbackScore : undefined,
   ].filter((s): s is number => s !== undefined && s !== null)
 
   const mean     = algorithmScoresList.reduce((a, b) => a + b, 0) / algorithmScoresList.length

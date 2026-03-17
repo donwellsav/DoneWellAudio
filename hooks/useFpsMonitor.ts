@@ -15,7 +15,7 @@ const CAPACITY = WINDOW_SIZE + 1 // need N+1 timestamps to measure N intervals
 const UPDATE_INTERVAL_MS = 500 // How often to push state updates (avoid re-render every frame)
 
 /** O(1) push circular buffer — avoids Array.splice overhead at 60fps */
-class CircularTimestampBuffer {
+export class CircularTimestampBuffer {
   private readonly buf = new Float64Array(CAPACITY)
   private head = 0
   private _count = 0

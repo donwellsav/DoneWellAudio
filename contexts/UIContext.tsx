@@ -12,7 +12,7 @@ import {
   type RefObject,
 } from 'react'
 import { useFullscreen } from '@/hooks/useFullscreen'
-import { useAudio } from '@/contexts/AudioAnalyzerContext'
+import { useEngine } from '@/contexts/EngineContext'
 import { clearPanelLayouts } from '@/lib/storage/ktrStorage'
 
 // ── Context value ───────────────────────────────────────────────────────────
@@ -45,7 +45,7 @@ interface UIProviderProps {
 // ── Provider ────────────────────────────────────────────────────────────────
 
 export function UIProvider({ rootRef, children }: UIProviderProps) {
-  const { isRunning } = useAudio()
+  const { isRunning } = useEngine()
 
   // ── Mobile tab ────────────────────────────────────────────────────────
 

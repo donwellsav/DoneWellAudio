@@ -301,6 +301,7 @@ describe('fuseAlgorithmResults', () => {
       compression: null,
       ihr: null,
       ptmr: null,
+      ml: null,
     }
   }
 
@@ -342,6 +343,7 @@ describe('fuseAlgorithmResults', () => {
         isFeedbackLike: true,
         feedbackScore: 0.85,
       },
+      ml: null,
     }
   }
 
@@ -455,6 +457,7 @@ describe('confidence formula', () => {
       ptmr: {
         ptmrDb: 25, isFeedbackLike: score > 0.5, feedbackScore: score,
       },
+      ml: null,
     }
   }
 
@@ -510,6 +513,7 @@ describe('verdict boundaries', () => {
       ptmr: {
         ptmrDb: 25, isFeedbackLike: score > 0.5, feedbackScore: score,
       },
+      ml: null,
     }
   }
 
@@ -554,6 +558,7 @@ describe('content-weight interaction', () => {
       ptmr: {
         ptmrDb: 25, isFeedbackLike: true, feedbackScore: 0.85,
       },
+      ml: null,
     }
   }
 

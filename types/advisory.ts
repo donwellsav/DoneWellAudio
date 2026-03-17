@@ -2,8 +2,8 @@
 
 // Re-export algorithm types defined in advancedDetection.ts so consumers
 // can import everything from '@/types/advisory'
-export type { AlgorithmScores, FusedDetectionResult, InterHarmonicResult, PTMRResult } from '@/lib/dsp/advancedDetection'
-export type Algorithm = 'msd' | 'phase' | 'spectral' | 'comb' | 'ihr' | 'ptmr'
+export type { AlgorithmScores, FusedDetectionResult, InterHarmonicResult, PTMRResult, MLScoreResult } from '@/lib/dsp/advancedDetection'
+export type Algorithm = 'msd' | 'phase' | 'spectral' | 'comb' | 'ihr' | 'ptmr' | 'ml'
 export type AlgorithmMode = 'auto' | 'custom' | 'msd' | 'phase' | 'combined' | 'all' // legacy modes kept for backward compat
 export type ContentType = 'speech' | 'music' | 'compressed' | 'unknown'
 export type MicCalibrationProfile = 'none' | 'ecm8000' | 'rta-m' | 'smartphone'

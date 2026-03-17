@@ -135,6 +135,7 @@ export class SnapshotCollector {
   private _pendingEvents: FeedbackMarker[] = []
   private _totalBytesCollected = 0
   private _taggedEventCount = 0
+  private _labelCounts = { confirmed: 0, falsePositive: 0, unlabeled: 0 }
 
   constructor(sessionId: string, fftSize: number, sampleRate: number) {
     this._ring = new Array(RING_CAPACITY).fill(null)
@@ -192,6 +193,7 @@ export class SnapshotCollector {
     // Tag snapshots in the window around this event
     this._tagSnapshots(marker.relativeMs)
     this._taggedEventCount++
+    this._labelCounts.unlabeled++
 
     // Queue for batch extraction
     if (this._pendingEvents.length >= MAX_PENDING_EVENTS) {
@@ -218,7 +220,7 @@ export class SnapshotCollector {
     }))
 
     return {
-      version: event.algorithmScores ? '1.1' : '1.0',
+      version: event.algorithmScores?.ml !== undefined ? '1.2' : event.algorithmScores ? '1.1' : '1.0',
       sessionId: this._sessionId,
       capturedAt: new Date().toISOString(),
       fftSize: this._fftSize,
@@ -237,7 +239,17 @@ export class SnapshotCollector {
     // Search backwards (most recent first) for a matching event
     for (let i = this._pendingEvents.length - 1; i >= 0; i--) {
       if (Math.abs(this._pendingEvents[i].frequencyHz - frequencyHz) <= 10) {
+        // Update label balance counters
+        const prev = this._pendingEvents[i].userFeedback
+        if (prev === 'confirmed_feedback') this._labelCounts.confirmed--
+        else if (prev === 'false_positive') this._labelCounts.falsePositive--
+        else if (!prev || prev === 'correct') this._labelCounts.unlabeled--
+
         this._pendingEvents[i].userFeedback = feedback
+
+        if (feedback === 'confirmed_feedback') this._labelCounts.confirmed++
+        else if (feedback === 'false_positive') this._labelCounts.falsePositive++
+        else this._labelCounts.unlabeled++
         return true
       }
     }
@@ -258,6 +270,11 @@ export class SnapshotCollector {
     }
   }
 
+  /** Get label balance for ML training data quality tracking */
+  getLabelBalance(): { confirmed: number; falsePositive: number; unlabeled: number } {
+    return { ...this._labelCounts }
+  }
+
   /** Reset all state (on worker reset) */
   reset(): void {
     this._ring.fill(null)
@@ -267,6 +284,7 @@ export class SnapshotCollector {
     this._pendingEvents = []
     this._totalBytesCollected = 0
     this._taggedEventCount = 0
+    this._labelCounts = { confirmed: 0, falsePositive: 0, unlabeled: 0 }
     this._sessionStartMs = Date.now()
   }
 

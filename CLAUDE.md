@@ -1,6 +1,6 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
-> **Last updated March 2026. 119 TypeScript/TSX files, 373 tests (368 pass, 4 skip, 1 todo), 15 suites.**
+> **Last updated March 2026. 144 TypeScript/TSX files, 463 tests (459 pass, 4 skip, 1 todo), 26 suites. Version 0.128.0.**
 
 ## CRITICAL RULES
 
@@ -10,7 +10,7 @@
 
 ## Project Overview
 
-**Kill The Ring** (killthering.com) is a browser-based real-time acoustic feedback detection PWA for live sound engineers. It captures microphone input via the Web Audio API, identifies feedback frequencies using six fused detection algorithms, and delivers EQ recommendations with pitch translation. Version 0.107.0. Repository: github.com/donwellsav/killthering.
+**Kill The Ring** (killthering.com) is a browser-based real-time acoustic feedback detection PWA for live sound engineers. It captures microphone input via the Web Audio API, identifies feedback frequencies using six fused detection algorithms, and delivers EQ recommendations with pitch translation. Version 0.119.0. Repository: github.com/donwellsav/killthering.
 
 ## Tech Stack
 
@@ -20,10 +20,10 @@
 | Language | TypeScript 5.7 (strict mode, zero `any`) |
 | UI | shadcn/ui (New York), Tailwind CSS v4, Radix primitives |
 | Audio | Web Audio API (AnalyserNode, 8192-point FFT at 50fps) |
-| DSP Offload | Web Worker (dspWorker.ts, ~460 lines) |
+| DSP Offload | Web Worker (dspWorker.ts, ~458 lines) |
 | Visualization | HTML5 Canvas at 30fps |
 | State | React 19 hooks + 4 context providers (no external state library) |
-| Testing | Vitest (373 tests, 15 suites, under 2s) |
+| Testing | Vitest (435 tests, 25 suites, under 11s) |
 | Error Reporting | Sentry (browser + server + worker runtimes) |
 | PWA | Serwist (service worker, offline caching, installable) |
 | Package Manager | pnpm |
@@ -35,7 +35,7 @@ pnpm dev              # Dev server on :3000 (Turbopack, no SW)
 pnpm build            # Production build (webpack, generates SW)
 pnpm start            # Production server
 pnpm lint             # ESLint (flat config)
-pnpm test             # Vitest (373 tests: 368 pass + 4 skip + 1 todo)
+pnpm test             # Vitest (464 tests: 459 pass + 4 skip + 1 todo)
 pnpm test:watch       # Vitest watch mode
 pnpm test:coverage    # Vitest with V8 coverage
 npx tsc --noEmit      # Type-check (run BEFORE pnpm build)
@@ -52,7 +52,7 @@ Mic -> getUserMedia -> GainNode -> AnalyserNode (8192 FFT)
     -> postMessage(peak, spectrum, timeDomain) [transferable]
       -> Web Worker: AlgorithmEngine.computeScores()
       -> fuseAlgorithmResults() [content-adaptive weights]
-      -> classifyTrackWithAlgorithms() [10 features]
+      -> classifyTrackWithAlgorithms() [11 features]
       -> shouldReportIssue() [mode-specific gate]
       -> generateEQAdvisory() [GEQ + PEQ + shelf + pitch]
       -> AdvisoryManager.createOrUpdate() [3-layer dedup]
@@ -68,7 +68,11 @@ Mic -> getUserMedia -> GainNode -> AnalyserNode (8192 FFT)
 
 ### Context Providers (top to bottom)
 
-1. `AudioAnalyzerContext` — Engine lifecycle, settings, devices, spectrum, detection (28 fields — **KNOWN ISSUE: god context, should split into 3-4**)
+1. `AudioAnalyzerProvider` — Compound provider nesting 4 focused contexts:
+   - `EngineContext` (11 fields) — isRunning, start/stop, devices, dspWorker
+   - `SettingsContext` (5 fields) — settings, updateSettings, mode/freq changes
+   - `DetectionContext` (3 fields) — advisories, earlyWarning
+   - `MeteringContext` (10 fields) — spectrumRef, inputLevel, autoGain, noiseFloor
 2. `AdvisoryContext` — Advisory state, dismiss/clear/false-positive, derived booleans
 3. `UIContext` — Mobile tab, freeze, fullscreen, layout reset
 4. `PortalContainerContext` — Portal mount for mobile overlays
@@ -107,36 +111,36 @@ COMPRESSED: MSD=0.12  Phase=0.30  Spectral=0.18  Comb=0.08  IHR=0.18  PTMR=0.14
 
 | Bug | Fix | Version |
 |-----|-----|---------|
-| Auto-gain EMA coefficients stale in `updateConfig()` | `_recomputeEmaCoefficients()` called from both `start()` and `updateConfig()` | v0.98.0+ |
-| Confidence formula floors at 0.5 (UNCERTAIN unreachable) | Changed to `prob * (0.5 + 0.5 * agreement)` | v0.98.0+ |
-| Post-override normalization undoes RUNAWAY pFeedback=0.85 | Normalization before overrides; overrides are final | v0.98.0+ |
-| `existing` weight (0.04) double-counts features | Removed from all profiles, redistributed to IHR+PTMR | v0.98.0+ |
-| Comb weight doubling dilutes others by 7.4% | Doubled weight in numerator only, base weight in denominator | v0.98.0+ |
-| No worker crash recovery | Auto-restart: 500ms debounce, max 3 retries, Sentry logging | v0.98.0+ |
-| SpectrumCanvas missing devicePixelRatio (blurry on Retina) | Full DPR scaling: buffer, CSS style, `ctx.scale(dpr, dpr)` | v0.98.0+ |
+| Auto-gain EMA coefficients stale in `updateConfig()` | `_recomputeEmaCoefficients()` called from both `start()` and `updateConfig()` | v0.105.0 |
+| Confidence formula floors at 0.5 (UNCERTAIN unreachable) | Changed to `prob * (0.5 + 0.5 * agreement)` | v0.105.0 |
+| Post-override normalization undoes RUNAWAY pFeedback=0.85 | Normalization before overrides; overrides are final | v0.105.0 |
+| `existing` weight (0.04) double-counts features | Removed from all profiles, redistributed to IHR+PTMR | v0.105.0 |
+| Comb weight doubling dilutes others by 7.4% | Doubled weight in numerator only, base weight in denominator | v0.105.0 |
+| No worker crash recovery | Auto-restart: 500ms debounce, max 3 retries, Sentry logging | v0.105.0 |
+| SpectrumCanvas missing devicePixelRatio (blurry on Retina) | Full DPR scaling: buffer, CSS style, `ctx.scale(dpr, dpr)` | v0.105.0 |
 | Dual MSD implementations | Consolidated into single `MSDPool` class in `msdPool.ts` | v0.98.0 |
-| Only axial room modes (tangential + oblique missing) | `calculateRoomModes()` now handles all three mode types | v0.98.0+ |
-| PRIOR_PROBABILITY = 0.33 (uniform priors) | Per-class priors: feedback=0.45, whistle=0.27, instrument=0.27 | v0.98.0+ |
-| Settings slider fires per-frame (no debounce) | 100ms debounce with merge accumulation in `KillTheRing.tsx` | v0.98.0+ |
-| TS2688: Missing @serwist/next type definition | Types declared in `tsconfig.json` | v0.98.0+ |
-| Persistence thresholds frame-count-based (FUTURE-002) | ms-based thresholds with runtime `Math.ceil(ms / intervalMs)` | v0.98.0+ |
+| Only axial room modes (tangential + oblique missing) | `calculateRoomModes()` now handles all three mode types | v0.105.0 |
+| PRIOR_PROBABILITY = 0.33 (uniform priors) | Per-class priors: feedback=0.45, whistle=0.27, instrument=0.27 | v0.105.0 |
+| Settings slider fires per-frame (no debounce) | 100ms debounce with merge accumulation in `KillTheRing.tsx` | v0.105.0 |
+| TS2688: Missing @serwist/next type definition | Types declared in `tsconfig.json` | v0.98.0 |
+| Persistence thresholds frame-count-based (FUTURE-002) | ms-based thresholds with runtime `Math.ceil(ms / intervalMs)` | v0.105.0 |
 
 ### High (P1)
 
-1. **Zero tests for hooks, components, contexts, exports, storage.** 373 tests cover DSP only.
+~~1. **Zero tests for hooks, components, contexts, exports, storage.** 373 tests cover DSP only.~~ **FIXED v0.119.0** — 62 new tests across 10 modules (hooks, contexts, storage, exports). 435 total tests, 25 suites.
 
 ### Medium (P2)
 
-2. `analyze()` is ~420 lines — decompose into `_detectPeaks()`, `_updateAutoGain()`, `_computeSpectrum()`, etc.
-3. `AudioAnalyzerContext` is god-context mixing engine/settings/detection (28 fields). Split into 3-4 focused contexts.
-4. No shelf overlap validation in eqAdvisor.
-5. `HelpMenu.tsx` is 991 lines doing 3+ things — split.
-6. No tablet responsive breakpoint (CSS var `--breakpoint-tablet: 600px` defined but not wired to components).
+~~2. `analyze()` is ~420 lines — decompose into `_detectPeaks()`, `_updateAutoGain()`, `_computeSpectrum()`, etc.~~ **FIXED v0.121.0** — Decomposed into 4 extracted methods: `_measureSignalAndApplyGain()`, `_buildPowerSpectrum()`, `_scanAndProcessPeaks()`, `_registerPeak()`. `analyze()` is now ~45 lines.
+~~3. `AudioAnalyzerContext` is god-context mixing engine/settings/detection (28 fields). Split into 3-4 focused contexts.~~ **FIXED v0.122.0** — Split into 4 focused contexts: `EngineContext` (11), `SettingsContext` (5), `MeteringContext` (10), `DetectionContext` (3). All consumers migrated to narrowest hooks. `useAudio()` retained as deprecated shim.
+~~4. No shelf overlap validation in eqAdvisor.~~ **FIXED v0.123.0** — Added `validateShelves()` post-processing (dedup by type, HPF < lowShelf sanity check, cap at 3). HPF-active raises mud threshold +2 dB to prevent overlap in 80–300 Hz region. Cross-advisory dedup: shelves computed once per analysis frame in worker, shared across all peaks.
+~~5. `HelpMenu.tsx` is 991 lines doing 3+ things — split.~~ **FIXED v0.124.0** — Split into thin orchestrator (~90 lines) + `help/` subdirectory (6 files: HelpShared, GuideTab, ModesTab, AlgorithmsTab, ReferenceTab, AboutTab). Mirrors `settings/` pattern.
+~~6. No tablet responsive breakpoint (CSS var `--breakpoint-tablet: 600px` defined but not wired to components).~~ **FIXED v0.125.0** — Wired `tablet:` Tailwind v4 prefix (600px) to MobileLayout (`tablet:hidden` on 3 portrait-only elements), DesktopLayout (`tablet:flex tablet:landscape:hidden`), and HeaderBar. Portrait tablets now get desktop layout. `useIsMobile()` threshold lowered from 768→600 so tablets skip smartphone mic calibration.
 
 ### Low (P3)
 
-7. `unsafe-inline` in production script-src CSP (required by Next.js).
-8. No security scanning in CI (Snyk/Dependabot/npm audit).
+~~7. `unsafe-inline` in production script-src CSP (required by Next.js).~~ **FIXED v0.126.0** — Replaced with nonce-based CSP via `middleware.ts`. Per-request nonce + `'strict-dynamic'` in script-src. Dev mode keeps `unsafe-inline` for Turbopack hot reload. `style-src 'unsafe-inline'` retained (low risk, required by Tailwind/React).
+~~8. No security scanning in CI (Snyk/Dependabot/npm audit).~~ **FIXED v0.127.0** — Added `pnpm audit --prod --audit-level=high` to CI (fails on high/critical CVEs in production deps). Added `.github/dependabot.yml` for weekly grouped npm updates + monthly GitHub Actions updates.
 
 ## Known False Positives
 
@@ -149,30 +153,44 @@ COMPRESSED: MSD=0.12  Phase=0.30  Spectral=0.18  Comb=0.08  IHR=0.18  PTMR=0.14
 ## Project Structure
 
 ```
+middleware.ts (53)              # Per-request nonce CSP (replaces static unsafe-inline)
 app/                          # Next.js App Router
   layout.tsx (54)             #   Root layout, Geist fonts, metadata
   page.tsx (5)                #   Entry -> KillTheRingClient
   global-error.tsx (56)       #   Sentry error boundary
   sw.ts (38)                  #   Serwist service worker
-  api/v1/ingest/route.ts (147)#   Spectral snapshot ingest (rate-limited, IP-stripped)
+  api/v1/ingest/route.ts (160)#   Spectral snapshot ingest (v1.0/1.1/1.2 schema, rate-limited, IP-stripped)
 components/
-  kill-the-ring/ (23 files)   # Domain components + barrel index.ts
+  kill-the-ring/ (29 files)   # Domain components + barrel index.ts
+    help/ (6 files)           # Help tab components (mirrors settings/ pattern)
+    KillTheRing.tsx (436)     #   Root orchestrator, settings debounce, FP handling
+    HeaderBar.tsx (220)       #   Header bar with permanent Clear All button
+    IssuesList.tsx (440)      #   Advisory cards with CONFIRM + FALSE+ buttons, 3s stability
     settings/ (7 files)       # Settings tab components
   ui/ (20 files)              # shadcn/ui primitives
-contexts/ (4 files)           # React context providers
+contexts/ (8 files)           # React context providers
+  AudioAnalyzerContext (195)  #   Compound provider: nests Engine/Settings/Metering/Detection
+  EngineContext (42)          #   Engine lifecycle, devices, dspWorker (11 fields)
+  SettingsContext (30)        #   Settings, updateSettings, mode/freq (5 fields)
+  MeteringContext (38)        #   Spectrum, inputLevel, autoGain, noiseFloor (10 fields)
+  DetectionContext (25)       #   Advisories, earlyWarning (3 fields)
+  AdvisoryContext (190)       #   Advisory state, dismiss/clear/FP, derived booleans
+  UIContext (162)             #   Mobile tab, freeze, fullscreen, RTA fullscreen, layout reset
+  PortalContainerContext (23) #   Portal mount for mobile overlays
 hooks/ (11 files)             # Custom hooks
+  useDSPWorker.ts (359)       #   Worker lifecycle, crash recovery, userFeedback
 lib/
-  dsp/ (17 modules)           # DSP engine (8,057 lines):
-    feedbackDetector.ts (1662)#   Core: peak detection, MSD pool, auto-gain, persistence
-    constants.ts (959)        #   All tuning constants, 8 mode presets, ECM8000 cal curve
+  dsp/ (18 modules)           # DSP engine + ML inference:
+    feedbackDetector.ts (1721)#   Core: peak detection, MSD pool, auto-gain, persistence
+    constants.ts (961)        #   All tuning constants, 8 mode presets, ECM8000 cal curve, mobile constants
     acousticUtils.ts (861)    #   Room modes, Schroeder, RT60, vibrato, cumulative growth
     classifier.ts (850)       #   11-feature Bayesian classification + formant/chromatic gates
     algorithmFusion.ts (823)  #   6-algo fusion, comb, IHR, PTMR, MINDS, CombStabilityTracker
     feedbackHistory.ts (467)  #   Session history, repeat offenders, hotspot tracking
     trackManager.ts (466)     #   Track lifecycle, cents-based association (100-cent tolerance)
-    dspWorker.ts (434)        #   Worker orchestrator, temporal smoothing
+    dspWorker.ts (458)        #   Worker orchestrator, temporal smoothing, ML score extraction
     eqAdvisor.ts (402)        #   GEQ/PEQ/shelf recs, ERB scaling, MINDS depth
-    workerFft.ts (369)        #   Radix-2 FFT, AlgorithmEngine, phase extraction
+    workerFft.ts (389)        #   Radix-2 FFT, AlgorithmEngine, phase extraction
     advisoryManager.ts (292)  #   3-layer dedup, band cooldown, memory bounds (max 200)
     msdPool.ts (267)          #   Consolidated MSD pool (sparse, LRU eviction, 64KB)
     msdAnalysis.ts (170)      #   [DEPRECATED] Worker-side MSD + AmplitudeHistoryBuffer + PhaseHistoryBuffer
@@ -180,21 +198,36 @@ lib/
     phaseCoherence.ts (129)   #   Phase coherence via circular statistics
     decayAnalyzer.ts (86)     #   RT60 decay comparison for room mode suppression
     severityUtils.ts (18)     #   Severity urgency mapping
+    mlInference.ts (~180)     #   ONNX Runtime Web ML inference, predictCached(), lazy model loading
     advancedDetection.ts (16) #   Barrel re-export
-  canvas/spectrumDrawing.ts(562)# Pure canvas drawing (no React)
+  canvas/spectrumDrawing.ts(605)# Pure canvas drawing (no React), RTA label overlap suppression
   export/ (3 files)           # PDF/TXT/CSV/JSON export
   calibration/ (3 files)      # Room profile, session recording, JSON export
   storage/ktrStorage.ts (183) # Typed localStorage abstraction
-  data/ (4 files)             # Anonymous spectral collection (opt-out)
+  data/ (4 files)             # Anonymous spectral collection (opt-out, v1.1 with algo scores)
+    snapshotCollector.ts (343)#   Batch collection, algorithm score enrichment, user feedback, label balance tracking
   utils/ (2 files)            # Math helpers, pitch utilities
 types/
   advisory.ts (~384)          # All DSP interfaces (Advisory, DetectorSettings, Track, etc.)
   calibration.ts (~157)       # Room profile, calibration export types
-  data.ts (~126)              # Consent, snapshot, worker message types
+  data.ts (~153)              # Consent, snapshot, worker message types, MarkerAlgorithmScores
 tests/
   dsp/ (7 files)              # Integration/scenario tests (~135 tests)
-  vitest.config.ts            # Test configuration
+  vitest.config.ts            # Legacy test configuration (root vitest.config.ts is primary)
   helpers/                    # Mock algorithm score builders
+hooks/__tests__/ (4 files)    # Hook unit tests (useAdvisoryMap, useFpsMonitor, useAdvisoryLogging, useIsMobile)
+contexts/__tests__/ (2 files) # Context unit tests (AdvisoryContext, UIContext)
+lib/storage/__tests__/ (1 file)  # ktrStorage unit tests
+lib/export/__tests__/ (3 files)  # Export module unit tests (txt, pdf, downloadFile)
+lib/dsp/__tests__/ (1 file)     # mlInference unit tests (12 tests)
+public/models/                  # ML model assets
+  manifest.json                 #   Model registry (version, metrics, architecture)
+  ktr-fp-filter-v1.onnx         #   Bootstrap ONNX model (929 params, 4KB)
+scripts/ml/                     # ML training pipeline
+  create_bootstrap_model.py     #   Generate ONNX from gate logic (numpy-only)
+  export_training_data.py       #   Pull labeled events from Supabase to CSV
+  train_fp_filter.py            #   Train MLP, export ONNX, update manifest
+.github/workflows/ml-train.yml  # Weekly/manual ML training workflow
 ```
 
 ## Key Performance Constraints
@@ -239,17 +272,18 @@ tests/
 
 ## CI/CD
 
-- **Build gate:** `ci.yml` — tsc + test + build on every push/PR
+- **Build gate:** `ci.yml` — audit + tsc + lint + test + build on every push/PR
+- **Dependency updates:** Dependabot — weekly npm PRs (grouped by prod/dev), monthly Actions PRs
 - **Versioning:** `0.{PR_NUMBER}.0` on PR merge, patch increment on direct push. Both `[skip ci]`.
 - **Deployment:** Vercel auto-deploys on push to `main`
 - **Version flow:** `package.json` version -> `next.config.mjs` reads via `readFileSync` -> `NEXT_PUBLIC_APP_VERSION` env -> HeaderBar + HelpMenu
 
 ## Security Notes
 
-- **CSP:** Restrictive prod policy, relaxed dev policy with hot reload support
+- **CSP:** Nonce-based `script-src` in prod (middleware.ts), `'unsafe-inline'` in dev for hot reload. `style-src 'unsafe-inline'` in both (required by Tailwind/React). `suppressHydrationWarning` on `<html>` and `<body>` to prevent nonce mismatch (browsers strip nonce from DOM).
 - **Permissions-Policy:** `microphone=(self), camera=(), geolocation=()`
 - **Zero XSS vectors:** No direct HTML injection, no dynamic code execution
-- **API:** Ingest endpoint validates schema, rate-limits (6/60s per session), caps payload (512KB), strips IP
+- **API:** Ingest endpoint validates v1.0/v1.1 schema, rate-limits (6/60s per session), caps payload (512KB), strips IP
 - **Worker:** Inbound messages type-validated via `WorkerOutboundMessage` switch; outbound postMessage lacks compile-time Set validation (minor gap)
 - **localStorage:** 37 touchpoints, all via ktrStorage.ts abstraction with try/catch
 
@@ -268,3 +302,25 @@ tests/
 - **Data collection:** Anonymous spectral snapshots (opt-out). No PII. Random session UUIDs. IP stripped server-side.
 - **Consent:** Opt-out model (US). Needs opt-in for GDPR jurisdictions before EU launch.
 - **Storage:** Settings and history in localStorage only. Never transmitted unless user explicitly exports.
+
+## ML Data Pipeline (v0.106.0+)
+
+- **Snapshot enrichment:** Every `FeedbackMarker` includes `MarkerAlgorithmScores` with all 6 algorithm scores (MSD, phase, spectral, comb, IHR, PTMR) plus fused probability and confidence. Schema version `1.1` (backward-compatible with `1.0`).
+- **Ground truth labeling:** Always-on FALSE+ button on every advisory card (not just calibration mode). User feedback flows via `userFeedback` worker message to `snapshotCollector.applyUserFeedback()`, labeling pending batch events as `correct` or `false_positive`.
+- **Ingest API v1.1:** `app/api/v1/ingest/route.ts` accepts optional `algorithmScores` and `userFeedback` fields with validation. Backward-compatible — v1.0 payloads still accepted.
+- **Data flow:** Advisory card → `handleFalsePositive()` in `KillTheRing.tsx` → `dspWorker.sendUserFeedback()` → worker `applyUserFeedback()` → snapshot batch labeled for future ML training.
+- **ML inference (v0.128.0):** ONNX Runtime Web as 7th fusion algorithm (weight 0.10). Bootstrap model (929 params, MLP 11→32→16→1) encodes existing gate logic. Lazy-loaded in worker via `import('onnxruntime-web')`. `predictCached()` pattern: async inference with synchronous cached reads. Previous-frame fused probability breaks circular dependency.
+- **CONFIRM button (v0.128.0):** Symmetric labeling alongside FALSE+ for balanced ML training data. Mutual exclusion: CONFIRM removes from fpIds, FALSE+ removes from confirmedIds. Label balance tracking in snapshotCollector.
+- **Cloud training pipeline (v0.128.0):** Supabase `spectral_snapshots` table with 12 ML columns. `scripts/ml/` with numpy-only trainer, export script, bootstrap model generator. GitHub Actions workflow (`ml-train.yml`) for weekly scheduled or manual training runs.
+- **Ingest API v1.2 (v0.128.0):** Accepts `confirmed_feedback` user feedback, ML algorithm score, and model version. Backward-compatible with v1.0/v1.1.
+
+## UI Features (v0.107.0+)
+
+- **Permanent Clear All button:** Trash icon always visible in header. Calls `onClearAll()` + `onClearGEQ()` + `onClearRTA()` in one click. Visually dimmed (`text-muted-foreground/30`) when nothing to clear.
+- **FALSE+ card layout:** FALSE+ button renders on its own row beneath Copy/Dismiss icons in each `IssueCard`, improving visual hierarchy and reducing misclick risk.
+- **RTA fullscreen:** Element-level Fullscreen API via `UIContext`. Toggle button in header (Maximize2/Minimize2). Works on mobile and desktop.
+- **Landscape mobile layout:** 40/55/5 split (Issues/Graph/Controls) in landscape orientation. Portrait keeps 3-tab carousel.
+- **Issue card simplification:** GEQ removed from cards (PEQ only). Compact buttons with larger icons. 3s minimum display time for stability.
+- **Mobile advisory limit:** Top 5 most problematic frequencies shown (`MOBILE_MAX_DISPLAYED_ISSUES` in constants.ts).
+- **Auto MEMS calibration:** Smartphone MEMS mic profile auto-applied on mobile devices.
+- **RTA label overlap suppression:** Greedy algorithm in `spectrumDrawing.ts` prioritizes highest-severity labels, prevents clutter.

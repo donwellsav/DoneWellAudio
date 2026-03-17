@@ -13,7 +13,11 @@ const LazyOnboardingOverlay = lazy(() => import('./OnboardingOverlay').then(m =>
 // Consent dialog removed — collection is opt-out via Settings → Advanced
 import { useDataCollection } from '@/hooks/useDataCollection'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { AudioAnalyzerProvider, useAudio } from '@/contexts/AudioAnalyzerContext'
+import { AudioAnalyzerProvider } from '@/contexts/AudioAnalyzerContext'
+import { useEngine } from '@/contexts/EngineContext'
+import { useSettings } from '@/contexts/SettingsContext'
+import { useMetering } from '@/contexts/MeteringContext'
+import { useDetection } from '@/contexts/DetectionContext'
 import { AdvisoryProvider } from '@/contexts/AdvisoryContext'
 import { UIProvider, useUI } from '@/contexts/UIContext'
 import type { ImperativePanelHandle } from 'react-resizable-panels'
@@ -92,23 +96,10 @@ const KillTheRingInner = memo(function KillTheRingInner({
   rootRef,
   rootEl,
 }: KillTheRingInnerProps) {
-  const {
-    isRunning,
-    error,
-    workerError,
-    noiseFloorDb,
-    spectrumStatus,
-    spectrumRef,
-    advisories,
-    sampleRate,
-    fftSize,
-    settings,
-    start,
-    stop,
-    updateSettings,
-    resetSettings,
-    dspWorker,
-  } = useAudio()
+  const { isRunning, error, workerError, start, stop, dspWorker } = useEngine()
+  const { settings, updateSettings, resetSettings } = useSettings()
+  const { spectrumRef, spectrumStatus, noiseFloorDb, sampleRate, fftSize } = useMetering()
+  const { advisories } = useDetection()
 
   // Wire the DSP worker handle into data collection (breaks circular dep)
   dataCollection.workerRef.current = dspWorker
@@ -210,11 +201,55 @@ const KillTheRingInner = memo(function KillTheRingInner({
       )
     }
 
+    // Remove from confirmed set if it was confirmed (mutually exclusive)
+    setConfirmedIds(prev => {
+      if (!prev.has(advisoryId)) return prev
+      const next = new Set(prev)
+      next.delete(advisoryId)
+      return next
+    })
+
     // Chain to calibration handler if active
     if (calibration.calibrationEnabled) {
       calibration.onFalsePositive(advisoryId)
     }
   }, [advisories, fpIds, dspWorker, calibration])
+
+  // ── Confirm Feedback (positive label for ML training) ──────────────────
+  // Symmetric to FALSE+: marks an advisory as confirmed real feedback.
+  // CONFIRM and FALSE+ are mutually exclusive toggles.
+
+  const [confirmedIds, setConfirmedIds] = useState<Set<string>>(new Set())
+  const handleConfirmFeedback = useCallback((advisoryId: string) => {
+    // Toggle confirmed state
+    setConfirmedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(advisoryId)) {
+        next.delete(advisoryId)
+      } else {
+        next.add(advisoryId)
+      }
+      return next
+    })
+
+    // Remove from FP set if it was flagged (mutually exclusive)
+    setFpIds(prev => {
+      if (!prev.has(advisoryId)) return prev
+      const next = new Set(prev)
+      next.delete(advisoryId)
+      return next
+    })
+
+    // Send confirmed_feedback to worker for snapshot labeling
+    const advisory = advisories.find(a => a.id === advisoryId)
+    if (advisory) {
+      const isConfirming = !confirmedIds.has(advisoryId)
+      dspWorker.sendUserFeedback(
+        advisory.trueFrequencyHz,
+        isConfirming ? 'confirmed_feedback' : 'correct'
+      )
+    }
+  }, [advisories, confirmedIds, dspWorker])
 
   // Merge calibration FP IDs with standalone FP IDs
   const mergedFpIds = useMemo<ReadonlySet<string>>(() => {
@@ -316,6 +351,8 @@ const KillTheRingInner = memo(function KillTheRingInner({
     <AdvisoryProvider
       onFalsePositive={handleFalsePositive}
       falsePositiveIds={mergedFpIds}
+      onConfirmFeedback={handleConfirmFeedback}
+      confirmedIds={confirmedIds}
     >
       <UIProvider rootRef={rootRef}>
         <FullscreenPortalGate rootEl={rootEl}>
@@ -406,10 +443,10 @@ function FullscreenPortalGate({ rootEl, children }: { rootEl: HTMLDivElement | n
   )
 }
 
-// ── Keyboard shortcuts (needs both useAudio + useUI) ────────────────────────
+// ── Keyboard shortcuts (needs engine + UI) ──────────────────────────────────
 
 function KeyboardShortcuts() {
-  const { isRunning, start, stop } = useAudio()
+  const { isRunning, start, stop } = useEngine()
   const { toggleFreeze } = useUI()
 
   useEffect(() => {

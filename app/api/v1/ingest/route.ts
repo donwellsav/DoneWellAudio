@@ -102,7 +102,7 @@ function validateBatch(batch: unknown): string | null {
 
   const b = batch as Record<string, unknown>
 
-  if (b.version !== '1.0' && b.version !== '1.1') return 'Unsupported version'
+  if (b.version !== '1.0' && b.version !== '1.1' && b.version !== '1.2') return 'Unsupported version'
   if (typeof b.sessionId !== 'string' || b.sessionId.length < 10) return 'Invalid sessionId'
   if (typeof b.fftSize !== 'number' || ![4096, 8192, 16384].includes(b.fftSize)) return 'Invalid fftSize'
   if (typeof b.sampleRate !== 'number' || b.sampleRate < 8000 || b.sampleRate > 96000) return 'Invalid sampleRate'
@@ -122,7 +122,7 @@ function validateBatch(batch: unknown): string | null {
     if (typeof scores.fusedConfidence !== 'number') return 'Invalid event.algorithmScores.fusedConfidence'
   }
   if (event.userFeedback !== undefined) {
-    if (event.userFeedback !== 'correct' && event.userFeedback !== 'false_positive') {
+    if (event.userFeedback !== 'correct' && event.userFeedback !== 'false_positive' && event.userFeedback !== 'confirmed_feedback') {
       return 'Invalid event.userFeedback'
     }
   }

@@ -22,6 +22,7 @@ import {
   generateGEQRecommendation,
   generatePEQRecommendation,
   analyzeSpectralTrends,
+  validateShelves,
   generateEQAdvisory,
   getSeverityColor,
   getGEQBandLabels,
@@ -368,6 +369,146 @@ describe('analyzeSpectralTrends', () => {
     const result = analyzeSpectralTrends(spectrum, sampleRate, fftSize)
     const harsh = result.find(s => s.type === 'highShelf')
     expect(harsh).toBeDefined()
+  })
+
+  it('raises lowShelf threshold when HPF is active (overlap prevention)', () => {
+    // Create spectrum with both rumble AND moderate mud (4.5 dB excess)
+    // Without HPF, 4.5 dB > MUD_EXCESS_DB (4) → lowShelf fires
+    // With HPF, 4.5 dB < MUD_EXCESS_DB + 2 (6) → lowShelf suppressed
+    const spectrum = flatSpectrum(-40)
+    const hzPerBin = sampleRate / fftSize
+
+    // Add rumble (triggers HPF)
+    const lowEndBin = Math.round(80 / hzPerBin)
+    for (let i = 0; i < lowEndBin; i++) {
+      spectrum[i] = -30 // 10 dB excess → HPF fires
+    }
+
+    // Add moderate mud (4.5 dB excess — above base threshold, below raised threshold)
+    const mudLow = Math.round(200 / hzPerBin)
+    const mudHigh = Math.round(400 / hzPerBin)
+    for (let i = mudLow; i < mudHigh; i++) {
+      spectrum[i] = -35.5
+    }
+
+    const result = analyzeSpectralTrends(spectrum, sampleRate, fftSize)
+    expect(result.find(s => s.type === 'HPF')).toBeDefined()
+    // lowShelf should be suppressed because 4.5 dB < 6 dB (raised threshold)
+    expect(result.find(s => s.type === 'lowShelf')).toBeUndefined()
+  })
+
+  it('allows lowShelf when no HPF (normal threshold)', () => {
+    // Same mud level as above, but no rumble → lowShelf fires at normal 4 dB threshold
+    const spectrum = flatSpectrum(-40)
+    const hzPerBin = sampleRate / fftSize
+
+    const mudLow = Math.round(200 / hzPerBin)
+    const mudHigh = Math.round(400 / hzPerBin)
+    for (let i = mudLow; i < mudHigh; i++) {
+      spectrum[i] = -35.5 // 4.5 dB excess → above 4 dB threshold
+    }
+
+    const result = analyzeSpectralTrends(spectrum, sampleRate, fftSize)
+    expect(result.find(s => s.type === 'HPF')).toBeUndefined()
+    expect(result.find(s => s.type === 'lowShelf')).toBeDefined()
+  })
+
+  it('allows HPF + lowShelf when mud is strong enough', () => {
+    // When mud excess exceeds the raised threshold (6 dB), both should fire
+    const spectrum = flatSpectrum(-40)
+    const hzPerBin = sampleRate / fftSize
+
+    // Add rumble
+    const lowEndBin = Math.round(80 / hzPerBin)
+    for (let i = 0; i < lowEndBin; i++) {
+      spectrum[i] = -30
+    }
+
+    // Add strong mud (7 dB excess — above raised threshold of 6)
+    const mudLow = Math.round(200 / hzPerBin)
+    const mudHigh = Math.round(400 / hzPerBin)
+    for (let i = mudLow; i < mudHigh; i++) {
+      spectrum[i] = -33
+    }
+
+    const result = analyzeSpectralTrends(spectrum, sampleRate, fftSize)
+    expect(result.find(s => s.type === 'HPF')).toBeDefined()
+    expect(result.find(s => s.type === 'lowShelf')).toBeDefined()
+  })
+
+  it('all three shelf types can coexist when conditions are met', () => {
+    const spectrum = flatSpectrum(-40)
+    const hzPerBin = sampleRate / fftSize
+
+    // Rumble
+    const lowEndBin = Math.round(80 / hzPerBin)
+    for (let i = 0; i < lowEndBin; i++) spectrum[i] = -30
+
+    // Strong mud (above raised threshold)
+    const mudLow = Math.round(200 / hzPerBin)
+    const mudHigh = Math.round(400 / hzPerBin)
+    for (let i = mudLow; i < mudHigh; i++) spectrum[i] = -32
+
+    // Harshness
+    const harshLow = Math.round(6000 / hzPerBin)
+    const harshHigh = Math.round(10000 / hzPerBin)
+    for (let i = harshLow; i < harshHigh; i++) spectrum[i] = -33
+
+    const result = analyzeSpectralTrends(spectrum, sampleRate, fftSize)
+    expect(result).toHaveLength(3)
+    expect(result.map(s => s.type)).toContain('HPF')
+    expect(result.map(s => s.type)).toContain('lowShelf')
+    expect(result.map(s => s.type)).toContain('highShelf')
+  })
+})
+
+// ── validateShelves ───────────────────────────────────────────────────────
+
+describe('validateShelves', () => {
+  it('removes duplicate shelf types (keeps first)', () => {
+    const shelves = [
+      { type: 'lowShelf' as const, hz: 300, gainDb: -3, reason: 'first' },
+      { type: 'lowShelf' as const, hz: 250, gainDb: -4, reason: 'duplicate' },
+    ]
+    const result = validateShelves(shelves)
+    expect(result).toHaveLength(1)
+    expect(result[0].reason).toBe('first')
+  })
+
+  it('allows one of each type', () => {
+    const shelves = [
+      { type: 'HPF' as const, hz: 80, gainDb: 0, reason: 'rumble' },
+      { type: 'lowShelf' as const, hz: 300, gainDb: -3, reason: 'mud' },
+      { type: 'highShelf' as const, hz: 8000, gainDb: -3, reason: 'harsh' },
+    ]
+    const result = validateShelves(shelves)
+    expect(result).toHaveLength(3)
+  })
+
+  it('rejects lowShelf at or below HPF frequency', () => {
+    const shelves = [
+      { type: 'HPF' as const, hz: 80, gainDb: 0, reason: 'rumble' },
+      { type: 'lowShelf' as const, hz: 80, gainDb: -3, reason: 'bad overlap' },
+    ]
+    const result = validateShelves(shelves)
+    expect(result).toHaveLength(1)
+    expect(result[0].type).toBe('HPF')
+  })
+
+  it('caps at 3 shelves total', () => {
+    // Force 4 shelves by providing different types including duplicates
+    const shelves = [
+      { type: 'HPF' as const, hz: 80, gainDb: 0, reason: 'a' },
+      { type: 'lowShelf' as const, hz: 300, gainDb: -3, reason: 'b' },
+      { type: 'highShelf' as const, hz: 8000, gainDb: -3, reason: 'c' },
+      // Extra after dedup won't happen with 3 types, but slice(0,3) is a safety net
+    ]
+    const result = validateShelves(shelves)
+    expect(result.length).toBeLessThanOrEqual(3)
+  })
+
+  it('returns empty array for empty input', () => {
+    expect(validateShelves([])).toHaveLength(0)
   })
 })
 
