@@ -81,7 +81,7 @@ export const DesktopLayout = memo(function DesktopLayout({
               {!issuesPanelOpen && (
                 <button
                   onClick={() => setActiveSidebarTab('issues')}
-                  className={`flex-1 py-1 text-sm font-mono font-bold uppercase tracking-[0.2em] transition-all duration-200 border-b-2 ${
+                  className={`flex-1 py-1 text-sm font-mono font-bold uppercase tracking-[0.2em] transition-all duration-200 border-b-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
                     activeSidebarTab === 'issues'
                       ? 'text-foreground border-primary bg-primary/5'
                       : 'text-muted-foreground border-transparent hover:text-foreground'
@@ -95,7 +95,7 @@ export const DesktopLayout = memo(function DesktopLayout({
               )}
               <button
                 onClick={() => setActiveSidebarTab('controls')}
-                className={`flex-1 py-1 text-sm font-mono font-bold uppercase tracking-[0.2em] transition-all duration-200 border-b-2 ${
+                className={`flex-1 py-1 text-sm font-mono font-bold uppercase tracking-[0.2em] transition-all duration-200 border-b-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
                   activeSidebarTab === 'controls'
                     ? 'text-foreground border-primary bg-primary/5'
                     : 'text-muted-foreground border-transparent hover:text-foreground'
@@ -108,7 +108,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                 <TooltipTrigger asChild>
                   <button
                     onClick={issuesPanelOpen ? closeIssuesPanel : openIssuesPanel}
-                    className={`flex-shrink-0 px-2 py-1 rounded transition-colors ${
+                    className={`flex-shrink-0 px-2 py-1 rounded transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
                       issuesPanelOpen
                         ? 'text-primary'
                         : 'text-muted-foreground hover:text-foreground hover:bg-primary/10 ring-1 ring-primary/20'
@@ -220,12 +220,12 @@ export const DesktopLayout = memo(function DesktopLayout({
                     <div className="flex items-center gap-1">
                       <span className="text-sm font-mono font-bold tracking-[0.15em] text-primary">RTA</span>
                       {isRunning && (
-                        <button onClick={toggleFreeze} className={`px-1.5 py-0.5 rounded text-sm font-medium transition-colors ${isFrozen ? 'text-blue-400' : 'text-muted-foreground hover:text-foreground'}`}>
+                        <button onClick={toggleFreeze} className={`px-1.5 py-0.5 rounded text-sm font-medium transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${isFrozen ? 'text-blue-400' : 'text-muted-foreground hover:text-foreground'}`}>
                           {isFrozen ? 'Live' : 'Freeze'}
                         </button>
                       )}
                       {hasActiveRTAMarkers && (
-                        <button onClick={onClearRTA} className="px-1.5 py-0.5 rounded text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                        <button onClick={onClearRTA} className="px-1.5 py-0.5 rounded text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50">
                           Clear
                         </button>
                       )}
@@ -238,7 +238,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                       </span>
                       <button
                         onClick={toggleRtaFullscreen}
-                        className="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+                        className="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                         aria-label={isRtaFullscreen ? 'Exit RTA fullscreen' : 'RTA fullscreen'}
                       >
                         {isRtaFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
@@ -262,7 +262,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                     <div className="flex items-center gap-1">
                       <span className="text-sm font-mono font-bold tracking-[0.15em] text-primary">GEQ</span>
                       {hasActiveGEQBars && (
-                        <button onClick={onClearGEQ} className="px-1.5 py-0.5 rounded text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                        <button onClick={onClearGEQ} className="px-1.5 py-0.5 rounded text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50">
                           Clear
                         </button>
                       )}

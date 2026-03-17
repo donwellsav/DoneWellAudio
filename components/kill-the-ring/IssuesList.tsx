@@ -381,11 +381,11 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, onDismiss
               <button
                   onClick={handleCopy}
                   aria-label={`Copy ${exactFreqStr} frequency info`}
-                  className={`rounded transition-colors flex items-center justify-center ${
+                  className={`rounded transition-colors flex items-center justify-center cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
                     copied
                       ? 'text-emerald-400'
                       : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60'
-                  } ${touchFriendly ? 'w-8 h-8' : 'w-5 h-5'}`}
+                  } ${touchFriendly ? 'w-8 h-8' : 'w-7 h-7'}`}
                 >
                   {copied
                     ? <Check className={touchFriendly ? 'w-5 h-5' : 'w-3.5 h-3.5'} />
@@ -399,8 +399,8 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, onDismiss
                 <button
                   onClick={() => onDismiss(advisory.id)}
                   aria-label={`Dismiss ${exactFreqStr} issue`}
-                  className={`rounded text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60 transition-colors flex items-center justify-center ${
-                    touchFriendly ? 'w-8 h-8' : 'w-5 h-5'
+                  className={`rounded text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60 transition-colors flex items-center justify-center cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+                    touchFriendly ? 'w-8 h-8' : 'w-7 h-7'
                   }`}
                 >
                   <X className={touchFriendly ? 'w-5 h-5' : 'w-3.5 h-3.5'} />
@@ -413,11 +413,11 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, onDismiss
                   <button
                     onClick={() => onConfirmFeedback(advisory.id)}
                     aria-label={`${isConfirmed ? 'Unconfirm' : 'Confirm'} ${exactFreqStr} as real feedback`}
-                    className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1 ${
+                    className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
                       isConfirmed
                         ? 'text-emerald-400 bg-emerald-500/20 border border-emerald-500/40'
                         : 'text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-500/10 border border-transparent'
-                    } ${touchFriendly ? 'h-7 min-w-[36px]' : 'h-5'}`}
+                    } ${touchFriendly ? 'h-7 min-w-[36px]' : 'h-6 min-w-[36px]'}`}
                   >
                     CONFIRM
                   </button>
@@ -426,11 +426,11 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, onDismiss
                   <button
                     onClick={() => onFalsePositive(advisory.id)}
                     aria-label={`${isFalsePositive ? 'Unflag' : 'Flag'} ${exactFreqStr} as false positive`}
-                    className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1 ${
+                    className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
                       isFalsePositive
                         ? 'text-red-400 bg-red-500/20 border border-red-500/40'
                         : 'text-muted-foreground/50 hover:text-red-400 hover:bg-red-500/10 border border-transparent'
-                    } ${touchFriendly ? 'h-7 min-w-[36px]' : 'h-5'}`}
+                    } ${touchFriendly ? 'h-7 min-w-[36px]' : 'h-6 min-w-[36px]'}`}
                   >
                     FALSE+
                   </button>

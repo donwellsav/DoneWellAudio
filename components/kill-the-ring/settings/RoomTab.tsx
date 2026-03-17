@@ -147,7 +147,7 @@ export const RoomTab = memo(function RoomTab({
                       }
                       onSettingsChange(updates)
                     }}
-                    className={`flex flex-col items-start px-2 py-1.5 rounded text-left transition-colors ${
+                    className={`flex flex-col items-start px-2 py-1.5 rounded text-left transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
                       isSelected
                         ? 'bg-primary/20 border border-primary/50 text-primary'
                         : 'bg-card/40 border border-transparent hover:bg-muted'
@@ -172,7 +172,7 @@ export const RoomTab = memo(function RoomTab({
                     <button
                       key={unit}
                       onClick={() => onSettingsChange({ roomDimensionsUnit: unit })}
-                      className={`px-2 py-0.5 text-sm rounded ${
+                      className={`px-2 py-0.5 text-sm rounded cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
                         settings.roomDimensionsUnit === unit
                           ? 'bg-primary/20 text-primary'
                           : 'bg-card/40 text-muted-foreground hover:bg-muted'
@@ -228,7 +228,7 @@ export const RoomTab = memo(function RoomTab({
                         if (settings.roomPreset !== 'custom') update.roomPreset = 'custom'
                         onSettingsChange(update)
                       }}
-                      className={`flex-1 px-2 py-1 text-sm rounded ${
+                      className={`flex-1 px-2 py-1 text-sm rounded cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
                         settings.roomTreatment === val
                           ? 'bg-primary/20 text-primary'
                           : 'bg-card/40 text-muted-foreground hover:bg-muted'

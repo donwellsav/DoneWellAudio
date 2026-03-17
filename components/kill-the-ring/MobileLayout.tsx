@@ -184,7 +184,7 @@ export const MobileLayout = memo(function MobileLayout({
                 <span className="text-sm text-muted-foreground font-mono font-bold uppercase tracking-[0.2em]">RTA</span>
                 <button
                   onClick={toggleRtaFullscreen}
-                  className="min-h-[44px] min-w-[44px] rounded text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
+                  className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 min-h-[44px] min-w-[44px] rounded text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
                   aria-label={isRtaFullscreen ? 'Exit RTA fullscreen' : 'RTA fullscreen'}
                 >
                   {isRtaFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -193,7 +193,7 @@ export const MobileLayout = memo(function MobileLayout({
               {isRunning && (
                 <button
                   onClick={toggleFreeze}
-                  className={`absolute top-1 z-20 px-2 py-0.5 min-h-[44px] min-w-[44px] rounded text-sm font-medium border transition-colors flex items-center justify-center ${
+                  className={`cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 absolute top-1 z-20 px-2 py-0.5 min-h-[44px] min-w-[44px] rounded text-sm font-medium border transition-colors flex items-center justify-center ${
                     isFrozen
                       ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
                       : 'bg-card/80 text-muted-foreground border-border hover:text-foreground'
@@ -206,7 +206,7 @@ export const MobileLayout = memo(function MobileLayout({
               {hasActiveRTAMarkers && (
                 <button
                   onClick={onClearRTA}
-                  className="absolute top-1 right-1 z-20 px-2 py-0.5 min-h-[44px] min-w-[44px] rounded text-sm font-medium bg-card/80 text-muted-foreground border border-border hover:text-foreground transition-colors flex items-center justify-center"
+                  className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 absolute top-1 right-1 z-20 px-2 py-0.5 min-h-[44px] min-w-[44px] rounded text-sm font-medium bg-card/80 text-muted-foreground border border-border hover:text-foreground transition-colors flex items-center justify-center"
                 >
                   Clear
                 </button>
@@ -219,7 +219,7 @@ export const MobileLayout = memo(function MobileLayout({
               {hasActiveGEQBars && (
                 <button
                   onClick={onClearGEQ}
-                  className="absolute top-1 right-1 z-20 px-2 py-0.5 min-h-[44px] min-w-[44px] rounded text-sm font-medium bg-card/80 text-muted-foreground border border-border hover:text-foreground transition-colors flex items-center justify-center"
+                  className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 absolute top-1 right-1 z-20 px-2 py-0.5 min-h-[44px] min-w-[44px] rounded text-sm font-medium bg-card/80 text-muted-foreground border border-border hover:text-foreground transition-colors flex items-center justify-center"
                 >
                   Clear
                 </button>
@@ -325,7 +325,7 @@ export const MobileLayout = memo(function MobileLayout({
               <span className="text-sm text-muted-foreground font-mono font-bold uppercase tracking-[0.2em]">RTA</span>
               <button
                 onClick={toggleRtaFullscreen}
-                className="min-h-[44px] min-w-[44px] rounded text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
+                className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 min-h-[44px] min-w-[44px] rounded text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
                 aria-label={isRtaFullscreen ? 'Exit RTA fullscreen' : 'RTA fullscreen'}
               >
                 {isRtaFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -334,7 +334,7 @@ export const MobileLayout = memo(function MobileLayout({
             {isRunning && (
               <button
                 onClick={toggleFreeze}
-                className={`absolute top-1 z-20 px-2 py-0.5 min-h-[44px] min-w-[44px] rounded text-sm font-medium border transition-colors flex items-center justify-center ${
+                className={`cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 absolute top-1 z-20 px-2 py-0.5 min-h-[44px] min-w-[44px] rounded text-sm font-medium border transition-colors flex items-center justify-center ${
                   isFrozen
                     ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
                     : 'bg-card/80 text-muted-foreground border-border hover:text-foreground'
@@ -347,7 +347,7 @@ export const MobileLayout = memo(function MobileLayout({
             {hasActiveRTAMarkers && (
               <button
                 onClick={onClearRTA}
-                className="absolute top-1 right-1 z-20 px-2 py-0.5 min-h-[44px] min-w-[44px] rounded text-sm font-medium bg-card/80 text-muted-foreground border border-border hover:text-foreground transition-colors flex items-center justify-center"
+                className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 absolute top-1 right-1 z-20 px-2 py-0.5 min-h-[44px] min-w-[44px] rounded text-sm font-medium bg-card/80 text-muted-foreground border border-border hover:text-foreground transition-colors flex items-center justify-center"
               >
                 Clear
               </button>
@@ -360,7 +360,7 @@ export const MobileLayout = memo(function MobileLayout({
             {hasActiveGEQBars && (
               <button
                 onClick={onClearGEQ}
-                className="absolute top-1 right-1 z-20 px-2 py-0.5 min-h-[44px] min-w-[44px] rounded text-sm font-medium bg-card/80 text-muted-foreground border border-border hover:text-foreground transition-colors flex items-center justify-center"
+                className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 absolute top-1 right-1 z-20 px-2 py-0.5 min-h-[44px] min-w-[44px] rounded text-sm font-medium bg-card/80 text-muted-foreground border border-border hover:text-foreground transition-colors flex items-center justify-center"
               >
                 Clear
               </button>
@@ -418,7 +418,7 @@ export const MobileLayout = memo(function MobileLayout({
               aria-selected={mobileTab === tab.id}
               aria-controls={`mobile-tabpanel-${tab.id}`}
               tabIndex={mobileTab === tab.id ? 0 : -1}
-              className={`flex-1 flex flex-col items-center justify-center py-2 gap-0.5 min-h-[50px] transition-colors ${
+              className={`cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 flex-1 flex flex-col items-center justify-center py-2 gap-0.5 min-h-[50px] transition-colors ${
                 mobileTab === tab.id
                   ? 'text-primary'
                   : 'text-muted-foreground active:text-foreground'

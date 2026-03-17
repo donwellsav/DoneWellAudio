@@ -29,7 +29,7 @@ export const AlgorithmsTab = memo(function AlgorithmsTab({
                 onSettingsChange({ algorithmMode: 'custom' as AlgorithmMode })
               }
             }}
-            className={`w-full px-2 py-1 rounded text-sm font-mono font-bold tracking-wide transition-colors ${
+            className={`w-full px-2 py-1 rounded text-sm font-mono font-bold tracking-wide transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
               settings.algorithmMode === 'auto'
                 ? 'bg-primary/20 border border-primary/50 text-primary'
                 : 'bg-card/40 border border-transparent text-muted-foreground hover:bg-muted'
@@ -67,7 +67,7 @@ export const AlgorithmsTab = memo(function AlgorithmsTab({
                     }
                     onSettingsChange({ enabledAlgorithms: next })
                   }}
-                  className={`flex flex-col items-center px-1 py-0.5 rounded transition-colors ${
+                  className={`flex flex-col items-center px-1 py-0.5 rounded transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
                     enabled
                       ? 'bg-primary/20 border border-primary/50 text-primary'
                       : 'bg-card/40 border border-transparent text-muted-foreground hover:bg-muted'

@@ -120,14 +120,14 @@ export const OnboardingOverlay = memo(function OnboardingOverlay() {
           {step === 0 ? (
             <button
               onClick={dismiss}
-              className="text-sm font-mono tracking-wide text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded hover:bg-card/40"
+              className="text-sm font-mono tracking-wide text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded hover:bg-card/40 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             >
               Skip
             </button>
           ) : (
             <button
               onClick={back}
-              className="inline-flex items-center gap-1 text-sm font-mono tracking-wide text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded hover:bg-card/40"
+              className="inline-flex items-center gap-1 text-sm font-mono tracking-wide text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded hover:bg-card/40 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             >
               <ChevronLeft className="w-4 h-4" />
               Back
@@ -137,7 +137,7 @@ export const OnboardingOverlay = memo(function OnboardingOverlay() {
           {/* Right: Next or Get Started */}
           <button
             onClick={next}
-            className="inline-flex items-center gap-1 text-sm font-mono font-bold tracking-wide bg-primary text-primary-foreground px-4 py-2 rounded hover:bg-primary/90 transition-colors"
+            className="inline-flex items-center gap-1 text-sm font-mono font-bold tracking-wide bg-primary text-primary-foreground px-4 py-2 rounded hover:bg-primary/90 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           >
             {isLast ? 'Get Started' : 'Next'}
             {!isLast && <ChevronRight className="w-4 h-4" />}

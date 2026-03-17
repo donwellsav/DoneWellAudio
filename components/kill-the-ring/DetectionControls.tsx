@@ -84,7 +84,7 @@ export const DetectionControls = memo(function DetectionControls({ settings, onM
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => onSettingsChange({ quickControlsMode: true })}
-            className={`px-3 py-1 rounded text-sm font-mono font-bold tracking-wide transition-colors ${
+            className={`cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 px-3 py-1 rounded text-sm font-mono font-bold tracking-wide transition-colors ${
               isQuick
                 ? 'bg-primary/20 text-primary border border-primary/40'
                 : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'
@@ -94,7 +94,7 @@ export const DetectionControls = memo(function DetectionControls({ settings, onM
           </button>
           <button
             onClick={() => onSettingsChange({ quickControlsMode: false })}
-            className={`px-3 py-1 rounded text-sm font-mono font-bold tracking-wide transition-colors ${
+            className={`cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 px-3 py-1 rounded text-sm font-mono font-bold tracking-wide transition-colors ${
               !isQuick
                 ? 'bg-primary/20 text-primary border border-primary/40'
                 : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'
@@ -129,7 +129,7 @@ export const DetectionControls = memo(function DetectionControls({ settings, onM
                     minFrequency: preset.minFrequency,
                     maxFrequency: preset.maxFrequency,
                   })}
-                  className={`px-1.5 py-0.5 rounded text-sm font-mono font-bold tracking-wide transition-colors ${
+                  className={`cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 px-1.5 py-0.5 rounded text-sm font-mono font-bold tracking-wide transition-colors ${
                     isActive
                       ? 'bg-primary/20 text-primary border border-primary/40'
                       : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'
@@ -285,7 +285,7 @@ export const DetectionControls = memo(function DetectionControls({ settings, onM
                 onSettingsChange({ algorithmMode: 'custom' as AlgorithmMode })
               }
             }}
-            className={`w-full px-1.5 py-0.5 rounded text-sm font-mono font-bold tracking-wide transition-colors ${
+            className={`cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 w-full px-1.5 py-0.5 rounded text-sm font-mono font-bold tracking-wide transition-colors ${
               settings.algorithmMode === 'auto'
                 ? 'bg-primary/20 text-primary border border-primary/40'
                 : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'
@@ -320,7 +320,7 @@ export const DetectionControls = memo(function DetectionControls({ settings, onM
                     }
                     onSettingsChange({ enabledAlgorithms: next })
                   }}
-                  className={`px-1 py-0.5 rounded text-sm font-mono font-bold text-center transition-colors ${
+                  className={`cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 px-1 py-0.5 rounded text-sm font-mono font-bold text-center transition-colors ${
                     isAuto
                       ? autoActive
                         ? 'text-primary/60 border border-primary/20 bg-transparent'
@@ -383,7 +383,7 @@ export const DetectionControls = memo(function DetectionControls({ settings, onM
                   <button
                     key={mode}
                     onClick={() => onModeChange(mode)}
-                    className={`px-1.5 py-0.5 rounded text-sm font-mono font-bold tracking-wide transition-colors ${
+                    className={`cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 px-1.5 py-0.5 rounded text-sm font-mono font-bold tracking-wide transition-colors ${
                       isActive
                         ? 'bg-primary/20 text-primary border border-primary/40'
                         : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'
@@ -435,7 +435,7 @@ export const DetectionControls = memo(function DetectionControls({ settings, onM
                       <button
                         key={style}
                         onClick={() => onSettingsChange({ eqPreset: style })}
-                        className={`px-1.5 py-0.5 rounded text-sm font-mono font-bold tracking-wide transition-colors ${
+                        className={`cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 px-1.5 py-0.5 rounded text-sm font-mono font-bold tracking-wide transition-colors ${
                           isActive
                             ? 'bg-primary/20 text-primary border border-primary/40'
                             : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'
@@ -478,13 +478,13 @@ export const DetectionControls = memo(function DetectionControls({ settings, onM
                   <div key={preset.name} className="inline-flex items-center gap-0.5">
                     <button
                       onClick={() => handleLoadPreset(preset)}
-                      className="px-1.5 py-0.5 rounded text-sm font-medium text-muted-foreground hover:text-foreground border border-transparent hover:border-border transition-colors"
+                      className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 px-1.5 py-0.5 rounded text-sm font-medium text-muted-foreground hover:text-foreground border border-transparent hover:border-border transition-colors"
                     >
                       {preset.name}
                     </button>
                     <button
                       onClick={() => handleDeletePreset(preset.name)}
-                      className="text-muted-foreground/50 hover:text-red-400 transition-colors"
+                      className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 text-muted-foreground/50 hover:text-red-400 transition-colors"
                       aria-label={`Delete ${preset.name} preset`}
                     >
                       <Trash2 className="w-2.5 h-2.5" />
@@ -510,13 +510,13 @@ export const DetectionControls = memo(function DetectionControls({ settings, onM
               <button
                 onClick={handleSavePreset}
                 disabled={!presetName.trim()}
-                className="px-1.5 py-0.5 rounded text-sm font-medium bg-primary/20 text-primary border border-primary/40 disabled:opacity-40 transition-colors"
+                className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 px-1.5 py-0.5 rounded text-sm font-medium bg-primary/20 text-primary border border-primary/40 disabled:opacity-40 transition-colors"
               >
                 Save
               </button>
               <button
                 onClick={() => { setShowSaveInput(false); setPresetName('') }}
-                className="text-sm text-muted-foreground hover:text-foreground"
+                className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 text-sm text-muted-foreground hover:text-foreground"
               >
                 ✕
               </button>
@@ -525,7 +525,7 @@ export const DetectionControls = memo(function DetectionControls({ settings, onM
             customPresets.length < MAX_CUSTOM_PRESETS && (
               <button
                 onClick={() => setShowSaveInput(true)}
-                className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 <Save className="w-3 h-3" />
                 Save as Preset

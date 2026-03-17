@@ -178,7 +178,7 @@ export const CalibrationTab = memo(function CalibrationTab({
                 <button
                   key={u}
                   onClick={() => handleUnit(u)}
-                  className={`px-2 py-1 text-xs font-mono rounded border transition-colors ${
+                  className={`px-2 py-1 text-xs font-mono rounded border transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
                     room.dimensions.unit === u
                       ? 'bg-primary/20 text-primary border-primary/40'
                       : 'bg-muted/40 text-muted-foreground border-border hover:text-foreground'
@@ -229,7 +229,7 @@ export const CalibrationTab = memo(function CalibrationTab({
               <button
                 key={mic.value}
                 onClick={() => handleMicToggle(mic.value)}
-                className={`px-2.5 py-1 text-xs font-mono font-bold tracking-wider rounded border transition-colors ${
+                className={`px-2.5 py-1 text-xs font-mono font-bold tracking-wider rounded border transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
                   room.micTypes.includes(mic.value)
                     ? 'bg-primary/20 text-primary border-primary/40'
                     : 'bg-muted/40 text-muted-foreground border-border hover:text-foreground'

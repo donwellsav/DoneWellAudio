@@ -49,7 +49,7 @@ export const HeaderBar = memo(function HeaderBar({
           <button
             onClick={isRunning ? stop : start}
             aria-label={isRunning ? 'Stop analysis' : 'Start analysis'}
-            className="relative w-12 h-12 flex items-center justify-center flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full ring-1 ring-primary/20 shadow-[0_0_8px_rgba(75,146,255,0.15)]"
+            className="relative w-12 h-12 flex items-center justify-center flex-shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full ring-1 ring-primary/20 shadow-[0_0_8px_rgba(75,146,255,0.15)]"
           >
             <div className={`absolute inset-1 rounded-full border-2 transition-colors duration-300 ${isRunning ? 'border-primary' : 'border-primary/50'}`} />
             {isRunning && (
