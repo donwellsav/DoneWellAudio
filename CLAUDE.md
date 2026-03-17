@@ -1,6 +1,6 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
-> **Last updated March 2026. 137 TypeScript/TSX files, 435 tests (431 pass, 4 skip, 1 todo), 25 suites. Version 0.117.0.**
+> **Last updated March 2026. 137 TypeScript/TSX files, 435 tests (431 pass, 4 skip, 1 todo), 25 suites. Version 0.119.0.**
 
 ## CRITICAL RULES
 
@@ -10,7 +10,7 @@
 
 ## Project Overview
 
-**Kill The Ring** (killthering.com) is a browser-based real-time acoustic feedback detection PWA for live sound engineers. It captures microphone input via the Web Audio API, identifies feedback frequencies using six fused detection algorithms, and delivers EQ recommendations with pitch translation. Version 0.117.0. Repository: github.com/donwellsav/killthering.
+**Kill The Ring** (killthering.com) is a browser-based real-time acoustic feedback detection PWA for live sound engineers. It captures microphone input via the Web Audio API, identifies feedback frequencies using six fused detection algorithms, and delivers EQ recommendations with pitch translation. Version 0.119.0. Repository: github.com/donwellsav/killthering.
 
 ## Tech Stack
 
@@ -123,7 +123,7 @@ COMPRESSED: MSD=0.12  Phase=0.30  Spectral=0.18  Comb=0.08  IHR=0.18  PTMR=0.14
 
 ### High (P1)
 
-~~1. **Zero tests for hooks, components, contexts, exports, storage.** 373 tests cover DSP only.~~ **FIXED v0.118.0** — 62 new tests across 10 modules (hooks, contexts, storage, exports). 435 total tests, 25 suites.
+~~1. **Zero tests for hooks, components, contexts, exports, storage.** 373 tests cover DSP only.~~ **FIXED v0.119.0** — 62 new tests across 10 modules (hooks, contexts, storage, exports). 435 total tests, 25 suites.
 
 ### Medium (P2)
 
