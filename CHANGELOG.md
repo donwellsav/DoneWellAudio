@@ -2,9 +2,9 @@
 
 All notable changes to Kill The Ring are documented in this file.
 
-## [0.118.0] - 2026-03-16
+## [0.119.0] - 2026-03-16
 
-### Test Coverage (PR #118)
+### Test Coverage (PR #119)
 
 - **Bug #1 fixed: Zero non-DSP test coverage** — Added 62 new tests across 10 previously untested modules
 - **Hooks tested:** `useAdvisoryMap` (7), `useFpsMonitor` (6), `useAdvisoryLogging` (5), `useIsMobile` (3)
