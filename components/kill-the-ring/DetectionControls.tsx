@@ -47,7 +47,9 @@ export const DetectionControls = memo(function DetectionControls({ settings, onM
   }, [onSettingsChange])
 
   // ── Custom preset state ──────────────────────────────────────────────
-  const [customPresets, setCustomPresets] = useState(() => presetStorage.load())
+  const [customPresets, setCustomPresets] = useState(() => {
+    try { return presetStorage.load() } catch { return [] }
+  })
   const [presetName, setPresetName] = useState('')
   const [showSaveInput, setShowSaveInput] = useState(false)
 
@@ -59,7 +61,7 @@ export const DetectionControls = memo(function DetectionControls({ settings, onM
     ) as Partial<DetectorSettings>
     const updated = [...customPresets.filter(p => p.name !== name), { name, settings: snap }].slice(-MAX_CUSTOM_PRESETS)
     setCustomPresets(updated)
-    presetStorage.save(updated)
+    try { presetStorage.save(updated) } catch { /* quota exceeded — state still updates */ }
     setPresetName('')
     setShowSaveInput(false)
   }, [presetName, settings, customPresets])
@@ -67,7 +69,7 @@ export const DetectionControls = memo(function DetectionControls({ settings, onM
   const handleDeletePreset = useCallback((name: string) => {
     const updated = customPresets.filter(p => p.name !== name)
     setCustomPresets(updated)
-    presetStorage.save(updated)
+    try { presetStorage.save(updated) } catch { /* quota exceeded — state still updates */ }
   }, [customPresets])
 
   const handleLoadPreset = useCallback((preset: { name: string; settings: Partial<DetectorSettings> }) => {

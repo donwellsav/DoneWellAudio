@@ -47,7 +47,11 @@ export function useAnimationFrame(
         lastTimeRef.current = timestamp
         lastInvokeRef.current = timestamp
 
-        callbackRef.current(deltaTime, timestamp)
+        try {
+          callbackRef.current(deltaTime, timestamp)
+        } catch (err) {
+          console.error('[useAnimationFrame] callback error:', err)
+        }
       }
 
       rafIdRef.current = requestAnimationFrame(loop)

@@ -148,6 +148,10 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
           Sentry.captureMessage(`DSP worker soft error: ${msg.message}`, 'warning')
           callbacksRef.current.onError?.(msg.message)
           break
+        default:
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('[useDSPWorker] unhandled message type:', (msg as { type: string }).type)
+          }
       }
     }
 

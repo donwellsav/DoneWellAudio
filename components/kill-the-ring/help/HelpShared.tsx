@@ -1,16 +1,16 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import { memo, type ReactNode } from 'react'
 import type { ChangeType } from '@/lib/changelog'
 
-export function HelpSection({ title, children }: { title: string; children: ReactNode }) {
+export const HelpSection = memo(function HelpSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="bg-card/80 rounded border p-3">
       <h3 className="section-label mb-2 text-primary">{title}</h3>
       <div className="text-sm text-muted-foreground leading-relaxed">{children}</div>
     </div>
   )
-}
+})
 
 export const TYPE_STYLES: Record<ChangeType, { label: string; className: string }> = {
   feat: { label: 'Feature', className: 'bg-emerald-500/15 text-emerald-400' },

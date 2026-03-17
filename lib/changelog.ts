@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.129.0',
+    date: '2026-03-17',
+    highlights: 'Defensive hardening from code audit',
+    changes: [
+      { type: 'fix', description: 'Animation frame loop now survives callback errors — try-catch prevents silent rAF death' },
+      { type: 'fix', description: 'Preset storage load/save wrapped in try-catch — graceful degradation on localStorage quota exceeded' },
+      { type: 'fix', description: 'ResizeObserver callback in SpectrumCanvas wrapped in try-catch — prevents resize errors from breaking canvas' },
+      { type: 'refactor', description: 'HelpSection component wrapped with memo() — all 38/38 domain components now memoized' },
+      { type: 'refactor', description: 'Worker message handler default case added — dev-mode warning for unrecognized message types' },
+    ],
+  },
+  {
     version: '0.128.0',
     date: '2026-03-17',
     highlights: 'ML pipeline + CSP hydration fix',

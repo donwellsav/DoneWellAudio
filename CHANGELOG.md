@@ -2,6 +2,17 @@
 
 All notable changes to Kill The Ring are documented in this file.
 
+## [0.129.0] - 2026-03-17
+
+### Defensive Hardening from Code Audit
+
+- **Animation frame resilience:** `useAnimationFrame` rAF loop now wraps callback in try-catch — a throwing callback no longer kills the animation loop silently. Error is logged and loop continues.
+- **Preset storage safety:** `DetectionControls` preset load/save wrapped in try-catch — graceful degradation when localStorage quota is exceeded (in-memory state still updates).
+- **ResizeObserver guard:** `SpectrumCanvas` ResizeObserver callback wrapped in try-catch — prevents resize errors from breaking the canvas rendering pipeline.
+- **HelpSection memoized:** `HelpShared.tsx` `HelpSection` component wrapped with `memo()` — all 38/38 domain components now consistently memoized.
+- **Worker message default case:** `useDSPWorker` worker message switch now has a default case with dev-mode `console.warn` for unrecognized message types — future-proofs against silent message drops.
+- 463 tests (459 passed, 4 skipped, 1 todo) across 26 suites
+
 ## [0.127.0] - 2026-03-17
 
 ### Security: Add Security Scanning to CI (PR #127)

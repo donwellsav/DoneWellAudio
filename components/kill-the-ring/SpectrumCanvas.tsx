@@ -109,30 +109,34 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
     if (!container) return
 
     const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const { width, height } = entry.contentRect
-        dimensionsRef.current = { width, height }
+      try {
+        for (const entry of entries) {
+          const { width, height } = entry.contentRect
+          dimensionsRef.current = { width, height }
 
-        const dpr = window.devicePixelRatio || 1
-        dprRef.current = dpr
+          const dpr = window.devicePixelRatio || 1
+          dprRef.current = dpr
 
-        // Invalidate cached objects on resize
-        ctxRef.current = null
-        gradientRef.current = null
-        dirtyRef.current = true
+          // Invalidate cached objects on resize
+          ctxRef.current = null
+          gradientRef.current = null
+          dirtyRef.current = true
 
-        const canvas = canvasRef.current
-        if (canvas && !hasEverStarted) {
-          // Pre-analysis: size canvas + draw placeholder directly in observer
-          // (RAF loop isn't running yet so we must handle it here)
-          canvas.width = Math.floor(width * dpr)
-          canvas.height = Math.floor(height * dpr)
-          canvas.style.width = `${width}px`
-          canvas.style.height = `${height}px`
-          drawPlaceholder(canvas, graphFontSize, rtaDbMinProp, rtaDbMaxProp)
+          const canvas = canvasRef.current
+          if (canvas && !hasEverStarted) {
+            // Pre-analysis: size canvas + draw placeholder directly in observer
+            // (RAF loop isn't running yet so we must handle it here)
+            canvas.width = Math.floor(width * dpr)
+            canvas.height = Math.floor(height * dpr)
+            canvas.style.width = `${width}px`
+            canvas.style.height = `${height}px`
+            drawPlaceholder(canvas, graphFontSize, rtaDbMinProp, rtaDbMaxProp)
+          }
+          // During analysis: the render callback syncs canvas dimensions
+          // atomically with the redraw, preventing flash from observer clearing
         }
-        // During analysis: the render callback syncs canvas dimensions
-        // atomically with the redraw, preventing flash from observer clearing
+      } catch (err) {
+        console.error('[SpectrumCanvas] resize error:', err)
       }
     })
 

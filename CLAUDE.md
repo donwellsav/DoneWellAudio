@@ -1,6 +1,6 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
-> **Last updated March 2026. 144 TypeScript/TSX files, 463 tests (459 pass, 4 skip, 1 todo), 26 suites. Version 0.128.0.**
+> **Last updated March 2026. 144 TypeScript/TSX files, 463 tests (459 pass, 4 skip, 1 todo), 26 suites. Version 0.129.0.**
 
 ## CRITICAL RULES
 
@@ -178,7 +178,7 @@ contexts/ (8 files)           # React context providers
   UIContext (162)             #   Mobile tab, freeze, fullscreen, RTA fullscreen, layout reset
   PortalContainerContext (23) #   Portal mount for mobile overlays
 hooks/ (11 files)             # Custom hooks
-  useDSPWorker.ts (359)       #   Worker lifecycle, crash recovery, userFeedback
+  useDSPWorker.ts (363)       #   Worker lifecycle, crash recovery, userFeedback
 lib/
   dsp/ (18 modules)           # DSP engine + ML inference:
     feedbackDetector.ts (1721)#   Core: peak detection, MSD pool, auto-gain, persistence
