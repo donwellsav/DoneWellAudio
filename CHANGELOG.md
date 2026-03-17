@@ -2,6 +2,19 @@
 
 All notable changes to Kill The Ring are documented in this file.
 
+## [0.118.0] - 2026-03-16
+
+### Test Coverage (PR #118)
+
+- **Bug #1 fixed: Zero non-DSP test coverage** — Added 62 new tests across 10 previously untested modules
+- **Hooks tested:** `useAdvisoryMap` (7), `useFpsMonitor` (6), `useAdvisoryLogging` (5), `useIsMobile` (3)
+- **Contexts tested:** `AdvisoryContext` (10), `UIContext` (5)
+- **Storage tested:** `ktrStorage` (15) — typedStorage, stringStorage, flagStorage, clearPanelLayouts
+- **Exports tested:** `exportTxt` (7), `exportPdf` helpers (6), `downloadFile` (3)
+- **CircularTimestampBuffer exported** for direct unit testing of FPS monitor internals
+- **Vitest config expanded** to discover tests in `hooks/__tests__/`, `contexts/__tests__/`, `lib/storage/__tests__/`, `lib/export/__tests__/`
+- 435 tests (431 passed, 4 skipped, 1 todo) across 25 suites
+
 ## [0.117.0] - 2026-03-16
 
 ### UI Overhaul (PRs #108–#116)

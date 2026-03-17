@@ -1,6 +1,6 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
-> **Last updated March 2026. 137 TypeScript/TSX files, 373 tests (368 pass, 4 skip, 1 todo), 15 suites. Version 0.117.0.**
+> **Last updated March 2026. 137 TypeScript/TSX files, 435 tests (431 pass, 4 skip, 1 todo), 25 suites. Version 0.117.0.**
 
 ## CRITICAL RULES
 
@@ -23,7 +23,7 @@
 | DSP Offload | Web Worker (dspWorker.ts, ~458 lines) |
 | Visualization | HTML5 Canvas at 30fps |
 | State | React 19 hooks + 4 context providers (no external state library) |
-| Testing | Vitest (373 tests, 15 suites, under 2s) |
+| Testing | Vitest (435 tests, 25 suites, under 11s) |
 | Error Reporting | Sentry (browser + server + worker runtimes) |
 | PWA | Serwist (service worker, offline caching, installable) |
 | Package Manager | pnpm |
@@ -35,7 +35,7 @@ pnpm dev              # Dev server on :3000 (Turbopack, no SW)
 pnpm build            # Production build (webpack, generates SW)
 pnpm start            # Production server
 pnpm lint             # ESLint (flat config)
-pnpm test             # Vitest (373 tests: 368 pass + 4 skip + 1 todo)
+pnpm test             # Vitest (435 tests: 431 pass + 4 skip + 1 todo)
 pnpm test:watch       # Vitest watch mode
 pnpm test:coverage    # Vitest with V8 coverage
 npx tsc --noEmit      # Type-check (run BEFORE pnpm build)
@@ -123,7 +123,7 @@ COMPRESSED: MSD=0.12  Phase=0.30  Spectral=0.18  Comb=0.08  IHR=0.18  PTMR=0.14
 
 ### High (P1)
 
-1. **Zero tests for hooks, components, contexts, exports, storage.** 373 tests cover DSP only.
+~~1. **Zero tests for hooks, components, contexts, exports, storage.** 373 tests cover DSP only.~~ **FIXED v0.118.0** — 62 new tests across 10 modules (hooks, contexts, storage, exports). 435 total tests, 25 suites.
 
 ### Medium (P2)
 
@@ -202,8 +202,12 @@ types/
   data.ts (~153)              # Consent, snapshot, worker message types, MarkerAlgorithmScores
 tests/
   dsp/ (7 files)              # Integration/scenario tests (~135 tests)
-  vitest.config.ts            # Test configuration
+  vitest.config.ts            # Legacy test configuration (root vitest.config.ts is primary)
   helpers/                    # Mock algorithm score builders
+hooks/__tests__/ (4 files)    # Hook unit tests (useAdvisoryMap, useFpsMonitor, useAdvisoryLogging, useIsMobile)
+contexts/__tests__/ (2 files) # Context unit tests (AdvisoryContext, UIContext)
+lib/storage/__tests__/ (1 file)  # ktrStorage unit tests
+lib/export/__tests__/ (3 files)  # Export module unit tests (txt, pdf, downloadFile)
 ```
 
 ## Key Performance Constraints

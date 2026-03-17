@@ -8,7 +8,12 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['lib/**/__tests__/**/*.test.ts', 'tests/**/*.test.ts'],
+    include: [
+      'lib/**/__tests__/**/*.test.ts',
+      'tests/**/*.test.ts',
+      'hooks/__tests__/**/*.test.ts',
+      'contexts/__tests__/**/*.test.ts',
+    ],
     environment: 'node',
     globals: true,
     coverage: {
