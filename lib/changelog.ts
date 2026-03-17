@@ -14,6 +14,132 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.127.0',
+    date: '2026-03-17',
+    highlights: 'Security scanning in CI — pnpm audit + Dependabot',
+    changes: [
+      { type: 'fix', description: 'Bug #8: Add pnpm audit --prod --audit-level=high to CI — fails build on high/critical CVEs in production dependencies' },
+      { type: 'feat', description: 'Add .github/dependabot.yml — weekly grouped npm update PRs (prod + dev), monthly GitHub Actions version bumps' },
+    ],
+  },
+  {
+    version: '0.126.0',
+    date: '2026-03-17',
+    highlights: 'Nonce-based CSP — replace unsafe-inline with per-request nonces',
+    changes: [
+      { type: 'fix', description: 'Bug #7: Replace unsafe-inline in script-src CSP with per-request nonce via middleware.ts' },
+      { type: 'feat', description: 'New middleware.ts generates random nonce per request, sets strict-dynamic for lazy chunk trust' },
+      { type: 'refactor', description: 'CSP moved from static next.config.mjs headers to dynamic middleware — other security headers remain static' },
+    ],
+  },
+  {
+    version: '0.125.0',
+    date: '2026-03-17',
+    highlights: 'Tablet responsive breakpoint — portrait tablets get desktop layout',
+    changes: [
+      { type: 'fix', description: 'Bug #6: Wire tablet: Tailwind v4 prefix (600px) to MobileLayout, DesktopLayout, and HeaderBar' },
+      { type: 'ui', description: 'Portrait tablets (≥600px) now see desktop 3-panel layout instead of phone carousel' },
+      { type: 'fix', description: 'useIsMobile() threshold lowered 768→600 so tablets skip smartphone MEMS mic calibration' },
+    ],
+  },
+  {
+    version: '0.124.0',
+    date: '2026-03-16',
+    highlights: 'Split HelpMenu.tsx (991 lines) into thin orchestrator + 5 tab files',
+    changes: [
+      { type: 'refactor', description: 'Bug #5: Split HelpMenu.tsx into ~90-line orchestrator + help/ subdirectory (6 files), mirroring settings/ pattern' },
+      { type: 'refactor', description: 'New help/ files: HelpShared, GuideTab, ModesTab, AlgorithmsTab, ReferenceTab, AboutTab — all memo()-wrapped' },
+    ],
+  },
+  {
+    version: '0.123.0',
+    date: '2026-03-16',
+    highlights: 'Shelf overlap validation — HPF + lowShelf no longer double-dip',
+    changes: [
+      { type: 'fix', description: 'Bug #4: Add validateShelves() post-processor — dedup by type, HPF < lowShelf sanity check, cap at 3' },
+      { type: 'fix', description: 'HPF-active raises mud threshold +2 dB to prevent overlap in 80–300 Hz region' },
+      { type: 'perf', description: 'Cross-advisory shelf dedup: shelves computed once per analysis frame in worker, shared across all peaks' },
+    ],
+  },
+  {
+    version: '0.122.0',
+    date: '2026-03-16',
+    highlights: 'Split god-context (28 fields) into 4 focused contexts',
+    changes: [
+      { type: 'refactor', description: 'Bug #3: Split AudioAnalyzerContext into EngineContext (11), SettingsContext (5), MeteringContext (10), DetectionContext (3)' },
+      { type: 'perf', description: 'Re-render savings — HeaderBar, AdvisoryContext, UIContext no longer re-render on metering updates (~4/sec eliminated per component)' },
+      { type: 'feat', description: 'New hooks: useEngine(), useSettings(), useMetering(), useDetection() — consumers subscribe only to needed data' },
+    ],
+  },
+  {
+    version: '0.121.0',
+    date: '2026-03-16',
+    highlights: 'Decompose analyze() from ~420 lines to ~45-line pipeline',
+    changes: [
+      { type: 'refactor', description: 'Bug #2: Extract 4 private methods from analyze() — _measureSignalAndApplyGain, _buildPowerSpectrum, _scanAndProcessPeaks, _registerPeak' },
+    ],
+  },
+  {
+    version: '0.119.0',
+    date: '2026-03-16',
+    highlights: '62 new tests for hooks, contexts, storage, exports',
+    changes: [
+      { type: 'feat', description: 'Bug #1: Add 62 tests across 10 previously untested modules — useAdvisoryMap, useFpsMonitor, useAdvisoryLogging, useIsMobile, AdvisoryContext, UIContext, ktrStorage, exportTxt, exportPdf, downloadFile' },
+      { type: 'feat', description: 'Total: 435 tests (431 pass, 4 skip, 1 todo) across 25 suites' },
+    ],
+  },
+  {
+    version: '0.117.0',
+    date: '2026-03-16',
+    highlights: 'UI overhaul — simplified cards, RTA fullscreen, landscape mobile, MEMS auto-calibration',
+    changes: [
+      { type: 'ui', description: 'Issue cards simplified — GEQ removed (PEQ only), compact buttons with larger icons, 3s minimum display stability' },
+      { type: 'feat', description: 'RTA fullscreen via element-level Fullscreen API — works on mobile and desktop' },
+      { type: 'ui', description: 'Landscape mobile layout — 40/55/5 (Issues/Graph/Controls) split; bottom tab bar removed in landscape' },
+      { type: 'feat', description: 'Auto MEMS calibration — smartphone mic profile auto-applied on mobile devices' },
+      { type: 'ui', description: 'Permanent Clear All button in header — clears advisories, GEQ bars, and RTA markers in one click' },
+      { type: 'feat', description: 'FALSE+ button repositioned to own row beneath Copy/Dismiss for better visual hierarchy' },
+      { type: 'feat', description: 'RTA label overlap suppression — greedy algorithm prioritizes highest-severity labels' },
+    ],
+  },
+  {
+    version: '0.106.0',
+    date: '2026-03-15',
+    highlights: 'ML data pipeline — algorithm score enrichment + ground truth labeling',
+    changes: [
+      { type: 'feat', description: 'Snapshot enrichment with all 6 algorithm scores (MSD, phase, spectral, comb, IHR, PTMR) plus fused probability and confidence (v1.1 schema)' },
+      { type: 'feat', description: 'Always-on FALSE+ button on every advisory card — user feedback flows to worker for ground truth labeling' },
+      { type: 'feat', description: 'Ingest API v1.1 — accepts optional algorithmScores and userFeedback fields' },
+    ],
+  },
+  {
+    version: '0.105.0',
+    date: '2026-03-15',
+    highlights: '12 bug fixes + 3 false positive gates (formant, chromatic, comb stability)',
+    changes: [
+      { type: 'fix', description: 'Auto-gain EMA coefficients stale in updateConfig() — recompute called from both start() and updateConfig()' },
+      { type: 'fix', description: 'Confidence formula floors at 0.5 — changed to prob * (0.5 + 0.5 * agreement), UNCERTAIN now reachable' },
+      { type: 'fix', description: 'Post-override normalization undoes RUNAWAY — normalization before overrides, overrides are final' },
+      { type: 'fix', description: 'Comb weight doubling dilutes others — doubled weight in numerator only, base weight in denominator' },
+      { type: 'feat', description: 'Formant gate: pFeedback *= 0.65 when 2+ vocal formant bands active + Q 3–20 (sustained vowel FP mitigation)' },
+      { type: 'feat', description: 'Chromatic quantization gate: phase boost *= 0.60 when on 12-TET grid ±5 cents (Auto-Tune FP mitigation)' },
+      { type: 'feat', description: 'Comb stability tracker: comb confidence *= 0.25 when spacing CV > 0.05 over 16 frames (flanger/phaser FP mitigation)' },
+      { type: 'feat', description: 'Worker crash recovery — auto-restart with 500ms debounce, max 3 retries, Sentry logging' },
+      { type: 'fix', description: 'SpectrumCanvas missing devicePixelRatio — full DPR scaling for Retina displays' },
+      { type: 'fix', description: 'ms-based persistence thresholds replace frame-count-based (FUTURE-002)' },
+    ],
+  },
+  {
+    version: '0.103.0',
+    date: '2026-03-14',
+    highlights: 'Storage abstraction, dbx RTA-M calibration, algorithm consolidation',
+    changes: [
+      { type: 'feat', description: 'Typed localStorage abstraction (ktrStorage.ts) — typedStorage, stringStorage, flagStorage APIs' },
+      { type: 'feat', description: 'dbx RTA-M measurement mic calibration profile' },
+      { type: 'refactor', description: 'Remove legacy existing weight, consolidate to 6 detection algorithms' },
+    ],
+  },
+  {
     version: '0.98.0',
     date: '2026-03-15',
     highlights: 'MSD consolidation — single source of truth, 16× worker memory reduction',
