@@ -39,7 +39,7 @@ jobs:
           npm version "$NEW_VERSION" --no-git-tag-version
 
       - name: Update changelog
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
