@@ -51,5 +51,8 @@ Sentry.init({
   },
 })
 
-// Required by @sentry/nextjs to instrument client-side navigation transitions
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart
+// Guard: captureRouterTransitionStart was added in @sentry/nextjs 9.x but removed
+// in 10.x. Exporting undefined crashes Next.js 16 on every client navigation.
+export const onRouterTransitionStart = typeof Sentry.captureRouterTransitionStart === 'function'
+  ? Sentry.captureRouterTransitionStart
+  : undefined
