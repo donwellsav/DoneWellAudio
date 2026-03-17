@@ -16,7 +16,7 @@
 
 import { TrackManager } from './trackManager'
 import { classifyTrackWithAlgorithms, shouldReportIssue } from './classifier'
-import { generateEQAdvisory } from './eqAdvisor'
+import { generateEQAdvisory, analyzeSpectralTrends } from './eqAdvisor'
 import { fuseAlgorithmResults, DEFAULT_FUSION_CONFIG } from './advancedDetection'
 import type { FusionConfig } from './advancedDetection'
 import { AlgorithmEngine } from './workerFft'
@@ -89,6 +89,13 @@ let settings: DetectorSettings = { ...DEFAULT_SETTINGS }
 let sampleRate = 48000
 let fftSize = 8192
 let peakProcessCount = 0
+
+// ─── Per-cycle shelf cache (cross-advisory dedup) ────────────────────────────
+// Shelves are broadband (global spectrum), not peak-specific. Computing once
+// per analysis frame and sharing across all peaks avoids duplicate shelf arrays.
+import type { ShelfRecommendation } from '@/types/advisory'
+let cachedShelves: ShelfRecommendation[] | null = null
+let cachedShelvesFrameId = -1
 
 // ─── Snapshot collection (free tier only) ────────────────────────────────────
 // SnapshotCollector is statically imported (line 32) but only instantiated when
@@ -185,6 +192,8 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       decayAnalyzer.reset()
       classificationLabelHistory.clear()
       peakProcessCount = 0
+      cachedShelves = null
+      cachedShelvesFrameId = -1
 
       self.postMessage({ type: 'ready' } satisfies WorkerOutboundMessage)
       break
@@ -208,6 +217,8 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       decayAnalyzer.reset()
       classificationLabelHistory.clear()
       peakProcessCount = 0
+      cachedShelves = null
+      cachedShelvesFrameId = -1
       snapshotCollector?.reset()
       break
     }
@@ -394,10 +405,16 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       // Skip harmonics of existing advisories
       if (advisoryManager.isHarmonicOfExisting(track.trueFrequencyHz, settings)) break
 
-      // Generate EQ advisory
+      // Compute shelves once per analysis frame (cross-advisory dedup)
+      if (cachedShelvesFrameId !== peakProcessCount) {
+        cachedShelves = analyzeSpectralTrends(spectrum, sampleRate, fftSize)
+        cachedShelvesFrameId = peakProcessCount
+      }
+
+      // Generate EQ advisory with pre-computed shelves
       const eqAdvisory = generateEQAdvisory(
         track, classification.severity,
-        settings.eqPreset, spectrum, sampleRate, fftSize
+        settings.eqPreset, undefined, undefined, undefined, cachedShelves ?? []
       )
 
       // Create or update advisory (handles rate limit, band cooldown, dedup)

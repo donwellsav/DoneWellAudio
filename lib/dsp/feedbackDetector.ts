@@ -886,21 +886,50 @@ export class FeedbackDetector {
       }
     }
 
+    // Stage 1: Read spectrum, auto-gain, silence gate
+    if (!this._measureSignalAndApplyGain(now, dt)) return
+
+    // Stage 2: Build power spectrum + prefix sums
+    this._buildPowerSpectrum()
+
+    const t1 = debugPerf ? performance.now() : 0
+
+    // Stage 3: Noise floor + effective threshold
+    if (this.config.noiseFloorEnabled) {
+      this.updateNoiseFloorDb(dt)
+    }
+    const effectiveThresholdDb = this.computeEffectiveThresholdDb()
+    if (this.endBin < this.startBin) return
+
+    // Stage 4: Peak detection loop
+    this._scanAndProcessPeaks(now, dt, effectiveThresholdDb)
+
+    if (debugPerf) {
+      const t3 = performance.now()
+      this._perfTimings = {
+        total: t3 - t0,
+        power: t1 - t0,
+        peaks: t3 - t1,
+        msd: 0,
+      }
+    }
+  }
+
+  /**
+   * Read spectrum data, apply auto-gain EMA, and gate on silence.
+   * @returns `true` if signal is present and analysis should continue, `false` if silent.
+   * @internal
+   */
+  private _measureSignalAndApplyGain(now: number, dt: number): boolean {
+    const analyser = this.analyser!
+    const freqDb = this.freqDb!
+    const n = freqDb.length
+
     // Read spectrum + time-domain waveform (phase coherence requires raw samples)
-    analyser.getFloatFrequencyData(this.freqDb)
+    analyser.getFloatFrequencyData(freqDb)
     if (this.timeDomain) {
       analyser.getFloatTimeDomainData(this.timeDomain)
     }
-
-    const freqDb = this.freqDb
-    const power = this.power
-    const prefix = this.prefix
-    const n = freqDb.length
-
-    const useAWeighting = this.config.aWeightingEnabled && !!this.aWeightingTable
-    const aTable = this.aWeightingTable
-    const useMicCalibration = this.config.micCalibrationProfile !== 'none' && !!this.micCalibrationTable
-    const micCalTable = this.micCalibrationTable
 
     // ── Auto-gain: measure raw peak BEFORE applying gain ──────────────────
     if (this._autoGainEnabled) {
@@ -961,7 +990,7 @@ export class FeedbackDetector {
       // When no signal present, skip peak detection. Noise floor continues tracking.
       if (!this._isSignalPresent) {
         this._clearStalePeaksOnSilence(dt, now)
-        return
+        return false
       }
     } else {
       // Manual gain mode — still check signal presence via raw peak scan
@@ -976,9 +1005,28 @@ export class FeedbackDetector {
       this._isSignalPresent = rawPeak >= this._silenceThresholdDb
       if (!this._isSignalPresent) {
         this._clearStalePeaksOnSilence(dt, now)
-        return
+        return false
       }
     }
+
+    return true
+  }
+
+  /**
+   * Compute power spectrum from freqDb, applying input gain, A-weighting,
+   * and mic calibration. Builds prefix sums for O(1) prominence averaging.
+   * @internal
+   */
+  private _buildPowerSpectrum(): void {
+    const freqDb = this.freqDb!
+    const power = this.power!
+    const prefix = this.prefix!
+    const n = freqDb.length
+
+    const useAWeighting = this.config.aWeightingEnabled && !!this.aWeightingTable
+    const aTable = this.aWeightingTable
+    const useMicCalibration = this.config.micCalibrationProfile !== 'none' && !!this.micCalibrationTable
+    const micCalTable = this.micCalibrationTable
 
     // Use auto-gain when enabled, otherwise manual setting
     const inputGain = this._autoGainEnabled
@@ -1024,23 +1072,24 @@ export class FeedbackDetector {
       power[i] = p
       prefix[i + 1] = prefix[i] + p
     }
+  }
 
-    const t1 = debugPerf ? performance.now() : 0
-
-    // Update noise floor
-    if (this.config.noiseFloorEnabled) {
-      this.updateNoiseFloorDb(dt)
-    }
-
-    const effectiveThresholdDb = this.computeEffectiveThresholdDb()
+  /**
+   * Main peak detection loop: scans bins for local maxima that exceed the
+   * effective threshold, computes prominence, manages hold/dead timers,
+   * and delegates sustained peaks to `_registerPeak()`.
+   * @internal
+   */
+  private _scanAndProcessPeaks(now: number, dt: number, effectiveThresholdDb: number): void {
+    const freqDb = this.freqDb!
+    const power = this.power!
+    const prefix = this.prefix!
+    const hold = this.holdMs!
+    const dead = this.deadMs!
+    const active = this.active!
     const nb = this.effectiveNb
     const start = this.startBin
     const end = this.endBin
-    if (end < start) return
-
-    const hold = this.holdMs
-    const dead = this.deadMs
-    const active = this.active
 
     for (let i = start; i <= end; i++) {
       const peakDb = freqDb[i]
@@ -1094,7 +1143,7 @@ export class FeedbackDetector {
         // For ±2 exclusion as per spec
         let totalPower = prefix[endNbExcl] - prefix[startNb]
         totalPower -= power[i - 2] + power[i - 1] + power[i] + power[i + 1] + power[i + 2]
-        
+
         // count = (2*nb+1) - 5 = 2*nb - 4
         const count = 2 * nb - 4
         if (totalPower < 0) totalPower = 0
@@ -1111,123 +1160,7 @@ export class FeedbackDetector {
         dead[i] = 0
 
         if (hold[i] >= this.config.sustainMs && active[i] === 0) {
-          // Quadratic interpolation for true peak
-          const { delta, peak: trueAmplitudeDb } = quadraticInterpolation(leftDb, peakDb, rightDb)
-          
-          const sr = ctx.sampleRate
-          const fft = analyser.fftSize
-          const hzPerBin = sr / fft
-          const trueFrequencyHz = (i + delta) * hzPerBin
-
-          // ── Harmonic detection ─────────────────────────────────────────
-          // Uses cents-based tolerance (musically uniform across the spectrum)
-          // instead of a flat percentage, which is too coarse in the high range
-          // and can miss harmonics in the low range.
-          let harmonicRootHz: number | null = null
-          let isSubHarmonicRoot = false
-
-          if (this.activeBins && this.activeHz && this.activeCount > 0) {
-            const maxHarmonic = HARMONIC_SETTINGS.MAX_HARMONIC
-            const tolCents = this.harmonicToleranceCents
-
-            // ── A: Overtone check ──────────────────────────────────────────
-            // Is this new peak an overtone (2nd–8th) of any active root?
-            for (let j = 0; j < this.activeCount; j++) {
-              const rootBin = this.activeBins[j]
-              const rootHz = this.activeHz[rootBin]
-              if (rootHz <= 0 || rootHz >= trueFrequencyHz) continue
-
-              const ratio = trueFrequencyHz / rootHz
-              const k = Math.round(ratio)
-              if (k < 2 || k > maxHarmonic) continue
-
-              const expectedHz = rootHz * k
-              // Convert frequency deviation to cents: 1200 * log2(actual/expected)
-              const cents = Math.abs(1200 * Math.log2(trueFrequencyHz / expectedHz))
-              if (cents <= tolCents) {
-                // Prefer the lowest matching root (closest to fundamental)
-                if (harmonicRootHz === null || rootHz < harmonicRootHz) {
-                  harmonicRootHz = rootHz
-                }
-              }
-            }
-
-            // ── B: Sub-harmonic check ──────────────────────────────────────
-            // Is this new peak the FUNDAMENTAL of a partial that is already
-            // active? (e.g. the 2nd partial was detected first; now we see
-            // the root appear below it.)
-            if (HARMONIC_SETTINGS.CHECK_SUB_HARMONICS && harmonicRootHz === null) {
-              for (let j = 0; j < this.activeCount; j++) {
-                const partialBin = this.activeBins[j]
-                const partialHz = this.activeHz[partialBin]
-                if (partialHz <= 0 || partialHz <= trueFrequencyHz) continue
-
-                const ratio = partialHz / trueFrequencyHz
-                const k = Math.round(ratio)
-                if (k < 2 || k > maxHarmonic) continue
-
-                const expectedPartialHz = trueFrequencyHz * k
-                const cents = Math.abs(1200 * Math.log2(partialHz / expectedPartialHz))
-                if (cents <= tolCents) {
-                  // This peak is the fundamental of a harmonic series already present.
-                  // harmonicRootHz stays null (this IS the root) but we mark it so
-                  // the classifier can boost harmonicity scoring appropriately.
-                  harmonicRootHz = null // peak is the root, not an overtone
-                  isSubHarmonicRoot = true
-                  break
-                }
-              }
-            }
-          }
-
-          // Mark active
-          active[i] = 1
-          if (this.activeHz) this.activeHz[i] = trueFrequencyHz
-          if (this.activeBins && this.activeBinPos) {
-            const pos = this.activeCount
-            this.activeBins[pos] = i
-            this.activeBinPos[i] = pos
-            this.activeCount = pos + 1
-          }
-
-          // Q estimation via -3dB bandwidth
-          const { qEstimate, bandwidthHz } = this.estimateQ(i, trueAmplitudeDb, trueFrequencyHz)
-
-          const peak: DetectedPeak = {
-            binIndex: i,
-            trueFrequencyHz,
-            trueAmplitudeDb: clamp(trueAmplitudeDb, this.analysisMinDb, this.analysisMaxDb),
-            prominenceDb: prominence,
-            sustainedMs: hold[i],
-            harmonicOfHz: harmonicRootHz,
-            isSubHarmonicRoot,
-            timestamp: now,
-            noiseFloorDb: this.noiseFloorDb,
-            effectiveThresholdDb,
-          }
-
-          // Q estimation
-          peak.qEstimate = qEstimate
-          peak.bandwidthHz = bandwidthHz
-
-          // PHPR (Peak-to-Harmonic Power Ratio) — feedback vs music discrimination
-          peak.phpr = this.calculatePHPR(i)
-
-          // MSD analysis for howl detection
-          const msdResult = this.calculateMsd(i)
-          peak.msd = msdResult.msd
-          peak.msdGrowthRate = msdResult.growthRate
-          peak.msdIsHowl = msdResult.isHowl
-          peak.msdFastConfirm = msdResult.fastConfirm
-
-          // Phase 2: Persistence scoring
-          const persistenceResult = this.getPersistenceScore(i)
-          peak.persistenceFrames = persistenceResult.frames
-          peak.persistenceBoost = persistenceResult.boost
-          peak.isPersistent = persistenceResult.isPersistent
-          peak.isHighlyPersistent = persistenceResult.isHighlyPersistent
-
-          this.callbacks.onPeakDetected?.(peak)
+          this._registerPeak(i, now, prominence, effectiveThresholdDb)
         }
       } else {
         hold[i] = Math.max(0, hold[i] - dt * HOLD_DECAY_RATE_MULTIPLIER)
@@ -1256,7 +1189,7 @@ export class FeedbackDetector {
               }
             }
                 if (this.activeHz) this.activeHz[i] = 0
-            
+
             // Reset MSD history and fast confirm for this bin
             this._msdPool!.release(i)
             this._fastConfirmCounts.delete(i)
@@ -1279,16 +1212,142 @@ export class FeedbackDetector {
         }
       }
     }
+  }
 
-    if (debugPerf) {
-      const t3 = performance.now()
-      this._perfTimings = {
-        total: t3 - t0,
-        power: t1 - t0,
-        peaks: t3 - t1, // peak detection + MSD + persistence + cleanup
-        msd: 0, // included in peaks — tracked separately if needed later
+  /**
+   * Register a sustained peak: quadratic interpolation, harmonic detection,
+   * Q estimation, MSD/persistence scoring, and callback dispatch.
+   * Called from `_scanAndProcessPeaks()` when a bin sustains past `sustainMs`.
+   * @internal
+   */
+  private _registerPeak(i: number, now: number, prominence: number, effectiveThresholdDb: number): void {
+    const freqDb = this.freqDb!
+    const active = this.active!
+    const hold = this.holdMs!
+    const ctx = this.audioContext!
+    const analyser = this.analyser!
+
+    const peakDb = freqDb[i]
+    const leftDb = freqDb[i - 1]
+    const rightDb = freqDb[i + 1]
+
+    // Quadratic interpolation for true peak
+    const { delta, peak: trueAmplitudeDb } = quadraticInterpolation(leftDb, peakDb, rightDb)
+
+    const sr = ctx.sampleRate
+    const fft = analyser.fftSize
+    const hzPerBin = sr / fft
+    const trueFrequencyHz = (i + delta) * hzPerBin
+
+    // ── Harmonic detection ─────────────────────────────────────────
+    // Uses cents-based tolerance (musically uniform across the spectrum)
+    // instead of a flat percentage, which is too coarse in the high range
+    // and can miss harmonics in the low range.
+    let harmonicRootHz: number | null = null
+    let isSubHarmonicRoot = false
+
+    if (this.activeBins && this.activeHz && this.activeCount > 0) {
+      const maxHarmonic = HARMONIC_SETTINGS.MAX_HARMONIC
+      const tolCents = this.harmonicToleranceCents
+
+      // ── A: Overtone check ──────────────────────────────────────────
+      // Is this new peak an overtone (2nd–8th) of any active root?
+      for (let j = 0; j < this.activeCount; j++) {
+        const rootBin = this.activeBins[j]
+        const rootHz = this.activeHz[rootBin]
+        if (rootHz <= 0 || rootHz >= trueFrequencyHz) continue
+
+        const ratio = trueFrequencyHz / rootHz
+        const k = Math.round(ratio)
+        if (k < 2 || k > maxHarmonic) continue
+
+        const expectedHz = rootHz * k
+        // Convert frequency deviation to cents: 1200 * log2(actual/expected)
+        const cents = Math.abs(1200 * Math.log2(trueFrequencyHz / expectedHz))
+        if (cents <= tolCents) {
+          // Prefer the lowest matching root (closest to fundamental)
+          if (harmonicRootHz === null || rootHz < harmonicRootHz) {
+            harmonicRootHz = rootHz
+          }
+        }
+      }
+
+      // ── B: Sub-harmonic check ──────────────────────────────────────
+      // Is this new peak the FUNDAMENTAL of a partial that is already
+      // active? (e.g. the 2nd partial was detected first; now we see
+      // the root appear below it.)
+      if (HARMONIC_SETTINGS.CHECK_SUB_HARMONICS && harmonicRootHz === null) {
+        for (let j = 0; j < this.activeCount; j++) {
+          const partialBin = this.activeBins[j]
+          const partialHz = this.activeHz[partialBin]
+          if (partialHz <= 0 || partialHz <= trueFrequencyHz) continue
+
+          const ratio = partialHz / trueFrequencyHz
+          const k = Math.round(ratio)
+          if (k < 2 || k > maxHarmonic) continue
+
+          const expectedPartialHz = trueFrequencyHz * k
+          const cents = Math.abs(1200 * Math.log2(partialHz / expectedPartialHz))
+          if (cents <= tolCents) {
+            // This peak is the fundamental of a harmonic series already present.
+            // harmonicRootHz stays null (this IS the root) but we mark it so
+            // the classifier can boost harmonicity scoring appropriately.
+            harmonicRootHz = null // peak is the root, not an overtone
+            isSubHarmonicRoot = true
+            break
+          }
+        }
       }
     }
+
+    // Mark active
+    active[i] = 1
+    if (this.activeHz) this.activeHz[i] = trueFrequencyHz
+    if (this.activeBins && this.activeBinPos) {
+      const pos = this.activeCount
+      this.activeBins[pos] = i
+      this.activeBinPos[i] = pos
+      this.activeCount = pos + 1
+    }
+
+    // Q estimation via -3dB bandwidth
+    const { qEstimate, bandwidthHz } = this.estimateQ(i, trueAmplitudeDb, trueFrequencyHz)
+
+    const peak: DetectedPeak = {
+      binIndex: i,
+      trueFrequencyHz,
+      trueAmplitudeDb: clamp(trueAmplitudeDb, this.analysisMinDb, this.analysisMaxDb),
+      prominenceDb: prominence,
+      sustainedMs: hold[i],
+      harmonicOfHz: harmonicRootHz,
+      isSubHarmonicRoot,
+      timestamp: now,
+      noiseFloorDb: this.noiseFloorDb,
+      effectiveThresholdDb,
+    }
+
+    // Q estimation
+    peak.qEstimate = qEstimate
+    peak.bandwidthHz = bandwidthHz
+
+    // PHPR (Peak-to-Harmonic Power Ratio) — feedback vs music discrimination
+    peak.phpr = this.calculatePHPR(i)
+
+    // MSD analysis for howl detection
+    const msdResult = this.calculateMsd(i)
+    peak.msd = msdResult.msd
+    peak.msdGrowthRate = msdResult.growthRate
+    peak.msdIsHowl = msdResult.isHowl
+    peak.msdFastConfirm = msdResult.fastConfirm
+
+    // Phase 2: Persistence scoring
+    const persistenceResult = this.getPersistenceScore(i)
+    peak.persistenceFrames = persistenceResult.frames
+    peak.persistenceBoost = persistenceResult.boost
+    peak.isPersistent = persistenceResult.isPersistent
+    peak.isHighlyPersistent = persistenceResult.isHighlyPersistent
+
+    this.callbacks.onPeakDetected?.(peak)
   }
 
   private estimateQ(binIndex: number, peakDb: number, trueFrequencyHz?: number): { qEstimate: number; bandwidthHz: number } {

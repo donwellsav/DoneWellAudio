@@ -16,7 +16,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { LayoutGrid, Maximize2, Mic, Minimize2, Pause, Play, Trash2 } from 'lucide-react'
 import { useAdvisories } from '@/contexts/AdvisoryContext'
-import { useAudio } from '@/contexts/AudioAnalyzerContext'
+import { useEngine } from '@/contexts/EngineContext'
+import { useSettings } from '@/contexts/SettingsContext'
 import { useUI } from '@/contexts/UIContext'
 import type { DetectorSettings } from '@/types/advisory'
 import type { CalibrationTabProps } from './settings/CalibrationTab'
@@ -33,11 +34,8 @@ export const HeaderBar = memo(function HeaderBar({
   calibration,
   dataCollection,
 }: HeaderBarProps) {
-  const {
-    isRunning, start, stop,
-    settings, handleModeChange, resetSettings,
-    devices, selectedDeviceId, handleDeviceChange,
-  } = useAudio()
+  const { isRunning, start, stop, devices, selectedDeviceId, handleDeviceChange } = useEngine()
+  const { settings, handleModeChange, resetSettings } = useSettings()
   const { resetLayout, isFullscreen, toggleFullscreen, isFrozen, toggleFreeze, isRtaFullscreen, toggleRtaFullscreen } = useUI()
   const { advisories, dismissedIds, onClearAll, onClearGEQ, onClearRTA, hasActiveGEQBars, hasActiveRTAMarkers } = useAdvisories()
   const hasClearableContent = advisories.some(a => !dismissedIds.has(a.id)) || hasActiveGEQBars || hasActiveRTAMarkers
@@ -128,7 +126,7 @@ export const HeaderBar = memo(function HeaderBar({
               variant="ghost"
               size="icon"
               onClick={resetLayout}
-              className="hidden md:landscape:flex h-10 w-10 text-muted-foreground hover:text-foreground transition-all duration-150 active:scale-95"
+              className="hidden tablet:flex tablet:landscape:hidden md:landscape:flex h-10 w-10 text-muted-foreground hover:text-foreground transition-all duration-150 active:scale-95"
               aria-label="Reset panel layout"
             >
               <LayoutGrid className="size-6" />
@@ -163,7 +161,7 @@ export const HeaderBar = memo(function HeaderBar({
                 variant="ghost"
                 size="icon"
                 onClick={toggleFreeze}
-                className={`hidden md:landscape:flex h-10 w-10 ${
+                className={`hidden tablet:flex tablet:landscape:hidden md:landscape:flex h-10 w-10 ${
                   isFrozen ? 'text-blue-400' : 'text-muted-foreground hover:text-foreground'
                 }`}
                 aria-label={isFrozen ? 'Unfreeze spectrum' : 'Freeze spectrum'}

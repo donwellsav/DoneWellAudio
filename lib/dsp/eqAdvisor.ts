@@ -245,7 +245,43 @@ export function generatePEQRecommendation(
 }
 
 /**
- * Analyze spectrum for shelf/filter recommendations
+ * Post-process shelf array to enforce structural invariants:
+ * - Max one shelf per type (HPF, lowShelf, highShelf)
+ * - HPF frequency must be below lowShelf frequency (sanity check)
+ * - Total shelf count capped at 3
+ */
+export function validateShelves(shelves: ShelfRecommendation[]): ShelfRecommendation[] {
+  const seen = new Set<ShelfRecommendation['type']>()
+  const validated: ShelfRecommendation[] = []
+
+  for (const shelf of shelves) {
+    // Reject duplicate types (keep first occurrence)
+    if (seen.has(shelf.type)) continue
+    seen.add(shelf.type)
+
+    // Sanity: if lowShelf exists below HPF frequency, skip it
+    if (shelf.type === 'lowShelf') {
+      const hpf = validated.find(s => s.type === 'HPF')
+      if (hpf && shelf.hz <= hpf.hz) continue
+    }
+
+    validated.push(shelf)
+  }
+
+  // Cap at 3 shelves (one per type max)
+  return validated.slice(0, 3)
+}
+
+/**
+ * Analyze spectrum for shelf/filter recommendations.
+ *
+ * Detects three broadband spectral issues:
+ * - **Rumble** (< 80 Hz): recommends HPF
+ * - **Mud** (200–400 Hz): recommends lowShelf at 300 Hz, -3 dB
+ * - **Harshness** (6–10 kHz): recommends highShelf at 8 kHz, -3 dB
+ *
+ * When HPF is active, the lowShelf threshold is raised by 2 dB to
+ * prevent overlapping attenuation in the 80–300 Hz region.
  */
 export function analyzeSpectralTrends(
   spectrum: Float32Array,
@@ -271,6 +307,7 @@ export function analyzeSpectralTrends(
   }
   const lowAvg = lowEndBin > 1 ? lowSum / (lowEndBin - 1) : avgDb
 
+  let hasHPF = false
   if (lowAvg > avgDb + SPECTRAL_TRENDS.LOW_RUMBLE_EXCESS_DB) {
     shelves.push({
       type: 'HPF',
@@ -278,9 +315,16 @@ export function analyzeSpectralTrends(
       gainDb: 0, // HPF doesn't have gain, but this indicates activation
       reason: `Low-end rumble detected (${(lowAvg - avgDb).toFixed(1)} dB excess below ${SPECTRAL_TRENDS.LOW_RUMBLE_THRESHOLD_HZ}Hz)`,
     })
+    hasHPF = true
   }
 
   // Check mud buildup (200-400 Hz)
+  // If HPF already active, require stronger mud evidence (+2 dB stricter)
+  // to prevent overlapping attenuation in the 80–300 Hz region
+  const mudThreshold = hasHPF
+    ? SPECTRAL_TRENDS.MUD_EXCESS_DB + 2
+    : SPECTRAL_TRENDS.MUD_EXCESS_DB
+
   const mudLowBin = Math.round(SPECTRAL_TRENDS.MUD_FREQ_LOW / hzPerBin)
   const mudHighBin = Math.round(SPECTRAL_TRENDS.MUD_FREQ_HIGH / hzPerBin)
   let mudSum = 0
@@ -289,7 +333,7 @@ export function analyzeSpectralTrends(
   }
   const mudAvg = mudHighBin > mudLowBin ? mudSum / (mudHighBin - mudLowBin) : avgDb
 
-  if (mudAvg > avgDb + SPECTRAL_TRENDS.MUD_EXCESS_DB) {
+  if (mudAvg > avgDb + mudThreshold) {
     shelves.push({
       type: 'lowShelf',
       hz: 300, // Center of mud range
@@ -316,11 +360,15 @@ export function analyzeSpectralTrends(
     })
   }
 
-  return shelves
+  return validateShelves(shelves)
 }
 
 /**
- * Generate complete EQ advisory for a track
+ * Generate complete EQ advisory for a track.
+ *
+ * @param precomputedShelves - Optional pre-computed shelf array. When provided,
+ *   skips `analyzeSpectralTrends()` entirely — used by the worker to avoid
+ *   re-analyzing the same global spectrum once per peak (cross-advisory dedup).
  */
 export function generateEQAdvisory(
   track: TrackInput,
@@ -328,16 +376,20 @@ export function generateEQAdvisory(
   preset: Preset,
   spectrum?: Float32Array,
   sampleRate?: number,
-  fftSize?: number
+  fftSize?: number,
+  precomputedShelves?: ShelfRecommendation[]
 ): EQAdvisory {
   const freqHz = getTrackFrequency(track)
   const geq = generateGEQRecommendation(track, severity, preset)
   const peq = generatePEQRecommendation(track, severity, preset)
   const pitch = hzToPitch(freqHz)
 
-  // Generate shelf recommendations if spectrum provided
+  // Use pre-computed shelves if provided (cross-advisory dedup),
+  // otherwise compute from spectrum
   let shelves: ShelfRecommendation[] = []
-  if (spectrum && sampleRate && fftSize) {
+  if (precomputedShelves) {
+    shelves = precomputedShelves
+  } else if (spectrum && sampleRate && fftSize) {
     shelves = analyzeSpectralTrends(spectrum, sampleRate, fftSize)
   }
 

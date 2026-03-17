@@ -1,6 +1,6 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
-> **Last updated March 2026. 137 TypeScript/TSX files, 435 tests (431 pass, 4 skip, 1 todo), 25 suites. Version 0.119.0.**
+> **Last updated March 2026. 144 TypeScript/TSX files, 445 tests (441 pass, 4 skip, 1 todo), 25 suites. Version 0.127.0.**
 
 ## CRITICAL RULES
 
@@ -35,7 +35,7 @@ pnpm dev              # Dev server on :3000 (Turbopack, no SW)
 pnpm build            # Production build (webpack, generates SW)
 pnpm start            # Production server
 pnpm lint             # ESLint (flat config)
-pnpm test             # Vitest (435 tests: 431 pass + 4 skip + 1 todo)
+pnpm test             # Vitest (444 tests: 440 pass + 4 skip + 1 todo)
 pnpm test:watch       # Vitest watch mode
 pnpm test:coverage    # Vitest with V8 coverage
 npx tsc --noEmit      # Type-check (run BEFORE pnpm build)
@@ -68,7 +68,11 @@ Mic -> getUserMedia -> GainNode -> AnalyserNode (8192 FFT)
 
 ### Context Providers (top to bottom)
 
-1. `AudioAnalyzerContext` — Engine lifecycle, settings, devices, spectrum, detection (28 fields — **KNOWN ISSUE: god context, should split into 3-4**)
+1. `AudioAnalyzerProvider` — Compound provider nesting 4 focused contexts:
+   - `EngineContext` (11 fields) — isRunning, start/stop, devices, dspWorker
+   - `SettingsContext` (5 fields) — settings, updateSettings, mode/freq changes
+   - `DetectionContext` (3 fields) — advisories, earlyWarning
+   - `MeteringContext` (10 fields) — spectrumRef, inputLevel, autoGain, noiseFloor
 2. `AdvisoryContext` — Advisory state, dismiss/clear/false-positive, derived booleans
 3. `UIContext` — Mobile tab, freeze, fullscreen, layout reset
 4. `PortalContainerContext` — Portal mount for mobile overlays
@@ -127,16 +131,16 @@ COMPRESSED: MSD=0.12  Phase=0.30  Spectral=0.18  Comb=0.08  IHR=0.18  PTMR=0.14
 
 ### Medium (P2)
 
-2. `analyze()` is ~420 lines — decompose into `_detectPeaks()`, `_updateAutoGain()`, `_computeSpectrum()`, etc.
-3. `AudioAnalyzerContext` is god-context mixing engine/settings/detection (28 fields). Split into 3-4 focused contexts.
-4. No shelf overlap validation in eqAdvisor.
-5. `HelpMenu.tsx` is 991 lines doing 3+ things — split.
-6. No tablet responsive breakpoint (CSS var `--breakpoint-tablet: 600px` defined but not wired to components).
+~~2. `analyze()` is ~420 lines — decompose into `_detectPeaks()`, `_updateAutoGain()`, `_computeSpectrum()`, etc.~~ **FIXED v0.121.0** — Decomposed into 4 extracted methods: `_measureSignalAndApplyGain()`, `_buildPowerSpectrum()`, `_scanAndProcessPeaks()`, `_registerPeak()`. `analyze()` is now ~45 lines.
+~~3. `AudioAnalyzerContext` is god-context mixing engine/settings/detection (28 fields). Split into 3-4 focused contexts.~~ **FIXED v0.122.0** — Split into 4 focused contexts: `EngineContext` (11), `SettingsContext` (5), `MeteringContext` (10), `DetectionContext` (3). All consumers migrated to narrowest hooks. `useAudio()` retained as deprecated shim.
+~~4. No shelf overlap validation in eqAdvisor.~~ **FIXED v0.123.0** — Added `validateShelves()` post-processing (dedup by type, HPF < lowShelf sanity check, cap at 3). HPF-active raises mud threshold +2 dB to prevent overlap in 80–300 Hz region. Cross-advisory dedup: shelves computed once per analysis frame in worker, shared across all peaks.
+~~5. `HelpMenu.tsx` is 991 lines doing 3+ things — split.~~ **FIXED v0.124.0** — Split into thin orchestrator (~90 lines) + `help/` subdirectory (6 files: HelpShared, GuideTab, ModesTab, AlgorithmsTab, ReferenceTab, AboutTab). Mirrors `settings/` pattern.
+~~6. No tablet responsive breakpoint (CSS var `--breakpoint-tablet: 600px` defined but not wired to components).~~ **FIXED v0.125.0** — Wired `tablet:` Tailwind v4 prefix (600px) to MobileLayout (`tablet:hidden` on 3 portrait-only elements), DesktopLayout (`tablet:flex tablet:landscape:hidden`), and HeaderBar. Portrait tablets now get desktop layout. `useIsMobile()` threshold lowered from 768→600 so tablets skip smartphone mic calibration.
 
 ### Low (P3)
 
-7. `unsafe-inline` in production script-src CSP (required by Next.js).
-8. No security scanning in CI (Snyk/Dependabot/npm audit).
+~~7. `unsafe-inline` in production script-src CSP (required by Next.js).~~ **FIXED v0.126.0** — Replaced with nonce-based CSP via `middleware.ts`. Per-request nonce + `'strict-dynamic'` in script-src. Dev mode keeps `unsafe-inline` for Turbopack hot reload. `style-src 'unsafe-inline'` retained (low risk, required by Tailwind/React).
+~~8. No security scanning in CI (Snyk/Dependabot/npm audit).~~ **FIXED v0.127.0** — Added `pnpm audit --prod --audit-level=high` to CI (fails on high/critical CVEs in production deps). Added `.github/dependabot.yml` for weekly grouped npm updates + monthly GitHub Actions updates.
 
 ## Known False Positives
 
@@ -149,6 +153,7 @@ COMPRESSED: MSD=0.12  Phase=0.30  Spectral=0.18  Comb=0.08  IHR=0.18  PTMR=0.14
 ## Project Structure
 
 ```
+middleware.ts (53)              # Per-request nonce CSP (replaces static unsafe-inline)
 app/                          # Next.js App Router
   layout.tsx (54)             #   Root layout, Geist fonts, metadata
   page.tsx (5)                #   Entry -> KillTheRingClient
@@ -156,14 +161,19 @@ app/                          # Next.js App Router
   sw.ts (38)                  #   Serwist service worker
   api/v1/ingest/route.ts (160)#   Spectral snapshot ingest (v1.1 schema, rate-limited, IP-stripped)
 components/
-  kill-the-ring/ (23 files)   # Domain components + barrel index.ts
+  kill-the-ring/ (29 files)   # Domain components + barrel index.ts
+    help/ (6 files)           # Help tab components (mirrors settings/ pattern)
     KillTheRing.tsx (436)     #   Root orchestrator, settings debounce, FP handling
     HeaderBar.tsx (220)       #   Header bar with permanent Clear All button
     IssuesList.tsx (440)      #   Advisory cards with FALSE+ below Copy/Dismiss, 3s stability
     settings/ (7 files)       # Settings tab components
   ui/ (20 files)              # shadcn/ui primitives
-contexts/ (4 files)           # React context providers
-  AudioAnalyzerContext (246)  #   Engine lifecycle, settings, devices, spectrum (28 fields)
+contexts/ (8 files)           # React context providers
+  AudioAnalyzerContext (195)  #   Compound provider: nests Engine/Settings/Metering/Detection
+  EngineContext (42)          #   Engine lifecycle, devices, dspWorker (11 fields)
+  SettingsContext (30)        #   Settings, updateSettings, mode/freq (5 fields)
+  MeteringContext (38)        #   Spectrum, inputLevel, autoGain, noiseFloor (10 fields)
+  DetectionContext (25)       #   Advisories, earlyWarning (3 fields)
   AdvisoryContext (190)       #   Advisory state, dismiss/clear/FP, derived booleans
   UIContext (162)             #   Mobile tab, freeze, fullscreen, RTA fullscreen, layout reset
   PortalContainerContext (23) #   Portal mount for mobile overlays
@@ -171,7 +181,7 @@ hooks/ (11 files)             # Custom hooks
   useDSPWorker.ts (359)       #   Worker lifecycle, crash recovery, userFeedback
 lib/
   dsp/ (17 modules)           # DSP engine (8,057 lines):
-    feedbackDetector.ts (1662)#   Core: peak detection, MSD pool, auto-gain, persistence
+    feedbackDetector.ts (1721)#   Core: peak detection, MSD pool, auto-gain, persistence
     constants.ts (961)        #   All tuning constants, 8 mode presets, ECM8000 cal curve, mobile constants
     acousticUtils.ts (861)    #   Room modes, Schroeder, RT60, vibrato, cumulative growth
     classifier.ts (850)       #   11-feature Bayesian classification + formant/chromatic gates
@@ -252,14 +262,15 @@ lib/export/__tests__/ (3 files)  # Export module unit tests (txt, pdf, downloadF
 
 ## CI/CD
 
-- **Build gate:** `ci.yml` — tsc + test + build on every push/PR
+- **Build gate:** `ci.yml` — audit + tsc + lint + test + build on every push/PR
+- **Dependency updates:** Dependabot — weekly npm PRs (grouped by prod/dev), monthly Actions PRs
 - **Versioning:** `0.{PR_NUMBER}.0` on PR merge, patch increment on direct push. Both `[skip ci]`.
 - **Deployment:** Vercel auto-deploys on push to `main`
 - **Version flow:** `package.json` version -> `next.config.mjs` reads via `readFileSync` -> `NEXT_PUBLIC_APP_VERSION` env -> HeaderBar + HelpMenu
 
 ## Security Notes
 
-- **CSP:** Restrictive prod policy, relaxed dev policy with hot reload support
+- **CSP:** Nonce-based `script-src` in prod (middleware.ts), `'unsafe-inline'` in dev for hot reload. `style-src 'unsafe-inline'` in both (required by Tailwind/React).
 - **Permissions-Policy:** `microphone=(self), camera=(), geolocation=()`
 - **Zero XSS vectors:** No direct HTML injection, no dynamic code execution
 - **API:** Ingest endpoint validates v1.0/v1.1 schema, rate-limits (6/60s per session), caps payload (512KB), strips IP

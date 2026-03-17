@@ -2,7 +2,7 @@
 /**
  * Tests for UIContext.tsx — UI state management context.
  *
- * Mocks useAudio() and useFullscreen() to isolate UI state logic.
+ * Mocks useEngine() and useFullscreen() to isolate UI state logic.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -13,8 +13,8 @@ import { createElement, createRef, type ReactNode } from 'react'
 
 let mockIsRunning = false
 
-vi.mock('@/contexts/AudioAnalyzerContext', () => ({
-  useAudio: () => ({ isRunning: mockIsRunning }),
+vi.mock('@/contexts/EngineContext', () => ({
+  useEngine: () => ({ isRunning: mockIsRunning }),
 }))
 
 vi.mock('@/hooks/useFullscreen', () => ({

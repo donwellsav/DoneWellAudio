@@ -1,79 +1,40 @@
 'use client'
 
 import {
-  createContext,
-  useContext,
   useCallback,
   useMemo,
   type ReactNode,
   type MutableRefObject,
 } from 'react'
 import { useAudioAnalyzer } from '@/hooks/useAudioAnalyzer'
-import type {
-  UseAudioAnalyzerReturn,
-  SpectrumStatus,
-  EarlyWarning,
-} from '@/hooks/useAudioAnalyzer'
 import { useAudioDevices } from '@/hooks/useAudioDevices'
-import type { AudioDevice } from '@/hooks/useAudioDevices'
-import type {
-  Advisory,
-  DetectorSettings,
-  SpectrumData,
-  TrackedPeak,
-  OperationMode,
-} from '@/types/advisory'
+import type { OperationMode } from '@/types/advisory'
 import type { SnapshotBatch } from '@/types/data'
-import type { DSPWorkerHandle } from '@/hooks/useDSPWorker'
 import { OPERATION_MODES } from '@/lib/dsp/constants'
 
-// ── Context value ───────────────────────────────────────────────────────────
+// ── Sub-contexts ────────────────────────────────────────────────────────────
 
-export interface AudioAnalyzerContextValue {
-  // Engine state
-  isRunning: boolean
-  isStarting: boolean
-  error: string | null
-  workerError: string | null
+import { EngineContext, useEngine } from '@/contexts/EngineContext'
+import type { EngineContextValue } from '@/contexts/EngineContext'
+import { SettingsContext, useSettings } from '@/contexts/SettingsContext'
+import type { SettingsContextValue } from '@/contexts/SettingsContext'
+import { MeteringContext, useMetering } from '@/contexts/MeteringContext'
+import type { MeteringContextValue } from '@/contexts/MeteringContext'
+import { DetectionContext, useDetection } from '@/contexts/DetectionContext'
+import type { DetectionContextValue } from '@/contexts/DetectionContext'
 
-  // Actions
-  start: () => Promise<void>
-  stop: () => void
-  switchDevice: (deviceId: string) => Promise<void>
+// Re-export hooks for convenience and backward compatibility
+export { useEngine, useSettings, useMetering, useDetection }
 
-  // Settings (raw — no calibration wrapper)
-  settings: DetectorSettings
-  updateSettings: (s: Partial<DetectorSettings>) => void
-  resetSettings: () => void
-  handleModeChange: (mode: OperationMode) => void
-  handleFreqRangeChange: (min: number, max: number) => void
+// Re-export types consumers may need
+export type { EngineContextValue, SettingsContextValue, MeteringContextValue, DetectionContextValue }
 
-  // Spectrum + metering
-  spectrumRef: React.RefObject<SpectrumData | null>
-  tracksRef: React.RefObject<TrackedPeak[]>
-  spectrumStatus: SpectrumStatus | null
-  noiseFloorDb: number | null
-  sampleRate: number
-  fftSize: number
-  inputLevel: number
-  isAutoGain: boolean
-  autoGainDb: number | undefined
-  autoGainLocked: boolean
-
-  // Devices
-  devices: AudioDevice[]
-  selectedDeviceId: string
-  handleDeviceChange: (deviceId: string) => void
-
-  // Detection source-of-truth
-  advisories: Advisory[]
-  earlyWarning: EarlyWarning | null
-
-  // Data collection wiring
-  dspWorker: DSPWorkerHandle
-}
-
-const AudioAnalyzerContext = createContext<AudioAnalyzerContextValue | null>(null)
+/**
+ * @deprecated Use `EngineContextValue`, `SettingsContextValue`, `MeteringContextValue`,
+ * or `DetectionContextValue` instead.
+ */
+export type AudioAnalyzerContextValue =
+  EngineContextValue & SettingsContextValue & MeteringContextValue & DetectionContextValue
 
 // ── Provider props ──────────────────────────────────────────────────────────
 
@@ -83,7 +44,7 @@ interface AudioAnalyzerProviderProps {
   children: ReactNode
 }
 
-// ── Provider ────────────────────────────────────────────────────────────────
+// ── Compound Provider ───────────────────────────────────────────────────────
 
 export function AudioAnalyzerProvider({
   onSnapshotBatchRef,
@@ -168,9 +129,9 @@ export function AudioAnalyzerProvider({
     switchDevice(deviceId)
   }, [setSelectedDeviceId, switchDevice])
 
-  // ── Memoized value ────────────────────────────────────────────────────
+  // ── Memoized context values (4 independent useMemo) ───────────────────
 
-  const value = useMemo<AudioAnalyzerContextValue>(() => ({
+  const engineValue = useMemo<EngineContextValue>(() => ({
     isRunning,
     isStarting,
     error,
@@ -178,26 +139,9 @@ export function AudioAnalyzerProvider({
     start: startWithDevice,
     stop,
     switchDevice,
-    settings,
-    updateSettings,
-    resetSettings,
-    handleModeChange,
-    handleFreqRangeChange,
-    spectrumRef,
-    tracksRef,
-    spectrumStatus,
-    noiseFloorDb,
-    sampleRate,
-    fftSize,
-    inputLevel,
-    isAutoGain,
-    autoGainDb,
-    autoGainLocked,
     devices,
     selectedDeviceId,
     handleDeviceChange,
-    advisories,
-    earlyWarning,
     dspWorker,
   }), [
     isRunning,
@@ -207,11 +151,27 @@ export function AudioAnalyzerProvider({
     startWithDevice,
     stop,
     switchDevice,
+    devices,
+    selectedDeviceId,
+    handleDeviceChange,
+    dspWorker,
+  ])
+
+  const settingsValue = useMemo<SettingsContextValue>(() => ({
     settings,
     updateSettings,
     resetSettings,
     handleModeChange,
     handleFreqRangeChange,
+  }), [
+    settings,
+    updateSettings,
+    resetSettings,
+    handleModeChange,
+    handleFreqRangeChange,
+  ])
+
+  const meteringValue = useMemo<MeteringContextValue>(() => ({
     spectrumRef,
     tracksRef,
     spectrumStatus,
@@ -222,25 +182,51 @@ export function AudioAnalyzerProvider({
     isAutoGain,
     autoGainDb,
     autoGainLocked,
-    devices,
-    selectedDeviceId,
-    handleDeviceChange,
-    advisories,
-    earlyWarning,
-    dspWorker,
+  }), [
+    spectrumRef,
+    tracksRef,
+    spectrumStatus,
+    noiseFloorDb,
+    sampleRate,
+    fftSize,
+    inputLevel,
+    isAutoGain,
+    autoGainDb,
+    autoGainLocked,
   ])
 
+  const detectionValue = useMemo<DetectionContextValue>(() => ({
+    advisories,
+    earlyWarning,
+  }), [
+    advisories,
+    earlyWarning,
+  ])
+
+  // Nest providers: outermost = least frequent updates, innermost = most frequent
   return (
-    <AudioAnalyzerContext.Provider value={value}>
-      {children}
-    </AudioAnalyzerContext.Provider>
+    <EngineContext.Provider value={engineValue}>
+      <SettingsContext.Provider value={settingsValue}>
+        <DetectionContext.Provider value={detectionValue}>
+          <MeteringContext.Provider value={meteringValue}>
+            {children}
+          </MeteringContext.Provider>
+        </DetectionContext.Provider>
+      </SettingsContext.Provider>
+    </EngineContext.Provider>
   )
 }
 
-// ── Hook ────────────────────────────────────────────────────────────────────
+// ── Legacy hook (deprecated) ────────────────────────────────────────────────
 
+/**
+ * @deprecated Use `useEngine()`, `useSettings()`, `useMetering()`, or `useDetection()` instead.
+ * This hook reads all 4 contexts and re-renders on ANY context change — no re-render savings.
+ */
 export function useAudio(): AudioAnalyzerContextValue {
-  const ctx = useContext(AudioAnalyzerContext)
-  if (!ctx) throw new Error('useAudio must be used within <AudioAnalyzerProvider>')
-  return ctx
+  const engine = useEngine()
+  const settingsCtx = useSettings()
+  const metering = useMetering()
+  const detection = useDetection()
+  return { ...engine, ...settingsCtx, ...metering, ...detection }
 }

@@ -11,7 +11,7 @@ import {
 } from 'react'
 import type { Advisory } from '@/types/advisory'
 import type { EarlyWarning } from '@/hooks/useAudioAnalyzer'
-import { useAudio } from '@/contexts/AudioAnalyzerContext'
+import { useDetection } from '@/contexts/DetectionContext'
 
 // ── Context value ───────────────────────────────────────────────────────────
 
@@ -69,7 +69,7 @@ export function AdvisoryProvider({
 }: AdvisoryProviderProps) {
   // ── Source-of-truth from audio context ─────────────────────────────────
 
-  const { advisories, earlyWarning } = useAudio()
+  const { advisories, earlyWarning } = useDetection()
 
   // ── Derived state ───────────────────────────────────────────────────────
 

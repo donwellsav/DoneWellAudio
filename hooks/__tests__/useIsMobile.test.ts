@@ -2,8 +2,9 @@
 /**
  * Tests for useIsMobile.ts — responsive breakpoint hook.
  *
- * Mocks window.matchMedia and window.innerWidth to simulate
- * viewport changes.
+ * Threshold: 600px (tablet breakpoint). Devices < 600px are "mobile" (phones).
+ * Tablets (≥ 600px) and desktops are NOT mobile — they get the desktop layout
+ * and should not receive smartphone mic calibration.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -38,15 +39,22 @@ beforeEach(() => {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('useIsMobile', () => {
-  it('returns true when width < 768', () => {
-    setInnerWidth(500)
+  it('returns true when width < 600 (phone)', () => {
+    setInnerWidth(375)
     mockMatchMedia(true)
     const { result } = renderHook(() => useIsMobile())
     expect(result.current).toBe(true)
   })
 
-  it('returns false when width >= 768', () => {
-    setInnerWidth(1024)
+  it('returns false when width >= 600 (tablet)', () => {
+    setInnerWidth(768)
+    mockMatchMedia(false)
+    const { result } = renderHook(() => useIsMobile())
+    expect(result.current).toBe(false)
+  })
+
+  it('returns false for tablet-width viewports (e.g. 700)', () => {
+    setInnerWidth(700)
     mockMatchMedia(false)
     const { result } = renderHook(() => useIsMobile())
     expect(result.current).toBe(false)
@@ -58,7 +66,7 @@ describe('useIsMobile', () => {
     const { result } = renderHook(() => useIsMobile())
     expect(result.current).toBe(false)
 
-    // Simulate resize to mobile
+    // Simulate resize to phone width
     act(() => {
       setInnerWidth(400)
       if (changeHandler) changeHandler()

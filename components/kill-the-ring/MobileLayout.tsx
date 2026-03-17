@@ -9,7 +9,9 @@ import { DetectionControls } from './DetectionControls'
 import { InputMeterSlider } from './InputMeterSlider'
 import { VerticalGainFader } from './VerticalGainFader'
 import { ResetConfirmDialog } from './ResetConfirmDialog'
-import { useAudio } from '@/contexts/AudioAnalyzerContext'
+import { useEngine } from '@/contexts/EngineContext'
+import { useSettings } from '@/contexts/SettingsContext'
+import { useMetering } from '@/contexts/MeteringContext'
 import { useAdvisories } from '@/contexts/AdvisoryContext'
 import { useUI } from '@/contexts/UIContext'
 import { Button } from '@/components/ui/button'
@@ -26,12 +28,9 @@ interface MobileLayoutProps {
 export const MobileLayout = memo(function MobileLayout({
   onSettingsChange,
 }: MobileLayoutProps) {
-  const {
-    isRunning, isStarting, error, start, stop,
-    spectrumRef, settings, handleModeChange, resetSettings, handleFreqRangeChange,
-    inputLevel, isAutoGain, autoGainDb, autoGainLocked,
-    noiseFloorDb,
-  } = useAudio()
+  const { isRunning, isStarting, error, start, stop } = useEngine()
+  const { settings, handleModeChange, resetSettings, handleFreqRangeChange } = useSettings()
+  const { spectrumRef, inputLevel, isAutoGain, autoGainDb, autoGainLocked, noiseFloorDb } = useMetering()
 
   const { isFrozen, toggleFreeze, mobileTab, setMobileTab, rtaContainerRef, isRtaFullscreen, toggleRtaFullscreen } = useUI()
 
@@ -111,7 +110,7 @@ export const MobileLayout = memo(function MobileLayout({
   return (
     <>
       {/* ── Mobile: 3-tab sliding content area + fader sidecar (portrait only) ───── */}
-      <div className="landscape:hidden flex-1 flex overflow-hidden">
+      <div className="landscape:hidden tablet:hidden flex-1 flex overflow-hidden">
         {/* Sliding tab area — takes remaining width */}
         <div
           className="flex-1 flex flex-col overflow-hidden min-w-0"
@@ -386,7 +385,7 @@ export const MobileLayout = memo(function MobileLayout({
       </div>
 
       {/* ── Page indicator dots (portrait only) ─────────────────── */}
-      <div className="landscape:hidden flex items-center justify-center gap-1.5 py-1 bg-card/90" aria-hidden="true">
+      <div className="landscape:hidden tablet:hidden flex items-center justify-center gap-1.5 py-1 bg-card/90" aria-hidden="true">
         {TAB_ORDER.map(id => (
           <div
             key={id}
@@ -398,7 +397,7 @@ export const MobileLayout = memo(function MobileLayout({
       </div>
 
       {/* ── Mobile bottom tab bar (portrait only) ──────────────── */}
-      <nav className="landscape:hidden flex-shrink-0 border-t border-border/60 bg-card/90 backdrop-blur-sm" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <nav className="landscape:hidden tablet:hidden flex-shrink-0 border-t border-border/60 bg-card/90 backdrop-blur-sm" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="flex items-stretch" role="tablist" onKeyDown={handleTabKeyDown}>
           {([
             { id: 'issues' as const, label: 'Issues', Icon: AlertTriangle, badge: activeAdvisoryCount },

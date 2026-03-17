@@ -13,7 +13,11 @@ const LazyOnboardingOverlay = lazy(() => import('./OnboardingOverlay').then(m =>
 // Consent dialog removed — collection is opt-out via Settings → Advanced
 import { useDataCollection } from '@/hooks/useDataCollection'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { AudioAnalyzerProvider, useAudio } from '@/contexts/AudioAnalyzerContext'
+import { AudioAnalyzerProvider } from '@/contexts/AudioAnalyzerContext'
+import { useEngine } from '@/contexts/EngineContext'
+import { useSettings } from '@/contexts/SettingsContext'
+import { useMetering } from '@/contexts/MeteringContext'
+import { useDetection } from '@/contexts/DetectionContext'
 import { AdvisoryProvider } from '@/contexts/AdvisoryContext'
 import { UIProvider, useUI } from '@/contexts/UIContext'
 import type { ImperativePanelHandle } from 'react-resizable-panels'
@@ -92,23 +96,10 @@ const KillTheRingInner = memo(function KillTheRingInner({
   rootRef,
   rootEl,
 }: KillTheRingInnerProps) {
-  const {
-    isRunning,
-    error,
-    workerError,
-    noiseFloorDb,
-    spectrumStatus,
-    spectrumRef,
-    advisories,
-    sampleRate,
-    fftSize,
-    settings,
-    start,
-    stop,
-    updateSettings,
-    resetSettings,
-    dspWorker,
-  } = useAudio()
+  const { isRunning, error, workerError, start, stop, dspWorker } = useEngine()
+  const { settings, updateSettings, resetSettings } = useSettings()
+  const { spectrumRef, spectrumStatus, noiseFloorDb, sampleRate, fftSize } = useMetering()
+  const { advisories } = useDetection()
 
   // Wire the DSP worker handle into data collection (breaks circular dep)
   dataCollection.workerRef.current = dspWorker
@@ -406,10 +397,10 @@ function FullscreenPortalGate({ rootEl, children }: { rootEl: HTMLDivElement | n
   )
 }
 
-// ── Keyboard shortcuts (needs both useAudio + useUI) ────────────────────────
+// ── Keyboard shortcuts (needs engine + UI) ──────────────────────────────────
 
 function KeyboardShortcuts() {
-  const { isRunning, start, stop } = useAudio()
+  const { isRunning, start, stop } = useEngine()
   const { toggleFreeze } = useUI()
 
   useEffect(() => {

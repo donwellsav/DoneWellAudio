@@ -2,7 +2,7 @@
 /**
  * Tests for AdvisoryContext.tsx — advisory state management context.
  *
- * Mocks useAudio() to supply test advisories, then validates:
+ * Mocks useDetection() to supply test advisories, then validates:
  * dismiss, clearAll, clearResolved, clearGEQ, clearRTA, auto-prune,
  * and derived booleans (hasActiveGEQBars, activeAdvisoryCount).
  */
@@ -13,13 +13,13 @@ import { createElement, type ReactNode } from 'react'
 
 import type { Advisory } from '@/types/advisory'
 
-// ── Mock useAudio ─────────────────────────────────────────────────────────────
+// ── Mock useDetection ─────────────────────────────────────────────────────────
 
 let mockAdvisories: Advisory[] = []
 const mockEarlyWarning = null
 
-vi.mock('@/contexts/AudioAnalyzerContext', () => ({
-  useAudio: () => ({
+vi.mock('@/contexts/DetectionContext', () => ({
+  useDetection: () => ({
     advisories: mockAdvisories,
     earlyWarning: mockEarlyWarning,
   }),
