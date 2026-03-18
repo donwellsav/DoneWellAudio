@@ -17,9 +17,11 @@ import { LayoutGrid, Maximize2, Mic, Minimize2, Pause, Play, Trash2 } from 'luci
 import { KtrLogo } from './KtrLogo'
 import { useAdvisories } from '@/contexts/AdvisoryContext'
 import { useEngine } from '@/contexts/EngineContext'
+import { useMetering } from '@/contexts/MeteringContext'
 import { useUI } from '@/contexts/UIContext'
 export const HeaderBar = memo(function HeaderBar() {
   const { isRunning, start, stop, devices, selectedDeviceId, handleDeviceChange } = useEngine()
+  const { inputLevel } = useMetering()
   const { resetLayout, isFullscreen, toggleFullscreen, isFrozen, toggleFreeze, isRtaFullscreen, toggleRtaFullscreen } = useUI()
   const { advisories, dismissedIds, onClearAll, onClearGEQ, onClearRTA, hasActiveGEQBars, hasActiveRTAMarkers } = useAdvisories()
   const hasClearableContent = advisories.some(a => !dismissedIds.has(a.id)) || hasActiveGEQBars || hasActiveRTAMarkers
@@ -36,7 +38,8 @@ export const HeaderBar = memo(function HeaderBar() {
             className="relative flex items-center justify-center flex-shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
           >
             <KtrLogo
-              className={`size-16 transition-colors duration-300 ${isRunning ? 'text-foreground drop-shadow-[0_0_8px_rgba(75,146,255,0.6)] animate-led-blink' : 'text-foreground/70 hover:text-foreground'}`}
+              className={`size-16 ${isRunning ? 'text-foreground drop-shadow-[0_0_8px_rgba(75,146,255,0.6)]' : 'text-foreground/70 hover:text-foreground'}`}
+              audioLevel={isRunning ? Math.max(0, Math.min(1, (inputLevel + 60) / 60)) : undefined}
             />
           </button>
         </div>
@@ -70,7 +73,7 @@ export const HeaderBar = memo(function HeaderBar() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-10 w-10 text-muted-foreground hover:text-foreground transition-all duration-150 active:scale-95"
+                    className="h-10 w-10 text-muted-foreground hover:text-foreground btn-glow"
                     aria-label="Select audio input"
                   >
                     <Mic className="size-6" />
@@ -102,7 +105,7 @@ export const HeaderBar = memo(function HeaderBar() {
               variant="ghost"
               size="icon"
               onClick={resetLayout}
-              className="hidden tablet:flex tablet:landscape:hidden md:landscape:flex h-10 w-10 text-muted-foreground hover:text-foreground transition-all duration-150 active:scale-95"
+              className="hidden tablet:flex tablet:landscape:hidden md:landscape:flex h-10 w-10 text-muted-foreground hover:text-foreground btn-glow"
               aria-label="Reset panel layout"
             >
               <LayoutGrid className="size-6" />
@@ -119,7 +122,7 @@ export const HeaderBar = memo(function HeaderBar() {
               variant="ghost"
               size="icon"
               onClick={toggleRtaFullscreen}
-              className="flex h-10 w-10 text-muted-foreground hover:text-foreground transition-all duration-150 active:scale-95"
+              className="flex h-10 w-10 text-muted-foreground hover:text-foreground btn-glow"
               aria-label={isRtaFullscreen ? 'Exit RTA fullscreen' : 'RTA fullscreen'}
             >
               {isRtaFullscreen ? <Minimize2 className="size-6" /> : <Maximize2 className="size-6" />}
@@ -159,7 +162,7 @@ export const HeaderBar = memo(function HeaderBar() {
               size="icon"
               onClick={() => { onClearAll(); onClearGEQ(); onClearRTA() }}
               disabled={!hasClearableContent}
-              className={`h-10 w-10 transition-all duration-150 active:scale-95 ${
+              className={`h-10 w-10 btn-glow ${
                 hasClearableContent
                   ? 'text-muted-foreground hover:text-red-400'
                   : 'text-muted-foreground/30 cursor-default'

@@ -344,6 +344,8 @@ export interface DetectorSettings {
   algorithmMode: AlgorithmMode // 'auto' (content-adaptive) or 'custom' (user-selected algorithms)
   enabledAlgorithms: Algorithm[] // Which algorithms are active when algorithmMode === 'custom'
   showAlgorithmScores: boolean // Show the algorithm status bar with live scoring metrics
+  showFreqZones: boolean // Show frequency zone overlay (Sub/Voice/Presence/Air) on RTA
+  spectrumWarmMode: boolean // Use warm amber spectrum line instead of blue
   // Peak timing
   sustainMs: number // Peak sustain before confirmation (100-2000, default 250)
   clearMs: number // Time before peak declared dead (100-2000, default 400)

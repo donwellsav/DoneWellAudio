@@ -9,7 +9,7 @@ import { CANVAS_SETTINGS } from '@/lib/dsp/constants'
 import type { SpectrumData, Advisory } from '@/types/advisory'
 import type { EarlyWarning } from '@/hooks/useAudioAnalyzer'
 import {
-  type DbRange, calcPadding, drawGrid, drawIndicatorLines, drawSpectrum,
+  type DbRange, calcPadding, drawGrid, drawFreqZones, drawIndicatorLines, drawSpectrum,
   drawFreqRangeOverlay, drawMarkers, drawAxisLabels, drawPlaceholder,
 } from '@/lib/canvas/spectrumDrawing'
 
@@ -36,11 +36,13 @@ interface SpectrumCanvasProps {
   feedbackThresholdDb?: number
   isFrozen?: boolean
   canvasTargetFps?: number
+  showFreqZones?: boolean
+  spectrumWarmMode?: boolean
 }
 
 const GRAB_THRESHOLD_PX = 22 // 44px total touch target per line
 
-export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, advisories, isRunning, isStarting = false, error, graphFontSize = 11, onStart, earlyWarning, rtaDbMin: rtaDbMinProp, rtaDbMax: rtaDbMaxProp, spectrumLineWidth: spectrumLineWidthProp, clearedIds, minFrequency = 20, maxFrequency = 20000, onFreqRangeChange, showThresholdLine = false, feedbackThresholdDb, isFrozen = false, canvasTargetFps }: SpectrumCanvasProps) {
+export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, advisories, isRunning, isStarting = false, error, graphFontSize = 11, onStart, earlyWarning, rtaDbMin: rtaDbMinProp, rtaDbMax: rtaDbMaxProp, spectrumLineWidth: spectrumLineWidthProp, clearedIds, minFrequency = 20, maxFrequency = 20000, onFreqRangeChange, showThresholdLine = false, feedbackThresholdDb, isFrozen = false, canvasTargetFps, showFreqZones = false, spectrumWarmMode = false }: SpectrumCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const dimensionsRef = useRef({ width: 0, height: 0 })
@@ -204,8 +206,9 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
     ctx.translate(padding.left, padding.top)
 
     drawGrid(ctx, plotWidth, plotHeight, range)
+    drawFreqZones(ctx, plotWidth, plotHeight, range, showFreqZones)
     drawIndicatorLines(ctx, plotWidth, plotHeight, range, spectrum, showThresholdLine, feedbackThresholdDb, fontSize)
-    drawSpectrum(ctx, plotWidth, plotHeight, range, spectrum, gradientRef, gradientHeightRef, spectrumLineWidthProp ?? 1.5, peakHoldRef)
+    drawSpectrum(ctx, plotWidth, plotHeight, range, spectrum, gradientRef, gradientHeightRef, spectrumLineWidthProp ?? 0.5, peakHoldRef, spectrumWarmMode)
 
     // Store padding for pointer event calculations
     paddingRef.current = { left: padding.left, top: padding.top, plotWidth, plotHeight }

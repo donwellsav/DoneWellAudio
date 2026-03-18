@@ -14,6 +14,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.133.0',
+    date: '2026-03-18',
+    highlights: 'UI overhaul: frosted glass, amber spectrum, audio-reactive logo, freq zones',
+    changes: [
+      { type: 'ui', description: 'Frosted glass issue cards with backdrop blur and translucent backgrounds' },
+      { type: 'ui', description: 'Button hover glow + press scale on all header icons and card actions' },
+      { type: 'ui', description: 'Issue card entrance animation — slide-in from left with brief blue pulse' },
+      { type: 'ui', description: 'Severity pill badges with colored dot indicators replace plain text badges' },
+      { type: 'feat', description: 'KTR logo equalizer bars respond to actual audio input level in real time' },
+      { type: 'feat', description: 'Frequency zone overlay on RTA — labeled Sub/Voice/Presence/Air bands (Display settings toggle)' },
+      { type: 'feat', description: 'Warm amber spectrum mode — default on, toggle in Display settings' },
+      { type: 'ui', description: 'Issues panel subtle blue left accent border for visual hierarchy' },
+      { type: 'ui', description: 'Default spectrum line width reduced to 0.5px, canvas FPS default 15 for better device compatibility' },
+    ],
+  },
+  {
     version: '0.132.0',
     date: '2026-03-18',
     highlights: 'KTR brand logo, settings persistence, algorithm scores debug',

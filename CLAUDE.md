@@ -1,7 +1,7 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
-> **Last updated March 2026. 159 TypeScript/TSX files, 470 tests (465 pass, 4 skip, 1 todo), 26 suites. Version 0.132.0.**
-> KTR brand logo throughout app. Settings auto-persist. Algorithm scores debug toggle. Mobile always-on swipe-to-label.
+> **Last updated March 2026. 159 TypeScript/TSX files, 470 tests (465 pass, 4 skip, 1 todo), 26 suites. Version 0.133.0.**
+> Frosted glass cards, amber spectrum default, audio-reactive logo, frequency zone overlay, severity pill badges.
 
 ## CRITICAL RULES
 

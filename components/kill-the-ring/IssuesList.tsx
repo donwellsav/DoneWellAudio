@@ -312,7 +312,7 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
 
   return (
     <div
-      className={`relative flex flex-col rounded border bg-card/80 transition-all overflow-hidden animate-in fade-in-0 slide-in-from-left-2 duration-200 ${
+      className={`relative flex flex-col rounded glass-card animate-issue-enter overflow-hidden ${
         isFalsePositive
           ? 'border-red-500/30 opacity-50'
           : isResolved
@@ -321,7 +321,7 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
                 ? 'border-red-500/70 animate-emergency-glow'
                 : isWarning
                   ? 'border-amber-500/60 shadow-[0_0_8px_rgba(245,158,11,0.3)] ring-1 ring-amber-500/15'
-                  : 'border-border hover:border-border/80'
+                  : 'border-border/40 hover:border-primary/30'
       }`}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
@@ -444,8 +444,8 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
             {/* Row 2: classification — severity, confidence */}
             <div className="flex items-center gap-1 justify-end">
               <span
-                className="inline-flex items-center text-sm font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm leading-none"
-                style={{ backgroundColor: `${severityColor}30`, color: severityColor, border: `1px solid ${severityColor}55`, boxShadow: `0 0 6px ${severityColor}20` }}
+                className="severity-pill"
+                style={{ backgroundColor: `${severityColor}20`, color: severityColor, border: `1px solid ${severityColor}40` }}
               >
                 {getSeverityText(advisory.severity)}
               </span>
@@ -475,7 +475,7 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
               <button
                   onClick={handleCopy}
                   aria-label={`Copy ${exactFreqStr} frequency info`}
-                  className={`rounded transition-colors flex items-center justify-center cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+                  className={`rounded btn-glow flex items-center justify-center cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
                     copied
                       ? 'text-emerald-400'
                       : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60'

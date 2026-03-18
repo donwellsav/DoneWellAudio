@@ -186,6 +186,34 @@ export const DisplayTab = memo(function DisplayTab({
       </Section>
 
       <Section
+        title="Frequency Zones"
+        showTooltip={settings.showTooltips}
+        tooltip="Show labeled frequency zone bands (Sub, Voice, Presence, Air) behind the RTA spectrum. Helps orient quickly during live shows."
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground font-mono tracking-wide">Show on RTA</span>
+          <PillToggle
+            checked={settings.showFreqZones}
+            onChange={(checked) => onSettingsChange({ showFreqZones: checked })}
+          />
+        </div>
+      </Section>
+
+      <Section
+        title="Warm Spectrum"
+        showTooltip={settings.showTooltips}
+        tooltip="Switch spectrum line from blue to warm amber. Easier on the eyes during extended sessions."
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground font-mono tracking-wide">Amber mode</span>
+          <PillToggle
+            checked={settings.spectrumWarmMode}
+            onChange={(checked) => onSettingsChange({ spectrumWarmMode: checked })}
+          />
+        </div>
+      </Section>
+
+      <Section
         title="Algorithm Scores"
         showTooltip={settings.showTooltips}
         tooltip="Show contributing algorithm scores on each issue card. Useful for debugging detection behavior."

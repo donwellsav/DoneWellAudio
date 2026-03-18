@@ -106,6 +106,50 @@ export function drawGrid(
   ctx.stroke()
 }
 
+/** Frequency zone definitions for the educational overlay */
+const FREQ_ZONES: { label: string; minHz: number; maxHz: number; color: string }[] = [
+  { label: 'SUB', minHz: 20, maxHz: 250, color: 'rgba(139, 92, 246, 0.06)' },   // violet tint
+  { label: 'VOICE', minHz: 250, maxHz: 4000, color: 'rgba(75, 146, 255, 0.05)' }, // blue tint
+  { label: 'PRESENCE', minHz: 4000, maxHz: 8000, color: 'rgba(250, 204, 21, 0.04)' }, // yellow tint
+  { label: 'AIR', minHz: 8000, maxHz: 20000, color: 'rgba(96, 165, 250, 0.04)' }, // light blue tint
+]
+
+/**
+ * Draw labeled frequency zone bands behind the spectrum.
+ * Very faint tinted rectangles with small labels at top to help engineers orient.
+ * @param showZones - when false, this function is a no-op
+ */
+export function drawFreqZones(
+  ctx: CanvasRenderingContext2D,
+  plotWidth: number,
+  plotHeight: number,
+  range: DbRange,
+  showZones: boolean,
+) {
+  if (!showZones) return
+
+  for (const zone of FREQ_ZONES) {
+    const x1 = freqToLogPosition(Math.max(zone.minHz, range.freqMin), range.freqMin, range.freqMax) * plotWidth
+    const x2 = freqToLogPosition(Math.min(zone.maxHz, range.freqMax), range.freqMin, range.freqMax) * plotWidth
+    if (x2 <= x1) continue // zone outside visible range
+
+    // Tinted background
+    ctx.fillStyle = zone.color
+    ctx.fillRect(x1, 0, x2 - x1, plotHeight)
+
+    // Label at top center of zone
+    const centerX = (x1 + x2) / 2
+    const labelWidth = x2 - x1
+    if (labelWidth > 30) { // only draw label if zone is wide enough
+      ctx.font = '9px var(--font-sans, sans-serif)'
+      ctx.fillStyle = 'rgba(160, 170, 190, 0.35)'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'top'
+      ctx.fillText(zone.label, centerX, 4)
+    }
+  }
+}
+
 export function drawIndicatorLines(
   ctx: CanvasRenderingContext2D,
   plotWidth: number,
@@ -178,6 +222,7 @@ export function drawSpectrum(
   gradientHeightRef: { current: number },
   spectrumLineWidth: number,
   peakHoldRef: { current: Float32Array | null },
+  warmMode: boolean = false,
 ) {
   if (!spectrum?.freqDb || !spectrum.sampleRate || !spectrum.fftSize) return
 
@@ -197,15 +242,22 @@ export function drawSpectrum(
     }
   }
 
-  // Cached gradient fill — only recreated when plotHeight changes
+  // Color channels: blue (default) or amber (warm mode)
+  const r = warmMode ? 255 : 75
+  const g = warmMode ? 179 : 146
+  const b = warmMode ? 71 : 255
+
+  // Cached gradient fill — recreated when plotHeight or warmMode changes
+  // Encode warmMode into gradientHeightRef as negative to force invalidation
+  const cacheKey = warmMode ? -plotHeight : plotHeight
   let gradient = gradientRef.current
-  if (!gradient || gradientHeightRef.current !== plotHeight) {
+  if (!gradient || gradientHeightRef.current !== cacheKey) {
     gradient = ctx.createLinearGradient(0, 0, 0, plotHeight)
-    gradient.addColorStop(0, 'rgba(75, 146, 255, 0.85)')
-    gradient.addColorStop(0.4, 'rgba(75, 146, 255, 0.35)')
-    gradient.addColorStop(1, 'rgba(75, 146, 255, 0.05)')
+    gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.85)`)
+    gradient.addColorStop(0.4, `rgba(${r}, ${g}, ${b}, 0.35)`)
+    gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0.05)`)
     gradientRef.current = gradient
-    gradientHeightRef.current = plotHeight
+    gradientHeightRef.current = cacheKey
   }
 
   // Single merged pass: build spectrum + peak-hold paths together (saves N freqToLogPosition calls)
@@ -256,7 +308,8 @@ export function drawSpectrum(
   ctx.fillStyle = gradient
   ctx.fill(fillPath)
 
-  ctx.strokeStyle = VIZ_COLORS.SPECTRUM
+  const spectrumColor = `rgb(${r}, ${g}, ${b})`
+  ctx.strokeStyle = spectrumColor
 
   // Deep halo — wide, barely visible
   ctx.globalAlpha = 0.06
@@ -271,7 +324,7 @@ export function drawSpectrum(
   // Sharp pass — crisp line with shadow bloom
   ctx.globalAlpha = 1
   ctx.lineWidth = spectrumLineWidth
-  ctx.shadowColor = 'rgba(75, 146, 255, 0.35)'
+  ctx.shadowColor = `rgba(${r}, ${g}, ${b}, 0.35)`
   ctx.shadowBlur = 6
   ctx.stroke(strokePath)
   ctx.shadowColor = 'transparent'

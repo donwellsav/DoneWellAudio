@@ -693,6 +693,8 @@ export const DEFAULT_SETTINGS: DetectorSettings = {
   algorithmMode: 'auto' as const, // Content-adaptive algorithm selection
   enabledAlgorithms: ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr'] as ('msd' | 'phase' | 'spectral' | 'comb' | 'ihr' | 'ptmr')[], // All on for custom mode
   showAlgorithmScores: false, // Hide advanced scores by default
+  showFreqZones: false, // Frequency zone overlay on RTA (Sub/Voice/Presence/Air)
+  spectrumWarmMode: true, // Warm amber spectrum line (default on)
   // Harmonic filter and room mode settings
   harmonicFilterEnabled: true, // Enable harmonic series detection to filter instruments
   roomLengthM: 15, // Default room length — large ballroom (~50 ft)
@@ -716,9 +718,9 @@ export const DEFAULT_SETTINGS: DetectorSettings = {
   // Display / canvas
   rtaDbMin: -100,
   rtaDbMax: 0,
-  spectrumLineWidth: 1.5,
+  spectrumLineWidth: 0.5,
   showThresholdLine: true,
-  canvasTargetFps: 30, // 30 fps halves GPU/CPU canvas work vs 60 fps; no perceptible quality loss
+  canvasTargetFps: 15, // 15 fps saves CPU/GPU; sufficient for spectrum visualization on average devices
   quickControlsMode: true, // Default to simplified controls for less overwhelming UX
   faderMode: 'sensitivity' as const, // Fader strip: 'gain' (input gain, white) or 'sensitivity' (threshold, blue)
   swipeLabeling: false, // Swipe-to-label on issue cards (off by default — opt-in feature)
