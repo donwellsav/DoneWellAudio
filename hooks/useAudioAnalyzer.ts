@@ -15,6 +15,7 @@ import type {
   DetectorSettings,
 } from '@/types/advisory'
 import { DEFAULT_SETTINGS } from '@/lib/dsp/constants'
+import { customDefaultsStorage } from '@/lib/storage/ktrStorage'
 
 /** Early warning for predicted feedback frequencies based on comb pattern detection */
 export interface EarlyWarning {
@@ -87,12 +88,21 @@ export function useAudioAnalyzer(
   initialSettings: Partial<DetectorSettings> = {},
   externalCallbacks?: { onSnapshotBatch?: (batch: import('@/types/data').SnapshotBatch) => void }
 ): UseAudioAnalyzerReturn {
-  const [settings, setSettings] = useState<DetectorSettings>(() => ({
-    ...DEFAULT_SETTINGS,
-    ...initialSettings,
-  }))
+  const [settings, setSettings] = useState<DetectorSettings>(() => {
+    const saved = customDefaultsStorage.load()
+    return {
+      ...DEFAULT_SETTINGS,
+      ...(saved ?? {}),
+      ...initialSettings,
+    }
+  })
 
   const settingsRef = useRef(settings)
+
+  // Auto-persist settings to localStorage on every change
+  useEffect(() => {
+    customDefaultsStorage.save(settings)
+  }, [settings])
 
   // Keep settings ref in sync
   useEffect(() => {

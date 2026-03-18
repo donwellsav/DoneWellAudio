@@ -186,6 +186,20 @@ export const DisplayTab = memo(function DisplayTab({
       </Section>
 
       <Section
+        title="Algorithm Scores"
+        showTooltip={settings.showTooltips}
+        tooltip="Show contributing algorithm scores on each issue card. Useful for debugging detection behavior."
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground font-mono tracking-wide">Show on cards</span>
+          <PillToggle
+            checked={settings.showAlgorithmScores}
+            onChange={(checked) => onSettingsChange({ showAlgorithmScores: checked })}
+          />
+        </div>
+      </Section>
+
+      <Section
         title="Onboarding"
         showTooltip={settings.showTooltips}
         tooltip="Replay the first-run walkthrough that explains the core workflow."

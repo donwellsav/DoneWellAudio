@@ -1,7 +1,7 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
-> **Last updated March 2026. 158 TypeScript/TSX files, 470 tests (465 pass, 4 skip, 1 todo), 26 suites. Version 0.131.0.**
-> Quick/Full toggle removed (accordion replaces it). Content type classifier uses main-thread priority.
+> **Last updated March 2026. 159 TypeScript/TSX files, 470 tests (465 pass, 4 skip, 1 todo), 26 suites. Version 0.132.0.**
+> KTR brand logo throughout app. Settings auto-persist. Algorithm scores debug toggle. Mobile always-on swipe-to-label.
 
 ## CRITICAL RULES
 

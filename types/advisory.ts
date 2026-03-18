@@ -222,6 +222,17 @@ export interface Advisory {
   schroederFrequency?: number // Calculated Schroeder frequency for reference
   // Cluster info — tracks merged peaks in same GEQ band
   clusterCount?: number // Number of peaks merged into this advisory (default 1)
+  /** Algorithm scores that contributed to this detection (debug display) */
+  algorithmScores?: {
+    msd: number | null
+    phase: number | null
+    spectral: number | null
+    comb: number | null
+    ihr: number | null
+    ptmr: number | null
+    ml: number | null
+    fusedProbability: number
+  }
   // UI-only: resolved state (worker never produces these)
   resolved?: boolean // True when worker cleared but user hasn't dismissed yet
   resolvedAt?: number // Timestamp when marked resolved

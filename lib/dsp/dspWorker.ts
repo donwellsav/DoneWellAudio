@@ -439,8 +439,20 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         track, peak, classification, eqAdvisory, settings
       )
 
-      // Post all advisory actions to main thread
+      // Attach algorithm scores to advisory actions for debug display
       for (const action of actions) {
+        if (action.type === 'advisory') {
+          action.advisory.algorithmScores = {
+            msd: algorithmScores.msd?.feedbackScore ?? null,
+            phase: algorithmScores.phase?.feedbackScore ?? null,
+            spectral: algorithmScores.spectral?.feedbackScore ?? null,
+            comb: algorithmScores.comb?.confidence ?? null,
+            ihr: algorithmScores.ihr?.feedbackScore ?? null,
+            ptmr: algorithmScores.ptmr?.feedbackScore ?? null,
+            ml: algorithmScores.ml?.feedbackScore ?? null,
+            fusedProbability: fusionResult.feedbackProbability,
+          }
+        }
         self.postMessage(action satisfies WorkerOutboundMessage)
       }
 
