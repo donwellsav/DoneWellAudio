@@ -172,6 +172,20 @@ export const DisplayTab = memo(function DisplayTab({
       </Section>
 
       <Section
+        title="Swipe to Label"
+        showTooltip={settings.showTooltips}
+        tooltip="Swipe issue cards left to flag as FALSE+, right to CONFIRM. Hides the label buttons for a cleaner card layout. Works with touch input on any screen size."
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground font-mono tracking-wide">Swipe gestures</span>
+          <PillToggle
+            checked={settings.swipeLabeling}
+            onChange={(checked) => onSettingsChange({ swipeLabeling: checked })}
+          />
+        </div>
+      </Section>
+
+      <Section
         title="Onboarding"
         showTooltip={settings.showTooltips}
         tooltip="Replay the first-run walkthrough that explains the core workflow."

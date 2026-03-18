@@ -24,7 +24,7 @@ export const GuideTab = memo(function GuideTab() {
               <li>Detected issues appear in the <strong>Active Issues</strong> panel, sorted by frequency</li>
               <li>Each issue card shows frequency, pitch, severity, and recommended GEQ/PEQ cuts</li>
               <li>Tap the <strong>copy</strong> icon on a card to copy EQ settings to clipboard</li>
-              <li>Use <strong>Quick Controls</strong> to adjust sensitivity, or switch to <strong>Full Controls</strong> for all settings</li>
+              <li>Open the <strong>Sensitivity &amp; Range</strong> accordion in the Controls panel to adjust detection thresholds</li>
               <li>Review <strong>Feedback History</strong> to track repeat offender frequencies</li>
             </ol>
           </HelpSection>
@@ -34,7 +34,7 @@ export const GuideTab = memo(function GuideTab() {
               <li><strong>Desktop — Resizable Split:</strong> RTA spectrum (60%) and GEQ bar view (40%) side by side. Drag the divider to resize.</li>
               <li><strong>Mobile — Tabbed:</strong> Three tabs — Issues, Graph (RTA + GEQ split), and Settings. Swipe left/right to switch tabs.</li>
               <li><strong>Issues Panel:</strong> Active detected issues sorted by frequency. RUNAWAY issues pulse red. Copy EQ settings to clipboard.</li>
-              <li><strong>Controls Panel:</strong> Quick/Full toggle, sensitivity sliders, mode selector, frequency range presets, custom presets.</li>
+              <li><strong>Controls Panel:</strong> Accordion sections (Sensitivity &amp; Range open by default), sub-tab icons for Display, Room, Advanced, and Calibrate settings.</li>
               <li><strong>Algorithm Status Bar:</strong> Shows algorithm mode, active algorithms (Auto mode), FPS counter, content type, and compression status.</li>
               <li><strong>Early Warning Panel:</strong> Comb filter predictions with elapsed timer and urgency progress bar.</li>
             </ul>
@@ -57,14 +57,22 @@ export const GuideTab = memo(function GuideTab() {
             </ul>
           </HelpSection>
 
+          <HelpSection title="Issue Card Actions">
+            <ul className="space-y-2">
+              <li><strong>Copy:</strong> Tap the copy icon to copy frequency and EQ info to clipboard.</li>
+              <li><strong>FALSE+:</strong> Flag a detection as a false positive. Feeds into ML training data for better future accuracy.</li>
+              <li><strong>CONFIRM:</strong> Confirm a detection as real feedback. Symmetric labeling alongside FALSE+ for balanced training data.</li>
+              <li><strong>Swipe to Label:</strong> Enable in Display settings. Swipe a card left for FALSE+, right for CONFIRM. Hides the buttons for a cleaner layout. Works with touch input on any screen size — phones, tablets, and touchscreen monitors.</li>
+            </ul>
+          </HelpSection>
+
           <HelpSection title="Detection Controls">
             <ul className="space-y-2">
-              <li><strong>Quick / Full Controls:</strong> Pill toggle at top. Quick mode shows essentials; Full mode shows all settings.</li>
+              <li><strong>Accordion Sections:</strong> All settings organized in collapsible sections — Sensitivity &amp; Range, Detection, Algorithms, Timing &amp; Limits, Presets &amp; Mode. All closed by default.</li>
               <li><strong>Freq Range Presets:</strong> Vocal (200–8 kHz), Monitor (300–3 kHz), Full (20–20 kHz), Sub (20–250 Hz).</li>
               <li><strong>Sensitivity:</strong> Detection sensitivity — slide right for more sensitive. Lower dB values catch earlier feedback.</li>
               <li><strong>Mode Selector:</strong> Operation mode presets plus any saved custom presets.</li>
               <li><strong>Save as Preset:</strong> Save current settings as a named custom preset (up to 5). Load from mode dropdown.</li>
-              <li><strong>Full Controls extras:</strong> Ring, Growth, Music-Aware, Sustain, Confidence, Algorithm grid, A-Weighting, and more.</li>
             </ul>
           </HelpSection>
         </div>
@@ -77,7 +85,7 @@ export const GuideTab = memo(function GuideTab() {
           <HelpSection title="Settings Sidebar (5 Icon Tabs)">
             <ul className="space-y-2">
               <li><strong>Detect:</strong> Sensitivity, algorithm mode, FFT size, smoothing, thresholds, A-weighting, harmonic filter, noise floor, peak detection, max tracks, track timeout, whistle suppression. Uses accordion sections for progressive disclosure.</li>
-              <li><strong>Display:</strong> Tooltips, graph font size, max issues, EQ style, RTA dB range, spectrum line width.</li>
+              <li><strong>Display:</strong> Tooltips, graph font size, max issues, EQ style, RTA dB range, spectrum line width, swipe-to-label toggle.</li>
               <li><strong>Room:</strong> Room acoustics presets, RT60, volume, Schroeder frequency, modal overlap.</li>
               <li><strong>Advanced:</strong> Save/load defaults, reset to factory settings.</li>
               <li><strong>Calibrate:</strong> Room profile (dimensions, materials, mics), ambient noise capture, measurement mic compensation (Behringer ECM8000, dbx RTA-M, or Smartphone MEMS), calibration session recording with live stats and JSON export.</li>

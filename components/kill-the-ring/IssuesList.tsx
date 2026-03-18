@@ -30,9 +30,10 @@ interface IssuesListProps {
   onConfirmFeedback?: (advisoryId: string) => void
   confirmedIds?: ReadonlySet<string>
   isLowSignal?: boolean
+  swipeLabeling?: boolean
 }
 
-export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10, dismissedIds, onClearAll, onClearResolved, touchFriendly, isRunning, onStart, onFalsePositive, falsePositiveIds, onConfirmFeedback, confirmedIds, isLowSignal }: IssuesListProps) {
+export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10, dismissedIds, onClearAll, onClearResolved, touchFriendly, isRunning, onStart, onFalsePositive, falsePositiveIds, onConfirmFeedback, confirmedIds, isLowSignal, swipeLabeling }: IssuesListProps) {
   // Filter dismissed, sort repeat offenders to top by hit count, then slice to max.
   // We attach occurrenceCount here so IssueCard doesn't need to re-query feedbackHistory.
   const latestSorted = useMemo(() => {
@@ -173,6 +174,7 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
               isFalsePositive={falsePositiveIds?.has(advisory.id) ?? false}
               onConfirmFeedback={onConfirmFeedback}
               isConfirmed={confirmedIds?.has(advisory.id) ?? false}
+              swipeLabeling={swipeLabeling}
             />
           ))}
         </>
@@ -180,6 +182,11 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
     </div>
   )
 })
+
+/** Minimum horizontal distance (px) to trigger a swipe action */
+const SWIPE_THRESHOLD = 60
+/** Maximum vertical distance (px) before we consider it a scroll, not a swipe */
+const SWIPE_VERTICAL_LIMIT = 40
 
 interface IssueCardProps {
   advisory: Advisory
@@ -189,9 +196,10 @@ interface IssueCardProps {
   isFalsePositive?: boolean
   onConfirmFeedback?: (advisoryId: string) => void
   isConfirmed?: boolean
+  swipeLabeling?: boolean
 }
 
-const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFriendly, onFalsePositive, isFalsePositive, onConfirmFeedback, isConfirmed }: IssueCardProps) {
+const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFriendly, onFalsePositive, isFalsePositive, onConfirmFeedback, isConfirmed, swipeLabeling }: IssueCardProps) {
   // Memoize derived values that only change when the advisory object changes
   const {
     severityColor, pitchStr, exactFreqStr,
@@ -250,6 +258,62 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
     return parts
   }, [advisory.modalOverlapFactor, advisory.cumulativeGrowthDb, advisory.frequencyBand])
 
+  // ── Swipe-to-label gesture handling ─────────────────────────────────
+  const [swipeX, setSwipeX] = useState(0)
+  const [swiping, setSwiping] = useState(false)
+  const touchStart = useRef<{ x: number; y: number } | null>(null)
+  const swipeLocked = useRef(false) // true once we commit to horizontal swipe
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!swipeLabeling) return
+    const t = e.touches[0]
+    touchStart.current = { x: t.clientX, y: t.clientY }
+    swipeLocked.current = false
+    setSwiping(false)
+  }, [swipeLabeling])
+
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!swipeLabeling || !touchStart.current) return
+    const t = e.touches[0]
+    const dx = t.clientX - touchStart.current.x
+    const dy = t.clientY - touchStart.current.y
+
+    // If vertical movement dominates, bail — let the list scroll
+    if (!swipeLocked.current) {
+      if (Math.abs(dy) > SWIPE_VERTICAL_LIMIT) {
+        touchStart.current = null
+        setSwipeX(0)
+        setSwiping(false)
+        return
+      }
+      // Lock to horizontal once we've moved enough
+      if (Math.abs(dx) > 10) swipeLocked.current = true
+    }
+
+    if (swipeLocked.current) {
+      e.preventDefault() // prevent scroll while swiping horizontally
+      setSwipeX(dx)
+      setSwiping(true)
+    }
+  }, [swipeLabeling])
+
+  const onTouchEnd = useCallback(() => {
+    if (!swipeLabeling || !touchStart.current) return
+    if (swipeX < -SWIPE_THRESHOLD && onFalsePositive) {
+      onFalsePositive(advisory.id)
+    } else if (swipeX > SWIPE_THRESHOLD && onConfirmFeedback) {
+      onConfirmFeedback(advisory.id)
+    }
+    touchStart.current = null
+    setSwipeX(0)
+    setSwiping(false)
+    swipeLocked.current = false
+  }, [swipeLabeling, swipeX, onFalsePositive, onConfirmFeedback, advisory.id])
+
+  // Swipe progress ratio for visual feedback (clamped 0-1)
+  const swipeProgress = Math.min(Math.abs(swipeX) / SWIPE_THRESHOLD, 1)
+  const swipeDirection = swipeX < 0 ? 'left' : swipeX > 0 ? 'right' : null
+
   return (
     <div
       className={`relative flex flex-col rounded border bg-card/80 transition-all overflow-hidden animate-in fade-in-0 slide-in-from-left-2 duration-200 ${
@@ -263,14 +327,51 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
                   ? 'border-amber-500/60 shadow-[0_0_8px_rgba(245,158,11,0.3)] ring-1 ring-amber-500/15'
                   : 'border-border hover:border-border/80'
       }`}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
     >
+      {/* Swipe reveal backgrounds — red (left=false+) / green (right=confirm) */}
+      {swipeLabeling && swiping && (
+        <div className="absolute inset-0 flex items-center z-0" aria-hidden>
+          {swipeDirection === 'left' && (
+            <div
+              className="absolute inset-0 flex items-center justify-end pr-4 rounded"
+              style={{ backgroundColor: `rgba(239, 68, 68, ${swipeProgress * 0.3})` }}
+            >
+              <span className="text-xs font-mono font-bold text-red-300 uppercase tracking-wider"
+                style={{ opacity: swipeProgress }}>
+                FALSE+
+              </span>
+            </div>
+          )}
+          {swipeDirection === 'right' && (
+            <div
+              className="absolute inset-0 flex items-center justify-start pl-4 rounded"
+              style={{ backgroundColor: `rgba(16, 185, 129, ${swipeProgress * 0.3})` }}
+            >
+              <span className="text-xs font-mono font-bold text-emerald-300 uppercase tracking-wider"
+                style={{ opacity: swipeProgress }}>
+                CONFIRM
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Left severity accent */}
       <div
         className="absolute left-0 top-0 bottom-0 w-1.5 rounded-r-sm"
         style={{ backgroundColor: isResolved ? 'hsl(var(--muted))' : severityColor }}
       />
 
-      <div className="pl-3 pr-1.5 py-1.5 flex flex-col gap-1">
+      <div
+        className="pl-3 pr-1.5 py-1.5 flex flex-col gap-1 relative z-10"
+        style={swipeLabeling && swiping ? {
+          transform: `translateX(${swipeX}px)`,
+          transition: swiping ? 'none' : 'transform 200ms ease-out',
+        } : undefined}
+      >
 
         {/* Top section: 3-column — frequency LEFT, badges MIDDLE, dismiss RIGHT */}
         <div className="flex items-start justify-between gap-2">
@@ -392,7 +493,7 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
               {copied && (
                 <span className="sr-only" role="status">Frequency info copied</span>
               )}
-              {onFalsePositive && (
+              {onFalsePositive && !swipeLabeling && (
                 <button
                   onClick={() => onFalsePositive(advisory.id)}
                   aria-label={`${isFalsePositive ? 'Unflag' : 'Flag'} ${exactFreqStr} as false positive`}
@@ -406,7 +507,7 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
                 </button>
               )}
             </div>
-            {onConfirmFeedback && (
+            {onConfirmFeedback && !swipeLabeling && (
               <button
                 onClick={() => onConfirmFeedback(advisory.id)}
                 aria-label={`${isConfirmed ? 'Unconfirm' : 'Confirm'} ${exactFreqStr} as real feedback`}

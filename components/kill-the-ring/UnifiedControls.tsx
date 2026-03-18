@@ -123,16 +123,7 @@ export const UnifiedControls = memo(function UnifiedControls({
   calibration,
   dataCollection,
 }: UnifiedControlsProps) {
-  const isQuick = settings.quickControlsMode
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('detect')
-
-  // Reset to detect tab when switching to quick mode
-  useEffect(() => {
-    if (isQuick && activeSubTab !== 'detect') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync with quick mode
-      setActiveSubTab('detect')
-    }
-  }, [isQuick, activeSubTab])
 
   const handleFreqSliderChange = useCallback(([logMin, logMax]: number[]) => {
     const newMin = roundFreqToNice(Math.pow(10, logMin))
@@ -218,33 +209,8 @@ export const UnifiedControls = memo(function UnifiedControls({
     <TooltipProvider delayDuration={400}>
       <div className="@container space-y-1.5">
 
-        {/* Quick / Full toggle pills */}
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => onSettingsChange({ quickControlsMode: true })}
-            className={`cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 px-3 py-1 rounded text-sm font-mono font-bold tracking-wide transition-colors ${
-              isQuick
-                ? 'bg-primary/20 text-primary border border-primary/40'
-                : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'
-            }`}
-          >
-            Quick
-          </button>
-          <button
-            onClick={() => onSettingsChange({ quickControlsMode: false })}
-            className={`cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 px-3 py-1 rounded text-sm font-mono font-bold tracking-wide transition-colors ${
-              !isQuick
-                ? 'bg-primary/20 text-primary border border-primary/40'
-                : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'
-            }`}
-          >
-            Full
-          </button>
-        </div>
-
-        {/* Sub-tab strip — Full mode only, icon-only with tooltips */}
-        {!isQuick && (
-          <div className="flex justify-center gap-1 border-b border-border -mx-1 pb-px">
+        {/* Sub-tab strip — icon-only with tooltips */}
+        <div className="flex justify-center gap-1 border-b border-border -mx-1 pb-px">
             {subTabs.map(({ id, label, Icon }) => (
               <Tooltip key={id}>
                 <TooltipTrigger asChild>
@@ -264,15 +230,13 @@ export const UnifiedControls = memo(function UnifiedControls({
               </Tooltip>
             ))}
           </div>
-        )}
 
         {/* ── Content ─────────────────────────────────────────────── */}
 
-        {/* Quick mode OR Detect sub-tab */}
-        {(isQuick || activeSubTab === 'detect') && (
+        {/* Detect sub-tab */}
+        {activeSubTab === 'detect' && (
           <DetectContent
             settings={settings}
-            isQuick={isQuick}
             onSettingsChange={onSettingsChange}
             onModeChange={onModeChange}
             handleFreqSliderChange={handleFreqSliderChange}
@@ -288,22 +252,22 @@ export const UnifiedControls = memo(function UnifiedControls({
         )}
 
         {/* Display sub-tab */}
-        {!isQuick && activeSubTab === 'display' && (
+        {activeSubTab === 'display' && (
           <DisplayTab settings={settings} onSettingsChange={onSettingsChange} />
         )}
 
         {/* Room sub-tab */}
-        {!isQuick && activeSubTab === 'room' && (
+        {activeSubTab === 'room' && (
           <RoomTab settings={settings} onSettingsChange={onSettingsChange} />
         )}
 
         {/* Advanced sub-tab */}
-        {!isQuick && activeSubTab === 'advanced' && (
+        {activeSubTab === 'advanced' && (
           <AdvancedTab settings={settings} onSettingsChange={onSettingsChange} {...dataCollection} />
         )}
 
         {/* Calibrate sub-tab */}
-        {!isQuick && activeSubTab === ('calibrate' as SubTab) && calibration && (
+        {activeSubTab === ('calibrate' as SubTab) && calibration && (
           <div className="mt-2">
             <CalibrationTab settings={settings} onSettingsChange={onSettingsChange} {...calibration} />
           </div>
@@ -348,7 +312,6 @@ export const UnifiedControls = memo(function UnifiedControls({
 
 interface DetectContentProps {
   settings: DetectorSettings
-  isQuick: boolean
   onSettingsChange: (settings: Partial<DetectorSettings>) => void
   onModeChange: (mode: OperationMode) => void
   handleFreqSliderChange: (values: number[]) => void
@@ -420,65 +383,15 @@ const PresetsList = memo(function PresetsList({ presets, onLoad, onDelete }: {
 })
 
 const DetectContent = memo(function DetectContent({
-  settings, isQuick, onSettingsChange, onModeChange,
+  settings, onSettingsChange, onModeChange,
   handleFreqSliderChange,
   customPresets, showSaveInput, setShowSaveInput,
   presetName, setPresetName, handleSavePreset, handleDeletePreset, handleLoadPreset,
 }: DetectContentProps) {
   return (
     <>
-      {/* ── Quick mode: flat layout ──────────────────────────── */}
-      {isQuick && (
-        <div className="space-y-2">
-          <div className="space-y-0.5">
-            <span className="section-label">Fader Control</span>
-            <PillToggle
-              checked={settings.faderMode === 'sensitivity'}
-              onChange={(isSensitivity) => onSettingsChange({ faderMode: isSensitivity ? 'sensitivity' : 'gain' })}
-              labelOn="Sensitivity"
-              labelOff="Input Gain"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <div className="flex items-center gap-1 flex-wrap">
-              {FREQ_RANGE_PRESETS.map((preset) => {
-                const isActive = settings.minFrequency === preset.minFrequency && settings.maxFrequency === preset.maxFrequency
-                return (
-                  <button key={preset.label} onClick={() => onSettingsChange({ minFrequency: preset.minFrequency, maxFrequency: preset.maxFrequency })}
-                    className={`cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 px-1.5 py-0.5 rounded text-sm font-mono font-bold tracking-wide transition-colors ${isActive ? 'bg-primary/20 text-primary border border-primary/40' : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'}`}
-                  >{preset.label}</button>
-                )
-              })}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-mono text-muted-foreground tracking-wide">Freq Range</span>
-              <span className="text-sm font-mono text-foreground tabular-nums">{formatFreqLabel(settings.minFrequency)}-{formatFreqLabel(settings.maxFrequency)}</span>
-            </div>
-            <Slider value={[Math.log10(Math.max(20, settings.minFrequency)), Math.log10(Math.min(20000, settings.maxFrequency))]} onValueChange={handleFreqSliderChange} min={LOG_MIN} max={LOG_MAX} step={0.005} minStepsBetweenThumbs={0.1} />
-          </div>
-
-          <SliderRow label="Sensitivity" value={`${settings.feedbackThresholdDb}dB`}
-            tooltip={settings.showTooltips ? 'Detection sensitivity. Slide right for more sensitive.' : undefined}
-            min={2} max={50} step={1} sliderValue={52 - settings.feedbackThresholdDb} onChange={(v) => onSettingsChange({ feedbackThresholdDb: 52 - v })} />
-
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Show on RTA</span>
-            <PillToggle checked={settings.showThresholdLine} onChange={(checked) => onSettingsChange({ showThresholdLine: checked })} />
-          </div>
-
-          <div className="border-t border-border pt-2 space-y-1">
-            <span className="section-label">Mode</span>
-            <ModeChips current={settings.mode} onModeChange={onModeChange} />
-          </div>
-
-          <PresetsList presets={customPresets} onLoad={handleLoadPreset} onDelete={handleDeletePreset} />
-        </div>
-      )}
-
-      {/* ── Full mode: accordion sections ────────────────────── */}
-      {!isQuick && (
-        <Accordion type="multiple" defaultValue={['sensitivity', 'detection']} className="space-y-0">
+      {/* ── Accordion sections — Sensitivity open by default ────────── */}
+      <Accordion type="multiple" defaultValue={['sensitivity']} className="space-y-0">
           {/* ── Sensitivity & Range ────────────── */}
           <AccordionItem value="sensitivity" className="border-b border-border/40">
             <AccordionTrigger className="py-2 text-xs font-mono font-bold uppercase tracking-[0.15em] text-muted-foreground hover:text-foreground hover:no-underline">
@@ -754,7 +667,6 @@ const DetectContent = memo(function DetectContent({
             </AccordionContent>
           </AccordionItem>
         </Accordion>
-      )}
     </>
   )
 })

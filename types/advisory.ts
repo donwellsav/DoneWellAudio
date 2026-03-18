@@ -355,6 +355,7 @@ export interface DetectorSettings {
   canvasTargetFps: number // Target FPS for canvas rendering (15-60, default 30)
   quickControlsMode: boolean // Show simplified controls (true) or full controls (false)
   faderMode: 'gain' | 'sensitivity' // Vertical fader strip mode: input gain (white) or sensitivity (blue)
+  swipeLabeling: boolean // Enable swipe-to-label on issue cards (left=false+, right=confirm). Hides buttons when on.
 }
 
 // Default configuration - optimized for Corporate/Conference PA (Speech mode)

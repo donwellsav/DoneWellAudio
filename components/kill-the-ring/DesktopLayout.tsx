@@ -144,6 +144,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                       onConfirmFeedback={onConfirmFeedback}
                       confirmedIds={confirmedIds}
                       isLowSignal={isRunning && inputLevel < -45}
+                      swipeLabeling={settings.swipeLabeling}
                     />
                     <EarlyWarningPanel earlyWarning={earlyWarning} />
                   </div>
@@ -204,6 +205,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                 onConfirmFeedback={onConfirmFeedback}
                 confirmedIds={confirmedIds}
                 isLowSignal={isRunning && inputLevel < -45}
+                swipeLabeling={settings.swipeLabeling}
               />
               <EarlyWarningPanel earlyWarning={earlyWarning} />
             </div>

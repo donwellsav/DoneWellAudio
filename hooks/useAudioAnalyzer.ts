@@ -177,7 +177,9 @@ export function useAudioAnalyzer(
               autoGainEnabled: data.autoGainEnabled,
               autoGainLocked: data.autoGainLocked,
               algorithmMode: workerStatusRef.current.algorithmMode ?? data.algorithmMode,
-              contentType: workerStatusRef.current.contentType ?? data.contentType,
+              // Main thread contentType runs every ~500ms regardless of peaks.
+              // Worker only classifies when peaks arrive. Main thread is the authority.
+              contentType: data.contentType ?? workerStatusRef.current.contentType,
               msdFrameCount: data.msdFrameCount,
               isCompressed: workerStatusRef.current.isCompressed ?? data.isCompressed,
               compressionRatio: workerStatusRef.current.compressionRatio ?? data.compressionRatio,

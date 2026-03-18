@@ -721,6 +721,7 @@ export const DEFAULT_SETTINGS: DetectorSettings = {
   canvasTargetFps: 30, // 30 fps halves GPU/CPU canvas work vs 60 fps; no perceptible quality loss
   quickControlsMode: true, // Default to simplified controls for less overwhelming UX
   faderMode: 'sensitivity' as const, // Fader strip: 'gain' (input gain, white) or 'sensitivity' (threshold, blue)
+  swipeLabeling: false, // Swipe-to-label on issue cards (off by default — opt-in feature)
 }
 
 // Room size presets — covers common professional venue types

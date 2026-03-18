@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.131.0',
+    date: '2026-03-18',
+    highlights: 'Swipe-to-label, content type fix',
+    changes: [
+      { type: 'feat', description: 'Swipe-to-label on issue cards — swipe left for FALSE+, right for CONFIRM. Enable in Display settings. Works on any touchscreen.' },
+      { type: 'fix', description: 'Content type classifier rewritten — removed unreliable single-feature gates, uses 4-feature scoring (centroid, rolloff, flatness, crest factor) with temporal smoothing' },
+      { type: 'fix', description: 'Content type no longer stuck on "unknown" for speech — detection runs on main thread every 500ms regardless of peak detection' },
+      { type: 'fix', description: 'Content type display priority: main-thread classification (runs every 500ms) now takes priority over worker per-peak classification' },
+      { type: 'ui', description: 'Removed Quick/Full controls toggle — accordion sections make it redundant. Sensitivity & Range open by default, rest closed.' },
+    ],
+  },
+  {
     version: '0.130.0',
     date: '2026-03-17',
     highlights: 'MSD status, content type detection, unified settings',

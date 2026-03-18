@@ -180,6 +180,10 @@ export class FeedbackDetector {
   // Advanced algorithm state — set externally by DSP pipeline, returned via getState()
   private _algorithmMode: AlgorithmMode | undefined = undefined
   private _contentType: ContentType | undefined = undefined
+  /** Rolling window of recent content type classifications for majority-vote smoothing.
+   *  10 slots × 500ms interval = 5-second smoothing window. Prevents single-frame flips. */
+  private _contentTypeHistory: ContentType[] = []
+  private static readonly CONTENT_TYPE_WINDOW = 10
   private _msdFrameCount: number | undefined = undefined
   private _isCompressed: boolean | undefined = undefined
   private _compressionRatio: number | undefined = undefined
@@ -670,6 +674,8 @@ export class FeedbackDetector {
     this._msdPool?.reset()
     this._msdFrameCount = 0
     this._fastConfirmCounts.clear()
+    this._contentTypeHistory = []
+    this._contentType = undefined
     
     // Reset persistence scoring
     if (this.persistenceCount) this.persistenceCount.fill(0)
@@ -932,7 +938,20 @@ export class FeedbackDetector {
       if (validBins > 0 && specMax > this._silenceThresholdDb) {
         const rmsDb = 10 * Math.log10(sumLinear / validBins)
         const crestFactor = specMax - rmsDb
-        this._contentType = detectContentType(freqDb, crestFactor)
+        const instantType = detectContentType(freqDb, crestFactor)
+
+        // Majority-vote smoothing: push to ring buffer, pick most frequent non-'unknown'
+        this._contentTypeHistory.push(instantType)
+        if (this._contentTypeHistory.length > FeedbackDetector.CONTENT_TYPE_WINDOW) {
+          this._contentTypeHistory.shift()
+        }
+        const counts: Record<string, number> = {}
+        for (const t of this._contentTypeHistory) {
+          if (t !== 'unknown') counts[t] = (counts[t] ?? 0) + 1
+        }
+        const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]
+        // Need at least 3 agreeing non-unknown votes to commit to a classification
+        this._contentType = best && best[1] >= 3 ? best[0] as ContentType : (this._contentType ?? 'unknown')
       }
     }
 

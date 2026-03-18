@@ -167,6 +167,7 @@ export const MobileLayout = memo(function MobileLayout({
                 onConfirmFeedback={onConfirmFeedback}
                 confirmedIds={confirmedIds}
                 isLowSignal={isRunning && inputLevel < -45}
+                swipeLabeling={settings.swipeLabeling}
               />
               <EarlyWarningPanel earlyWarning={earlyWarning} />
             </div>
@@ -319,6 +320,7 @@ export const MobileLayout = memo(function MobileLayout({
               onConfirmFeedback={onConfirmFeedback}
               confirmedIds={confirmedIds}
               isLowSignal={isRunning && inputLevel < -45}
+              swipeLabeling={settings.swipeLabeling}
             />
             <EarlyWarningPanel earlyWarning={earlyWarning} />
           </div>

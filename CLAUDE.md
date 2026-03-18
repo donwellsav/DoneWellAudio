@@ -1,6 +1,7 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
-> **Last updated March 2026. 158 TypeScript/TSX files, 468 tests (463 pass, 4 skip, 1 todo), 26 suites. Version 0.130.0.**
+> **Last updated March 2026. 158 TypeScript/TSX files, 470 tests (465 pass, 4 skip, 1 todo), 26 suites. Version 0.131.0.**
+> Quick/Full toggle removed (accordion replaces it). Content type classifier uses main-thread priority.
 
 ## CRITICAL RULES
 
@@ -294,3 +295,5 @@ scripts/ml/                     # ML training pipeline
 - **Auto MEMS calibration:** Smartphone MEMS mic profile auto-applied on mobile devices.
 - **RTA label overlap suppression:** Greedy algorithm in `spectrumDrawing.ts` prioritizes highest-severity labels, prevents clutter.
 - **Unified settings sidebar (v0.129.0):** `UnifiedControls.tsx` consolidates the old `SettingsPanel` (Sheet drawer) and `DetectionControls` (sidebar) into one component. Icon-only sub-tabs with tooltips (Detect | Display | Room | Advanced | Calibrate). Detect tab uses `<Accordion>` sections for progressive disclosure. Container queries (`@container`) replace viewport breakpoints so grids stay single-column in narrow sidebar. `LandscapeSettingsSheet.tsx` provides bottom-sheet access on mobile landscape.
+- **Swipe-to-label (v0.131.0):** Issue cards support swipe left (FALSE+) / swipe right (CONFIRM) gestures. Opt-in toggle in Display settings (`swipeLabeling`). When enabled, hides FALSE+/CONFIRM buttons. 60px threshold, vertical-scroll-safe (locks to horizontal after 10px). Works on any touchscreen (phones, tablets, touchscreen monitors). Visual feedback: card slides with red/green tint reveal.
+- **Content type temporal smoothing (v0.131.0):** `detectContentType()` rewritten to use 4-feature scoring only (centroid, rolloff, global flatness, crest factor) — removed unreliable single-feature gates. FeedbackDetector applies majority-vote smoothing over 10 frames (~5 seconds) to prevent classification flickering.
