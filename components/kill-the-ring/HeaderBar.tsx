@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { LayoutGrid, Maximize2, Mic, Minimize2, Pause, Play, Trash2 } from 'lucide-react'
+import { KtrLogo } from './KtrLogo'
 import { useAdvisories } from '@/contexts/AdvisoryContext'
 import { useEngine } from '@/contexts/EngineContext'
 import { useUI } from '@/contexts/UIContext'
@@ -24,7 +25,7 @@ export const HeaderBar = memo(function HeaderBar() {
   const hasClearableContent = advisories.some(a => !dismissedIds.has(a.id)) || hasActiveGEQBars || hasActiveRTAMarkers
 
   return (
-    <header className="relative flex flex-row items-center justify-between gap-2 sm:gap-4 px-3 py-2 border-b border-border bg-card/90 backdrop-blur-sm shadow-[0_1px_12px_rgba(0,0,0,0.5),0_1px_0_rgba(75,146,255,0.08)] sm:px-4 sm:py-2">
+    <header className="relative flex flex-row items-center justify-between gap-2 sm:gap-4 px-3 py-1 border-b border-border bg-card/90 backdrop-blur-sm shadow-[0_1px_12px_rgba(0,0,0,0.5),0_1px_0_rgba(75,146,255,0.08)] sm:px-4 sm:py-1">
 
       {/* ── Logo + start button (responsive single block) ─────────── */}
       <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
@@ -32,19 +33,11 @@ export const HeaderBar = memo(function HeaderBar() {
           <button
             onClick={isRunning ? stop : start}
             aria-label={isRunning ? 'Stop analysis' : 'Start analysis'}
-            className="relative w-12 h-12 flex items-center justify-center flex-shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full ring-1 ring-primary/20 shadow-[0_0_8px_rgba(75,146,255,0.15)]"
+            className="relative flex items-center justify-center flex-shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
           >
-            <div className={`absolute inset-1 rounded-full border-2 transition-colors duration-300 ${isRunning ? 'border-primary' : 'border-primary/50'}`} />
-            {isRunning && (
-              <div className="absolute inset-1 rounded-full border border-primary/40 animate-led-blink" />
-            )}
-            <svg
-              className={`size-6 relative z-10 transition-colors duration-300 ${isRunning ? 'text-primary drop-shadow-[0_0_4px_rgba(75,146,255,0.4)]' : 'text-muted-foreground hover:text-primary'}`}
-              viewBox="0 0 24 24"
-              fill="currentColor"
-            >
-              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.31-2.5-4.06v8.12c1.48-.75 2.5-2.29 2.5-4.06zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-            </svg>
+            <KtrLogo
+              className={`size-16 transition-colors duration-300 ${isRunning ? 'text-foreground drop-shadow-[0_0_8px_rgba(75,146,255,0.6)] animate-led-blink' : 'text-foreground/70 hover:text-foreground'}`}
+            />
           </button>
         </div>
 
