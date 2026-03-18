@@ -14,14 +14,7 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '0.133.1',
-    date: '2026-03-18',
-    changes: [
-      { type: 'fix', description: 'v0.133.0: UI overhaul — frosted glass, amber spectrum, audio-reactive logo (#140)' },
-    ],
-  },
-  {
-    version: '0.133.0',
+    version: '0.140.0',
     date: '2026-03-18',
     highlights: 'UI overhaul: frosted glass, amber spectrum, audio-reactive logo, freq zones',
     changes: [
@@ -37,7 +30,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    version: '0.132.0',
+    version: '0.139.0',
     date: '2026-03-18',
     highlights: 'KTR brand logo, settings persistence, algorithm scores debug',
     changes: [
@@ -49,7 +42,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    version: '0.131.0',
+    version: '0.136.0',
     date: '2026-03-18',
     highlights: 'Swipe-to-label, content type fix',
     changes: [
@@ -61,7 +54,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    version: '0.130.0',
+    version: '0.134.0',
     date: '2026-03-17',
     highlights: 'MSD status, content type detection, unified settings',
     changes: [
