@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.133.1',
+    date: '2026-03-18',
+    changes: [
+      { type: 'fix', description: 'v0.133.0: UI overhaul — frosted glass, amber spectrum, audio-reactive logo (#140)' },
+    ],
+  },
+  {
     version: '0.133.0',
     date: '2026-03-18',
     highlights: 'UI overhaul: frosted glass, amber spectrum, audio-reactive logo, freq zones',
