@@ -846,31 +846,39 @@ export function detectContentType(
   const rolloffNormalized = rolloffBin / spectrum.length
 
   // ── Multi-feature scoring ──────────────────────────────────────────
+  // Weights reflect real-world reliability through a laptop/phone mic:
+  //   centroid + rolloff = most reliable (speech energy stays low, music spreads)
+  //   global flatness = reliable (speech formants are peaked, music fills bins)
+  //   crest factor = least reliable (a solo instrument can spike it either way)
   let speechScore = 0
   let musicScore = 0
 
-  // Spectral centroid: speech is concentrated low (100–4 kHz)
-  if (centroidNormalized < 0.12) speechScore += 0.3
-  else if (centroidNormalized < 0.20) speechScore += 0.15
-  if (centroidNormalized > 0.15) musicScore += 0.2
+  // Spectral centroid: speech concentrates in 100–4kHz, music spreads wider
+  if (centroidNormalized < 0.10) speechScore += 0.35
+  else if (centroidNormalized < 0.15) speechScore += 0.20
+  else if (centroidNormalized < 0.20) speechScore += 0.05
+  if (centroidNormalized > 0.20) musicScore += 0.30
+  else if (centroidNormalized > 0.15) musicScore += 0.15
 
-  // Spectral rolloff: speech energy rolls off early
-  if (rolloffNormalized < 0.18) speechScore += 0.25
-  else if (rolloffNormalized < 0.25) speechScore += 0.1
-  if (rolloffNormalized > 0.25) musicScore += 0.2
+  // Spectral rolloff: speech energy dies above ~4kHz
+  if (rolloffNormalized < 0.15) speechScore += 0.30
+  else if (rolloffNormalized < 0.22) speechScore += 0.15
+  if (rolloffNormalized > 0.25) musicScore += 0.30
+  else if (rolloffNormalized > 0.18) musicScore += 0.10
 
-  // Crest factor: speech has pauses → higher crest (>10 dB typical)
-  if (crestFactor > 12) speechScore += 0.25
-  else if (crestFactor > 10) speechScore += 0.15
-  else if (crestFactor > 8) speechScore += 0.05
-  if (crestFactor < 8 && crestFactor > 4) musicScore += 0.2
+  // Global spectral flatness: speech formants = low, music dense harmonics = higher
+  if (globalFlatness < 0.03) speechScore += 0.25
+  else if (globalFlatness < 0.06) speechScore += 0.15
+  else if (globalFlatness < 0.10) speechScore += 0.05
+  if (globalFlatness > 0.15) musicScore += 0.25
+  else if (globalFlatness > 0.08) musicScore += 0.10
 
-  // Global spectral flatness: speech is tonal (low), music is dense (high)
-  if (globalFlatness < 0.03) speechScore += 0.3
-  else if (globalFlatness < 0.08) speechScore += 0.2
-  else if (globalFlatness < 0.12) speechScore += 0.1
-  if (globalFlatness > 0.10) musicScore += 0.2
-  if (globalFlatness > 0.20) musicScore += 0.15
+  // Crest factor: weak signal — unreliable for speech vs music discrimination
+  // because a loud fundamental in music can produce crest > 12 dB easily.
+  // Small contribution to avoid over-weighting.
+  if (crestFactor > 14) speechScore += 0.10
+  else if (crestFactor > 12) speechScore += 0.05
+  if (crestFactor < 7) musicScore += 0.10
 
   if (speechScore > musicScore && speechScore > 0.3) return 'speech'
   if (musicScore > speechScore && musicScore > 0.3) return 'music'

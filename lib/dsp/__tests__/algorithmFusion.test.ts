@@ -305,9 +305,23 @@ describe('detectContentType', () => {
     expect(result).toBe('speech')
   })
 
+  it('detects speech regardless of crest factor when spectral shape is speech-like', () => {
+    // Key test: spectral centroid + rolloff + flatness should dominate over crest factor.
+    // Speech with moderate crest (sustained vowel, no pauses) should still classify as speech.
+    const result = detectContentType(speechSpectrum(), 7)
+    expect(result).toBe('speech')
+  })
+
   it('detects music from music-like spectrum + moderate crest factor', () => {
     // Music: broad energy spread, moderate crest factor
     const result = detectContentType(musicSpectrum(), 7)
+    expect(result).toBe('music')
+  })
+
+  it('detects music even with high crest factor when spectral shape is music-like', () => {
+    // Key test: music with a loud fundamental can have high crest factor (> 12 dB).
+    // The broad spectral spread should still classify as music, not speech.
+    const result = detectContentType(musicSpectrum(), 13)
     expect(result).toBe('music')
   })
 
