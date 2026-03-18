@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.142.1',
+    date: '2026-03-18',
+    changes: [
+      { type: 'fix', description: 'v0.142.0: draggable threshold, compact UI, header hierarchy, GEQ ghost bars (#142)' },
+    ],
+  },
+  {
     version: '0.142.0',
     date: '2026-03-18',
     highlights: 'Draggable threshold, compact start area, header hierarchy, GEQ ghost bars',
