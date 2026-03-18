@@ -210,6 +210,12 @@
     animation: start-glow 3s ease-in-out infinite;
   }
 
+  /* Scanning sweep line for monitoring standby state */
+  @keyframes scan {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(300%); }
+  }
+
   /* ── Issue card entrance animation ────────────────────────────────────── */
   @keyframes issue-enter {
     0% {

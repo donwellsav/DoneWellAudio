@@ -14,10 +14,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '0.140.1',
+    version: '0.142.0',
     date: '2026-03-18',
+    highlights: 'Draggable threshold, compact start area, header hierarchy, GEQ ghost bars',
     changes: [
-      { type: 'fix', description: 'fix: align version numbering with PR convention (#141)' },
+      { type: 'feat', description: 'Draggable sensitivity threshold on RTA — drag the dashed line up/down to adjust detection sensitivity directly on the spectrum' },
+      { type: 'ui', description: 'Threshold grab handle — visible 8×28px rounded rect with drag-affordance notches on the right side of the threshold line' },
+      { type: 'ui', description: 'Compact start button area — logo 80px (was 144px), shorter text, less dead space in issues panel' },
+      { type: 'ui', description: 'Monitoring standby shows animated scanning sweep line instead of static text' },
+      { type: 'ui', description: 'Header icon hierarchy — mic selector larger+brighter, active-state icons get blue pill background, Clear All shows red notification dot' },
+      { type: 'ui', description: 'Thin separator before Help/History icons in header for visual grouping' },
+      { type: 'ui', description: 'GEQ ghost bars — breathing opacity animation on inactive bands, indicates "waiting for data" instead of empty void' },
+      { type: 'ui', description: 'Removed redundant "Resolved" text badge from issue cards — dimmed styling already communicates resolved state' },
     ],
   },
   {

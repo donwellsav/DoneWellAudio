@@ -136,10 +136,18 @@ function drawBars(
         ctx.fillText(badgeText, x + barWidth + 4, y + 10)
       }
     } else {
-      // Inactive - subtle bar slot (barely visible, reduces visual noise)
+      // Inactive — ghost bar with breathing opacity (indicates "GEQ waiting for data")
+      const ghostHeight = (plotHeight - 10) * (0.08 + 0.04 * Math.sin(i * 0.7)) // vary per band
+      const breathe = 0.04 + 0.03 * Math.sin(Date.now() / 1500 + i * 0.5) // subtle breathing
+      ctx.fillStyle = `rgba(75, 146, 255, ${breathe})`
+      const ghostY = centerY - ghostHeight / 2
+      ctx.beginPath()
+      ctx.roundRect(x, ghostY, barWidth, ghostHeight, 2)
+      ctx.fill()
+      // Faint outline
       ctx.strokeStyle = '#121416'
       ctx.lineWidth = 0.5
-      ctx.strokeRect(x, centerY - (plotHeight / 2) + 5, barWidth, plotHeight - 10)
+      ctx.stroke()
     }
   }
 
@@ -312,7 +320,8 @@ export const GEQBarView = memo(function GEQBarView({ advisories, graphFontSize =
 
   const render = useCallback(() => {
     // Dirty check: skip frame if nothing changed since last draw
-    if (!dirtyRef.current) return
+    // Ghost bars animate via Date.now() — always redraw when there are inactive bands
+    if (!dirtyRef.current && bandRecommendations.size >= 31) return
     dirtyRef.current = false
 
     const canvas = canvasRef.current

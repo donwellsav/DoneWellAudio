@@ -73,7 +73,7 @@ export const HeaderBar = memo(function HeaderBar() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-10 w-10 text-muted-foreground hover:text-foreground btn-glow"
+                    className="h-11 w-11 text-foreground/70 hover:text-foreground btn-glow"
                     aria-label="Select audio input"
                   >
                     <Mic className="size-6" />
@@ -122,7 +122,7 @@ export const HeaderBar = memo(function HeaderBar() {
               variant="ghost"
               size="icon"
               onClick={toggleRtaFullscreen}
-              className="flex h-10 w-10 text-muted-foreground hover:text-foreground btn-glow"
+              className={`flex h-10 w-10 btn-glow ${isRtaFullscreen ? 'text-primary bg-primary/15 rounded-md' : 'text-muted-foreground hover:text-foreground'}`}
               aria-label={isRtaFullscreen ? 'Exit RTA fullscreen' : 'RTA fullscreen'}
             >
               {isRtaFullscreen ? <Minimize2 className="size-6" /> : <Maximize2 className="size-6" />}
@@ -140,8 +140,8 @@ export const HeaderBar = memo(function HeaderBar() {
                 variant="ghost"
                 size="icon"
                 onClick={toggleFreeze}
-                className={`hidden tablet:flex tablet:landscape:hidden md:landscape:flex h-10 w-10 ${
-                  isFrozen ? 'text-blue-400' : 'text-muted-foreground hover:text-foreground'
+                className={`hidden tablet:flex tablet:landscape:hidden md:landscape:flex h-10 w-10 btn-glow ${
+                  isFrozen ? 'text-primary bg-primary/15 rounded-md' : 'text-muted-foreground hover:text-foreground'
                 }`}
                 aria-label={isFrozen ? 'Unfreeze spectrum' : 'Freeze spectrum'}
                 aria-pressed={isFrozen}
@@ -162,7 +162,7 @@ export const HeaderBar = memo(function HeaderBar() {
               size="icon"
               onClick={() => { onClearAll(); onClearGEQ(); onClearRTA() }}
               disabled={!hasClearableContent}
-              className={`h-10 w-10 btn-glow ${
+              className={`relative h-10 w-10 btn-glow ${
                 hasClearableContent
                   ? 'text-muted-foreground hover:text-red-400'
                   : 'text-muted-foreground/30 cursor-default'
@@ -170,6 +170,9 @@ export const HeaderBar = memo(function HeaderBar() {
               aria-label="Clear all advisories, GEQ, and RTA markers"
             >
               <Trash2 className="size-5" />
+              {hasClearableContent && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-400/80" />
+              )}
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-sm">
@@ -178,6 +181,7 @@ export const HeaderBar = memo(function HeaderBar() {
         </Tooltip>
 
         <FeedbackHistoryPanel />
+        <div className="hidden sm:block w-px h-6 bg-border/40 mx-0.5" />
         <Suspense fallback={<div className="h-10 w-10" />}>
           <LazyHelpMenu />
         </Suspense>

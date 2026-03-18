@@ -201,12 +201,35 @@ export function drawIndicatorLines(
     ctx.lineTo(plotWidth, threshY)
     ctx.stroke()
     ctx.setLineDash([])
-    // Right-aligned label
+    // Grab handle — rounded rect on right side, indicates draggable
+    const handleW = 8
+    const handleH = 28
+    const handleX = plotWidth - handleW - 2
+    const handleY = threshY - handleH / 2
+    ctx.fillStyle = VIZ_COLORS.THRESHOLD
+    ctx.globalAlpha = 0.7
+    const handlePath = new Path2D()
+    handlePath.roundRect(handleX, handleY, handleW, handleH, 3)
+    ctx.fill(handlePath)
+    // Inner notch lines (3 horizontal lines to indicate drag affordance)
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)'
+    ctx.lineWidth = 1
+    ctx.globalAlpha = 1
+    for (let i = -1; i <= 1; i++) {
+      const ny = threshY + i * 5
+      ctx.beginPath()
+      ctx.moveTo(handleX + 2, ny)
+      ctx.lineTo(handleX + handleW - 2, ny)
+      ctx.stroke()
+    }
+
+    // Right-aligned label (positioned left of handle)
     const threshLabel = `Sens +${feedbackThresholdDb ?? 0}dB`
     ctx.font = `${Math.max(8, fontSize - 2)}px monospace`
     ctx.fillStyle = VIZ_COLORS.THRESHOLD
     ctx.textAlign = 'right'
-    ctx.fillText(threshLabel, plotWidth - 4, threshY - 4)
+    ctx.globalAlpha = 0.7
+    ctx.fillText(threshLabel, handleX - 6, threshY - 4)
     ctx.globalAlpha = 1
     ctx.textAlign = 'left'
   }

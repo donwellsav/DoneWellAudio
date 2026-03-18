@@ -38,11 +38,12 @@ interface SpectrumCanvasProps {
   canvasTargetFps?: number
   showFreqZones?: boolean
   spectrumWarmMode?: boolean
+  onThresholdChange?: (db: number) => void
 }
 
 const GRAB_THRESHOLD_PX = 22 // 44px total touch target per line
 
-export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, advisories, isRunning, isStarting = false, error, graphFontSize = 11, onStart, earlyWarning, rtaDbMin: rtaDbMinProp, rtaDbMax: rtaDbMaxProp, spectrumLineWidth: spectrumLineWidthProp, clearedIds, minFrequency = 20, maxFrequency = 20000, onFreqRangeChange, showThresholdLine = false, feedbackThresholdDb, isFrozen = false, canvasTargetFps, showFreqZones = false, spectrumWarmMode = false }: SpectrumCanvasProps) {
+export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, advisories, isRunning, isStarting = false, error, graphFontSize = 11, onStart, earlyWarning, rtaDbMin: rtaDbMinProp, rtaDbMax: rtaDbMaxProp, spectrumLineWidth: spectrumLineWidthProp, clearedIds, minFrequency = 20, maxFrequency = 20000, onFreqRangeChange, showThresholdLine = false, feedbackThresholdDb, isFrozen = false, canvasTargetFps, showFreqZones = false, spectrumWarmMode = false, onThresholdChange }: SpectrumCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const dimensionsRef = useRef({ width: 0, height: 0 })
@@ -58,11 +59,17 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
   }, [minFrequency, maxFrequency])
 
 
-  // Drag state
+  // Drag state — freq range (horizontal) + threshold (vertical)
   const dragRef = useRef<'min' | 'max' | null>(null)
+  const threshDragRef = useRef<{ active: boolean; startY: number; startDb: number }>({ active: false, startY: 0, startDb: 0 })
   const paddingRef = useRef({ left: 0, top: 0, plotWidth: 0, plotHeight: 0 })
   const onFreqRangeChangeRef = useRef(onFreqRangeChange)
   onFreqRangeChangeRef.current = onFreqRangeChange
+  const onThresholdChangeRef = useRef(onThresholdChange)
+  onThresholdChangeRef.current = onThresholdChange
+  const feedbackThresholdDbRef = useRef(feedbackThresholdDb ?? 25)
+  feedbackThresholdDbRef.current = feedbackThresholdDb ?? 25
+  const effectiveThreshYRef = useRef<number | null>(null)
 
   // Freeze: snapshot spectrum data so canvas holds a moment while analysis continues
   const isFrozenRef = useRef(false)
@@ -208,6 +215,13 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
     drawGrid(ctx, plotWidth, plotHeight, range)
     drawFreqZones(ctx, plotWidth, plotHeight, range, showFreqZones)
     drawIndicatorLines(ctx, plotWidth, plotHeight, range, spectrum, showThresholdLine, feedbackThresholdDb, fontSize)
+
+    // Track threshold line Y for drag detection (in canvas coords relative to plot area)
+    if (showThresholdLine && spectrum?.effectiveThresholdDb != null) {
+      const dbSpan = range.dbMax - range.dbMin
+      effectiveThreshYRef.current = ((range.dbMax - spectrum.effectiveThresholdDb) / dbSpan) * plotHeight
+    }
+
     drawSpectrum(ctx, plotWidth, plotHeight, range, spectrum, gradientRef, gradientHeightRef, spectrumLineWidthProp ?? 0.5, peakHoldRef, spectrumWarmMode)
 
     // Store padding for pointer event calculations
@@ -299,11 +313,12 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
   useEffect(() => { dirtyRef.current = true }, [graphFontSize, earlyWarning, rtaDbMinProp, rtaDbMaxProp, spectrumLineWidthProp, showThresholdLine, feedbackThresholdDb])
   useEffect(() => { dirtyRef.current = true }, [advisories, clearedIds])
 
-  // Pointer event handlers for dragging frequency range lines
+  // Pointer event handlers for dragging frequency range lines + threshold line
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas || !onFreqRangeChange) return
+    if (!canvas) return
 
+    const hasFreqDrag = !!onFreqRangeChange
     const { RTA_FREQ_MIN, RTA_FREQ_MAX } = CANVAS_SETTINGS
 
     function clientXToFreq(clientX: number): number {
@@ -323,7 +338,30 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
       return { minDist: Math.abs(canvasX - minX), maxDist: Math.abs(canvasX - maxX) }
     }
 
+    /** Distance from pointer to threshold line (vertical) */
+    function getThresholdDist(clientY: number): number {
+      if (effectiveThreshYRef.current == null) return Infinity
+      const rect = canvas!.getBoundingClientRect()
+      const { top: padTop } = paddingRef.current
+      const canvasY = clientY - rect.top - padTop
+      return Math.abs(canvasY - effectiveThreshYRef.current)
+    }
+
     function onPointerDown(e: PointerEvent) {
+      // Check threshold line first (vertical drag)
+      const threshDist = getThresholdDist(e.clientY)
+      if (threshDist <= GRAB_THRESHOLD_PX && onThresholdChangeRef.current) {
+        e.preventDefault()
+        const rect = canvas!.getBoundingClientRect()
+        const startY = e.clientY - rect.top - paddingRef.current.top
+        threshDragRef.current = { active: true, startY, startDb: feedbackThresholdDbRef.current }
+        canvas!.setPointerCapture(e.pointerId)
+        canvas!.style.cursor = 'ns-resize'
+        return
+      }
+
+      // Then freq range lines (horizontal drag)
+      if (!hasFreqDrag) return
       const { minDist, maxDist } = getLineDistances(e.clientX)
       const closest = minDist <= maxDist ? 'min' : 'max'
       const dist = Math.min(minDist, maxDist)
@@ -337,10 +375,25 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
     }
 
     function onPointerMove(e: PointerEvent) {
+      // Threshold drag (vertical)
+      if (threshDragRef.current.active) {
+        const rect = canvas!.getBoundingClientRect()
+        const { top: padTop, plotHeight } = paddingRef.current
+        const currentY = e.clientY - rect.top - padTop
+        const dbSpan = (rtaDbMaxProp ?? CANVAS_SETTINGS.RTA_DB_MAX) - (rtaDbMinProp ?? CANVAS_SETTINGS.RTA_DB_MIN)
+        // Moving up (negative deltaY) = higher dB = more sensitive (lower threshold)
+        const deltaDb = ((threshDragRef.current.startY - currentY) / plotHeight) * dbSpan
+        const newDb = Math.round(clamp(threshDragRef.current.startDb - deltaDb, 2, 50))
+        onThresholdChangeRef.current?.(newDb)
+        dirtyRef.current = true
+        return
+      }
+
+      // Freq range drag (horizontal)
       if (dragRef.current) {
         const hz = clientXToFreq(e.clientX)
         const range = freqRangeRef.current
-        dirtyRef.current = true // Force redraw during drag
+        dirtyRef.current = true
 
         if (dragRef.current === 'min') {
           const newMin = Math.min(hz, range.max - 50)
@@ -353,13 +406,26 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
         }
       } else {
         // Hover cursor change
-        const { minDist, maxDist } = getLineDistances(e.clientX)
-        const nearLine = Math.min(minDist, maxDist) <= GRAB_THRESHOLD_PX
-        canvas!.style.cursor = nearLine ? 'ew-resize' : 'default'
+        const threshNear = getThresholdDist(e.clientY) <= GRAB_THRESHOLD_PX && !!onThresholdChangeRef.current
+        if (threshNear) {
+          canvas!.style.cursor = 'ns-resize'
+        } else if (hasFreqDrag) {
+          const { minDist, maxDist } = getLineDistances(e.clientX)
+          const nearLine = Math.min(minDist, maxDist) <= GRAB_THRESHOLD_PX
+          canvas!.style.cursor = nearLine ? 'ew-resize' : 'default'
+        } else {
+          canvas!.style.cursor = 'default'
+        }
       }
     }
 
     function onPointerUp(e: PointerEvent) {
+      if (threshDragRef.current.active) {
+        threshDragRef.current = { active: false, startY: 0, startDb: 0 }
+        canvas!.releasePointerCapture(e.pointerId)
+        canvas!.style.cursor = 'default'
+        return
+      }
       if (dragRef.current) {
         dragRef.current = null
         canvas!.releasePointerCapture(e.pointerId)
@@ -368,6 +434,12 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
     }
 
     function onPointerCancel(e: PointerEvent) {
+      if (threshDragRef.current.active) {
+        threshDragRef.current = { active: false, startY: 0, startDb: 0 }
+        canvas!.releasePointerCapture(e.pointerId)
+        canvas!.style.cursor = 'default'
+        return
+      }
       if (dragRef.current) {
         dragRef.current = null
         canvas!.releasePointerCapture(e.pointerId)
@@ -386,7 +458,8 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
       canvas.removeEventListener('pointerup', onPointerUp)
       canvas.removeEventListener('pointercancel', onPointerCancel)
     }
-  }, [onFreqRangeChange])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- refs used for latest values
+  }, [onFreqRangeChange, onThresholdChange])
 
   // Hover tooltip: mousemove/mouseleave to track cursor for freq+dB readout
   useEffect(() => {

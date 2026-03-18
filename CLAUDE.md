@@ -1,7 +1,7 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
-> **Last updated March 2026. 159 TypeScript/TSX files, 470 tests (465 pass, 4 skip, 1 todo), 26 suites. Version 0.140.0.**
-> Frosted glass cards, amber spectrum default, audio-reactive logo, frequency zone overlay, severity pill badges.
+> **Last updated March 2026. 159 TypeScript/TSX files, 470 tests (465 pass, 4 skip, 1 todo), 26 suites. Version 0.142.0.**
+> Draggable RTA threshold, compact start area, header icon hierarchy, GEQ ghost bars, resolved badge removed.
 
 ## CRITICAL RULES
 

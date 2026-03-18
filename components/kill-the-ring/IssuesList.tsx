@@ -107,31 +107,33 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
     <div className="flex flex-col gap-1.5">
       {sorted.length === 0 ? (
         !isRunning && onStart ? (
-          <div className="flex flex-col items-center justify-center flex-1 min-h-[180px] py-6 gap-4">
+          <div className="flex flex-col items-center justify-center flex-1 min-h-[120px] py-4 gap-2">
             <button
               onClick={onStart}
               aria-label="Start analysis"
-              className="group relative flex flex-col items-center justify-center gap-3 w-full max-w-[240px] py-6 px-6 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all duration-300 cursor-pointer animate-start-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="group relative flex flex-col items-center justify-center gap-2 w-full max-w-[200px] py-4 px-4 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all duration-300 cursor-pointer animate-start-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
-              <KtrLogo className="w-36 h-36 text-foreground drop-shadow-[0_0_12px_rgba(75,146,255,0.5)]" />
+              <KtrLogo className="w-20 h-20 text-foreground drop-shadow-[0_0_10px_rgba(75,146,255,0.4)]" />
               <div className="flex items-baseline gap-1.5">
-                <span className="font-mono text-sm font-black tracking-[0.15em] text-foreground/90">KILL THE</span>
-                <span className="font-mono text-base font-black tracking-[0.15em] text-primary drop-shadow-[0_0_10px_rgba(75,146,255,0.4)]">RING</span>
+                <span className="font-mono text-xs font-black tracking-[0.15em] text-foreground/90">KILL THE</span>
+                <span className="font-mono text-sm font-black tracking-[0.15em] text-primary drop-shadow-[0_0_8px_rgba(75,146,255,0.3)]">RING</span>
               </div>
-              <span className="font-mono text-sm font-bold tracking-[0.2em] uppercase text-muted-foreground group-hover:text-foreground transition-colors">
-                Press Here To Start Analysis
+              <span className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-muted-foreground group-hover:text-foreground transition-colors">
+                Press To Start
               </span>
             </button>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center flex-1 min-h-[120px] text-muted-foreground py-8">
-            <CheckCircle2 className="w-5 h-5 text-primary/30 mb-2" />
-            <div className="font-mono text-sm font-bold tracking-[0.15em] uppercase">Standby</div>
-            <div className="font-mono text-sm mt-1 text-muted-foreground tracking-wide">Monitoring</div>
+          <div className="flex flex-col items-center justify-center flex-1 min-h-[80px] text-muted-foreground py-4">
+            {/* Scanning indicator — horizontal sweep line */}
+            <div className="w-full max-w-[180px] h-[2px] bg-primary/10 rounded-full overflow-hidden mb-3">
+              <div className="h-full w-1/3 bg-primary/40 rounded-full animate-[scan_2s_ease-in-out_infinite]" />
+            </div>
+            <div className="font-mono text-xs font-bold tracking-[0.15em] uppercase text-muted-foreground/60">Monitoring</div>
             {isLowSignal && (
-              <div className="flex flex-col items-center gap-1 mt-3 motion-safe:animate-pulse">
-                <span className="text-primary/50 text-lg leading-none">▲</span>
-                <span className="font-mono text-xs text-primary/40 tracking-wide">Increase gain</span>
+              <div className="flex items-center gap-1.5 mt-2 motion-safe:animate-pulse">
+                <span className="text-primary/50 text-sm leading-none">▲</span>
+                <span className="font-mono text-[10px] text-primary/40 tracking-wide">Increase gain</span>
               </div>
             )}
           </div>
@@ -434,11 +436,6 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
                 </TooltipProvider>
               )}
 
-              {isResolved && (
-                <span className="inline-flex items-center text-sm font-medium uppercase tracking-wider px-1.5 py-0.5 rounded-sm leading-none bg-muted text-muted-foreground border border-border">
-                  Resolved
-                </span>
-              )}
             </div>
 
             {/* Row 2: classification — severity, confidence */}

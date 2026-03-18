@@ -51,7 +51,9 @@ export const GuideTab = memo(function GuideTab() {
               <li><strong>Start / Stop:</strong> Begin or pause audio analysis. LIVE indicator appears while running.</li>
               <li><strong>Input Gain Fader:</strong> Vertical fader strip with venue quick-cal pills (Quiet / Med / Loud). Default +6 dB.</li>
               <li><strong>Layout (L):</strong> Toggle between desktop layouts. Fullscreen (F) for dedicated spectrum view.</li>
-              <li><strong>Freeze (P):</strong> Pause the spectrum display for closer inspection without stopping analysis.</li>
+              <li><strong>Freeze (P):</strong> Pause the spectrum display for closer inspection without stopping analysis. Active state shows blue pill.</li>
+              <li><strong>Clear All:</strong> Red notification dot appears when there are clearable items. Clears all advisories, GEQ bars, and RTA markers.</li>
+              <li><strong>Draggable Threshold:</strong> Enable &quot;Show on RTA&quot; in Sensitivity &amp; Range, then drag the threshold line handle up/down to adjust detection sensitivity directly on the spectrum.</li>
               <li><strong>Settings / Help / History:</strong> Access configuration, documentation, and feedback history.</li>
               <li><strong>Missed Feedback (⊕):</strong> Mark a false negative during calibration — flags the current frequency band as missed by the detector.</li>
             </ul>
