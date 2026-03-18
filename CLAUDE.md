@@ -1,6 +1,6 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
-> **Last updated March 2026. 159 TypeScript/TSX files, 470 tests (465 pass, 4 skip, 1 todo), 26 suites. Version 0.142.0.**
+> **Last updated March 2026. 159 TypeScript/TSX files, 470 tests (465 pass, 4 skip, 1 todo), 26 suites. Version 0.143.0.**
 > Draggable RTA threshold, compact start area, header icon hierarchy, GEQ ghost bars, resolved badge removed.
 
 ## CRITICAL RULES

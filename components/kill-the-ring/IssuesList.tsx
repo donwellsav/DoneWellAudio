@@ -535,7 +535,7 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
         )}
         {/* Algorithm scores debug row */}
         {showAlgorithmScores && advisory.algorithmScores && (
-          <div className="text-[10px] font-mono text-muted-foreground/60 tracking-wide leading-tight mt-0.5">
+          <div className="text-[10px] font-mono text-muted-foreground/60 tracking-wide leading-none -mt-1">
             {[
               advisory.algorithmScores.msd != null && `MSD:${advisory.algorithmScores.msd.toFixed(2)}`,
               advisory.algorithmScores.phase != null && `PH:${advisory.algorithmScores.phase.toFixed(2)}`,
