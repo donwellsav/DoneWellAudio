@@ -14,10 +14,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '0.131.1',
+    version: '0.132.0',
     date: '2026-03-18',
+    highlights: 'KTR brand logo, settings persistence, algorithm scores debug',
     changes: [
-      { type: 'ui', description: 'ui: mobile layout always enables swipe-to-label (#137)' },
+      { type: 'ui', description: 'KTR frequency analyzer logo replaces generic speaker icon in header and Start Analysis button' },
+      { type: 'feat', description: 'Settings auto-persist across page refreshes — all settings saved to localStorage on every change' },
+      { type: 'feat', description: 'Algorithm scores debug display — toggle in Display settings shows MSD/Phase/Spectral/Comb/IHR/PTMR/ML scores on each issue card' },
+      { type: 'ui', description: 'Mobile layout always enables swipe-to-label — Display settings toggle only affects desktop/tablet' },
+      { type: 'ui', description: 'Start Analysis button text updated to "Press Here To Start Analysis"' },
     ],
   },
   {

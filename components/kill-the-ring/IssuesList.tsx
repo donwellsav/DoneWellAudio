@@ -32,9 +32,10 @@ interface IssuesListProps {
   confirmedIds?: ReadonlySet<string>
   isLowSignal?: boolean
   swipeLabeling?: boolean
+  showAlgorithmScores?: boolean
 }
 
-export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10, dismissedIds, onClearAll, onClearResolved, touchFriendly, isRunning, onStart, onFalsePositive, falsePositiveIds, onConfirmFeedback, confirmedIds, isLowSignal, swipeLabeling }: IssuesListProps) {
+export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10, dismissedIds, onClearAll, onClearResolved, touchFriendly, isRunning, onStart, onFalsePositive, falsePositiveIds, onConfirmFeedback, confirmedIds, isLowSignal, swipeLabeling, showAlgorithmScores }: IssuesListProps) {
   // Filter dismissed, sort repeat offenders to top by hit count, then slice to max.
   // We attach occurrenceCount here so IssueCard doesn't need to re-query feedbackHistory.
   const latestSorted = useMemo(() => {
@@ -168,6 +169,7 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
               onConfirmFeedback={onConfirmFeedback}
               isConfirmed={confirmedIds?.has(advisory.id) ?? false}
               swipeLabeling={swipeLabeling}
+              showAlgorithmScores={showAlgorithmScores}
             />
           ))}
         </>
@@ -190,9 +192,10 @@ interface IssueCardProps {
   onConfirmFeedback?: (advisoryId: string) => void
   isConfirmed?: boolean
   swipeLabeling?: boolean
+  showAlgorithmScores?: boolean
 }
 
-const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFriendly, onFalsePositive, isFalsePositive, onConfirmFeedback, isConfirmed, swipeLabeling }: IssueCardProps) {
+const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFriendly, onFalsePositive, isFalsePositive, onConfirmFeedback, isConfirmed, swipeLabeling, showAlgorithmScores }: IssueCardProps) {
   // Memoize derived values that only change when the advisory object changes
   const {
     severityColor, pitchStr, exactFreqStr,
@@ -531,6 +534,21 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
               <span className="font-normal normal-case tracking-normal">↑ building</span>
             )}
             <span className="font-mono ml-auto opacity-60">+{velocity.toFixed(0)} dB/s</span>
+          </div>
+        )}
+        {/* Algorithm scores debug row */}
+        {showAlgorithmScores && advisory.algorithmScores && (
+          <div className="text-[10px] font-mono text-muted-foreground/60 tracking-wide leading-tight mt-0.5">
+            {[
+              advisory.algorithmScores.msd != null && `MSD:${advisory.algorithmScores.msd.toFixed(2)}`,
+              advisory.algorithmScores.phase != null && `PH:${advisory.algorithmScores.phase.toFixed(2)}`,
+              advisory.algorithmScores.spectral != null && `SP:${advisory.algorithmScores.spectral.toFixed(2)}`,
+              advisory.algorithmScores.comb != null && `CM:${advisory.algorithmScores.comb.toFixed(2)}`,
+              advisory.algorithmScores.ihr != null && `IH:${advisory.algorithmScores.ihr.toFixed(2)}`,
+              advisory.algorithmScores.ptmr != null && `PT:${advisory.algorithmScores.ptmr.toFixed(2)}`,
+              advisory.algorithmScores.ml != null && `ML:${advisory.algorithmScores.ml.toFixed(2)}`,
+            ].filter(Boolean).join('  ')}
+            {' → '}{advisory.algorithmScores.fusedProbability.toFixed(2)}
           </div>
         )}
       </div>

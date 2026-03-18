@@ -168,6 +168,7 @@ export const MobileLayout = memo(function MobileLayout({
                 confirmedIds={confirmedIds}
                 isLowSignal={isRunning && inputLevel < -45}
                 swipeLabeling
+                showAlgorithmScores={settings.showAlgorithmScores}
               />
               <EarlyWarningPanel earlyWarning={earlyWarning} />
             </div>
@@ -321,6 +322,7 @@ export const MobileLayout = memo(function MobileLayout({
               confirmedIds={confirmedIds}
               isLowSignal={isRunning && inputLevel < -45}
               swipeLabeling
+              showAlgorithmScores={settings.showAlgorithmScores}
             />
             <EarlyWarningPanel earlyWarning={earlyWarning} />
           </div>
