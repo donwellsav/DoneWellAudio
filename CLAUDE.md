@@ -1,6 +1,7 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
 > **Last updated March 2026. 158 TypeScript/TSX files, 470 tests (465 pass, 4 skip, 1 todo), 26 suites. Version 0.131.0.**
+> Quick/Full toggle removed (accordion replaces it). Content type classifier uses main-thread priority.
 
 ## CRITICAL RULES
 
