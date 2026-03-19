@@ -123,15 +123,15 @@ export const HeaderBar = memo(function HeaderBar() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={toggleRtaFullscreen}
-              className={`flex h-10 w-10 btn-glow ${isRtaFullscreen ? 'text-primary bg-primary/15 rounded-md' : 'text-muted-foreground hover:text-foreground'}`}
-              aria-label={isRtaFullscreen ? 'Exit RTA fullscreen' : 'RTA fullscreen'}
+              onClick={toggleFullscreen}
+              className={`flex h-10 w-10 btn-glow ${isFullscreen ? 'text-primary bg-primary/15 rounded-md' : 'text-muted-foreground hover:text-foreground'}`}
+              aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
             >
-              {isRtaFullscreen ? <Minimize2 className="size-6" /> : <Maximize2 className="size-6" />}
+              {isFullscreen ? <Minimize2 className="size-6" /> : <Maximize2 className="size-6" />}
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-sm">
-            {isRtaFullscreen ? 'Exit RTA fullscreen' : 'RTA fullscreen'}
+            {isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
           </TooltipContent>
         </Tooltip>
 

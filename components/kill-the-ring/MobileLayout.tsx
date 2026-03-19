@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useRef, useCallback, useMemo } from 'react'
+import { memo, useRef, useCallback, useMemo, useState } from 'react'
 import { IssuesList } from './IssuesList'
 import { RingOutWizard } from './RingOutWizard'
 import { EarlyWarningPanel } from './EarlyWarningPanel'
@@ -15,12 +15,12 @@ import { useSettings } from '@/contexts/SettingsContext'
 import { useMetering } from '@/contexts/MeteringContext'
 import { useAdvisories } from '@/contexts/AdvisoryContext'
 import { useUI } from '@/contexts/UIContext'
-import { AlertTriangle, BarChart3, Settings2, Maximize2, Minimize2 } from 'lucide-react'
+import { AlertTriangle, Settings2, Maximize2, Minimize2 } from 'lucide-react'
 import type { DetectorSettings } from '@/types/advisory'
 import type { CalibrationTabProps } from './settings/CalibrationTab'
 import { MOBILE_MAX_DISPLAYED_ISSUES } from '@/lib/dsp/constants'
 
-const TAB_ORDER = ['issues', 'graph', 'settings'] as const
+const TAB_ORDER = ['issues', 'settings'] as const
 
 interface MobileLayoutProps {
   onSettingsChange: (s: Partial<DetectorSettings>) => void
@@ -46,13 +46,51 @@ export const MobileLayout = memo(function MobileLayout({
 
   const {
     advisories, activeAdvisoryCount, earlyWarning,
-    dismissedIds, onClearAll, onClearResolved,
+    dismissedIds, onDismiss, onClearAll, onClearResolved,
     rtaClearedIds, geqClearedIds,
     hasActiveRTAMarkers, hasActiveGEQBars,
     onClearRTA, onClearGEQ,
     onFalsePositive, falsePositiveIds,
     onConfirmFeedback, confirmedIds,
   } = useAdvisories()
+
+  // Inline graph — mode and resizable height
+  const [inlineGraphMode, setInlineGraphMode] = useState<'rta' | 'geq'>('rta')
+  const [graphHeightVh, setGraphHeightVh] = useState(12)
+  const resizeDragRef = useRef<{ startY: number; startH: number } | null>(null)
+  const graphTouchStart = useRef<{ x: number; y: number } | null>(null)
+
+  const onGraphTouchStart = useCallback((e: React.TouchEvent) => {
+    graphTouchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+  }, [])
+
+  const onGraphTouchEnd = useCallback((e: React.TouchEvent) => {
+    const start = graphTouchStart.current
+    if (!start) return
+    graphTouchStart.current = null
+    const dx = e.changedTouches[0].clientX - start.x
+    const dy = e.changedTouches[0].clientY - start.y
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return
+    setInlineGraphMode(dx < 0 ? 'geq' : 'rta')
+  }, [])
+
+  // Resize handle for inline graph height
+  const onResizeStart = useCallback((e: React.TouchEvent) => {
+    resizeDragRef.current = { startY: e.touches[0].clientY, startH: graphHeightVh }
+  }, [graphHeightVh])
+
+  const onResizeMove = useCallback((e: React.TouchEvent) => {
+    if (!resizeDragRef.current) return
+    e.preventDefault()
+    const deltaY = e.touches[0].clientY - resizeDragRef.current.startY
+    const deltaVh = (deltaY / window.innerHeight) * 100
+    const newH = Math.min(40, Math.max(8, resizeDragRef.current.startH + deltaVh))
+    setGraphHeightVh(newH)
+  }, [])
+
+  const onResizeEnd = useCallback(() => {
+    resizeDragRef.current = null
+  }, [])
 
   // Limit advisories to top 5 most problematic on mobile (already sorted by urgency + amplitude)
   const mobileAdvisories = useMemo(
@@ -63,7 +101,7 @@ export const MobileLayout = memo(function MobileLayout({
   // ── Tab navigation ──────────────────────────────────────────
   const tabIndex = TAB_ORDER.indexOf(mobileTab)
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([null, null, null])
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([null, null])
 
   const handleTabKeyDown = useCallback((e: React.KeyboardEvent) => {
     const currentIndex = TAB_ORDER.indexOf(mobileTab)
@@ -101,6 +139,9 @@ export const MobileLayout = memo(function MobileLayout({
     if (!startPos) return
     touchStartRef.current = null
 
+    // Disable tab swipe on Issues tab — conflicts with card swipe-to-label
+    if (mobileTab === 'issues') return
+
     const touch = e.changedTouches[0]
     const deltaX = touch.clientX - startPos.x
     const deltaY = touch.clientY - startPos.y
@@ -133,7 +174,7 @@ export const MobileLayout = memo(function MobileLayout({
           className="flex-1 min-h-0 flex transition-transform duration-200 ease-out will-change-transform"
           style={{ transform: `translateX(-${tabIndex * 100}%)` }}
         >
-          {/* Issues panel */}
+          {/* Issues panel — inline graph on top, cards below */}
           <div
             id="mobile-tabpanel-issues"
             className="w-full flex-shrink-0 h-full flex flex-col overflow-hidden bg-background"
@@ -142,23 +183,55 @@ export const MobileLayout = memo(function MobileLayout({
             aria-hidden={mobileTab !== 'issues'}
             inert={mobileTab !== 'issues' || undefined}
           >
-            <div className="border-b border-border p-2 flex-shrink-0 bg-card/50">
-              <InputMeterSlider
-                value={settings.inputGainDb}
-                onChange={(v) => onSettingsChange({ inputGainDb: v })}
-                level={inputLevel}
-                compact
-                autoGainEnabled={isAutoGain}
-                autoGainDb={autoGainDb}
-                autoGainLocked={autoGainLocked}
-                onAutoGainToggle={(enabled) => onSettingsChange({ autoGainEnabled: enabled })}
-              />
+            {/* ── Inline graph area (resizable) — swipeable RTA ↔ GEQ ─── */}
+            <div
+              className="flex-shrink-0 relative bg-card/40 border-b border-border/40 overflow-hidden"
+              style={{ height: `${graphHeightVh}vh` }}
+              onTouchStart={onGraphTouchStart}
+              onTouchEnd={onGraphTouchEnd}
+            >
+              {/* Graph mode indicator dots */}
+              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 z-20 flex gap-1" aria-hidden>
+                <div className={`h-1 rounded-full transition-all ${inlineGraphMode === 'rta' ? 'w-2 bg-primary' : 'w-1 bg-muted-foreground/30'}`} />
+                <div className={`h-1 rounded-full transition-all ${inlineGraphMode === 'geq' ? 'w-2 bg-primary' : 'w-1 bg-muted-foreground/30'}`} />
+              </div>
+
+              {/* Fullscreen icon */}
+              <button
+                onClick={toggleRtaFullscreen}
+                className="absolute top-0.5 right-0.5 z-20 p-1 rounded text-muted-foreground/60 hover:text-foreground transition-colors cursor-pointer"
+                aria-label="Fullscreen graphs"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Label */}
+              <span className="absolute top-0.5 left-1 z-20 text-[10px] text-muted-foreground/60 font-mono font-bold uppercase tracking-[0.2em] pointer-events-none">
+                {inlineGraphMode === 'rta' ? 'RTA' : 'GEQ'}
+              </span>
+
+              {inlineGraphMode === 'rta' ? (
+                <div ref={rtaContainerRef} className="w-full h-full">
+                  <SpectrumCanvas spectrumRef={spectrumRef} advisories={mobileAdvisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} showFreqZones={settings.showFreqZones} spectrumWarmMode={settings.spectrumWarmMode} onThresholdChange={(db) => onSettingsChange({ feedbackThresholdDb: db })} />
+                </div>
+              ) : (
+                <GEQBarView advisories={mobileAdvisories} graphFontSize={settings.graphFontSize} clearedIds={geqClearedIds} />
+              )}
             </div>
-            <div className="flex-1 overflow-y-auto p-3">
-              <h2 className="section-label mb-2 flex items-center justify-between">
-                <span>Active Issues</span>
-                <span className="text-primary font-mono">{activeAdvisoryCount}</span>
-              </h2>
+
+            {/* ── Drag handle to resize graph ─────────────────────── */}
+            <div
+              className="flex-shrink-0 flex items-center justify-center py-1 cursor-row-resize touch-none"
+              onTouchStart={onResizeStart}
+              onTouchMove={onResizeMove}
+              onTouchEnd={onResizeEnd}
+              aria-label="Drag to resize graph"
+            >
+              <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+            </div>
+
+            {/* ── Issue cards (scrollable) ─────────────────────────── */}
+            <div className="flex-1 overflow-y-auto p-2">
               {isWizardActive ? (
                 <RingOutWizard
                   advisories={advisories}
@@ -184,77 +257,11 @@ export const MobileLayout = memo(function MobileLayout({
                     swipeLabeling
                     showAlgorithmScores={settings.showAlgorithmScores}
                     onStartRingOut={onStartRingOut}
+                    onDismiss={onDismiss}
                   />
-                  {settings.mode === 'ringOut' && isRunning && onStartWizard && (
-                    <button
-                      onClick={onStartWizard}
-                      className="w-full mt-2 py-2 rounded font-mono text-xs font-bold tracking-[0.15em] uppercase bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-colors cursor-pointer"
-                    >
-                      Start Ring-Out Wizard
-                    </button>
-                  )}
                   <EarlyWarningPanel earlyWarning={earlyWarning} />
                 </>
               )}
-            </div>
-          </div>
-
-          {/* Graph panel — RTA on top, GEQ on bottom (50/50 split) */}
-          <div
-            id="mobile-tabpanel-graph"
-            className="w-full flex-shrink-0 h-full flex flex-col gap-0.5 overflow-hidden p-0.5"
-            role="tabpanel"
-            aria-labelledby="mobile-tab-graph"
-            aria-hidden={mobileTab !== 'graph'}
-            inert={mobileTab !== 'graph' || undefined}
-          >
-            {/* RTA — top half */}
-            <div ref={rtaContainerRef} className="flex-1 min-h-0 bg-card/40 rounded border border-border/40 overflow-hidden relative">
-              <div className="absolute top-1 left-1.5 z-20 flex items-center gap-1">
-                <span className="text-sm text-muted-foreground font-mono font-bold uppercase tracking-[0.2em]">RTA</span>
-                <button
-                  onClick={toggleRtaFullscreen}
-                  className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 min-h-[44px] min-w-[44px] rounded text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
-                  aria-label={isRtaFullscreen ? 'Exit RTA fullscreen' : 'RTA fullscreen'}
-                >
-                  {isRtaFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                </button>
-              </div>
-              {isRunning && (
-                <button
-                  onClick={toggleFreeze}
-                  className={`cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 absolute top-1 z-20 px-2 py-0.5 min-h-[44px] min-w-[44px] rounded text-sm font-medium border transition-colors flex items-center justify-center ${
-                    isFrozen
-                      ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-                      : 'bg-card/80 text-muted-foreground border-border hover:text-foreground'
-                  }`}
-                  style={{ right: hasActiveRTAMarkers ? '3.5rem' : '0.25rem' }}
-                >
-                  {isFrozen ? 'Live' : 'Freeze'}
-                </button>
-              )}
-              {hasActiveRTAMarkers && (
-                <button
-                  onClick={onClearRTA}
-                  className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 absolute top-1 right-1 z-20 px-2 py-0.5 min-h-[44px] min-w-[44px] rounded text-sm font-medium bg-card/80 text-muted-foreground border border-border hover:text-foreground transition-colors flex items-center justify-center"
-                >
-                  Clear
-                </button>
-              )}
-              <SpectrumCanvas spectrumRef={spectrumRef} advisories={mobileAdvisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} onStart={!isRunning && !isStarting ? start : undefined} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} showFreqZones={settings.showFreqZones} spectrumWarmMode={settings.spectrumWarmMode} onThresholdChange={(db) => onSettingsChange({ feedbackThresholdDb: db })} />
-            </div>
-            {/* GEQ — bottom half */}
-            <div className="flex-1 min-h-0 bg-card/40 rounded border border-border/40 overflow-hidden relative">
-              <span className="absolute top-1 left-1.5 z-20 text-sm text-muted-foreground font-mono font-bold uppercase tracking-[0.2em] pointer-events-none">GEQ</span>
-              {hasActiveGEQBars && (
-                <button
-                  onClick={onClearGEQ}
-                  className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 absolute top-1 right-1 z-20 px-2 py-0.5 min-h-[44px] min-w-[44px] rounded text-sm font-medium bg-card/80 text-muted-foreground border border-border hover:text-foreground transition-colors flex items-center justify-center"
-                >
-                  Clear
-                </button>
-              )}
-              <GEQBarView advisories={mobileAdvisories} graphFontSize={settings.graphFontSize} clearedIds={geqClearedIds} />
             </div>
           </div>
 
@@ -313,6 +320,30 @@ export const MobileLayout = memo(function MobileLayout({
         </div>
       </div>
 
+      {/* ── Fullscreen graph overlay (both RTA + GEQ stacked) ─────── */}
+      {isRtaFullscreen && (
+        <div className="landscape:hidden tablet:hidden fixed inset-0 z-50 bg-background flex flex-col">
+          <div className="flex items-center justify-between px-2 py-1 border-b border-border bg-card/90">
+            <span className="text-xs font-mono font-bold tracking-[0.15em] uppercase text-muted-foreground">Real-Time Analyzer + Graphic Equalizer</span>
+            <button
+              onClick={toggleRtaFullscreen}
+              className="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              aria-label="Exit fullscreen graphs"
+            >
+              <Minimize2 className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex-1 min-h-0 flex flex-col gap-0.5 p-0.5">
+            <div className="flex-1 min-h-0 bg-card/40 rounded border border-border/40 overflow-hidden">
+              <SpectrumCanvas spectrumRef={spectrumRef} advisories={mobileAdvisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} showFreqZones={settings.showFreqZones} spectrumWarmMode={settings.spectrumWarmMode} onThresholdChange={(db) => onSettingsChange({ feedbackThresholdDb: db })} />
+            </div>
+            <div className="flex-1 min-h-0 bg-card/40 rounded border border-border/40 overflow-hidden">
+              <GEQBarView advisories={mobileAdvisories} graphFontSize={settings.graphFontSize} clearedIds={geqClearedIds} />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Landscape mobile: 40% Issues / 55% Graphs / 5% fader sidecar (< md only) ── */}
       <div className="hidden landscape:flex md:landscape:hidden flex-1 overflow-hidden">
         {/* Issues — 40% */}
@@ -356,6 +387,7 @@ export const MobileLayout = memo(function MobileLayout({
                 swipeLabeling
                 showAlgorithmScores={settings.showAlgorithmScores}
                 onStartRingOut={onStartRingOut}
+                    onDismiss={onDismiss}
               />
             )}
             <EarlyWarningPanel earlyWarning={earlyWarning} />
@@ -450,7 +482,6 @@ export const MobileLayout = memo(function MobileLayout({
         <div className="flex items-stretch" role="tablist" onKeyDown={handleTabKeyDown}>
           {([
             { id: 'issues' as const, label: 'Issues', Icon: AlertTriangle, badge: activeAdvisoryCount },
-            { id: 'graph' as const, label: 'Graph', Icon: BarChart3, badge: 0 },
             { id: 'settings' as const, label: 'Settings', Icon: Settings2, badge: 0 },
           ]).map((tab, i) => (
             <button

@@ -54,8 +54,8 @@ describe('UIContext', () => {
 
   it('setMobileTab changes the active tab', () => {
     const { result } = renderHook(() => useUI(), { wrapper })
-    act(() => result.current.setMobileTab('graph'))
-    expect(result.current.mobileTab).toBe('graph')
+    act(() => result.current.setMobileTab('settings'))
+    expect(result.current.mobileTab).toBe('settings')
   })
 
   it('toggleFreeze toggles frozen state', () => {

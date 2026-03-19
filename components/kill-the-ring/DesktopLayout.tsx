@@ -58,7 +58,7 @@ export const DesktopLayout = memo(function DesktopLayout({
 
   const {
     advisories, activeAdvisoryCount, earlyWarning,
-    dismissedIds, onClearAll,
+    dismissedIds, onDismiss, onClearAll,
     rtaClearedIds, geqClearedIds,
     hasActiveRTAMarkers, hasActiveGEQBars,
     onClearRTA, onClearGEQ,
@@ -161,6 +161,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                           swipeLabeling={settings.swipeLabeling}
                           showAlgorithmScores={settings.showAlgorithmScores}
                           onStartRingOut={onStartRingOut}
+                          onDismiss={onDismiss}
                         />
                         {settings.mode === 'ringOut' && isRunning && onStartWizard && (
                           <button
@@ -242,6 +243,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                     swipeLabeling={settings.swipeLabeling}
                     showAlgorithmScores={settings.showAlgorithmScores}
                     onStartRingOut={onStartRingOut}
+                    onDismiss={onDismiss}
                   />
                   <EarlyWarningPanel earlyWarning={earlyWarning} />
                 </>
@@ -261,7 +263,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                 <div ref={rtaContainerRef} className="h-full bg-card/40 rounded border border-border/40 overflow-hidden flex flex-col panel-recessed hover:border-border/60 transition-colors duration-300">
                   <div className="flex-shrink-0 flex items-center justify-between px-2 py-0.5 border-b border-border bg-card/60 panel-groove">
                     <div className="flex items-center gap-1">
-                      <span className="text-sm font-mono font-bold tracking-[0.15em] text-primary">RTA</span>
+                      <span className="text-sm font-mono font-bold tracking-[0.15em] text-primary"><span className="hidden lg:inline">Real-Time Analyzer</span><span className="lg:hidden">RTA</span></span>
                       {isRunning && (
                         <button onClick={toggleFreeze} className={`px-1.5 py-0.5 rounded text-sm font-medium transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${isFrozen ? 'text-blue-400' : 'text-muted-foreground hover:text-foreground'}`}>
                           {isFrozen ? 'Live' : 'Freeze'}
@@ -303,7 +305,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                 <div className="h-full bg-card/40 rounded border border-border/40 overflow-hidden flex flex-col min-w-0 panel-recessed hover:border-border/60 transition-colors duration-300">
                   <div className="flex-shrink-0 flex items-center px-2 py-0.5 border-b border-border bg-card/60 panel-groove">
                     <div className="flex items-center gap-1">
-                      <span className="text-sm font-mono font-bold tracking-[0.15em] text-primary">GEQ</span>
+                      <span className="text-sm font-mono font-bold tracking-[0.15em] text-primary"><span className="hidden lg:inline">Graphic Equalizer</span><span className="lg:hidden">GEQ</span></span>
                       {hasActiveGEQBars && (
                         <button onClick={onClearGEQ} className="px-1.5 py-0.5 rounded text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50">
                           Clear

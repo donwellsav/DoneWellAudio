@@ -34,9 +34,10 @@ interface IssuesListProps {
   swipeLabeling?: boolean
   showAlgorithmScores?: boolean
   onStartRingOut?: () => void
+  onDismiss?: (id: string) => void
 }
 
-export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10, dismissedIds, onClearAll, onClearResolved, touchFriendly, isRunning, onStart, onFalsePositive, falsePositiveIds, onConfirmFeedback, confirmedIds, isLowSignal, swipeLabeling, showAlgorithmScores, onStartRingOut }: IssuesListProps) {
+export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10, dismissedIds, onClearAll, onClearResolved, touchFriendly, isRunning, onStart, onFalsePositive, falsePositiveIds, onConfirmFeedback, confirmedIds, isLowSignal, swipeLabeling, showAlgorithmScores, onStartRingOut, onDismiss }: IssuesListProps) {
   // Filter dismissed, sort repeat offenders to top by hit count, then slice to max.
   // We attach occurrenceCount here so IssueCard doesn't need to re-query feedbackHistory.
   const latestSorted = useMemo(() => {
@@ -197,6 +198,7 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
               isConfirmed={confirmedIds?.has(advisory.id) ?? false}
               swipeLabeling={swipeLabeling}
               showAlgorithmScores={showAlgorithmScores}
+              onDismiss={onDismiss}
             />
           ))}
         </>
@@ -220,9 +222,10 @@ interface IssueCardProps {
   isConfirmed?: boolean
   swipeLabeling?: boolean
   showAlgorithmScores?: boolean
+  onDismiss?: (advisoryId: string) => void
 }
 
-const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFriendly, onFalsePositive, isFalsePositive, onConfirmFeedback, isConfirmed, swipeLabeling, showAlgorithmScores }: IssueCardProps) {
+const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFriendly, onFalsePositive, isFalsePositive, onConfirmFeedback, isConfirmed, swipeLabeling, showAlgorithmScores, onDismiss }: IssueCardProps) {
   // Memoize derived values that only change when the advisory object changes
   const {
     severityColor, pitchStr, exactFreqStr,
@@ -281,11 +284,18 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
     return parts
   }, [advisory.modalOverlapFactor, advisory.cumulativeGrowthDb, advisory.frequencyBand])
 
-  // ── Swipe-to-label gesture handling ─────────────────────────────────
+  // ── Swipe & long-press gesture handling ─────────────────────────────
+  // Swipe left = dismiss, swipe right = confirm, long-press = false positive
   const [swipeX, setSwipeX] = useState(0)
   const [swiping, setSwiping] = useState(false)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
-  const swipeLocked = useRef(false) // true once we commit to horizontal swipe
+  const swipeLocked = useRef(false)
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [longPressed, setLongPressed] = useState(false)
+
+  const clearLongPress = useCallback(() => {
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null }
+  }, [])
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
     if (!swipeLabeling) return
@@ -293,13 +303,26 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
     touchStart.current = { x: t.clientX, y: t.clientY }
     swipeLocked.current = false
     setSwiping(false)
-  }, [swipeLabeling])
+    setLongPressed(false)
+    // Start long-press timer (500ms)
+    clearLongPress()
+    longPressTimer.current = setTimeout(() => {
+      if (onFalsePositive) {
+        onFalsePositive(advisory.id)
+        setLongPressed(true)
+      }
+      touchStart.current = null
+    }, 500)
+  }, [swipeLabeling, clearLongPress, onFalsePositive, advisory.id])
 
   const onTouchMove = useCallback((e: React.TouchEvent) => {
     if (!swipeLabeling || !touchStart.current) return
     const t = e.touches[0]
     const dx = t.clientX - touchStart.current.x
     const dy = t.clientY - touchStart.current.y
+
+    // Any movement cancels long-press
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) clearLongPress()
 
     // If vertical movement dominates, bail — let the list scroll
     if (!swipeLocked.current) {
@@ -309,21 +332,29 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
         setSwiping(false)
         return
       }
-      // Lock to horizontal once we've moved enough
       if (Math.abs(dx) > 10) swipeLocked.current = true
     }
 
     if (swipeLocked.current) {
-      e.preventDefault() // prevent scroll while swiping horizontally
+      e.preventDefault()
       setSwipeX(dx)
       setSwiping(true)
     }
-  }, [swipeLabeling])
+  }, [swipeLabeling, clearLongPress])
 
   const onTouchEnd = useCallback(() => {
-    if (!swipeLabeling || !touchStart.current) return
-    if (swipeX < -SWIPE_THRESHOLD && onFalsePositive) {
-      onFalsePositive(advisory.id)
+    clearLongPress()
+    if (!swipeLabeling || !touchStart.current || longPressed) {
+      touchStart.current = null
+      setSwipeX(0)
+      setSwiping(false)
+      swipeLocked.current = false
+      setLongPressed(false)
+      return
+    }
+    // Swipe left = dismiss, swipe right = confirm
+    if (swipeX < -SWIPE_THRESHOLD && onDismiss) {
+      onDismiss(advisory.id)
     } else if (swipeX > SWIPE_THRESHOLD && onConfirmFeedback) {
       onConfirmFeedback(advisory.id)
     }
@@ -331,7 +362,7 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
     setSwipeX(0)
     setSwiping(false)
     swipeLocked.current = false
-  }, [swipeLabeling, swipeX, onFalsePositive, onConfirmFeedback, advisory.id])
+  }, [swipeLabeling, swipeX, onDismiss, onConfirmFeedback, advisory.id, clearLongPress, longPressed])
 
   // Swipe progress ratio for visual feedback (clamped 0-1)
   const swipeProgress = Math.min(Math.abs(swipeX) / SWIPE_THRESHOLD, 1)
@@ -354,17 +385,17 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-      {/* Swipe reveal backgrounds — red (left=false+) / green (right=confirm) */}
+      {/* Swipe reveal: left=dismiss (gray), right=confirm (green) */}
       {swipeLabeling && swiping && (
         <div className="absolute inset-0 flex items-center z-0" aria-hidden>
           {swipeDirection === 'left' && (
             <div
               className="absolute inset-0 flex items-center justify-end pr-4 rounded"
-              style={{ backgroundColor: `rgba(239, 68, 68, ${swipeProgress * 0.3})` }}
+              style={{ backgroundColor: `rgba(120, 120, 130, ${swipeProgress * 0.25})` }}
             >
-              <span className="text-xs font-mono font-bold text-red-300 uppercase tracking-wider"
+              <span className="text-xs font-mono font-bold text-muted-foreground uppercase tracking-wider"
                 style={{ opacity: swipeProgress }}>
-                FALSE+
+                DISMISS
               </span>
             </div>
           )}
