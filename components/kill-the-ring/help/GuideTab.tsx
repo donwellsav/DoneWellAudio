@@ -35,7 +35,7 @@ export const GuideTab = memo(function GuideTab() {
               <li><strong>Mobile — Tabbed:</strong> Three tabs — Issues, Graph (RTA + GEQ split), and Settings. Swipe left/right to switch tabs.</li>
               <li><strong>Issues Panel:</strong> Active detected issues sorted by frequency. RUNAWAY issues pulse red. Copy EQ settings to clipboard.</li>
               <li><strong>Controls Panel:</strong> Accordion sections (Sensitivity &amp; Range open by default), sub-tab icons for Display, Room, Advanced, and Calibrate settings.</li>
-              <li><strong>Algorithm Status Bar:</strong> Shows algorithm mode, active algorithms (Auto mode), FPS counter, content type, and compression status.</li>
+              <li><strong>Algorithm Status Bar:</strong> Shows algorithm mode, active algorithms (Auto mode), FPS counter, content type (speech/music/compressed via temporal envelope + spectral analysis), and compression status.</li>
               <li><strong>Early Warning Panel:</strong> Comb filter predictions with elapsed timer and urgency progress bar.</li>
             </ul>
           </HelpSection>

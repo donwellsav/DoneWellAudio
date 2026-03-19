@@ -10,7 +10,7 @@
  */
 
 import type { AlgorithmMode, ContentType } from '@/types/advisory'
-import { COMB_PATTERN_SETTINGS, COMPRESSION_SETTINGS } from './constants'
+import { COMB_PATTERN_SETTINGS, COMPRESSION_SETTINGS, TEMPORAL_ENVELOPE } from './constants'
 import type { MSDResult } from './msdAnalysis'
 import { MSD_CONSTANTS } from './msdAnalysis'
 import type { PhaseCoherenceResult } from './phaseCoherence'
@@ -793,15 +793,30 @@ export function calculateMINDS(
  * - Speech in rooms with ambient noise often has flatness > 0.2
  * - The `spectralFlatness` parameter was peak-local (±5 bins), not global
  *
- * Now uses only the multi-feature scoring system. Global flatness is computed
- * internally from the full spectrum (geometric/arithmetic mean ratio).
+ * Now uses multi-feature scoring + temporal envelope analysis. Global flatness
+ * is computed internally from the full spectrum (geometric/arithmetic mean ratio).
+ * When temporal metrics are provided, they receive 40% weight — temporal envelope
+ * (silence gaps, energy variance) is the most reliable speech/music discriminator.
  *
  * @param spectrum - Full-resolution spectrum in dBFS
  * @param crestFactor - specMax − rmsDb in dB (global)
+ * @param temporalMetrics - Optional energy variance + silence gap ratio from FeedbackDetector
  */
+/**
+ * Temporal envelope metrics for speech/music discrimination.
+ * Computed from a ring buffer of per-frame energy values in FeedbackDetector.
+ */
+export interface TemporalMetrics {
+  /** Variance of energy (dB²). Speech: >12 (silence gaps). Music: <10 (continuous). */
+  energyVariance: number
+  /** Fraction of frames below silence threshold. Speech: >0.10. Music: <0.08. */
+  silenceGapRatio: number
+}
+
 export function detectContentType(
   spectrum: Float32Array,
   crestFactor: number,
+  temporalMetrics?: TemporalMetrics,
 ): ContentType {
   // Only reliable early gate: low crest factor = heavily compressed
   if (crestFactor < COMPRESSION_CONSTANTS.COMPRESSED_CREST_FACTOR) {
@@ -827,7 +842,6 @@ export function detectContentType(
   const centroidNormalized = weightedSum / totalPower / spectrum.length
 
   // Global spectral flatness: geometric mean / arithmetic mean
-  // Speech: 0.01–0.10 (tonal formants), Music: 0.10–0.50 (dense harmonics)
   const arithmeticMean = totalPower / validBins
   const geometricMean = Math.exp(logSum / validBins)
   const globalFlatness = arithmeticMean > 0 ? geometricMean / arithmeticMean : 0
@@ -846,39 +860,57 @@ export function detectContentType(
   const rolloffNormalized = rolloffBin / spectrum.length
 
   // ── Multi-feature scoring ──────────────────────────────────────────
-  // Weights reflect real-world reliability through a laptop/phone mic:
-  //   centroid + rolloff = most reliable (speech energy stays low, music spreads)
-  //   global flatness = reliable (speech formants are peaked, music fills bins)
-  //   crest factor = least reliable (a solo instrument can spike it either way)
+  // When temporal data is available, it gets 40% weight (most reliable).
+  // Spectral features scale down proportionally to fill the remaining 60%.
+  const hasTemporal = temporalMetrics !== undefined
+  const spectralScale = hasTemporal ? 0.60 : 1.0
+
   let speechScore = 0
   let musicScore = 0
 
   // Spectral centroid: speech concentrates in 100–4kHz, music spreads wider
-  if (centroidNormalized < 0.10) speechScore += 0.35
-  else if (centroidNormalized < 0.15) speechScore += 0.20
-  else if (centroidNormalized < 0.20) speechScore += 0.05
-  if (centroidNormalized > 0.20) musicScore += 0.30
-  else if (centroidNormalized > 0.15) musicScore += 0.15
+  if (centroidNormalized < 0.10) speechScore += 0.35 * spectralScale
+  else if (centroidNormalized < 0.15) speechScore += 0.20 * spectralScale
+  else if (centroidNormalized < 0.20) speechScore += 0.05 * spectralScale
+  if (centroidNormalized > 0.20) musicScore += 0.30 * spectralScale
+  else if (centroidNormalized > 0.15) musicScore += 0.15 * spectralScale
 
   // Spectral rolloff: speech energy dies above ~4kHz
-  if (rolloffNormalized < 0.15) speechScore += 0.30
-  else if (rolloffNormalized < 0.22) speechScore += 0.15
-  if (rolloffNormalized > 0.25) musicScore += 0.30
-  else if (rolloffNormalized > 0.18) musicScore += 0.10
+  if (rolloffNormalized < 0.15) speechScore += 0.30 * spectralScale
+  else if (rolloffNormalized < 0.22) speechScore += 0.15 * spectralScale
+  if (rolloffNormalized > 0.25) musicScore += 0.30 * spectralScale
+  else if (rolloffNormalized > 0.18) musicScore += 0.10 * spectralScale
 
-  // Global spectral flatness: speech formants = low, music dense harmonics = higher
-  if (globalFlatness < 0.03) speechScore += 0.25
-  else if (globalFlatness < 0.06) speechScore += 0.15
-  else if (globalFlatness < 0.10) speechScore += 0.05
-  if (globalFlatness > 0.15) musicScore += 0.25
-  else if (globalFlatness > 0.08) musicScore += 0.10
+  // Global spectral flatness
+  if (globalFlatness < 0.03) speechScore += 0.25 * spectralScale
+  else if (globalFlatness < 0.06) speechScore += 0.15 * spectralScale
+  else if (globalFlatness < 0.10) speechScore += 0.05 * spectralScale
+  if (globalFlatness > 0.15) musicScore += 0.25 * spectralScale
+  else if (globalFlatness > 0.08) musicScore += 0.10 * spectralScale
 
-  // Crest factor: weak signal — unreliable for speech vs music discrimination
-  // because a loud fundamental in music can produce crest > 12 dB easily.
-  // Small contribution to avoid over-weighting.
-  if (crestFactor > 14) speechScore += 0.10
-  else if (crestFactor > 12) speechScore += 0.05
-  if (crestFactor < 7) musicScore += 0.10
+  // Crest factor: weak signal, small contribution
+  if (crestFactor > 14) speechScore += 0.10 * spectralScale
+  else if (crestFactor > 12) speechScore += 0.05 * spectralScale
+  if (crestFactor < 7) musicScore += 0.10 * spectralScale
+
+  // ── Temporal envelope scoring (40% weight when available) ──────────
+  // Speech: high energy variance (pauses between words), frequent silence gaps.
+  // Music: low energy variance (continuous signal), few/no silence gaps.
+  if (hasTemporal) {
+    const { energyVariance, silenceGapRatio } = temporalMetrics
+
+    // Silence gap ratio — strongest temporal discriminator
+    if (silenceGapRatio > TEMPORAL_ENVELOPE.SPEECH_GAP_HIGH) speechScore += 0.25
+    else if (silenceGapRatio > TEMPORAL_ENVELOPE.SPEECH_GAP_MED) speechScore += 0.15
+    if (silenceGapRatio < TEMPORAL_ENVELOPE.MUSIC_GAP_LOW) musicScore += 0.25
+    else if (silenceGapRatio < TEMPORAL_ENVELOPE.MUSIC_GAP_MED) musicScore += 0.15
+
+    // Energy variance
+    if (energyVariance > TEMPORAL_ENVELOPE.SPEECH_VARIANCE_HIGH) speechScore += 0.15
+    else if (energyVariance > TEMPORAL_ENVELOPE.SPEECH_VARIANCE_MED) speechScore += 0.08
+    if (energyVariance < TEMPORAL_ENVELOPE.MUSIC_VARIANCE_LOW) musicScore += 0.15
+    else if (energyVariance < TEMPORAL_ENVELOPE.MUSIC_VARIANCE_MED) musicScore += 0.08
+  }
 
   if (speechScore > musicScore && speechScore > 0.3) return 'speech'
   if (musicScore > speechScore && musicScore > 0.3) return 'music'

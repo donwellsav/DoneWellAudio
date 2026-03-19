@@ -14,33 +14,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '0.144.1',
-    date: '2026-03-19',
+    version: '0.145.0',
+    date: '2026-03-18',
+    highlights: 'Temporal envelope content type detection',
     changes: [
-      { type: 'fix', description: 'v0.143.0: draggable threshold, compact UI, header hierarchy, GEQ ghost bars (#144)' },
+      { type: 'feat', description: 'Temporal envelope analysis for speech/music classification — uses energy variance and silence gap ratio from a 1-second ring buffer (50 frames at 50fps)' },
+      { type: 'fix', description: 'Content type classifier now weights temporal features at 40% when available, with spectral features scaling to 60%. Speech silence gaps and music continuous energy are the strongest discriminators.' },
     ],
   },
   {
     version: '0.144.0',
     date: '2026-03-19',
     changes: [
-      { type: 'feat', description: '**Draggable sensitivity threshold on RTA** — drag the dashed line up/down to adjust detection sensitivity directly on the spectrum. 8×28px grab handle with drag-affordance notches.' },
-      { type: 'feat', description: '**Compact start button area** — logo 80px (was 144px), shorter text, less dead space in issues panel.' },
-      { type: 'feat', description: '**Monitoring standby** — animated scanning sweep line instead of static text.' },
-      { type: 'feat', description: '**Header icon hierarchy** — mic selector larger+brighter, active-state icons get blue pill background, Clear All shows red notification dot, thin separator before Help/History.' },
-      { type: 'feat', description: '**GEQ ghost bars** — breathing opacity animation on inactive bands, indicates "waiting for data" instead of empty void.' },
-      { type: 'feat', description: '**Removed "Resolved" text badge** from issue cards — dimmed styling already communicates resolved state.' },
-      { type: 'feat', description: '**Tighter algorithm scores padding** on issue cards for compact debug display.' },
-      { type: 'feat', description: '**KTR brand logo** replaces speaker icon throughout.' },
-      { type: 'feat', description: '**Settings auto-persist** across page refreshes.' },
-      { type: 'feat', description: '**Algorithm scores debug toggle** in Display settings.' },
-      { type: 'feat', description: '**Amber warm spectrum** option with 0.5px default line width, 15fps default frame limit.' },
-      { type: 'feat', description: '**Swipe-to-label** on issue cards, always-on for mobile.' },
-      { type: 'feat', description: '**Content type classifier** rewritten with 4-feature scoring + temporal smoothing.' },
-      { type: 'feat', description: '[x] `npx tsc --noEmit` — clean' },
-      { type: 'feat', description: '[x] `pnpm test` — 465 passed, 4 skipped, 1 todo' },
-      { type: 'feat', description: '[x] Preview server — app loads, no build errors' },
-      { type: 'feat', description: '[x] Zero console errors' },
+      { type: 'feat', description: 'Draggable sensitivity threshold on RTA, compact start area, header icon hierarchy, GEQ ghost bars, resolved badge removed, tighter algorithm scores padding' },
     ],
   },
   {

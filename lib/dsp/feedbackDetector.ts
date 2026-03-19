@@ -1,7 +1,7 @@
 // KillTheRing2 Feedback Detector - Core DSP engine for peak detection
 // Adapted from FeedbackDetector.js with TypeScript and enhancements
 
-import { A_WEIGHTING, MIC_CALIBRATION_PROFILES, EXP_LUT, HARMONIC_SETTINGS, MSD_SETTINGS, PERSISTENCE_SCORING, SIGNAL_GATE, HYSTERESIS, PHPR_SETTINGS } from './constants'
+import { A_WEIGHTING, MIC_CALIBRATION_PROFILES, EXP_LUT, HARMONIC_SETTINGS, MSD_SETTINGS, PERSISTENCE_SCORING, SIGNAL_GATE, HYSTERESIS, PHPR_SETTINGS, TEMPORAL_ENVELOPE } from './constants'
 import { 
   medianInPlace, 
   buildPrefixSum, 
@@ -184,6 +184,12 @@ export class FeedbackDetector {
    *  10 slots × 500ms interval = 5-second smoothing window. Prevents single-frame flips. */
   private _contentTypeHistory: ContentType[] = []
   private static readonly CONTENT_TYPE_WINDOW = 10
+
+  // ── Temporal envelope buffer for speech/music discrimination ──────────
+  /** Ring buffer of per-frame energy (dB) for temporal analysis. */
+  private _energyBuffer: Float32Array = new Float32Array(TEMPORAL_ENVELOPE.BUFFER_SIZE)
+  private _energyBufferPos: number = 0
+  private _energyBufferFilled: boolean = false
   private _msdFrameCount: number | undefined = undefined
   private _isCompressed: boolean | undefined = undefined
   private _compressionRatio: number | undefined = undefined
@@ -676,6 +682,9 @@ export class FeedbackDetector {
     this._fastConfirmCounts.clear()
     this._contentTypeHistory = []
     this._contentType = undefined
+    this._energyBuffer.fill(-100)
+    this._energyBufferPos = 0
+    this._energyBufferFilled = false
     
     // Reset persistence scoring
     if (this.persistenceCount) this.persistenceCount.fill(0)
@@ -683,6 +692,44 @@ export class FeedbackDetector {
 
     // Reset hysteresis state
     this._recentlyClearedBins.clear()
+  }
+
+  /** Write a single energy sample to the temporal ring buffer. */
+  private _writeEnergyBuffer(db: number): void {
+    this._energyBuffer[this._energyBufferPos % TEMPORAL_ENVELOPE.BUFFER_SIZE] = db
+    this._energyBufferPos++
+    if (this._energyBufferPos >= TEMPORAL_ENVELOPE.BUFFER_SIZE) this._energyBufferFilled = true
+  }
+
+  /**
+   * Compute temporal envelope metrics from the energy ring buffer.
+   * Speech has high energy variance (silence gaps between words) and many quiet frames.
+   * Music has low energy variance (continuous signal) and few quiet frames.
+   * @returns Metrics for temporal scoring, or undefined if insufficient data.
+   */
+  private _computeTemporalMetrics(): { energyVariance: number; silenceGapRatio: number } | undefined {
+    const count = this._energyBufferFilled ? TEMPORAL_ENVELOPE.BUFFER_SIZE : this._energyBufferPos
+    if (count < TEMPORAL_ENVELOPE.MIN_FRAMES) return undefined
+
+    const buf = this._energyBuffer
+    let sum = 0
+    let silentFrames = 0
+    for (let i = 0; i < count; i++) {
+      sum += buf[i]
+      if (buf[i] < this._silenceThresholdDb) silentFrames++
+    }
+    const mean = sum / count
+
+    let varianceSum = 0
+    for (let i = 0; i < count; i++) {
+      const d = buf[i] - mean
+      varianceSum += d * d
+    }
+
+    return {
+      energyVariance: varianceSum / count,
+      silenceGapRatio: silentFrames / count,
+    }
   }
 
   private computeAWeightingTable(): void {
@@ -938,7 +985,8 @@ export class FeedbackDetector {
       if (validBins > 0 && specMax > this._silenceThresholdDb) {
         const rmsDb = 10 * Math.log10(sumLinear / validBins)
         const crestFactor = specMax - rmsDb
-        const instantType = detectContentType(freqDb, crestFactor)
+        const temporalMetrics = this._computeTemporalMetrics()
+        const instantType = detectContentType(freqDb, crestFactor, temporalMetrics)
 
         // Majority-vote smoothing: push to ring buffer, pick most frequent non-'unknown'
         this._contentTypeHistory.push(instantType)
@@ -1040,6 +1088,7 @@ export class FeedbackDetector {
 
       // When no signal present, skip peak detection. Noise floor continues tracking.
       if (!this._isSignalPresent) {
+        this._writeEnergyBuffer(rawPeak)
         this._clearStalePeaksOnSilence(dt, now)
         return false
       }
@@ -1055,11 +1104,13 @@ export class FeedbackDetector {
       this._rawPeakDb = rawPeak
       this._isSignalPresent = rawPeak >= this._silenceThresholdDb
       if (!this._isSignalPresent) {
+        this._writeEnergyBuffer(rawPeak)
         this._clearStalePeaksOnSilence(dt, now)
         return false
       }
     }
 
+    this._writeEnergyBuffer(this._rawPeakDb)
     return true
   }
 

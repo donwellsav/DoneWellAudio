@@ -902,6 +902,33 @@ export const SIGNAL_GATE = {
   } as Record<string, number>,
 } as const
 
+/**
+ * Temporal envelope analysis — speech vs music discrimination via energy dynamics.
+ * Speech has silence gaps between words (high variance, many quiet frames).
+ * Music fills continuously (low variance, few quiet frames).
+ * @see feedbackDetector.ts _computeTemporalMetrics()
+ */
+export const TEMPORAL_ENVELOPE = {
+  /** Ring buffer size in frames. At 50fps, 50 frames = 1 second of history. */
+  BUFFER_SIZE: 50,
+  /** Minimum frames before temporal metrics are considered reliable. */
+  MIN_FRAMES: 25,
+  /** Total weight for temporal features in detectContentType scoring (0–1). */
+  WEIGHT: 0.40,
+  /** Speech thresholds — high energy variance indicates dynamic amplitude (pauses). */
+  SPEECH_VARIANCE_HIGH: 20,
+  SPEECH_VARIANCE_MED: 12,
+  /** Speech silence gap ratio — fraction of frames below silence threshold. */
+  SPEECH_GAP_HIGH: 0.20,
+  SPEECH_GAP_MED: 0.10,
+  /** Music thresholds — low energy variance indicates continuous signal. */
+  MUSIC_VARIANCE_LOW: 6,
+  MUSIC_VARIANCE_MED: 10,
+  /** Music silence gap ratio — very few frames below threshold. */
+  MUSIC_GAP_LOW: 0.03,
+  MUSIC_GAP_MED: 0.08,
+} as const
+
 // Hysteresis for peak re-detection — prevents on-off-on flickering
 export const HYSTERESIS = {
   /** Extra dB above threshold required to re-trigger a recently cleared peak */
