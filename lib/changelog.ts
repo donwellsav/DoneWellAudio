@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.154.1',
+    date: '2026-03-19',
+    changes: [
+      { type: 'fix', description: 'docs: add workflow sections to CLAUDE.md (#154)' },
+    ],
+  },
+  {
     version: '0.154.0',
     date: '2026-03-19',
     changes: [
