@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.148.1',
+    date: '2026-03-19',
+    changes: [
+      { type: 'fix', description: 'v0.148.0: mobile inline graphs, swipe rework, fullscreen fixes (#148)' },
+    ],
+  },
+  {
     version: '0.148.0',
     date: '2026-03-19',
     highlights: 'Mobile inline graphs, resizable, swipe gestures rework, fullscreen fixes',
