@@ -14,6 +14,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.154.0',
+    date: '2026-03-19',
+    changes: [
+      { type: 'feat', description: '**Git Workflow** — fetch before reporting state, never push without permission, no force-push' },
+      { type: 'feat', description: '**Version Release Checklist** — standardized "update the usuals" steps' },
+      { type: 'feat', description: '**Deployment** — post-deploy verification, hotfix protocol' },
+      { type: 'feat', description: '**Testing / Validation** — tsc before commit, visual verify canvas changes' },
+      { type: 'feat', description: '[x] Documentation only — no code changes' },
+      { type: 'feat', description: '[x] Section order verified (logical flow)' },
+      { type: 'feat', description: '[x] No duplicate rules with existing sections' },
+    ],
+  },
+  {
     version: '0.153.1',
     date: '2026-03-19',
     changes: [
