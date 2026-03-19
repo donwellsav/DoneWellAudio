@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.147.1',
+    date: '2026-03-19',
+    changes: [
+      { type: 'fix', description: 'v0.147.0: ring-out wizard, dual entry point UX (#147)' },
+    ],
+  },
+  {
     version: '0.147.0',
     date: '2026-03-19',
     highlights: 'Ring-Out Wizard, dual entry point UX',
