@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.149.2',
+    date: '2026-03-19',
+    changes: [
+      { type: 'fix', description: 'v0.150.0: suppress onnxruntime-web warning, ring-out max sensitivity (#150)' },
+    ],
+  },
+  {
     version: '0.150.0',
     date: '2026-03-19',
     changes: [
