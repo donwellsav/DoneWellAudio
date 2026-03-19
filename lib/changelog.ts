@@ -14,6 +14,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.159.0',
+    date: '2026-03-19',
+    changes: [
+      { type: 'feat', description: '**14 UI/UX improvements** across 3 phases (quick wins, medium effort, larger features)' },
+      { type: 'feat', description: '**2 RTA placeholder PNGs** (A-weighted, dark amber + light blue, 2560×1280 retina)' },
+      { type: 'feat', description: 'Targets live-performance workflow: touch targets, discoverability, cognitive load, accessibility' },
+      { type: 'feat', description: 'Larger advisory card button touch targets (WCAG-compliant sizing)' },
+      { type: 'feat', description: 'Per-card dismiss (X) button on desktop' },
+      { type: 'feat', description: 'Enhanced threshold line drag affordance (larger handle + glow hint)' },
+      { type: 'feat', description: 'Haptic feedback on mobile swipe gestures' },
+      { type: 'feat', description: 'Font size clamp fix (22px → 18px max)' },
+      { type: 'feat', description: 'Swipe gesture onboarding tooltip (first-time, auto-dismiss)' },
+      { type: 'feat', description: 'Distinct fullscreen icons (App=Maximize2, RTA=Expand/Shrink)' },
+      { type: 'feat', description: 'Advisory card freshness indicator bar (visual age decay)' },
+      { type: 'feat', description: 'aria-live region for screen reader feedback announcements' },
+      { type: 'feat', description: 'Settings progressive disclosure (Simple 3-control vs full Advanced)' },
+      { type: 'feat', description: 'Mobile card button 2×2 grid layout (FALSE+|X / CONFIRM|COPY)' },
+      { type: 'feat', description: 'Header overflow menu for mobile (⋮ dropdown)' },
+      { type: 'feat', description: 'Keyboard shortcuts modal (? key) + Replay Tutorial' },
+      { type: 'feat', description: 'GEQ empty state text + responsive fader width' },
+      { type: 'feat', description: '[x] `npx tsc --noEmit` — 0 errors' },
+      { type: 'feat', description: '[x] `pnpm test` — 483 passed, 4 skipped, 1 todo' },
+      { type: 'feat', description: '[ ] Visual verification at 375px, 768px, 1440px' },
+      { type: 'feat', description: '[ ] Dark + light theme check' },
+      { type: 'feat', description: '[ ] Mobile swipe gesture testing' },
+      { type: 'feat', description: '[ ] Keyboard shortcut modal (? key)' },
+    ],
+  },
+  {
     version: '0.158.0',
     date: '2026-03-19',
     changes: [
