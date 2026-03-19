@@ -18,8 +18,8 @@ import { clearPanelLayouts } from '@/lib/storage/ktrStorage'
 // ── Context value ───────────────────────────────────────────────────────────
 
 export interface UIContextValue {
-  mobileTab: 'issues' | 'graph' | 'settings'
-  setMobileTab: (tab: 'issues' | 'graph' | 'settings') => void
+  mobileTab: 'issues' | 'settings'
+  setMobileTab: (tab: 'issues' | 'settings') => void
   isFrozen: boolean
   toggleFreeze: () => void
   isFullscreen: boolean
@@ -49,7 +49,7 @@ export function UIProvider({ rootRef, children }: UIProviderProps) {
 
   // ── Mobile tab ────────────────────────────────────────────────────────
 
-  const [mobileTab, setMobileTab] = useState<'issues' | 'graph' | 'settings'>('issues')
+  const [mobileTab, setMobileTab] = useState<'issues' | 'settings'>('issues')
 
   // ── Freeze ────────────────────────────────────────────────────────────
 

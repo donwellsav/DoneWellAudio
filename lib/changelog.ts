@@ -14,6 +14,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.148.0',
+    date: '2026-03-19',
+    highlights: 'Mobile inline graphs, resizable, swipe gestures rework, fullscreen fixes',
+    changes: [
+      { type: 'feat', description: 'Mobile inline graphs — compact RTA/GEQ above issue cards (~12vh default). Swipe horizontally on graph to switch between RTA and GEQ.' },
+      { type: 'feat', description: 'Resizable graph — drag handle between graph and cards. Pull down to expand (up to 40vh), push up to shrink (min 8vh).' },
+      { type: 'feat', description: 'Graph fullscreen overlay — tap fullscreen icon on inline graph to show both RTA + GEQ stacked full-viewport.' },
+      { type: 'ui', description: 'Mobile simplified to 2 tabs (Issues + Settings). Graph tab removed — graphs now inline.' },
+      { type: 'ui', description: 'Full EQ names on desktop — "Real-Time Analyzer" and "Graphic Equalizer" shown when panel width allows.' },
+      { type: 'fix', description: 'Fullscreen icons separated — header button toggles app fullscreen, RTA panel button toggles RTA fullscreen.' },
+      { type: 'fix', description: 'Mobile tab swipe disabled on Issues tab — prevents conflict with card swipe-to-label.' },
+      { type: 'fix', description: 'Swipe actions reworked — left = dismiss, right = confirm, long-press (500ms) = false positive.' },
+    ],
+  },
+  {
     version: '0.147.0',
     date: '2026-03-19',
     highlights: 'Ring-Out Wizard, dual entry point UX',
