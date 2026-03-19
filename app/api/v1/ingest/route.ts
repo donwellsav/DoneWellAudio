@@ -79,9 +79,11 @@ export async function POST(request: NextRequest) {
     })
 
     if (!forwardResponse.ok) {
+      // Log detail server-side but don't expose to client
       const errText = await forwardResponse.text().catch(() => 'unknown')
+      console.error(`[ingest] Storage failed: ${forwardResponse.status} — ${errText}`)
       return NextResponse.json(
-        { error: `Storage failed: ${forwardResponse.status}`, detail: errText },
+        { error: 'Storage temporarily unavailable' },
         { status: 502 }
       )
     }
@@ -147,6 +149,13 @@ function validateBatch(batch: unknown): string | null {
 function isRateLimited(sessionId: string): boolean {
   const now = Date.now()
   const entry = rateLimitMap.get(sessionId)
+
+  // Prune stale entries when map grows large (prevents unbounded growth on long-lived instances)
+  if (rateLimitMap.size > 1000) {
+    for (const [key, val] of rateLimitMap) {
+      if (now - val.windowStart > RATE_LIMIT_WINDOW_MS) rateLimitMap.delete(key)
+    }
+  }
 
   if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
     rateLimitMap.set(sessionId, { count: 1, windowStart: now })
