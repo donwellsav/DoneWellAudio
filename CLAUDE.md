@@ -9,6 +9,23 @@
 - **Build verification after every change:** `npx tsc --noEmit && pnpm test`
 - **Do not modify audio output.** KTR is analysis-only. It listens and advises. It never modifies the audio signal.
 
+## Git Workflow
+
+- **Never push without explicit permission.** Always ask before running `git push` or creating PRs. The words "push", "PR", "send to GitHub", or "merge" must come from the user first.
+- **Always `git fetch origin`** before reporting version numbers, branch status, or sync state. Stale local refs cause wrong version info.
+- **Never amend published commits** or force-push unless explicitly asked.
+
+## Version Release Checklist
+
+When the user asks to cut a release or "update the usuals":
+
+1. Update `lib/changelog.ts` — add entry with version, date, changes
+2. Update `components/kill-the-ring/help/GuideTab.tsx` — fix any stale references
+3. Update `package.json` version — `0.{next_PR_number}.0`
+4. Update `CLAUDE.md` header — version, test count, file count, summary line
+5. Commit locally
+6. **Wait for user approval** before pushing, creating PR, or merging
+
 ## Project Overview
 
 **Kill The Ring** (killthering.com) is a browser-based real-time acoustic feedback detection PWA for live sound engineers. It captures microphone input via the Web Audio API, identifies feedback frequencies using six fused detection algorithms, and delivers EQ recommendations with pitch translation. Version 0.152.0. Repository: github.com/donwellsav/killthering.
@@ -241,6 +258,19 @@ scripts/ml/                     # ML training pipeline
 - **Versioning:** `0.{PR_NUMBER}.0` on PR merge, patch increment on direct push. Both `[skip ci]`.
 - **Deployment:** Vercel auto-deploys on push to `main`
 - **Version flow:** `package.json` version -> `next.config.mjs` reads via `readFileSync` -> `NEXT_PUBLIC_APP_VERSION` env -> HeaderBar + HelpMenu
+
+## Deployment
+
+- **Vercel auto-deploys** on push to `main`. Every merge is a production deploy.
+- **Post-deploy verification:** After deploying or making production changes, verify the deployment is working (check the live URL, not just CI green).
+- **Hotfix protocol:** If a deploy breaks production, immediately create a hotfix branch, fix, and ship. Don't wait for a full PR review cycle.
+
+## Testing / Validation
+
+- **Run `npx tsc --noEmit`** after making TypeScript changes to catch type errors before committing.
+- **Run `pnpm test`** after any DSP, hook, or context changes.
+- **Build gate:** `npx tsc --noEmit && pnpm test` — both must pass before committing.
+- **Canvas changes** require visual verification in the browser (type-check won't catch drawing bugs).
 
 ## "Update the Usuals" Workflow
 
