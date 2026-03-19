@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.145.1',
+    date: '2026-03-19',
+    changes: [
+      { type: 'fix', description: 'v0.145.0: temporal envelope content type detection (#145)' },
+    ],
+  },
+  {
     version: '0.145.0',
     date: '2026-03-18',
     highlights: 'Temporal envelope content type detection',
