@@ -113,6 +113,7 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
           isReadyRef.current = true
           crashedRef.current = false
           restartCountRef.current = 0  // Healthy worker — reset restart budget
+          Sentry.addBreadcrumb({ category: 'dsp', message: 'Worker ready', level: 'info' })
           // Replay any enableCollection that arrived before the worker was ready
           if (pendingCollectionRef.current) {
             const { sessionId, fftSize, sampleRate } = pendingCollectionRef.current
@@ -169,6 +170,7 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
       crashedRef.current = true
       isReadyRef.current = false
       busyRef.current = false
+      Sentry.addBreadcrumb({ category: 'dsp', message: `Worker crashed: ${err.message ?? 'unknown'}`, level: 'error' })
 
       const attempt = restartCountRef.current + 1
       const canRestart = attempt <= MAX_RESTARTS && lastInitRef.current !== null
@@ -237,6 +239,7 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
       lastInitRef.current = { settings, sampleRate, fftSize }
       isReadyRef.current = false
       busyRef.current = false
+      Sentry.addBreadcrumb({ category: 'dsp', message: `Worker init: mode=${settings.mode} fft=${fftSize} sr=${sampleRate}`, level: 'info' })
       // Re-create worker if it died (onerror terminates + nulls workerRef)
       if (!workerRef.current) {
         const w = new Worker(

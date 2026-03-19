@@ -497,7 +497,11 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
     }
   }
   } catch (err) {
-    self.postMessage({ type: 'error', message: `[${msg.type}] ${err instanceof Error ? err.message : String(err)}` } satisfies WorkerOutboundMessage)
+    // Include peak context in error messages for better diagnostics
+    const peakCtx = msg.type === 'processPeak' && 'peak' in msg
+      ? ` @ ${(msg as { peak?: { frequency?: number; binIndex?: number } }).peak?.frequency?.toFixed(1)}Hz bin=${(msg as { peak?: { frequency?: number; binIndex?: number } }).peak?.binIndex}`
+      : ''
+    self.postMessage({ type: 'error', message: `[${msg.type}${peakCtx}] ${err instanceof Error ? err.message : String(err)}` } satisfies WorkerOutboundMessage)
   }
 }
 
