@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.155.1',
+    date: '2026-03-19',
+    changes: [
+      { type: 'fix', description: 'v0.155.0: canvas zone labels, light mode severity, header grouping (#155)' },
+    ],
+  },
+  {
     version: '0.155.0',
     date: '2026-03-19',
     highlights: 'Canvas polish, light mode severity fix, header icon grouping',
