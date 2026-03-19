@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.159.1',
+    date: '2026-03-19',
+    changes: [
+      { type: 'fix', description: 'Merge branch \'main\' of https://github.com/donwellsav/killthering' },
+    ],
+  },
+  {
     version: '0.159.0',
     date: '2026-03-19',
     changes: [
