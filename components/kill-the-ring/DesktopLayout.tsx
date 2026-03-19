@@ -16,7 +16,7 @@ import { useAdvisories } from '@/contexts/AdvisoryContext'
 import { useUI } from '@/contexts/UIContext'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { AlertTriangle, PanelLeftClose, Columns2, Maximize2, Minimize2 } from 'lucide-react'
+import { AlertTriangle, PanelLeftClose, Columns2, Expand, Shrink } from 'lucide-react'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import type { ImperativePanelHandle } from 'react-resizable-panels'
 import type { DetectorSettings } from '@/types/advisory'
@@ -284,9 +284,9 @@ export const DesktopLayout = memo(function DesktopLayout({
                       <button
                         onClick={toggleRtaFullscreen}
                         className="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                        aria-label={isRtaFullscreen ? 'Exit RTA fullscreen' : 'RTA fullscreen'}
+                        aria-label={isRtaFullscreen ? 'Collapse RTA' : 'Expand RTA'}
                       >
-                        {isRtaFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+                        {isRtaFullscreen ? <Shrink className="w-5 h-5" /> : <Expand className="w-5 h-5" />}
                       </button>
                     </div>
                   </div>

@@ -13,7 +13,8 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { HelpCircle, BookOpen, SlidersHorizontal, Cpu, List, Info } from 'lucide-react'
+import { HelpCircle, BookOpen, SlidersHorizontal, Cpu, List, Info, RotateCcw } from 'lucide-react'
+import { onboardingStorage } from '@/lib/storage/ktrStorage'
 import { GuideTab } from './help/GuideTab'
 import { ModesTab } from './help/ModesTab'
 import { AlgorithmsTab } from './help/AlgorithmsTab'
@@ -36,8 +37,15 @@ export const HelpMenu = memo(function HelpMenu() {
             <HelpCircle className="w-5 h-5 text-primary" />
             Help
           </SheetTitle>
-          <SheetDescription className="text-sm">
-            Guides, modes, algorithms & changelog.
+          <SheetDescription className="text-sm flex items-center justify-between">
+            <span>Guides, modes, algorithms & changelog.</span>
+            <button
+              onClick={() => { onboardingStorage.clear(); setOpen(false) }}
+              className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-3 h-3" />
+              Replay Tutorial
+            </button>
           </SheetDescription>
         </SheetHeader>
 

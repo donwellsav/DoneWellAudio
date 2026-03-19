@@ -170,6 +170,12 @@ export const customDefaultsStorage = typedStorage<DetectorSettings | null>('ktr-
 /** First-drag hint dismissed — once user drags the RTA threshold, hide the "Drag to adjust" label forever */
 export const thresholdDraggedStorage = flagStorage('ktr-threshold-dragged')
 
+/** Swipe gesture hint shown — once user sees the swipe labeling tooltip, don't show again */
+export const swipeHintStorage = flagStorage('ktr-swipe-hint-seen')
+
+/** Settings view mode — when set = advanced (all settings), when unset = simple (3 essentials) */
+export const settingsViewStorage = flagStorage('ktr-settings-advanced')
+
 /** Clear resizable panel layout data (forces re-mount to defaults) */
 export function clearPanelLayouts(): void {
   if (typeof window === 'undefined') return

@@ -5,10 +5,11 @@ import { formatFrequency, formatPitch } from '@/lib/utils/pitchUtils'
 import { getSeverityColor } from '@/lib/dsp/eqAdvisor'
 import { getSeverityText } from '@/lib/dsp/classifier'
 import { getFeedbackHistory } from '@/lib/dsp/feedbackHistory'
-import { AlertTriangle, CheckCircle2, TrendingUp, Copy, Check } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, TrendingUp, Copy, Check, X, ArrowLeft, ArrowRight, Timer } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { KtrLogo } from './KtrLogo'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { swipeHintStorage } from '@/lib/storage/ktrStorage'
 import type { Advisory } from '@/types/advisory'
 
 // Velocity thresholds for runaway prediction
@@ -106,8 +107,46 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
 
   const hasResolved = sorted.some(s => s.advisory.resolved)
 
+  // ── Swipe gesture onboarding hint (shown once per install) ──
+  const [showSwipeHint, setShowSwipeHint] = useState(() => {
+    if (!swipeLabeling) return false
+    return !swipeHintStorage.isSet()
+  })
+  const dismissSwipeHint = useCallback(() => {
+    setShowSwipeHint(false)
+    swipeHintStorage.set()
+  }, [])
+
+  // ── Accessibility: aria-live announcements for new advisories ──
+  const [liveAnnouncement, setLiveAnnouncement] = useState('')
+  const announcedIds = useRef(new Set<string>())
+  const lastAnnounceTime = useRef(0)
+
+  useEffect(() => {
+    const now = Date.now()
+    // Throttle to 1 announcement every 3 seconds
+    if (now - lastAnnounceTime.current < 3000) return
+
+    for (const { advisory: a } of sorted) {
+      if (!announcedIds.current.has(a.id) && !a.resolved) {
+        announcedIds.current.add(a.id)
+        lastAnnounceTime.current = now
+        const freq = a.trueFrequencyHz != null ? formatFrequency(a.trueFrequencyHz) : 'unknown'
+        const sev = getSeverityText(a.severity)
+        const cut = a.advisory?.peq ? `cut ${Math.abs(a.advisory.peq.gainDb).toFixed(0)} dB at Q ${a.advisory.peq.q.toFixed(0)}` : ''
+        setLiveAnnouncement(`Feedback detected at ${freq}, severity ${sev}${cut ? `, ${cut}` : ''}`)
+        break // One announcement at a time
+      }
+    }
+  }, [sorted])
+
   return (
     <div className="flex flex-col gap-1.5">
+      {/* Screen reader live region for feedback announcements */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true" role="status">
+        {liveAnnouncement}
+      </div>
+
       {sorted.length === 0 ? (
         !isRunning && onStart ? (
           <div className="flex flex-col items-center justify-center flex-1 min-h-[120px] py-4 gap-2">
@@ -190,6 +229,10 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
               )}
             </div>
           )}
+          {/* Swipe gesture onboarding hint (first encounter on mobile) */}
+          {showSwipeHint && swipeLabeling && sorted.length > 0 && (
+            <SwipeHint onDismiss={dismissSwipeHint} />
+          )}
           {sorted.map(({ advisory, occurrenceCount }) => (
             <IssueCard
               key={advisory.id}
@@ -207,6 +250,37 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
           ))}
         </>
       )}
+    </div>
+  )
+})
+
+// ── Swipe gesture onboarding tooltip (shown once on first advisory encounter) ──
+const SWIPE_HINT_AUTO_DISMISS_MS = 8000
+
+const SwipeHint = memo(function SwipeHint({ onDismiss }: { onDismiss: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(onDismiss, SWIPE_HINT_AUTO_DISMISS_MS)
+    return () => clearTimeout(timer)
+  }, [onDismiss])
+
+  return (
+    <div
+      className="flex items-center justify-center gap-4 px-3 py-2 rounded-md bg-primary/10 border border-primary/20 text-xs font-mono text-muted-foreground animate-issue-enter"
+      role="status"
+      onTouchStart={onDismiss}
+    >
+      <span className="flex items-center gap-1">
+        <ArrowLeft className="w-3 h-3 text-muted-foreground" />
+        Dismiss
+      </span>
+      <span className="flex items-center gap-1">
+        <ArrowRight className="w-3 h-3 text-emerald-400" />
+        Confirm
+      </span>
+      <span className="flex items-center gap-1">
+        <Timer className="w-3 h-3 text-red-400" />
+        False+
+      </span>
     </div>
   )
 })
@@ -299,6 +373,7 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
   const swipeLocked = useRef(false)
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [longPressed, setLongPressed] = useState(false)
+  const hapticFired = useRef(false)
 
   const clearLongPress = useCallback(() => {
     if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null }
@@ -309,6 +384,7 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
     const t = e.touches[0]
     touchStart.current = { x: t.clientX, y: t.clientY }
     swipeLocked.current = false
+    hapticFired.current = false
     setSwiping(false)
     setLongPressed(false)
     // Start long-press timer (500ms)
@@ -317,6 +393,7 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
       if (onFalsePositive) {
         onFalsePositive(advisory.id)
         setLongPressed(true)
+        navigator.vibrate?.(30) // Haptic feedback for false-positive long-press
       }
       touchStart.current = null
     }, 500)
@@ -346,6 +423,11 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
       e.preventDefault()
       setSwipeX(dx)
       setSwiping(true)
+      // Haptic feedback when crossing swipe threshold (fire once per gesture)
+      if (!hapticFired.current && Math.abs(dx) >= SWIPE_THRESHOLD) {
+        hapticFired.current = true
+        navigator.vibrate?.(10)
+      }
     }
   }, [swipeLabeling, clearLongPress])
 
@@ -427,14 +509,14 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
       />
 
       <div
-        className="pl-3 pr-1.5 py-1.5 flex flex-col gap-1 relative z-10"
+        className="flex flex-col relative z-10 @container"
         style={swipeLabeling && swiping ? {
           transform: `translateX(${swipeX}px)`,
           transition: swiping ? 'none' : 'transform 200ms ease-out',
         } : undefined}
       >
 
-        {/* Top section: 3-column — frequency LEFT, badges MIDDLE, dismiss RIGHT */}
+        {/* Top section: frequency + badges (actions move to bottom row on narrow cards) */}
         <div className="flex items-start justify-between gap-2">
           {/* LEFT: Frequency hero + pitch/band */}
           <div className="flex flex-col min-w-0">
@@ -529,54 +611,71 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
             </div>
           </div>
 
-          {/* RIGHT: Copy / FALSE+ top row, CONFIRM beneath */}
-          <div className="flex flex-col items-end flex-shrink-0 self-center">
-            <div className="flex items-center gap-0">
-              <button
+          {/* RIGHT: Action buttons 2×2 grid (desktop only) */}
+          {/* Layout: FALSE+ | X  /  CONFIRM | COPY */}
+          {!touchFriendly && !swipeLabeling && (
+            <div className="flex flex-col items-end flex-shrink-0 self-center">
+              {/* Row 1: FALSE+ | X */}
+              <div className="flex items-center">
+                {onFalsePositive && (
+                  <button
+                    onClick={() => onFalsePositive(advisory.id)}
+                    aria-label={`${isFalsePositive ? 'Unflag' : 'Flag'} ${exactFreqStr} as false positive`}
+                    className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1.5 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 h-7 min-w-[40px] ${
+                      isFalsePositive ? 'text-red-400 bg-red-500/20 border border-red-500/40' : 'text-muted-foreground/50 hover:text-red-400 hover:bg-red-500/10 border border-transparent'
+                    }`}
+                  >
+                    FALSE+
+                  </button>
+                )}
+                {onDismiss && (
+                  <button
+                    onClick={() => onDismiss(advisory.id)}
+                    aria-label={`Dismiss ${exactFreqStr}`}
+                    className="rounded flex items-center justify-center cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 text-muted-foreground/30 hover:text-muted-foreground hover:bg-muted/60 transition-colors h-7 w-7"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              {/* Row 2: CONFIRM | Copy */}
+              <div className="flex items-center">
+                {onConfirmFeedback && (
+                  <button
+                    onClick={() => onConfirmFeedback(advisory.id)}
+                    aria-label={`${isConfirmed ? 'Unconfirm' : 'Confirm'} ${exactFreqStr} as real feedback`}
+                    className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1.5 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 h-7 min-w-[40px] ${
+                      isConfirmed ? 'text-emerald-400 bg-emerald-500/20 border border-emerald-500/40' : 'text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-500/10 border border-transparent'
+                    }`}
+                  >
+                    CONFIRM
+                  </button>
+                )}
+                <button
                   onClick={handleCopy}
                   aria-label={`Copy ${exactFreqStr} frequency info`}
-                  className={`rounded btn-glow flex items-center justify-center cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
-                    copied
-                      ? 'text-emerald-400'
-                      : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60'
-                  } ${touchFriendly ? 'w-8 h-8' : 'w-7 h-7'}`}
+                  className={`rounded btn-glow flex items-center justify-center cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 h-7 w-7 ${
+                    copied ? 'text-emerald-400' : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60'
+                  }`}
                 >
-                  {copied
-                    ? <Check className={touchFriendly ? 'w-5 h-5' : 'w-3.5 h-3.5'} />
-                    : <Copy className={touchFriendly ? 'w-5 h-5' : 'w-3.5 h-3.5'} />
-                  }
+                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 </button>
-              {copied && (
-                <span className="sr-only" role="status">Frequency info copied</span>
-              )}
-              {onFalsePositive && !swipeLabeling && (
-                <button
-                  onClick={() => onFalsePositive(advisory.id)}
-                  aria-label={`${isFalsePositive ? 'Unflag' : 'Flag'} ${exactFreqStr} as false positive`}
-                  className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
-                    isFalsePositive
-                      ? 'text-red-400 bg-red-500/20 border border-red-500/40'
-                      : 'text-muted-foreground/50 hover:text-red-400 hover:bg-red-500/10 border border-transparent'
-                  } ${touchFriendly ? 'h-7 min-w-[36px]' : 'h-6 min-w-[36px]'}`}
-                >
-                  FALSE+
-                </button>
-              )}
+              </div>
+              {copied && <span className="sr-only" role="status">Frequency info copied</span>}
             </div>
-            {onConfirmFeedback && !swipeLabeling && (
-              <button
-                onClick={() => onConfirmFeedback(advisory.id)}
-                aria-label={`${isConfirmed ? 'Unconfirm' : 'Confirm'} ${exactFreqStr} as real feedback`}
-                className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 self-end ${
-                  isConfirmed
-                    ? 'text-emerald-400 bg-emerald-500/20 border border-emerald-500/40'
-                    : 'text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-500/10 border border-transparent'
-                } ${touchFriendly ? 'h-7 min-w-[36px]' : 'h-6 min-w-[36px]'}`}
-              >
-                CONFIRM
-              </button>
-            )}
-          </div>
+          )}
+          {/* Desktop: copy-only when swipe labeling is on (no FALSE+/CONFIRM/X) */}
+          {!touchFriendly && swipeLabeling && (
+            <button
+              onClick={handleCopy}
+              aria-label={`Copy ${exactFreqStr} frequency info`}
+              className={`rounded btn-glow flex items-center justify-center cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 w-8 h-8 flex-shrink-0 self-center ${
+                copied ? 'text-emerald-400' : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60'
+              }`}
+            >
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            </button>
+          )}
         </div>
 
         {/* Velocity + age — full-width below */}
@@ -611,7 +710,73 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
             {' → '}{advisory.algorithmScores.fusedProbability.toFixed(2)}
           </div>
         )}
+
+        {/* Mobile bottom action toolbar: FALSE+ | X / CONFIRM | COPY */}
+        {touchFriendly && !swipeLabeling && (
+          <div className="flex flex-col items-end">
+            {/* Row 1: FALSE+ | X */}
+            <div className="flex items-center">
+              {onFalsePositive && (
+                <button
+                  onClick={() => onFalsePositive(advisory.id)}
+                  aria-label={`${isFalsePositive ? 'Unflag' : 'Flag'} false positive`}
+                  className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 h-8 min-w-[44px] ${
+                    isFalsePositive ? 'text-red-400 bg-red-500/20 border border-red-500/40' : 'text-muted-foreground/50 hover:text-red-400 hover:bg-red-500/10 border border-transparent'
+                  }`}
+                >
+                  FALSE+
+                </button>
+              )}
+              {onDismiss && (
+                <button
+                  onClick={() => onDismiss(advisory.id)}
+                  aria-label={`Dismiss ${exactFreqStr}`}
+                  className="rounded flex items-center justify-center cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 text-muted-foreground/30 hover:text-muted-foreground hover:bg-muted/60 transition-colors w-9 h-8"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            {/* Row 2: CONFIRM | Copy */}
+            <div className="flex items-center">
+              {onConfirmFeedback && (
+                <button
+                  onClick={() => onConfirmFeedback(advisory.id)}
+                  aria-label={`${isConfirmed ? 'Unconfirm' : 'Confirm'} feedback`}
+                  className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 h-8 min-w-[44px] ${
+                    isConfirmed ? 'text-emerald-400 bg-emerald-500/20 border border-emerald-500/40' : 'text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-500/10 border border-transparent'
+                  }`}
+                >
+                  CONFIRM
+                </button>
+              )}
+              <button
+                onClick={handleCopy}
+                aria-label={`Copy ${exactFreqStr}`}
+                className={`rounded btn-glow flex items-center justify-center cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 w-9 h-8 ${
+                  copied ? 'text-emerald-400' : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60'
+                }`}
+              >
+                {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+              </button>
+            </div>
+            {copied && <span className="sr-only" role="status">Frequency info copied</span>}
+          </div>
+        )}
       </div>
+
+      {/* Freshness indicator bar — decays from full to empty over 60s */}
+      {!isResolved && (
+        <div className="h-[2px] w-full" aria-hidden>
+          <div
+            className="h-full rounded-full transition-[width] duration-1000 ease-linear"
+            style={{
+              width: `${Math.max(0, (1 - ageSec / 60)) * 100}%`,
+              backgroundColor: `${severityColor}50`,
+            }}
+          />
+        </div>
+      )}
     </div>
   )
 })

@@ -265,24 +265,35 @@ export function drawIndicatorLines(
     ctx.stroke()
     ctx.setLineDash([])
     // Grab handle — rounded rect on right side, indicates draggable
-    const handleW = 8
-    const handleH = 28
+    // Enlarged for better discoverability (12×36px — exceeds 44px touch target with grab radius)
+    const handleW = 12
+    const handleH = 36
     const handleX = plotWidth - handleW - 2
     const handleY = threshY - handleH / 2
+
+    // Subtle glow behind handle for first-time users (pulsing via showDragHint)
+    if (showDragHint) {
+      ctx.fillStyle = VIZ_COLORS.THRESHOLD
+      ctx.globalAlpha = 0.15
+      const glowPath = new Path2D()
+      glowPath.roundRect(handleX - 4, handleY - 4, handleW + 8, handleH + 8, 6)
+      ctx.fill(glowPath)
+    }
+
     ctx.fillStyle = VIZ_COLORS.THRESHOLD
-    ctx.globalAlpha = 0.7
+    ctx.globalAlpha = 0.75
     const handlePath = new Path2D()
-    handlePath.roundRect(handleX, handleY, handleW, handleH, 3)
+    handlePath.roundRect(handleX, handleY, handleW, handleH, 4)
     ctx.fill(handlePath)
     // Inner notch lines (3 horizontal lines to indicate drag affordance)
     ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)'
     ctx.lineWidth = 1
     ctx.globalAlpha = 1
     for (let i = -1; i <= 1; i++) {
-      const ny = threshY + i * 5
+      const ny = threshY + i * 6
       ctx.beginPath()
-      ctx.moveTo(handleX + 2, ny)
-      ctx.lineTo(handleX + handleW - 2, ny)
+      ctx.moveTo(handleX + 3, ny)
+      ctx.lineTo(handleX + handleW - 3, ny)
       ctx.stroke()
     }
 
@@ -296,11 +307,11 @@ export function drawIndicatorLines(
 
     // First-drag hint — shows until user drags the threshold for the first time
     if (showDragHint) {
-      ctx.font = `${Math.max(9, fontSize - 1)}px monospace`
+      ctx.font = `bold ${Math.max(10, fontSize)}px monospace`
       ctx.fillStyle = VIZ_COLORS.THRESHOLD
-      ctx.globalAlpha = 0.55
+      ctx.globalAlpha = 0.65
       ctx.textAlign = 'right'
-      ctx.fillText('← Drag to adjust', handleX - 6, threshY + 12)
+      ctx.fillText('↕ Drag to adjust sensitivity', handleX - 6, threshY + 14)
     }
 
     ctx.globalAlpha = 1
