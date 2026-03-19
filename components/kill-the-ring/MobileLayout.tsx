@@ -56,7 +56,7 @@ export const MobileLayout = memo(function MobileLayout({
 
   // Inline graph — mode and resizable height
   const [inlineGraphMode, setInlineGraphMode] = useState<'rta' | 'geq'>('rta')
-  const [graphHeightVh, setGraphHeightVh] = useState(12)
+  const [graphHeightVh, setGraphHeightVh] = useState(18)
   const resizeDragRef = useRef<{ startY: number; startH: number } | null>(null)
   const graphTouchStart = useRef<{ x: number; y: number } | null>(null)
 
@@ -81,7 +81,7 @@ export const MobileLayout = memo(function MobileLayout({
 
   const onResizeMove = useCallback((e: React.TouchEvent) => {
     if (!resizeDragRef.current) return
-    e.preventDefault()
+    // touch-none on the handle element prevents scrolling; no preventDefault() needed
     const deltaY = e.touches[0].clientY - resizeDragRef.current.startY
     const deltaVh = (deltaY / window.innerHeight) * 100
     const newH = Math.min(40, Math.max(8, resizeDragRef.current.startH + deltaVh))
@@ -221,13 +221,13 @@ export const MobileLayout = memo(function MobileLayout({
 
             {/* ── Drag handle to resize graph ─────────────────────── */}
             <div
-              className="flex-shrink-0 flex items-center justify-center py-1 cursor-row-resize touch-none"
+              className="flex-shrink-0 flex items-center justify-center py-3 cursor-row-resize touch-none active:bg-muted/30 transition-colors"
               onTouchStart={onResizeStart}
               onTouchMove={onResizeMove}
               onTouchEnd={onResizeEnd}
               aria-label="Drag to resize graph"
             >
-              <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+              <div className="w-12 h-1 rounded-full bg-muted-foreground/40" />
             </div>
 
             {/* ── Issue cards (scrollable) ─────────────────────────── */}
