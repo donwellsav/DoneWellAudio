@@ -12,8 +12,10 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
-import { LayoutGrid, Maximize2, Mic, Minimize2, Moon, Pause, Play, Sun, Trash2 } from 'lucide-react'
+import { LayoutGrid, Maximize2, Mic, Minimize2, Moon, MoreVertical, Pause, Play, Sun, Trash2 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { KtrLogo } from './KtrLogo'
 import { useAdvisories } from '@/contexts/AdvisoryContext'
@@ -128,13 +130,13 @@ export const HeaderBar = memo(function HeaderBar() {
               size="icon"
               onClick={toggleFullscreen}
               className={`flex h-10 w-10 btn-glow ${isFullscreen ? 'text-primary bg-primary/15 rounded-md' : 'text-muted-foreground hover:text-foreground'}`}
-              aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+              aria-label={isFullscreen ? 'Exit App Fullscreen' : 'App Fullscreen'}
             >
               {isFullscreen ? <Minimize2 className="size-6" /> : <Maximize2 className="size-6" />}
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-sm">
-            {isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            {isFullscreen ? 'Exit App Fullscreen' : 'App Fullscreen'}
           </TooltipContent>
         </Tooltip>
 
@@ -187,32 +189,76 @@ export const HeaderBar = memo(function HeaderBar() {
 
         </div>
 
-        {/* ── Separator ───────────────────────────────── */}
-        <div className="w-px h-6 bg-border/40 mx-1 sm:mx-1.5 flex-shrink-0" aria-hidden="true" />
+        {/* ── Separator (desktop only) ────────────────── */}
+        <div className="hidden tablet:block w-px h-6 bg-border/40 mx-1 sm:mx-1.5 flex-shrink-0" aria-hidden="true" />
 
-        {/* ── Utility group ───────────────────────────── */}
-        <div className="flex items-center gap-0">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-              aria-label="Toggle theme"
-              className="h-10 w-10 cursor-pointer text-muted-foreground hover:text-foreground"
-            >
-              {resolvedTheme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="text-sm">
-            {resolvedTheme === 'dark' ? 'Light mode' : 'Dark mode'}
-          </TooltipContent>
-        </Tooltip>
+        {/* ── Utility group (desktop: inline, mobile: overflow menu) ── */}
+        <div className="hidden tablet:flex items-center gap-0">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+                aria-label="Toggle theme"
+                className="h-10 w-10 cursor-pointer text-muted-foreground hover:text-foreground"
+              >
+                {resolvedTheme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-sm">
+              {resolvedTheme === 'dark' ? 'Light mode' : 'Dark mode'}
+            </TooltipContent>
+          </Tooltip>
 
-        <FeedbackHistoryPanel />
-        <Suspense fallback={<div className="h-10 w-10" />}>
-          <LazyHelpMenu />
-        </Suspense>
+          <FeedbackHistoryPanel />
+          <Suspense fallback={<div className="h-10 w-10" />}>
+            <LazyHelpMenu />
+          </Suspense>
+        </div>
+
+        {/* ── Mobile overflow menu (< tablet breakpoint) ────────────── */}
+        <div className="flex tablet:hidden items-center">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 text-muted-foreground hover:text-foreground"
+                aria-label="More actions"
+              >
+                <MoreVertical className="size-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[180px]">
+              {isRunning && (
+                <DropdownMenuItem onClick={toggleFreeze} className="text-sm gap-2 cursor-pointer">
+                  {isFrozen ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+                  {isFrozen ? 'Unfreeze (P)' : 'Freeze (P)'}
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem
+                onClick={() => { onClearAll(); onClearGEQ(); onClearRTA() }}
+                disabled={!hasClearableContent}
+                className="text-sm gap-2 cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4" />
+                Clear All
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+                className="text-sm gap-2 cursor-pointer"
+              >
+                {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                {resolvedTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={resetLayout} className="text-sm gap-2 cursor-pointer">
+                <LayoutGrid className="w-4 h-4" />
+                Reset Layout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>

@@ -146,7 +146,7 @@
     @apply border-border outline-ring/50;
   }
   html {
-    font-size: clamp(13px, calc(9.73px + 0.32vw), 22px);
+    font-size: clamp(13px, calc(9.73px + 0.32vw), 18px);
   }
   body {
     @apply text-foreground;

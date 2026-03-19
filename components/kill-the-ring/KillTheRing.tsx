@@ -10,6 +10,7 @@ import { DesktopLayout } from './DesktopLayout'
 import { PortalContainerProvider } from '@/contexts/PortalContainerContext'
 
 const LazyOnboardingOverlay = lazy(() => import('./OnboardingOverlay').then(m => ({ default: m.OnboardingOverlay })))
+const LazyKeyboardShortcutsModal = lazy(() => import('./KeyboardShortcutsModal').then(m => ({ default: m.KeyboardShortcutsModal })))
 // Consent dialog removed — collection is opt-out via Settings → Advanced
 import { useDataCollection } from '@/hooks/useDataCollection'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -366,6 +367,9 @@ const KillTheRingInner = memo(function KillTheRingInner({
       <UIProvider rootRef={rootRef}>
         <FullscreenPortalGate rootEl={rootEl}>
           <KeyboardShortcuts />
+          <Suspense fallback={null}>
+            <LazyKeyboardShortcutsModal />
+          </Suspense>
 
           {error && !isErrorDismissed && (
             <div role="alert" className="px-3 py-2 sm:px-4 sm:py-2.5 bg-destructive/10 border-b border-destructive/20 max-h-[40vh] overflow-y-auto">

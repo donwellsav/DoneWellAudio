@@ -15,7 +15,7 @@ import { useSettings } from '@/contexts/SettingsContext'
 import { useMetering } from '@/contexts/MeteringContext'
 import { useAdvisories } from '@/contexts/AdvisoryContext'
 import { useUI } from '@/contexts/UIContext'
-import { AlertTriangle, Settings2, Maximize2, Minimize2 } from 'lucide-react'
+import { AlertTriangle, Settings2, Expand, Shrink } from 'lucide-react'
 import type { DetectorSettings } from '@/types/advisory'
 import type { CalibrationTabProps } from './settings/CalibrationTab'
 import { MOBILE_MAX_DISPLAYED_ISSUES } from '@/lib/dsp/constants'
@@ -200,9 +200,9 @@ export const MobileLayout = memo(function MobileLayout({
               <button
                 onClick={toggleRtaFullscreen}
                 className="absolute top-0.5 right-0.5 z-20 p-1 rounded text-muted-foreground/60 hover:text-foreground transition-colors cursor-pointer"
-                aria-label="Fullscreen graphs"
+                aria-label="Expand RTA"
               >
-                <Maximize2 className="w-3.5 h-3.5" />
+                <Expand className="w-3.5 h-3.5" />
               </button>
 
               {/* Label */}
@@ -300,7 +300,7 @@ export const MobileLayout = memo(function MobileLayout({
         </div>
         </div>
         {/* Fader sidecar — persistent across all tabs */}
-        <div className="flex-shrink-0 w-16 border-l border-border/50 channel-strip">
+        <div className="flex-shrink-0 w-12 min-[375px]:w-16 border-l border-border/50 channel-strip">
           <VerticalGainFader
             value={settings.inputGainDb}
             onChange={(v) => onSettingsChange({ inputGainDb: v })}
@@ -328,9 +328,9 @@ export const MobileLayout = memo(function MobileLayout({
             <button
               onClick={toggleRtaFullscreen}
               className="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              aria-label="Exit fullscreen graphs"
+              aria-label="Collapse RTA"
             >
-              <Minimize2 className="w-4 h-4" />
+              <Shrink className="w-4 h-4" />
             </button>
           </div>
           <div className="flex-1 min-h-0 flex flex-col gap-0.5 p-0.5">
@@ -402,9 +402,9 @@ export const MobileLayout = memo(function MobileLayout({
               <button
                 onClick={toggleRtaFullscreen}
                 className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 min-h-[44px] min-w-[44px] rounded text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
-                aria-label={isRtaFullscreen ? 'Exit RTA fullscreen' : 'RTA fullscreen'}
+                aria-label={isRtaFullscreen ? 'Collapse RTA' : 'Expand RTA'}
               >
-                {isRtaFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                {isRtaFullscreen ? <Shrink className="w-4 h-4" /> : <Expand className="w-4 h-4" />}
               </button>
             </div>
             {isRunning && (

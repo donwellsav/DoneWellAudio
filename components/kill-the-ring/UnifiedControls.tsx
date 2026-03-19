@@ -24,7 +24,7 @@ import type { DetectorSettings, OperationMode, AlgorithmMode, Algorithm } from '
 import type { CalibrationTabProps } from './settings/CalibrationTab'
 import { FREQ_RANGE_PRESETS } from '@/lib/dsp/constants'
 import { roundFreqToNice } from '@/lib/utils/mathHelpers'
-import { presetStorage, customDefaultsStorage } from '@/lib/storage/ktrStorage'
+import { presetStorage, customDefaultsStorage, settingsViewStorage } from '@/lib/storage/ktrStorage'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -124,6 +124,15 @@ export const UnifiedControls = memo(function UnifiedControls({
   dataCollection,
 }: UnifiedControlsProps) {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('detect')
+  const [showAdvanced, setShowAdvanced] = useState(() => settingsViewStorage.isSet())
+
+  const handleToggleAdvanced = useCallback(() => {
+    setShowAdvanced(prev => {
+      const next = !prev
+      if (next) { settingsViewStorage.set() } else { settingsViewStorage.clear(); setActiveSubTab('detect') }
+      return next
+    })
+  }, [])
 
   const handleFreqSliderChange = useCallback(([logMin, logMax]: number[]) => {
     const newMin = roundFreqToNice(Math.pow(10, logMin))
@@ -209,121 +218,127 @@ export const UnifiedControls = memo(function UnifiedControls({
     <TooltipProvider delayDuration={400}>
       <div className="@container space-y-1.5">
 
-        {/* Sub-tab strip — icon-only with tooltips */}
-        <div className="flex justify-center gap-1 border-b border-border -mx-1 pb-px">
-            {subTabs.map(({ id, label, Icon }) => (
-              <Tooltip key={id}>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => setActiveSubTab(id as SubTab)}
-                    aria-label={label}
-                    className={`w-9 h-8 flex items-center justify-center rounded-t transition-all duration-200 border-b-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
-                      activeSubTab === id
-                        ? 'text-foreground border-primary bg-primary/5'
-                        : 'text-muted-foreground border-transparent hover:text-foreground'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-sm">{label}</TooltipContent>
-              </Tooltip>
-            ))}
-          </div>
+        {/* Simple / All Settings toggle */}
+        <div className="flex justify-end -mb-0.5">
+          <button
+            onClick={handleToggleAdvanced}
+            className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 text-xs text-muted-foreground hover:text-foreground transition-colors py-0.5"
+          >
+            {showAdvanced ? '\u25C2 Simple View' : 'Show All Settings \u25B8'}
+          </button>
+        </div>
 
-        {/* ── Content ─────────────────────────────────────────────── */}
+        {showAdvanced ? (
+          <>
+            {/* Sub-tab strip — icon-only with tooltips */}
+            <div className="flex justify-center gap-1 border-b border-border -mx-1 pb-px">
+              {subTabs.map(({ id, label, Icon }) => (
+                <Tooltip key={id}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setActiveSubTab(id as SubTab)}
+                      aria-label={label}
+                      className={`w-9 h-8 flex items-center justify-center rounded-t transition-all duration-200 border-b-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+                        activeSubTab === id
+                          ? 'text-foreground border-primary bg-primary/5'
+                          : 'text-muted-foreground border-transparent hover:text-foreground'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-sm">{label}</TooltipContent>
+                </Tooltip>
+              ))}
+            </div>
 
-        {/* Detect sub-tab */}
-        {activeSubTab === 'detect' && (
-          <DetectContent
+            {/* ── Content ─────────────────────────────────────────────── */}
+
+            {/* Detect sub-tab */}
+            {activeSubTab === 'detect' && (
+              <DetectContent
+                settings={settings}
+                onSettingsChange={onSettingsChange}
+                onModeChange={onModeChange}
+                handleFreqSliderChange={handleFreqSliderChange}
+                customPresets={customPresets}
+                showSaveInput={showSaveInput}
+                setShowSaveInput={setShowSaveInput}
+                presetName={presetName}
+                setPresetName={setPresetName}
+                handleSavePreset={handleSavePreset}
+                handleDeletePreset={handleDeletePreset}
+                handleLoadPreset={handleLoadPreset}
+              />
+            )}
+
+            {/* Display sub-tab */}
+            {activeSubTab === 'display' && (
+              <DisplayTab settings={settings} onSettingsChange={onSettingsChange} />
+            )}
+
+            {/* Room sub-tab */}
+            {activeSubTab === 'room' && (
+              <RoomTab settings={settings} onSettingsChange={onSettingsChange} />
+            )}
+
+            {/* Advanced sub-tab */}
+            {activeSubTab === 'advanced' && (
+              <AdvancedTab settings={settings} onSettingsChange={onSettingsChange} {...dataCollection} />
+            )}
+
+            {/* Calibrate sub-tab */}
+            {activeSubTab === ('calibrate' as SubTab) && calibration && (
+              <div className="mt-2">
+                <CalibrationTab settings={settings} onSettingsChange={onSettingsChange} {...calibration} />
+              </div>
+            )}
+
+            {/* ── Footer: Reset / Save / Load ────────────────────────── */}
+            <div className="border-t border-border/40 pt-2 mt-2 space-y-1.5">
+              <ResetConfirmDialog
+                onConfirm={onReset}
+                trigger={
+                  <Button variant="outline" size="sm" className="w-full h-8">
+                    <RotateCcw className="h-3 w-3 mr-1.5" />
+                    Reset Defaults
+                  </Button>
+                }
+              />
+              <div className="flex gap-1.5">
+                <Button variant="secondary" size="sm" className="flex-1 h-7 text-xs" onClick={handleSaveAsDefaults}>
+                  <Download className="h-3 w-3 mr-1" />
+                  Save
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="flex-1 h-7 text-xs"
+                  onClick={handleLoadDefaults}
+                  disabled={!hasSavedDefaults}
+                  title={hasSavedDefaults ? 'Load your saved defaults' : 'No saved defaults yet'}
+                >
+                  <FileJson className="h-3 w-3 mr-1" />
+                  Load
+                </Button>
+              </div>
+            </div>
+          </>
+        ) : (
+          /* ── Simple mode: only Mode, Sensitivity, Max Issues ──── */
+          <SimpleSettings
             settings={settings}
             onSettingsChange={onSettingsChange}
             onModeChange={onModeChange}
-            handleFreqSliderChange={handleFreqSliderChange}
-            customPresets={customPresets}
-            showSaveInput={showSaveInput}
-            setShowSaveInput={setShowSaveInput}
-            presetName={presetName}
-            setPresetName={setPresetName}
-            handleSavePreset={handleSavePreset}
-            handleDeletePreset={handleDeletePreset}
-            handleLoadPreset={handleLoadPreset}
           />
         )}
-
-        {/* Display sub-tab */}
-        {activeSubTab === 'display' && (
-          <DisplayTab settings={settings} onSettingsChange={onSettingsChange} />
-        )}
-
-        {/* Room sub-tab */}
-        {activeSubTab === 'room' && (
-          <RoomTab settings={settings} onSettingsChange={onSettingsChange} />
-        )}
-
-        {/* Advanced sub-tab */}
-        {activeSubTab === 'advanced' && (
-          <AdvancedTab settings={settings} onSettingsChange={onSettingsChange} {...dataCollection} />
-        )}
-
-        {/* Calibrate sub-tab */}
-        {activeSubTab === ('calibrate' as SubTab) && calibration && (
-          <div className="mt-2">
-            <CalibrationTab settings={settings} onSettingsChange={onSettingsChange} {...calibration} />
-          </div>
-        )}
-
-        {/* ── Footer: Reset / Save / Load ────────────────────────── */}
-        <div className="border-t border-border/40 pt-2 mt-2 space-y-1.5">
-          <ResetConfirmDialog
-            onConfirm={onReset}
-            trigger={
-              <Button variant="outline" size="sm" className="w-full h-8">
-                <RotateCcw className="h-3 w-3 mr-1.5" />
-                Reset Defaults
-              </Button>
-            }
-          />
-          <div className="flex gap-1.5">
-            <Button variant="secondary" size="sm" className="flex-1 h-7 text-xs" onClick={handleSaveAsDefaults}>
-              <Download className="h-3 w-3 mr-1" />
-              Save
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              className="flex-1 h-7 text-xs"
-              onClick={handleLoadDefaults}
-              disabled={!hasSavedDefaults}
-              title={hasSavedDefaults ? 'Load your saved defaults' : 'No saved defaults yet'}
-            >
-              <FileJson className="h-3 w-3 mr-1" />
-              Load
-            </Button>
-          </div>
-        </div>
 
       </div>
     </TooltipProvider>
   )
 })
 
-// ── DetectContent (extracted for readability) ────────────────────────────────
-
-interface DetectContentProps {
-  settings: DetectorSettings
-  onSettingsChange: (settings: Partial<DetectorSettings>) => void
-  onModeChange: (mode: OperationMode) => void
-  handleFreqSliderChange: (values: number[]) => void
-  customPresets: { name: string; settings: Partial<DetectorSettings> }[]
-  showSaveInput: boolean
-  setShowSaveInput: (v: boolean) => void
-  presetName: string
-  setPresetName: (v: string) => void
-  handleSavePreset: () => void
-  handleDeletePreset: (name: string) => void
-  handleLoadPreset: (preset: { name: string; settings: Partial<DetectorSettings> }) => void
-}
+// ── Mode chips (shared by SimpleSettings + DetectContent) ────────────────────
 
 const MODES = [
   ['speech', 'Speech'], ['worship', 'Worship'], ['liveMusic', 'Live'], ['theater', 'Theater'],
@@ -381,6 +396,63 @@ const PresetsList = memo(function PresetsList({ presets, onLoad, onDelete }: {
     </div>
   )
 })
+
+// ── SimpleSettings (progressive disclosure — 3 essential controls) ───────────
+
+interface SimpleSettingsProps {
+  settings: DetectorSettings
+  onSettingsChange: (settings: Partial<DetectorSettings>) => void
+  onModeChange: (mode: OperationMode) => void
+}
+
+const SimpleSettings = memo(function SimpleSettings({ settings, onSettingsChange, onModeChange }: SimpleSettingsProps) {
+  return (
+    <div className="space-y-3 py-1">
+      {/* Mode selector */}
+      <div className="space-y-1">
+        <span className="text-xs font-mono font-bold uppercase tracking-[0.15em] text-muted-foreground">Mode</span>
+        <ModeChips current={settings.mode} onModeChange={onModeChange} />
+      </div>
+
+      {/* Sensitivity slider */}
+      <SliderRow
+        label="Sensitivity"
+        value={`${settings.feedbackThresholdDb}dB`}
+        tooltip="Lower = more sensitive, higher = fewer false positives. Drag on the RTA spectrum to adjust visually."
+        min={2} max={50} step={1}
+        sliderValue={52 - settings.feedbackThresholdDb}
+        onChange={(v) => onSettingsChange({ feedbackThresholdDb: 52 - v })}
+      />
+
+      {/* Max Issues slider */}
+      <SliderRow
+        label="Max Issues"
+        value={`${settings.maxDisplayedIssues}`}
+        tooltip="How many feedback issues display at once."
+        min={3} max={12} step={1}
+        sliderValue={settings.maxDisplayedIssues}
+        onChange={(v) => onSettingsChange({ maxDisplayedIssues: v })}
+      />
+    </div>
+  )
+})
+
+// ── DetectContent (extracted for readability) ────────────────────────────────
+
+interface DetectContentProps {
+  settings: DetectorSettings
+  onSettingsChange: (settings: Partial<DetectorSettings>) => void
+  onModeChange: (mode: OperationMode) => void
+  handleFreqSliderChange: (values: number[]) => void
+  customPresets: { name: string; settings: Partial<DetectorSettings> }[]
+  showSaveInput: boolean
+  setShowSaveInput: (v: boolean) => void
+  presetName: string
+  setPresetName: (v: string) => void
+  handleSavePreset: () => void
+  handleDeletePreset: (name: string) => void
+  handleLoadPreset: (preset: { name: string; settings: Partial<DetectorSettings> }) => void
+}
 
 const DetectContent = memo(function DetectContent({
   settings, onSettingsChange, onModeChange,

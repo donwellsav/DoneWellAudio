@@ -381,9 +381,19 @@ export const GEQBarView = memo(function GEQBarView({ advisories, graphFontSize =
   // Mark dirty when display data changes (triggers redraw on next rAF tick)
   useEffect(() => { dirtyRef.current = true }, [bandRecommendations, graphFontSize])
 
+  const hasRecommendations = bandRecommendations.size > 0
+
   return (
     <div ref={containerRef} className="relative w-full h-full">
       <canvas ref={canvasRef} className="w-full h-full" role="img" aria-label="Graphic equalizer band view with recommended cuts" />
+      {/* Instructional overlay when no EQ recommendations exist */}
+      {!hasRecommendations && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <span className="font-mono text-xs text-muted-foreground/40 tracking-wide text-center px-4">
+            EQ recommendations appear here
+          </span>
+        </div>
+      )}
     </div>
   )
 })
