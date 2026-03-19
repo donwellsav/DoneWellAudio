@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.143.1',
+    date: '2026-03-18',
+    changes: [
+      { type: 'fix', description: 'v0.143.0: tighter algorithm scores padding on issue cards (#143)' },
+    ],
+  },
+  {
     version: '0.143.0',
     date: '2026-03-18',
     changes: [
