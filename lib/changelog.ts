@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.149.1',
+    date: '2026-03-19',
+    changes: [
+      { type: 'fix', description: 'v0.149.0: fix mobile graph resize handle (#149)' },
+    ],
+  },
+  {
     version: '0.149.0',
     date: '2026-03-19',
     changes: [
