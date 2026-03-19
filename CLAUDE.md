@@ -1,7 +1,7 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
-> **Last updated March 2026. 161 TypeScript/TSX files, 476 tests (471 pass, 4 skip, 1 todo), 27 suites. Version 0.151.0.**
-> Sensitivity guidance (3 layers). Speech/Ring-out default 27dB. onnxruntime-web warning suppressed.
+> **Last updated March 2026. 161 TypeScript/TSX files, 476 tests (471 pass, 4 skip, 1 todo), 27 suites. Version 0.153.0.**
+> Context prompt for new sessions. Fusion weights + project structure accuracy fixes.
 
 ## CRITICAL RULES
 
@@ -11,7 +11,7 @@
 
 ## Project Overview
 
-**Kill The Ring** (killthering.com) is a browser-based real-time acoustic feedback detection PWA for live sound engineers. It captures microphone input via the Web Audio API, identifies feedback frequencies using six fused detection algorithms, and delivers EQ recommendations with pitch translation. Version 0.130.0. Repository: github.com/donwellsav/killthering.
+**Kill The Ring** (killthering.com) is a browser-based real-time acoustic feedback detection PWA for live sound engineers. It captures microphone input via the Web Audio API, identifies feedback frequencies using six fused detection algorithms, and delivers EQ recommendations with pitch translation. Version 0.152.0. Repository: github.com/donwellsav/killthering.
 
 ## Tech Stack
 
@@ -24,7 +24,7 @@
 | DSP Offload | Web Worker (dspWorker.ts, ~458 lines) |
 | Visualization | HTML5 Canvas at 30fps |
 | State | React 19 hooks + 4 context providers (no external state library) |
-| Testing | Vitest (468 tests, 26 suites, under 11s) |
+| Testing | Vitest (476 tests, 27 suites, under 11s) |
 | Error Reporting | Sentry (browser + server + worker runtimes) |
 | PWA | Serwist (service worker, offline caching, installable) |
 | Package Manager | pnpm |
@@ -36,7 +36,7 @@ pnpm dev              # Dev server on :3000 (Turbopack, no SW)
 pnpm build            # Production build (webpack, generates SW)
 pnpm start            # Production server
 pnpm lint             # ESLint (flat config)
-pnpm test             # Vitest (468 tests: 463 pass + 4 skip + 1 todo)
+pnpm test             # Vitest (476 tests: 471 pass + 4 skip + 1 todo)
 pnpm test:watch       # Vitest watch mode
 pnpm test:coverage    # Vitest with V8 coverage
 npx tsc --noEmit      # Type-check (run BEFORE pnpm build)
@@ -80,23 +80,15 @@ Mic -> getUserMedia -> GainNode -> AnalyserNode (8192 FFT)
 
 ## Six Detection Algorithms
 
-| # | Algorithm | Source | What It Measures | Weight (DEFAULT) |
-|---|-----------|--------|-----------------|-----------------|
-| 1 | MSD | DAFx-16, Aalto 2016 | Magnitude stability over time. Feedback MSD=0, music MSD>>0. | 0.30 |
-| 2 | Phase Coherence | KU Leuven 2025 | Frame-to-frame phase stability via circular statistics | 0.25 |
-| 3 | Spectral Flatness/Compression | Glasberg-Moore | Geometric/arithmetic mean ratio + kurtosis + crest factor + dynamic range | 0.12 |
-| 4 | Comb Pattern | DBX whitepaper | Evenly-spaced peaks from acoustic loop. d=c/delta_f | 0.08 |
-| 5 | IHR | Novel | Inter-harmonic energy ratio. Music: rich harmonics. Feedback: pure tone. | 0.13 |
-| 6 | PTMR | Novel | Peak-to-median ratio. Sharp peaks = more likely feedback. | 0.12 |
-
-### Fusion Weight Profiles
-
-```
-DEFAULT:    MSD=0.30  Phase=0.25  Spectral=0.12  Comb=0.08  IHR=0.13  PTMR=0.12
-SPEECH:     MSD=0.33  Phase=0.24  Spectral=0.10  Comb=0.05  IHR=0.10  PTMR=0.18
-MUSIC:      MSD=0.08  Phase=0.35  Spectral=0.10  Comb=0.08  IHR=0.24  PTMR=0.15
-COMPRESSED: MSD=0.12  Phase=0.30  Spectral=0.18  Comb=0.08  IHR=0.18  PTMR=0.14
-```
+| # | Algorithm | Source | What It Measures | DEFAULT | SPEECH | MUSIC | COMP |
+|---|-----------|--------|-----------------|---------|--------|-------|------|
+| 1 | MSD | DAFx-16, Aalto 2016 | Magnitude stability (feedback=0, music>>0) | 0.27 | 0.30 | 0.07 | 0.11 |
+| 2 | Phase Coherence | KU Leuven 2025 | Frame-to-frame phase stability | 0.23 | 0.22 | 0.32 | 0.27 |
+| 3 | Spectral Flatness | Glasberg-Moore | Geometric/arithmetic mean + kurtosis + crest | 0.11 | 0.09 | 0.09 | 0.16 |
+| 4 | Comb Pattern | DBX whitepaper | Evenly-spaced peaks from acoustic loop | 0.07 | 0.04 | 0.07 | 0.07 |
+| 5 | IHR | Novel | Inter-harmonic energy ratio | 0.12 | 0.09 | 0.22 | 0.16 |
+| 6 | PTMR | Novel | Peak-to-median ratio | 0.10 | 0.16 | 0.13 | 0.13 |
+| 7 | ML (ONNX) | Bootstrap MLP | 11-feature MLP 11→32→16→1 (929 params, 4KB) | 0.10 | 0.10 | 0.10 | 0.10 |
 
 ### Multiplicative Gates (post-fusion and classifier)
 
@@ -133,8 +125,10 @@ components/
     help/ (6 files)           # Help tab components (mirrors settings/ pattern)
     KillTheRing.tsx (473)     #   Root orchestrator, settings debounce, FP handling
     HeaderBar.tsx (191)       #   Header bar (zero props, permanent Clear All)
-    IssuesList.tsx (440)      #   Advisory cards with CONFIRM + FALSE+ buttons, 3s stability
+    IssuesList.tsx (440)      #   Advisory cards with swipe gestures, 3s stability
     UnifiedControls.tsx (760) #   All settings: icon sub-tabs, accordion sections, container queries
+    KtrLogo.tsx               #   Brand SVG logo (frequency analyzer crosshair + EQ bars)
+    RingOutWizard.tsx         #   Guided ring-out workflow with step tracking
     LandscapeSettingsSheet.tsx (58) # Bottom Sheet wrapper for mobile landscape settings
     settings/ (5 files)       # Settings sub-tab components (Display, Room, Advanced, Calibration, Shared)
   ui/ (21 files)              # shadcn/ui primitives (includes accordion)
@@ -219,7 +213,7 @@ scripts/ml/                     # ML training pipeline
 - **Constants:** SCREAMING_SNAKE_CASE in `lib/dsp/constants.ts` (single source of truth)
 - **Private members:** `_prefixed`
 - **Imports:** Always `@/*` path alias
-- **Canvas functions:** Pure (no React deps), take ctx + dimensions + data as params
+- **Canvas functions:** Pure (no React deps), take ctx + dimensions + data as params. Theme colors via `canvasThemeRef.current` (ref, not state — avoids re-render, read in RAF loop)
 - **Styling:** Tailwind utilities + `cn()` from `lib/utils.ts`
 - **JSDoc:** Required on all DSP functions. Include academic references.
 - **Testing:** Vitest. Co-located unit tests in `__tests__/`, scenario tests in `tests/dsp/`
@@ -231,12 +225,12 @@ scripts/ml/                     # ML training pipeline
 
 | Mode | Threshold (dB) | Silence (dBFS) | MSD Weight | Use Case |
 |------|---------------|----------------|------------|----------|
-| speech | 30 | -65 | 0.33 | Conferences, lectures |
+| speech | 27 | -65 | 0.33 | Conferences, lectures |
 | worship | 35 | -58 | 0.33 | Churches (reverberant) |
 | liveMusic | 42 | -45 | 0.08 | Concerts (dense harmonics) |
 | theater | 28 | -58 | 0.33 | Drama, musicals |
 | monitors | 15 | -45 | 0.33 | Stage wedges (fastest) |
-| ringOut | 12 | -70 | 0.33 | Calibration (most sensitive) |
+| ringOut | 2 | -70 | 0.33 | Calibration (most sensitive) |
 | broadcast | 22 | -70 | 0.33 | Studios, podcasts |
 | outdoor | 38 | -45 | 0.33 | Festivals (wind-resistant) |
 
@@ -247,6 +241,21 @@ scripts/ml/                     # ML training pipeline
 - **Versioning:** `0.{PR_NUMBER}.0` on PR merge, patch increment on direct push. Both `[skip ci]`.
 - **Deployment:** Vercel auto-deploys on push to `main`
 - **Version flow:** `package.json` version -> `next.config.mjs` reads via `readFileSync` -> `NEXT_PUBLIC_APP_VERSION` env -> HeaderBar + HelpMenu
+
+## "Update the Usuals" Workflow
+
+When the user says "update the usuals" or "update the usual stuff", do all of these:
+
+1. **Changelog** (`lib/changelog.ts`) — add entry for new version with all features/fixes
+2. **Help menu** (`components/kill-the-ring/help/GuideTab.tsx`) — update any stale references
+3. **Version** (`package.json`) — bump to `0.{next_PR_number}.0`
+4. **CLAUDE.md** — update header (version, test count, file count, summary line)
+
+Then when user says "PR and merge":
+5. Commit locally, create feature branch, push, `gh pr create`, `gh pr merge --squash --delete-branch --admin`
+6. Sync local: `git checkout main && git pull origin main`
+
+**NEVER push unless the user explicitly says "push", "PR", or "send to GitHub".**
 
 ## Security Notes
 
@@ -284,16 +293,40 @@ scripts/ml/                     # ML training pipeline
 - **Cloud training pipeline (v0.128.0):** Supabase `spectral_snapshots` table with 12 ML columns. `scripts/ml/` with numpy-only trainer, export script, bootstrap model generator. GitHub Actions workflow (`ml-train.yml`) for weekly scheduled or manual training runs.
 - **Ingest API v1.2 (v0.128.0):** Accepts `confirmed_feedback` user feedback, ML algorithm score, and model version. Backward-compatible with v1.0/v1.1.
 
-## UI Features (v0.107.0+)
+## UI Features
 
-- **Permanent Clear All button:** Trash icon always visible in header. Calls `onClearAll()` + `onClearGEQ()` + `onClearRTA()` in one click. Visually dimmed (`text-muted-foreground/30`) when nothing to clear.
-- **FALSE+ card layout:** FALSE+ button renders on its own row beneath Copy/Dismiss icons in each `IssueCard`, improving visual hierarchy and reducing misclick risk.
-- **RTA fullscreen:** Element-level Fullscreen API via `UIContext`. Toggle button in header (Maximize2/Minimize2). Works on mobile and desktop.
-- **Landscape mobile layout:** 40/55/5 split (Issues/Graph/Controls) in landscape orientation. Portrait keeps 3-tab carousel.
-- **Issue card simplification:** GEQ removed from cards (PEQ only). Compact buttons with larger icons. 3s minimum display time for stability.
-- **Mobile advisory limit:** Top 5 most problematic frequencies shown (`MOBILE_MAX_DISPLAYED_ISSUES` in constants.ts).
-- **Auto MEMS calibration:** Smartphone MEMS mic profile auto-applied on mobile devices.
-- **RTA label overlap suppression:** Greedy algorithm in `spectrumDrawing.ts` prioritizes highest-severity labels, prevents clutter.
-- **Unified settings sidebar (v0.129.0):** `UnifiedControls.tsx` consolidates the old `SettingsPanel` (Sheet drawer) and `DetectionControls` (sidebar) into one component. Icon-only sub-tabs with tooltips (Detect | Display | Room | Advanced | Calibrate). Detect tab uses `<Accordion>` sections for progressive disclosure. Container queries (`@container`) replace viewport breakpoints so grids stay single-column in narrow sidebar. `LandscapeSettingsSheet.tsx` provides bottom-sheet access on mobile landscape.
-- **Swipe-to-label (v0.131.0):** Issue cards support swipe left (FALSE+) / swipe right (CONFIRM) gestures. Opt-in toggle in Display settings (`swipeLabeling`). When enabled, hides FALSE+/CONFIRM buttons. 60px threshold, vertical-scroll-safe (locks to horizontal after 10px). Works on any touchscreen (phones, tablets, touchscreen monitors). Visual feedback: card slides with red/green tint reveal.
-- **Content type temporal smoothing (v0.131.0):** `detectContentType()` rewritten to use 4-feature scoring only (centroid, rolloff, global flatness, crest factor) — removed unreliable single-feature gates. FeedbackDetector applies majority-vote smoothing over 10 frames (~5 seconds) to prevent classification flickering.
+### Layout & Navigation
+- **Dual entry point:** Two start buttons — "Press to Start Analysis" (normal mode) and "Ring Out Room" (ring-out wizard). No settings menu required to switch modes.
+- **Desktop layout:** 3-panel — Controls sidebar | Issues panel | RTA + GEQ graphs. Unified settings with icon sub-tabs (Detect | Display | Room | Advanced | Calibrate) and accordion sections.
+- **Mobile portrait (2-tab):** Tab 1 = Issues + inline resizable RTA/GEQ graph (drag handle to resize, swipe to switch RTA↔GEQ). Tab 2 = Settings. Graph tab removed — graphs are inline above cards.
+- **Mobile landscape:** 40/55/5 split (Issues/Graph/Controls). `LandscapeSettingsSheet.tsx` for bottom-sheet settings.
+- **Fullscreen:** Separate app fullscreen (Maximize2 icon) and RTA fullscreen (Expand icon). Distinct icons and behavior.
+
+### Issue Cards & Labeling
+- **Swipe gestures (v0.148.0):** Swipe left = dismiss (removes from view). Swipe right = confirm as real feedback. Long-press = flag as false positive. 60px threshold, vertical-scroll-safe. Mobile always-on, desktop opt-in via Display settings.
+- **Issue card display:** PEQ-only recommendations. Copy button. 3s minimum display time for stability. Top 5 on mobile (`MOBILE_MAX_DISPLAYED_ISSUES`).
+- **Algorithm scores debug:** Toggle in Display settings shows MSD/PH/SP/CM/IH/PT/ML scores on each card.
+
+### Theme & Branding
+- **Dark/light theme (v0.146.0):** `next-themes` with CSS variables. Canvas colors via `canvasThemeRef` pattern (ref updated on theme change, read in RAF loop). Blue spectrum in light mode, amber/blue toggle in dark mode.
+- **KTR brand logo (v0.132.0):** Frequency analyzer crosshair + equalizer bars SVG. `KtrLogo.tsx` component. Replaces generic speaker icon in header (64px) and start button (80px).
+- **Full names:** "Real-Time Analyzer" / "Graphic Equalizer" labels when space allows, abbreviated on narrow screens.
+
+### Ring-Out Wizard (v0.147.0)
+- **Guided workflow:** Step-by-step — "Raise gain slowly" → feedback detected → shows EQ cut recommendation → "Apply cut, click Next" → repeat. Running list of all notched frequencies.
+- **Auto-starts in ringOut mode** with 2dB threshold (maximum sensitivity). Session summary with all cuts, exportable.
+
+### Detection & Analysis
+- **Content type detection:** 4-feature scoring (centroid, rolloff, flatness, crest factor) with temporal envelope analysis (energy variance over 2s windows). Majority-vote smoothing over 10 frames.
+- **Sensitivity guidance (v0.151.0):** Three-layer contextual hints — idle hint below start buttons, first-detection tooltip, persistent RTA label next to threshold line. Speech/ringOut default 27dB.
+- **RTA label overlap suppression:** Greedy algorithm prioritizes highest-severity labels.
+- **Draggable threshold line:** Drag the dashed line on the RTA to adjust sensitivity directly. 8×28px grab handle with notch affordance.
+
+### Settings Persistence
+- **Auto-persist:** All 47 settings fields saved to localStorage on every change via `ktrStorage.ts`. Loaded on mount with `DEFAULT_SETTINGS` as fallback.
+- **Custom presets:** Save/load named presets (up to 5). Mode selector + saved presets in Detect accordion.
+
+### Other
+- **Permanent Clear All:** Trash icon in header, calls `onClearAll()` + `onClearGEQ()` + `onClearRTA()`.
+- **Auto MEMS calibration:** Smartphone MEMS mic profile auto-applied on mobile.
+- **onnxruntime-web warning suppressed (v0.150.0):** String-concatenated dynamic import avoids Turbopack static analysis. No functional change.

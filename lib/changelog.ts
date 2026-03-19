@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.153.0',
+    date: '2026-03-19',
+    highlights: 'Context prompt, CLAUDE.md accuracy fixes',
+    changes: [
+      { type: 'feat', description: 'World-class context prompt (docs/CONTEXT_PROMPT.md) — copy-paste into any new AI session for full project context, built from deep code audit' },
+      { type: 'fix', description: 'CLAUDE.md fusion weights corrected — added ML column (0.10), fixed all per-mode values to match actual algorithmFusion.ts code' },
+      { type: 'fix', description: 'CLAUDE.md project structure corrected — removed nonexistent useSwipeGesture.ts and useOnlineStatus.ts, fixed hooks count from 13 to 11' },
+    ],
+  },
+  {
     version: '0.152.0',
     date: '2026-03-19',
     changes: [
