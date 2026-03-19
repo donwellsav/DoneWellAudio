@@ -15,6 +15,55 @@ import type { EarlyWarning } from '@/hooks/useAudioAnalyzer'
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
+/** Theme-aware color palette for canvas drawing. Avoids per-frame getComputedStyle(). */
+export interface CanvasTheme {
+  background: string
+  vignette: string
+  gridMinor: string
+  gridMajor: string
+  gridFreq: string
+  zoneLabel: string
+  axisLabel: string
+  axisLabelShadow: string
+  peakHold: string
+  freqRangeOverlay: string
+  freqRangeLine: string
+  placeholder: string
+  placeholderShadow: string
+}
+
+export const DARK_CANVAS_THEME: CanvasTheme = {
+  background: '#080a0c',
+  vignette: 'rgba(0, 0, 0, 0.4)',
+  gridMinor: '#121416',
+  gridMajor: '#1e2024',
+  gridFreq: '#161820',
+  zoneLabel: 'rgba(160, 170, 190, 0.35)',
+  axisLabel: '#8891a0',
+  axisLabelShadow: 'rgba(0,0,0,0.7)',
+  peakHold: 'rgba(200, 210, 225, 0.25)',
+  freqRangeOverlay: 'rgba(0, 0, 0, 0.45)',
+  freqRangeLine: '#4B92FF',
+  placeholder: 'rgba(59, 130, 246, 0.12)',
+  placeholderShadow: 'rgba(75, 146, 255, 0.35)',
+}
+
+export const LIGHT_CANVAS_THEME: CanvasTheme = {
+  background: '#f0f1f4',
+  vignette: 'rgba(0, 0, 0, 0.06)',
+  gridMinor: '#d8dbe0',
+  gridMajor: '#c0c5cc',
+  gridFreq: '#d0d4da',
+  zoneLabel: 'rgba(80, 90, 110, 0.45)',
+  axisLabel: '#5a6478',
+  axisLabelShadow: 'rgba(255,255,255,0.5)',
+  peakHold: 'rgba(50, 60, 80, 0.30)',
+  freqRangeOverlay: 'rgba(255, 255, 255, 0.45)',
+  freqRangeLine: '#2563eb',
+  placeholder: 'rgba(37, 99, 235, 0.10)',
+  placeholderShadow: 'rgba(37, 99, 235, 0.25)',
+}
+
 export interface DbRange {
   dbMin: number
   dbMax: number
@@ -57,9 +106,10 @@ export function drawGrid(
   plotWidth: number,
   plotHeight: number,
   range: DbRange,
+  theme: CanvasTheme = DARK_CANVAS_THEME,
 ) {
   // Background
-  ctx.fillStyle = '#080a0c'
+  ctx.fillStyle = theme.background
   ctx.fillRect(0, 0, plotWidth, plotHeight)
 
   // Radial vignette — subtle depth from center to edges
@@ -68,12 +118,12 @@ export function drawGrid(
     plotWidth / 2, plotHeight / 2, plotWidth * 0.75,
   )
   vg.addColorStop(0, 'transparent')
-  vg.addColorStop(1, 'rgba(0, 0, 0, 0.4)')
+  vg.addColorStop(1, theme.vignette)
   ctx.fillStyle = vg
   ctx.fillRect(0, 0, plotWidth, plotHeight)
 
   // Minor dB grid (subtle, drawn first)
-  ctx.strokeStyle = '#121416'
+  ctx.strokeStyle = theme.gridMinor
   ctx.lineWidth = 0.5
   ctx.beginPath()
   for (const db of DB_MINOR) {
@@ -84,7 +134,7 @@ export function drawGrid(
   ctx.stroke()
 
   // Major dB grid (brighter, on top)
-  ctx.strokeStyle = '#1e2024'
+  ctx.strokeStyle = theme.gridMajor
   ctx.lineWidth = 1
   ctx.beginPath()
   for (const db of DB_MAJOR) {
@@ -95,7 +145,7 @@ export function drawGrid(
   ctx.stroke()
 
   // Frequency grid
-  ctx.strokeStyle = '#161820'
+  ctx.strokeStyle = theme.gridFreq
   ctx.lineWidth = 0.5
   ctx.beginPath()
   for (const freq of FREQ_LABELS) {
@@ -125,6 +175,7 @@ export function drawFreqZones(
   plotHeight: number,
   range: DbRange,
   showZones: boolean,
+  theme: CanvasTheme = DARK_CANVAS_THEME,
 ) {
   if (!showZones) return
 
@@ -142,7 +193,7 @@ export function drawFreqZones(
     const labelWidth = x2 - x1
     if (labelWidth > 30) { // only draw label if zone is wide enough
       ctx.font = '9px var(--font-sans, sans-serif)'
-      ctx.fillStyle = 'rgba(160, 170, 190, 0.35)'
+      ctx.fillStyle = theme.zoneLabel
       ctx.textAlign = 'center'
       ctx.textBaseline = 'top'
       ctx.fillText(zone.label, centerX, 4)
@@ -246,6 +297,7 @@ export function drawSpectrum(
   spectrumLineWidth: number,
   peakHoldRef: { current: Float32Array | null },
   warmMode: boolean = false,
+  theme: CanvasTheme = DARK_CANVAS_THEME,
 ) {
   if (!spectrum?.freqDb || !spectrum.sampleRate || !spectrum.fftSize) return
 
@@ -266,13 +318,15 @@ export function drawSpectrum(
   }
 
   // Color channels: blue (default) or amber (warm mode)
-  const r = warmMode ? 255 : 75
-  const g = warmMode ? 179 : 146
-  const b = warmMode ? 71 : 255
+  // Light theme always uses blue — amber is hard to read on light backgrounds
+  const useWarm = warmMode && theme === DARK_CANVAS_THEME
+  const r = useWarm ? 255 : 75
+  const g = useWarm ? 179 : 146
+  const b = useWarm ? 71 : 255
 
-  // Cached gradient fill — recreated when plotHeight or warmMode changes
-  // Encode warmMode into gradientHeightRef as negative to force invalidation
-  const cacheKey = warmMode ? -plotHeight : plotHeight
+  // Cached gradient fill — recreated when plotHeight, warmMode, or theme changes
+  // Encode warmMode+theme into sign to force invalidation
+  const cacheKey = useWarm ? -plotHeight : plotHeight
   let gradient = gradientRef.current
   if (!gradient || gradientHeightRef.current !== cacheKey) {
     gradient = ctx.createLinearGradient(0, 0, 0, plotHeight)
@@ -353,8 +407,8 @@ export function drawSpectrum(
   ctx.shadowColor = 'transparent'
   ctx.shadowBlur = 0
 
-  // ── Peak hold trace — thin white line above spectrum ──────────
-  ctx.strokeStyle = 'rgba(200, 210, 225, 0.25)'
+  // ── Peak hold trace — thin line above spectrum ──────────
+  ctx.strokeStyle = theme.peakHold
   ctx.lineWidth = 1
   ctx.stroke(holdPath)
 }
@@ -365,17 +419,18 @@ export function drawFreqRangeOverlay(
   plotHeight: number,
   range: DbRange,
   freqRange: { min: number; max: number },
+  theme: CanvasTheme = DARK_CANVAS_THEME,
 ) {
   const rangeMinX = freqToLogPosition(Math.max(freqRange.min, range.freqMin), range.freqMin, range.freqMax) * plotWidth
   const rangeMaxX = freqToLogPosition(Math.min(freqRange.max, range.freqMax), range.freqMin, range.freqMax) * plotWidth
 
   // Dim overlay outside detection range
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
+  ctx.fillStyle = theme.freqRangeOverlay
   if (rangeMinX > 0) ctx.fillRect(0, 0, rangeMinX, plotHeight)
   if (rangeMaxX < plotWidth) ctx.fillRect(rangeMaxX, 0, plotWidth - rangeMaxX, plotHeight)
 
   // Vertical boundary lines
-  const lineColor = '#4B92FF' // LED blue
+  const lineColor = theme.freqRangeLine
   ctx.strokeStyle = lineColor
   ctx.lineWidth = 2
   ctx.globalAlpha = 0.85
@@ -549,16 +604,17 @@ export function drawAxisLabels(
   fontSize: number,
   width: number,
   height: number,
+  theme: CanvasTheme = DARK_CANVAS_THEME,
 ) {
   ctx.font = `${fontSize}px monospace`
   ctx.textBaseline = 'middle'
 
-  // Text shadow for outdoor readability (dark halo behind bright labels)
-  ctx.shadowColor = 'rgba(0,0,0,0.7)'
+  // Text shadow for readability
+  ctx.shadowColor = theme.axisLabelShadow
   ctx.shadowBlur = 3
   ctx.shadowOffsetX = 0
   ctx.shadowOffsetY = 0
-  ctx.fillStyle = VIZ_COLORS.AXIS_LABEL
+  ctx.fillStyle = theme.axisLabel
 
   // Y-axis (dB)
   ctx.textAlign = 'right'
@@ -588,6 +644,7 @@ export function drawPlaceholder(
   graphFontSize: number,
   rtaDbMin: number | undefined,
   rtaDbMax: number | undefined,
+  theme: CanvasTheme = DARK_CANVAS_THEME,
 ) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
@@ -618,13 +675,15 @@ export function drawPlaceholder(
   ctx.save()
   ctx.translate(padding.left, padding.top)
 
-  drawGrid(ctx, plotWidth, plotHeight, range)
+  drawGrid(ctx, plotWidth, plotHeight, range, theme)
 
   // Draw fake spectrum fill + stroke using PLACEHOLDER_CURVE
+  // Use freqRangeLine color (primary blue) for the placeholder spectrum
+  const pColor = theme.freqRangeLine
   const gradient = ctx.createLinearGradient(0, 0, 0, plotHeight)
-  gradient.addColorStop(0, 'rgba(59, 130, 246, 0.85)')
-  gradient.addColorStop(0.5, 'rgba(59, 130, 246, 0.35)')
-  gradient.addColorStop(1, 'rgba(59, 130, 246, 0.05)')
+  gradient.addColorStop(0, pColor + 'd9')  // ~85% opacity
+  gradient.addColorStop(0.5, pColor + '59') // ~35% opacity
+  gradient.addColorStop(1, pColor + '0d')   // ~5% opacity
 
   const strokePath = new Path2D()
   const fillPath = new Path2D()
@@ -669,7 +728,7 @@ export function drawPlaceholder(
   // Sharp line with bloom
   ctx.globalAlpha = 1
   ctx.lineWidth = 1.5
-  ctx.shadowColor = 'rgba(75, 146, 255, 0.35)'
+  ctx.shadowColor = theme.placeholderShadow
   ctx.shadowBlur = 6
   ctx.stroke(strokePath)
   ctx.shadowColor = 'transparent'
@@ -677,5 +736,5 @@ export function drawPlaceholder(
 
   ctx.restore()
 
-  drawAxisLabels(ctx, padding, plotWidth, plotHeight, range, fontSize, width, height)
+  drawAxisLabels(ctx, padding, plotWidth, plotHeight, range, fontSize, width, height, theme)
 }

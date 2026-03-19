@@ -14,10 +14,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '0.145.1',
+    version: '0.146.0',
     date: '2026-03-19',
+    highlights: 'Dark/Light theme toggle',
     changes: [
-      { type: 'fix', description: 'v0.145.0: temporal envelope content type detection (#145)' },
+      { type: 'feat', description: 'Dark/Light theme toggle — Sun/Moon icon in header. Persists via localStorage. Defaults to dark.' },
+      { type: 'ui', description: 'Full theme support across all canvases (RTA, GEQ, fader meter), sidebars, cards, and header' },
+      { type: 'ui', description: 'Light mode glass cards with white background, blue border, subtle shadow' },
+      { type: 'fix', description: 'Spectrum line forces blue in light mode — amber warm mode hard to read on light backgrounds' },
+      { type: 'fix', description: 'Canvas theme uses refs for RAF loop reads — prevents stale closure on theme switch' },
     ],
   },
   {

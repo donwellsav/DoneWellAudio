@@ -1,6 +1,7 @@
 import { headers } from 'next/headers'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import { ThemeProvider } from 'next-themes'
 import './globals.css'
 
 const geist = Geist({ subsets: ['latin'], display: 'swap', variable: '--font-geist-sans' })
@@ -51,7 +52,9 @@ export default async function RootLayout({
   return (
     <html lang="en" className={`${geist.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <body className="font-sans antialiased" nonce={nonce} suppressHydrationWarning>
-        {children}
+        <ThemeProvider attribute="class" defaultTheme="dark" storageKey="ktr-theme" disableTransitionOnChange>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   )

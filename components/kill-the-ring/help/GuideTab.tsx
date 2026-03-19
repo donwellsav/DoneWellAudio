@@ -37,6 +37,7 @@ export const GuideTab = memo(function GuideTab() {
               <li><strong>Controls Panel:</strong> Accordion sections (Sensitivity &amp; Range open by default), sub-tab icons for Display, Room, Advanced, and Calibrate settings.</li>
               <li><strong>Algorithm Status Bar:</strong> Shows algorithm mode, active algorithms (Auto mode), FPS counter, content type (speech/music/compressed via temporal envelope + spectral analysis), and compression status.</li>
               <li><strong>Early Warning Panel:</strong> Comb filter predictions with elapsed timer and urgency progress bar.</li>
+              <li><strong>Theme Toggle:</strong> Sun/Moon icon in header switches between dark and light mode. Persists across sessions. All canvases and UI adapt.</li>
             </ul>
           </HelpSection>
         </div>

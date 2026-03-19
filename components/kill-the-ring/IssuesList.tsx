@@ -113,10 +113,10 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
               aria-label="Start analysis"
               className="group relative flex flex-col items-center justify-center gap-2 w-full max-w-[200px] py-4 px-4 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all duration-300 cursor-pointer animate-start-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
-              <KtrLogo className="w-20 h-20 text-foreground drop-shadow-[0_0_10px_rgba(75,146,255,0.4)]" />
+              <KtrLogo className="w-20 h-20 text-foreground drop-shadow-[0_0_10px_rgba(37,99,235,0.3)] dark:drop-shadow-[0_0_10px_rgba(75,146,255,0.4)]" />
               <div className="flex items-baseline gap-1.5">
                 <span className="font-mono text-xs font-black tracking-[0.15em] text-foreground/90">KILL THE</span>
-                <span className="font-mono text-sm font-black tracking-[0.15em] text-primary drop-shadow-[0_0_8px_rgba(75,146,255,0.3)]">RING</span>
+                <span className="font-mono text-sm font-black tracking-[0.15em] text-primary drop-shadow-[0_0_8px_rgba(37,99,235,0.2)] dark:drop-shadow-[0_0_8px_rgba(75,146,255,0.3)]">RING</span>
               </div>
               <span className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-muted-foreground group-hover:text-foreground transition-colors">
                 Press To Start

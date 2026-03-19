@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useEffect, useCallback, useState, memo } from 'react'
+import { useTheme } from 'next-themes'
 
 interface InputMeterSliderProps {
   value: number
@@ -29,6 +30,9 @@ export const InputMeterSlider = memo(function InputMeterSlider({
   autoGainLocked = false,
   onAutoGainToggle,
 }: InputMeterSliderProps) {
+  const { resolvedTheme } = useTheme()
+  const isDarkRef = useRef(true)
+  isDarkRef.current = resolvedTheme !== 'light'
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const sliderRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
@@ -95,7 +99,7 @@ export const InputMeterSlider = memo(function InputMeterSlider({
     ctx.clearRect(0, 0, w, h)
 
     // Background
-    ctx.fillStyle = '#0e1012'
+    ctx.fillStyle = isDarkRef.current ? '#0e1012' : '#e8eaee'
     ctx.fillRect(0, 0, w, h)
 
     // Cached meter gradient — only recreated when width changes

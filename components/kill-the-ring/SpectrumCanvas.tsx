@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useRef, useEffect, useCallback, useState, memo } from 'react'
+import React, { useRef, useEffect, useCallback, useState, memo, useMemo } from 'react'
+import { useTheme } from 'next-themes'
 import { Spinner } from '@/components/ui/spinner'
 import { useAnimationFrame } from '@/hooks/useAnimationFrame'
 import { freqToLogPosition, logPositionToFreq, roundFreqToNice, clamp } from '@/lib/utils/mathHelpers'
@@ -9,8 +10,9 @@ import { CANVAS_SETTINGS } from '@/lib/dsp/constants'
 import type { SpectrumData, Advisory } from '@/types/advisory'
 import type { EarlyWarning } from '@/hooks/useAudioAnalyzer'
 import {
-  type DbRange, calcPadding, drawGrid, drawFreqZones, drawIndicatorLines, drawSpectrum,
+  type DbRange, type CanvasTheme, calcPadding, drawGrid, drawFreqZones, drawIndicatorLines, drawSpectrum,
   drawFreqRangeOverlay, drawMarkers, drawAxisLabels, drawPlaceholder,
+  DARK_CANVAS_THEME, LIGHT_CANVAS_THEME,
 } from '@/lib/canvas/spectrumDrawing'
 
 // ─── Component ─────────────────────────────────────────────────────────────────
@@ -44,6 +46,9 @@ interface SpectrumCanvasProps {
 const GRAB_THRESHOLD_PX = 22 // 44px total touch target per line
 
 export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, advisories, isRunning, isStarting = false, error, graphFontSize = 11, onStart, earlyWarning, rtaDbMin: rtaDbMinProp, rtaDbMax: rtaDbMaxProp, spectrumLineWidth: spectrumLineWidthProp, clearedIds, minFrequency = 20, maxFrequency = 20000, onFreqRangeChange, showThresholdLine = false, feedbackThresholdDb, isFrozen = false, canvasTargetFps, showFreqZones = false, spectrumWarmMode = false, onThresholdChange }: SpectrumCanvasProps) {
+  const { resolvedTheme } = useTheme()
+  const canvasThemeRef = useRef<CanvasTheme>(DARK_CANVAS_THEME)
+  canvasThemeRef.current = resolvedTheme === 'dark' ? DARK_CANVAS_THEME : LIGHT_CANVAS_THEME
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const dimensionsRef = useRef({ width: 0, height: 0 })
@@ -139,7 +144,7 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
             canvas.height = Math.floor(height * dpr)
             canvas.style.width = `${width}px`
             canvas.style.height = `${height}px`
-            drawPlaceholder(canvas, graphFontSize, rtaDbMinProp, rtaDbMaxProp)
+            drawPlaceholder(canvas, graphFontSize, rtaDbMinProp, rtaDbMaxProp, canvasThemeRef.current)
           }
           // During analysis: the render callback syncs canvas dimensions
           // atomically with the redraw, preventing flash from observer clearing
@@ -153,6 +158,19 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
     return () => observer.disconnect()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasEverStarted])
+
+  // Redraw when theme changes — placeholder in idle, dirty flag in running
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    if (!hasEverStarted) {
+      drawPlaceholder(canvas, graphFontSize, rtaDbMinProp, rtaDbMaxProp, canvasThemeRef.current)
+    } else {
+      gradientRef.current = null
+      dirtyRef.current = true
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run only on theme change
+  }, [resolvedTheme])
 
   const render = useCallback(() => {
     const spectrum = isFrozenRef.current ? frozenSpectrumRef.current : spectrumRef.current
@@ -212,8 +230,8 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
     ctx.save()
     ctx.translate(padding.left, padding.top)
 
-    drawGrid(ctx, plotWidth, plotHeight, range)
-    drawFreqZones(ctx, plotWidth, plotHeight, range, showFreqZones)
+    drawGrid(ctx, plotWidth, plotHeight, range, canvasThemeRef.current)
+    drawFreqZones(ctx, plotWidth, plotHeight, range, showFreqZones, canvasThemeRef.current)
     drawIndicatorLines(ctx, plotWidth, plotHeight, range, spectrum, showThresholdLine, feedbackThresholdDb, fontSize)
 
     // Track threshold line Y for drag detection (in canvas coords relative to plot area)
@@ -222,12 +240,12 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
       effectiveThreshYRef.current = ((range.dbMax - spectrum.effectiveThresholdDb) / dbSpan) * plotHeight
     }
 
-    drawSpectrum(ctx, plotWidth, plotHeight, range, spectrum, gradientRef, gradientHeightRef, spectrumLineWidthProp ?? 0.5, peakHoldRef, spectrumWarmMode)
+    drawSpectrum(ctx, plotWidth, plotHeight, range, spectrum, gradientRef, gradientHeightRef, spectrumLineWidthProp ?? 0.5, peakHoldRef, spectrumWarmMode, canvasThemeRef.current)
 
     // Store padding for pointer event calculations
     paddingRef.current = { left: padding.left, top: padding.top, plotWidth, plotHeight }
 
-    drawFreqRangeOverlay(ctx, plotWidth, plotHeight, range, freqRangeRef.current)
+    drawFreqRangeOverlay(ctx, plotWidth, plotHeight, range, freqRangeRef.current, canvasThemeRef.current)
     drawMarkers(ctx, plotWidth, plotHeight, range, earlyWarning, advisoriesRef.current, clearedIdsRef.current, peakMarkerRadius, fontSize)
 
     // Frozen badge — top-right of plot area
@@ -303,7 +321,7 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
 
     ctx.restore()
 
-    drawAxisLabels(ctx, padding, plotWidth, plotHeight, range, fontSize, width, height)
+    drawAxisLabels(ctx, padding, plotWidth, plotHeight, range, fontSize, width, height, canvasThemeRef.current)
 
   }, [spectrumRef, graphFontSize, earlyWarning, rtaDbMinProp, rtaDbMaxProp, spectrumLineWidthProp, showThresholdLine, feedbackThresholdDb])
 

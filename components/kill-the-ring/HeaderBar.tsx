@@ -13,7 +13,8 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { LayoutGrid, Maximize2, Mic, Minimize2, Pause, Play, Trash2 } from 'lucide-react'
+import { LayoutGrid, Maximize2, Mic, Minimize2, Moon, Pause, Play, Sun, Trash2 } from 'lucide-react'
+import { useTheme } from 'next-themes'
 import { KtrLogo } from './KtrLogo'
 import { useAdvisories } from '@/contexts/AdvisoryContext'
 import { useEngine } from '@/contexts/EngineContext'
@@ -24,10 +25,11 @@ export const HeaderBar = memo(function HeaderBar() {
   const { inputLevel } = useMetering()
   const { resetLayout, isFullscreen, toggleFullscreen, isFrozen, toggleFreeze, isRtaFullscreen, toggleRtaFullscreen } = useUI()
   const { advisories, dismissedIds, onClearAll, onClearGEQ, onClearRTA, hasActiveGEQBars, hasActiveRTAMarkers } = useAdvisories()
+  const { resolvedTheme, setTheme } = useTheme()
   const hasClearableContent = advisories.some(a => !dismissedIds.has(a.id)) || hasActiveGEQBars || hasActiveRTAMarkers
 
   return (
-    <header className="relative flex flex-row items-center justify-between gap-2 sm:gap-4 px-3 py-1 border-b border-border bg-card/90 backdrop-blur-sm shadow-[0_1px_12px_rgba(0,0,0,0.5),0_1px_0_rgba(75,146,255,0.08)] sm:px-4 sm:py-1">
+    <header className="relative flex flex-row items-center justify-between gap-2 sm:gap-4 px-3 py-1 border-b border-border bg-card/90 backdrop-blur-sm shadow-[0_1px_12px_rgba(0,0,0,0.12),0_1px_0_rgba(37,99,235,0.08)] dark:shadow-[0_1px_12px_rgba(0,0,0,0.5),0_1px_0_rgba(75,146,255,0.08)] sm:px-4 sm:py-1">
 
       {/* ── Logo + start button (responsive single block) ─────────── */}
       <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
@@ -47,7 +49,7 @@ export const HeaderBar = memo(function HeaderBar() {
         <div className="flex flex-col justify-center gap-[2px] sm:gap-[3px] min-w-0">
           <div className="flex items-baseline gap-1 sm:gap-1.5 leading-none">
             <span className="font-mono text-sm sm:text-base font-black tracking-[0.15em] sm:tracking-[0.2em] text-foreground/90">KILL THE</span>
-            <span className="font-mono text-base sm:text-lg font-black tracking-[0.15em] sm:tracking-[0.2em] text-primary drop-shadow-[0_0_10px_rgba(75,146,255,0.4)]">RING</span>
+            <span className="font-mono text-base sm:text-lg font-black tracking-[0.15em] sm:tracking-[0.2em] text-primary drop-shadow-[0_0_10px_rgba(37,99,235,0.3)] dark:drop-shadow-[0_0_10px_rgba(75,146,255,0.4)]">RING</span>
           </div>
           <span className="sm:hidden text-xs font-mono font-medium tracking-[0.2em] sm:tracking-[0.25em] text-muted-foreground uppercase leading-none">
             Don Wells AV
@@ -177,6 +179,23 @@ export const HeaderBar = memo(function HeaderBar() {
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-sm">
             Clear all
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+              aria-label="Toggle theme"
+              className="h-9 w-9 cursor-pointer text-muted-foreground hover:text-foreground"
+            >
+              {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-sm">
+            {resolvedTheme === 'dark' ? 'Light mode' : 'Dark mode'}
           </TooltipContent>
         </Tooltip>
 

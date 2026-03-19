@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useEffect, useCallback, useState, useMemo, memo } from 'react'
+import { useTheme } from 'next-themes'
 
 interface VerticalGainFaderProps {
   value: number
@@ -40,6 +41,9 @@ export const VerticalGainFader = memo(function VerticalGainFader({
   onSensitivityChange,
   activeAdvisoryCount,
 }: VerticalGainFaderProps) {
+  const { resolvedTheme } = useTheme()
+  const isDarkRef = useRef(true)
+  isDarkRef.current = resolvedTheme !== 'light'
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
@@ -154,7 +158,7 @@ export const VerticalGainFader = memo(function VerticalGainFader({
     ctx.clearRect(0, 0, w, h)
 
     // Background
-    ctx.fillStyle = '#0e1012'
+    ctx.fillStyle = isDarkRef.current ? '#0e1012' : '#e8eaee'
     ctx.fillRect(0, 0, w, h)
 
     // Cached vertical gradient — bottom-to-top
@@ -284,6 +288,11 @@ export const VerticalGainFader = memo(function VerticalGainFader({
     rafIdRef.current = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(rafIdRef.current)
   }, [drawMeter])
+
+  // Force redraw on theme change
+  useEffect(() => {
+    prevDrawnRef.current = -1 // invalidate cache to force next tick to redraw
+  }, [resolvedTheme])
 
   // Vertical drag: top = max, bottom = min (gain) OR top = 2, bottom = 50 (sensitivity, inverted)
   const updateValueFromY = (clientY: number) => {

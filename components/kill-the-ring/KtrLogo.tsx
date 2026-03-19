@@ -70,8 +70,8 @@ export const KtrLogo = memo(function KtrLogo({ className, audioLevel }: KtrLogoP
     <svg viewBox="18 16 144 106" className={className} fill="none" aria-hidden="true">
       <defs>
         <radialGradient id="ktr-glow" cx="90" cy="54" r="50" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#4B92FF" stopOpacity="0.20" />
-          <stop offset="1" stopColor="#4B92FF" stopOpacity="0" />
+          <stop offset="0" stopColor="var(--primary)" stopOpacity="0.20" />
+          <stop offset="1" stopColor="var(--primary)" stopOpacity="0" />
         </radialGradient>
       </defs>
 
@@ -95,13 +95,13 @@ export const KtrLogo = memo(function KtrLogo({ className, audioLevel }: KtrLogoP
           width={2.4}
           height={b.h}
           rx={1.1}
-          fill="#4B92FF"
+          fill="var(--primary)"
           fillOpacity={b.op}
         />
       ))}
 
       {/* ── Baseline ─────────────────────────────────── */}
-      <line x1="22" y1="117.2" x2="158" y2="117.2" stroke="#4B92FF" strokeOpacity="0.40" strokeWidth="1" />
+      <line x1="22" y1="117.2" x2="158" y2="117.2" stroke="var(--primary)" strokeOpacity="0.40" strokeWidth="1" />
     </svg>
   )
 })

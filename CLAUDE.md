@@ -1,7 +1,7 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
-> **Last updated March 2026. 160 TypeScript/TSX files, 476 tests (471 pass, 4 skip, 1 todo), 27 suites. Version 0.145.0.**
-> Temporal envelope content type detection. Energy variance + silence gap ratio for speech/music discrimination.
+> **Last updated March 2026. 160 TypeScript/TSX files, 476 tests (471 pass, 4 skip, 1 todo), 27 suites. Version 0.146.0.**
+> Dark/Light theme toggle with full canvas support. next-themes provider, CanvasTheme palette, ref-based RAF reads.
 
 ## CRITICAL RULES
 

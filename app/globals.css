@@ -11,6 +11,8 @@
 }
 
 /* Kill The Ring - Pro Audio Instrument Theme */
+/* Kill The Ring - Pro Audio Instrument Theme */
+/* :root = dark (default) — Tailwind v4 @theme inline bakes these at build time */
 :root {
   --background: #111214;
   --foreground: #f0f0f0;
@@ -53,6 +55,48 @@
   --sidebar-accent-foreground: #4B92FF;
   --sidebar-border: #1e2530;
   --sidebar-ring: #4B92FF;
+}
+
+/* Light theme — overrides via .light class (next-themes adds this to <html>) */
+.light {
+  --background: #f0f1f4;
+  --foreground: #1a1a1e;
+  --card: #ffffff;
+  --card-foreground: #1a1a1e;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1e;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #e8ecf2;
+  --secondary-foreground: #1a1a1e;
+  --muted: #e8eaee;
+  --muted-foreground: #5a6478;
+  --accent: #2563eb;
+  --accent-foreground: #ffffff;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #d0d5dd;
+  --input: #e8ecf2;
+  --ring: #2563eb;
+  --severity-runaway: #dc2626;
+  --severity-growing: #d97706;
+  --severity-resonance: #ca8a04;
+  --severity-ring: #2563eb;
+  --severity-whistle: #0891b2;
+  --severity-instrument: #16a34a;
+  --chart-1: #2563eb;
+  --chart-2: #3b82f6;
+  --chart-3: #d97706;
+  --chart-4: #dc2626;
+  --chart-5: #0891b2;
+  --sidebar: #f5f6f8;
+  --sidebar-foreground: #1a1a1e;
+  --sidebar-primary: #2563eb;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e8ecf2;
+  --sidebar-accent-foreground: #2563eb;
+  --sidebar-border: #d0d5dd;
+  --sidebar-ring: #2563eb;
 }
 
 @theme inline {
@@ -109,6 +153,9 @@
     background-attachment: fixed;
     min-height: 100vh;
   }
+  .light body {
+    background: linear-gradient(160deg, #e8eaee 0%, #f0f1f4 25%, #f5f6f8 50%, #eef0f3 75%, #e5e7eb 100%);
+  }
   body::after {
     content: '';
     position: fixed;
@@ -117,6 +164,9 @@
     z-index: 9999;
     opacity: 0.035;
     mix-blend-mode: overlay;
+  }
+  .light body::after {
+    opacity: 0.015;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
     background-repeat: repeat;
     background-size: 200px 200px;
@@ -147,6 +197,13 @@
       inset 1px 0 0 rgba(0, 0, 0, 0.15),
       inset -1px 0 0 rgba(0, 0, 0, 0.15);
   }
+  .light .panel-recessed {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.6),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.08),
+      inset 1px 0 0 rgba(0, 0, 0, 0.04),
+      inset -1px 0 0 rgba(0, 0, 0, 0.04);
+  }
 
   /* Breathing glow for runaway feedback cards */
   @keyframes emergency-glow {
@@ -164,6 +221,11 @@
       inset 0 1px 0 rgba(0, 0, 0, 0.5),
       0 1px 0 rgba(255, 255, 255, 0.04);
   }
+  .light .panel-groove {
+    box-shadow:
+      inset 0 1px 0 rgba(0, 0, 0, 0.1),
+      0 1px 0 rgba(255, 255, 255, 0.8);
+  }
 
   /* Section header label — clean sans-serif */
   .section-label {
@@ -178,6 +240,9 @@
   /* Channel strip vertical gradient */
   .channel-strip {
     background: linear-gradient(180deg, #141618 0%, #111214 50%, #0e0f11 100%);
+  }
+  .light .channel-strip {
+    background: linear-gradient(180deg, #f5f6f8 0%, #eef0f3 50%, #e8eaee 100%);
   }
 
   /* LED blink for active-running state */
@@ -205,9 +270,16 @@
     0%, 100% { box-shadow: 0 0 12px rgba(75,146,255,0.15), 0 0 4px rgba(75,146,255,0.08); }
     50% { box-shadow: 0 0 20px rgba(75,146,255,0.3), 0 0 8px rgba(75,146,255,0.15); }
   }
+  @keyframes start-glow-light {
+    0%, 100% { box-shadow: 0 0 12px rgba(37,99,235,0.12), 0 0 4px rgba(37,99,235,0.06); }
+    50% { box-shadow: 0 0 20px rgba(37,99,235,0.2), 0 0 8px rgba(37,99,235,0.1); }
+  }
 
   .animate-start-glow {
     animation: start-glow 3s ease-in-out infinite;
+  }
+  .light .animate-start-glow {
+    animation: start-glow-light 3s ease-in-out infinite;
   }
 
   /* Scanning sweep line for monitoring standby state */
@@ -255,6 +327,11 @@
     backdrop-filter: blur(10px) saturate(1.3);
     -webkit-backdrop-filter: blur(10px) saturate(1.3);
     border: 1px solid rgba(75, 146, 255, 0.08);
+  }
+  .light .glass-card {
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(37, 99, 235, 0.15);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   }
 
   /* ── Section label — sans-serif variant for non-data headers ────────── */

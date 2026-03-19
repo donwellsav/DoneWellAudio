@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useEffect, useCallback, useMemo, memo } from 'react'
+import { useTheme } from 'next-themes'
 import { useAnimationFrame } from '@/hooks/useAnimationFrame'
 import { ISO_31_BANDS, VIZ_COLORS } from '@/lib/dsp/constants'
 import { getSeverityColor } from '@/lib/dsp/eqAdvisor'
@@ -24,9 +25,10 @@ function drawGEQGrid(
   plotWidth: number,
   plotHeight: number,
   centerY: number,
+  isDark: boolean,
 ) {
   // Background
-  ctx.fillStyle = '#080a0c'
+  ctx.fillStyle = isDark ? '#080a0c' : '#f0f1f4'
   ctx.fillRect(0, 0, plotWidth, plotHeight)
 
   // Radial vignette
@@ -35,12 +37,12 @@ function drawGEQGrid(
     plotWidth / 2, plotHeight / 2, plotWidth * 0.75,
   )
   vg.addColorStop(0, 'transparent')
-  vg.addColorStop(1, 'rgba(0, 0, 0, 0.4)')
+  vg.addColorStop(1, isDark ? 'rgba(0, 0, 0, 0.4)' : 'rgba(0, 0, 0, 0.06)')
   ctx.fillStyle = vg
   ctx.fillRect(0, 0, plotWidth, plotHeight)
 
   // Grid lines at ±6, ±12 dB (drawn first, underneath)
-  ctx.strokeStyle = '#161820'
+  ctx.strokeStyle = isDark ? '#161820' : '#d0d4da'
   ctx.lineWidth = 0.5
   ctx.setLineDash([2, 2])
   for (const db of [-12, -6, 6, 12]) {
@@ -53,7 +55,7 @@ function drawGEQGrid(
   ctx.setLineDash([])
 
   // Center line (0 dB) — major reference line, on top
-  ctx.strokeStyle = '#1e2024'
+  ctx.strokeStyle = isDark ? '#1e2024' : '#c0c5cc'
   ctx.lineWidth = 1
   ctx.beginPath()
   ctx.moveTo(0, centerY)
@@ -208,14 +210,15 @@ function drawGEQAxisLabels(
   fontSize: number,
   width: number,
   height: number,
+  isDark: boolean,
 ) {
-  // Band labels (rotated vertical to fit) — shadow for stage-light readability
+  // Band labels (rotated vertical to fit) — shadow for readability
   const labelFontSize = Math.min(Math.max(Math.floor(barSpacing * 0.85), 9), 13)
-  ctx.fillStyle = VIZ_COLORS.AXIS_LABEL
+  ctx.fillStyle = isDark ? VIZ_COLORS.AXIS_LABEL : '#5a6478'
   ctx.font = `${labelFontSize}px monospace`
   ctx.textAlign = 'right'
   ctx.textBaseline = 'middle'
-  ctx.shadowColor = 'rgba(0,0,0,0.7)'
+  ctx.shadowColor = isDark ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.5)'
   ctx.shadowBlur = 3
 
   for (let i = 0; i < numBands; i++) {
@@ -231,7 +234,7 @@ function drawGEQAxisLabels(
   // Y-axis labels
   ctx.textAlign = 'right'
   ctx.textBaseline = 'middle'
-  ctx.fillStyle = VIZ_COLORS.AXIS_LABEL
+  ctx.fillStyle = isDark ? VIZ_COLORS.AXIS_LABEL : '#5a6478'
   ctx.font = `${fontSize}px monospace`
   ctx.fillText('0', padding.left - 5, padding.top + centerY)
   ctx.fillText('-12', padding.left - 5, padding.top + centerY + (12 / 18) * (plotHeight / 2))
@@ -251,6 +254,9 @@ interface GEQBarViewProps {
 }
 
 export const GEQBarView = memo(function GEQBarView({ advisories, graphFontSize = 11, clearedIds }: GEQBarViewProps) {
+  const { resolvedTheme } = useTheme()
+  const isDarkRef = useRef(true)
+  isDarkRef.current = resolvedTheme !== 'light'
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const dimensionsRef = useRef({ width: 0, height: 0 })
@@ -361,12 +367,12 @@ export const GEQBarView = memo(function GEQBarView({ advisories, graphFontSize =
     ctx.save()
     ctx.translate(padding.left, padding.top)
 
-    drawGEQGrid(ctx, plotWidth, plotHeight, centerY)
+    drawGEQGrid(ctx, plotWidth, plotHeight, centerY, isDarkRef.current)
     drawBars(ctx, plotWidth, plotHeight, centerY, barSpacing, barWidth, maxCut, numBands, bandRecommendations, issueFontSize)
 
     ctx.restore()
 
-    drawGEQAxisLabels(ctx, padding, plotWidth, plotHeight, centerY, barSpacing, numBands, fontSize, width, height)
+    drawGEQAxisLabels(ctx, padding, plotWidth, plotHeight, centerY, barSpacing, numBands, fontSize, width, height, isDarkRef.current)
 
   }, [bandRecommendations, graphFontSize])
 
