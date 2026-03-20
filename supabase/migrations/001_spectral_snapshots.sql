@@ -17,6 +17,23 @@ CREATE TABLE IF NOT EXISTS spectral_snapshots (
   event_confidence    REAL NOT NULL CHECK (event_confidence BETWEEN 0 AND 1),
   event_content_type  TEXT NOT NULL DEFAULT 'unknown',
 
+  -- Algorithm scores (v1.1+ schema, NULL for v1.0 batches)
+  algo_msd            REAL,
+  algo_phase          REAL,
+  algo_spectral       REAL,
+  algo_comb           REAL,
+  algo_ihr            REAL,
+  algo_ptmr           REAL,
+  fused_probability   REAL,
+  fused_confidence    REAL,
+
+  -- User feedback for ML training labels (v1.1+)
+  user_feedback       TEXT CHECK (user_feedback IN ('correct', 'false_positive', 'confirmed_feedback')),
+
+  -- ML model tracking
+  model_version       TEXT,
+  schema_version      TEXT NOT NULL DEFAULT '1.0',
+
   -- Snapshot data (JSONB array of {t: number, s: base64_string})
   snapshot_count  SMALLINT NOT NULL,
   snapshots       JSONB NOT NULL,
@@ -29,6 +46,10 @@ CREATE TABLE IF NOT EXISTS spectral_snapshots (
 CREATE INDEX idx_spectral_snapshots_session ON spectral_snapshots (session_id);
 CREATE INDEX idx_spectral_snapshots_captured ON spectral_snapshots (captured_at);
 CREATE INDEX idx_spectral_snapshots_severity ON spectral_snapshots (event_severity);
+
+-- Index for ML training export: fetch labeled events with algorithm scores
+CREATE INDEX idx_spectral_snapshots_feedback ON spectral_snapshots (user_feedback)
+  WHERE user_feedback IS NOT NULL;
 
 -- RLS: only service role can insert/read (no anon access)
 ALTER TABLE spectral_snapshots ENABLE ROW LEVEL SECURITY;

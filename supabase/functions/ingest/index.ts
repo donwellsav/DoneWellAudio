@@ -5,6 +5,11 @@
  * Validates, rate-limits by session_id, and stores in the
  * spectral_snapshots table.
  *
+ * Schema versions:
+ *   v1.0 — base event metadata + snapshots
+ *   v1.1 — adds algorithmScores (6 algo scores + fused) + userFeedback
+ *   v1.2 — adds ML model score + modelVersion
+ *
  * Privacy:
  *   - IP address is NEVER stored (not forwarded by API proxy)
  *   - Session IDs are random UUIDs, not linked to user accounts
@@ -19,6 +24,30 @@ import { createClient } from "jsr:@supabase/supabase-js@2"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
+interface AlgorithmScores {
+  msd: number | null
+  phase: number | null
+  spectral: number | null
+  comb: number | null
+  ihr: number | null
+  ptmr: number | null
+  ml: number | null
+  fusedProbability: number
+  fusedConfidence: number
+  modelVersion: string | null
+}
+
+interface FeedbackEvent {
+  relativeMs: number
+  frequencyHz: number
+  amplitudeDb: number
+  severity: string
+  confidence: number
+  contentType: string
+  algorithmScores?: AlgorithmScores
+  userFeedback?: string
+}
+
 interface SnapshotBatch {
   version: string
   sessionId: string
@@ -26,19 +55,11 @@ interface SnapshotBatch {
   fftSize: number
   sampleRate: number
   binsPerSnapshot: number
-  event: {
-    relativeMs: number
-    frequencyHz: number
-    amplitudeDb: number
-    severity: string
-    confidence: number
-    contentType: string
-  }
-  snapshots: Array<{
-    t: number
-    s: string
-  }>
+  event: FeedbackEvent
+  snapshots: Array<{ t: number; s: string }>
 }
+
+const SUPPORTED_VERSIONS = ["1.0", "1.1", "1.2"]
 
 // ─── Rate limit ─────────────────────────────────────────────────────────────
 
@@ -62,7 +83,6 @@ function isRateLimited(sessionId: string): boolean {
 // ─── Handler ────────────────────────────────────────────────────────────────
 
 Deno.serve(async (req: Request) => {
-  // Only POST allowed
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
@@ -70,7 +90,6 @@ Deno.serve(async (req: Request) => {
     })
   }
 
-  // Verify authorization (service role key from API proxy)
   const authHeader = req.headers.get("Authorization")
   if (!authHeader?.startsWith("Bearer ")) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -80,15 +99,10 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Diagnostic: log env var presence (not values) on each request
-    const hasUrl = !!Deno.env.get("SUPABASE_URL")
-    const hasKey = !!Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
-    console.log(`[ingest] env check: SUPABASE_URL=${hasUrl}, SERVICE_ROLE_KEY=${hasKey}`)
-
     const batch: SnapshotBatch = await req.json()
 
-    // Validate
-    if (batch.version !== "1.0") {
+    // Validate version
+    if (!SUPPORTED_VERSIONS.includes(batch.version)) {
       return new Response(JSON.stringify({ error: "Unsupported version" }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
@@ -102,7 +116,6 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // Rate limit per session
     if (isRateLimited(batch.sessionId)) {
       return new Response(JSON.stringify({ error: "Rate limited" }), {
         status: 429,
@@ -110,13 +123,12 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // Initialize Supabase client with service role
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Store batch — IP is already stripped by the API proxy
-    const { error } = await supabase.from("spectral_snapshots").insert({
+    // Build row — base fields present in all versions
+    const row: Record<string, unknown> = {
       session_id: batch.sessionId,
       captured_at: batch.capturedAt,
       fft_size: batch.fftSize,
@@ -128,9 +140,29 @@ Deno.serve(async (req: Request) => {
       event_confidence: batch.event.confidence,
       event_content_type: batch.event.contentType,
       snapshot_count: batch.snapshots.length,
-      // Store snapshots as JSONB — efficient for batch retrieval during ML training
       snapshots: batch.snapshots,
-    })
+      schema_version: batch.version,
+    }
+
+    // v1.1+ fields: algorithm scores and user feedback
+    const scores = batch.event.algorithmScores
+    if (scores) {
+      row.algo_msd = scores.msd
+      row.algo_phase = scores.phase
+      row.algo_spectral = scores.spectral
+      row.algo_comb = scores.comb
+      row.algo_ihr = scores.ihr
+      row.algo_ptmr = scores.ptmr
+      row.fused_probability = scores.fusedProbability
+      row.fused_confidence = scores.fusedConfidence
+      row.model_version = scores.modelVersion
+    }
+
+    if (batch.event.userFeedback) {
+      row.user_feedback = batch.event.userFeedback
+    }
+
+    const { error } = await supabase.from("spectral_snapshots").insert(row)
 
     if (error) {
       console.error("Insert error:", JSON.stringify({
