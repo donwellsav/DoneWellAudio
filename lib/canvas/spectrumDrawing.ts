@@ -696,52 +696,55 @@ export function drawMarkers(
       const labelY = y - 10
 
       // Pro audio callout badge — frosted glass with severity accent
-      // Adapts to light/dark canvas theme for legibility in both modes
+      // Uses measureText bounding box to perfectly center text inside pill
       const metrics = ctx.measureText(labelText)
-      const pillPadX = 6
-      const pillPadY = 3
+      const ascent = metrics.actualBoundingBoxAscent
+      const descent = metrics.actualBoundingBoxDescent
+      const pillPadX = 7
+      const pillPadY = 4
       const pillW = metrics.width + pillPadX * 2
-      const pillH = (fontSize + 3) + pillPadY * 2
+      const pillH = ascent + descent + pillPadY * 2
       const pillX = x - pillW / 2
-      const pillY = labelY - pillH + pillPadY + 2
+      // labelY is the text baseline — pill top sits ascent + padding above it
+      const pillY = labelY - ascent - pillPadY
       const pillR = 4
 
       // 1. Drop shadow for depth
       ctx.fillStyle = isDark
-        ? 'rgba(0, 0, 0, 0.4)'
-        : 'rgba(0, 0, 0, 0.12)'
+        ? 'rgba(0, 0, 0, 0.35)'
+        : 'rgba(0, 0, 0, 0.10)'
       ctx.beginPath()
-      ctx.roundRect(pillX + 1, pillY + 1, pillW, pillH, pillR)
+      ctx.roundRect(pillX + 1, pillY + 2, pillW, pillH, pillR)
       ctx.fill()
 
-      // 2. Frosted glass fill — dark glass in dark mode, frosted white in light
+      // 2. Frosted glass fill
       ctx.fillStyle = isDark
-        ? 'rgba(8, 10, 12, 0.85)'
-        : 'rgba(255, 255, 255, 0.92)'
+        ? 'rgba(12, 14, 18, 0.88)'
+        : 'rgba(255, 255, 255, 0.93)'
       ctx.beginPath()
       ctx.roundRect(pillX, pillY, pillW, pillH, pillR)
       ctx.fill()
 
-      // 3. Severity-tinted border
+      // 3. Severity-tinted border (single path, no re-stroke)
       ctx.strokeStyle = color
-      ctx.globalAlpha = isDark ? 0.30 : 0.45
+      ctx.globalAlpha = isDark ? 0.35 : 0.50
       ctx.lineWidth = 1
-      ctx.stroke() // Strokes the same roundRect path
+      ctx.stroke()
       ctx.globalAlpha = 1
 
-      // 4. Severity accent strip at bottom (LED status bar)
-      const accentH = 2
+      // 4. Severity accent strip at bottom (instrument LED bar)
+      const accentH = 1.5
       ctx.fillStyle = color
-      ctx.globalAlpha = isDark ? 0.40 : 0.55
+      ctx.globalAlpha = isDark ? 0.50 : 0.60
       ctx.beginPath()
-      ctx.roundRect(pillX + 1, pillY + pillH - accentH - 1, pillW - 2, accentH, 1)
+      ctx.roundRect(pillX + 2, pillY + pillH - accentH - 1, pillW - 4, accentH, 1)
       ctx.fill()
       ctx.globalAlpha = 1
 
-      // 5. Label text with shadow for crispness against glass backdrop
+      // 5. Label text — crisp against glass with subtle shadow
       ctx.shadowColor = isDark
-        ? 'rgba(0, 0, 0, 0.80)'
-        : 'rgba(255, 255, 255, 0.90)'
+        ? 'rgba(0, 0, 0, 0.70)'
+        : 'rgba(255, 255, 255, 0.85)'
       ctx.shadowBlur = isDark ? 1 : 2
       ctx.shadowOffsetX = 0
       ctx.shadowOffsetY = isDark ? 1 : 0

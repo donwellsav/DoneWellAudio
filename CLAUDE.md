@@ -1,7 +1,7 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
-> **Last updated March 2026. 164 TypeScript/TSX files, 516 tests (511 pass, 4 skip, 1 todo), 29 suites. Version 0.167.0.**
-> Pro audio frosted glass RTA labels, cluster-aware Q widening, notch overlays, PEQ card details, Auto-Detect Room UI.
+> **Last updated March 2026. 164 TypeScript/TSX files, 516 tests (511 pass, 4 skip, 1 todo), 29 suites. Version 0.169.0.**
+> RTA label pill fix (baseline-aware positioning), refined instrument-grade label styling.
 
 ## CRITICAL RULES
 

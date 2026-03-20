@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.169.0',
+    date: '2026-03-20',
+    highlights: 'RTA label pill positioning fix, refined instrument-grade label styling',
+    changes: [
+      { type: 'fix', description: 'Fix RTA frequency label pill rendering above text — now uses actualBoundingBoxAscent/Descent for pixel-perfect text centering inside pill' },
+      { type: 'ui', description: 'Refined frosted glass label styling: tighter padding, thinner accent strip (1.5px), higher accent opacity for precision instrument-panel feel' },
+    ],
+  },
+  {
     version: '0.167.1',
     date: '2026-03-20',
     changes: [
