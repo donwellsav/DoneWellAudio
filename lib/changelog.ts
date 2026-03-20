@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.183.1',
+    date: '2026-03-20',
+    changes: [
+      { type: 'ui', description: 'ui: reduce notch overlay opacity from 42% to 27% (#183)' },
+    ],
+  },
+  {
     version: '0.183.0',
     date: '2026-03-20',
     changes: [
