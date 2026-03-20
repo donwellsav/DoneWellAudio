@@ -14,19 +14,11 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '0.178.1',
+    version: '0.179.0',
     date: '2026-03-20',
     changes: [
-      { type: 'feat', description: 'feat: widen advisory merge to 500 cents + solid notch blocks (#178)' },
-    ],
-  },
-  {
-    version: '0.178.0',
-    date: '2026-03-20',
-    changes: [
-      { type: 'feat', description: 'Advisory merge threshold widened from 100 cents (1 semitone) to 500 cents (perfect fourth) — nearby EQ bands consolidate into one wider-Q cut like a real engineer would use' },
-      { type: 'ui', description: 'Visual notch merge gap widened to 3% of plot width (~27px) for reliable problem zone block rendering' },
-      { type: 'ui', description: 'Notch overlays merge nearby bars into solid blocks with 8px minimum width; marker vertical line skipped when notch exists' },
+      { type: 'feat', description: 'Advisory merge threshold widened to 1000 cents (minor seventh) — wider problem zone consolidation for practical EQ recommendations' },
+      { type: 'ui', description: 'Notch overlay fill and marker line opacity reduced to 60% for better spectrum visibility through problem zones' },
     ],
   },
   {

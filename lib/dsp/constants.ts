@@ -664,7 +664,7 @@ export const DEFAULT_SETTINGS: DetectorSettings = {
   growthRateThreshold: 1.0, // Allows MSD analysis on slower-growing early feedback
   holdTimeMs: 4000, // Long hold — time to walk to EQ rack during load-in
   noiseFloorDecay: 0.98, // Fast adaptation for dynamic conference environments
-  peakMergeCents: 500, // Perfect fourth — merge nearby advisories into one wider-Q cut (real engineer practice). Track association stays at 100 cents for granular detection.
+  peakMergeCents: 1000, // Minor seventh — merge nearby advisories into one wider-Q cut (real engineer practice). Track association stays at 100 cents for granular detection.
   maxDisplayedIssues: 8, // Show more issues — don't hide potential problems
   eqPreset: 'surgical' as const, // Precise narrow cuts preserve speech clarity
   musicAware: false, // Disabled — no music in corporate/conference
