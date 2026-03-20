@@ -14,10 +14,10 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '0.171.1',
+    version: '0.172.0',
     date: '2026-03-20',
     changes: [
-      { type: 'feat', description: 'feat: stronger frequency zone bands + merged range highlight fills (#171)' },
+      { type: 'ui', description: 'Notch overlays now render as a single solid severity-colored bar instead of two thin boundary lines with faint fill — theme-aware (20% dark, 25% light)' },
     ],
   },
   {

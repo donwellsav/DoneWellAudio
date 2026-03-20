@@ -1,7 +1,7 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
-> **Last updated March 2026. 164 TypeScript/TSX files, 516 tests (511 pass, 4 skip, 1 todo), 29 suites. Version 0.171.0.**
-> Stronger frequency zone bands (theme-aware), merged range highlight fills on RTA.
+> **Last updated March 2026. 164 TypeScript/TSX files, 516 tests (511 pass, 4 skip, 1 todo), 29 suites. Version 0.172.0.**
+> Solid notch overlay bars (replaces two-line boundary), theme-aware zone bands.
 
 ## CRITICAL RULES
 

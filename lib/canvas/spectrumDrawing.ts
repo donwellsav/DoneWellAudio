@@ -524,7 +524,9 @@ export function drawNotchOverlays(
   range: DbRange,
   advisories: Advisory[],
   clearedIds: Set<string> | undefined,
+  theme: CanvasTheme = DARK_CANVAS_THEME,
 ) {
+  const isDark = theme === DARK_CANVAS_THEME
   const visible = advisories
     .filter(a => !clearedIds?.has(a.id))
     .slice(-7) // Same cap as drawMarkers
@@ -556,21 +558,11 @@ export function drawNotchOverlays(
 
     const color = getSeverityColor(advisory.severity)
 
-    // Semi-transparent band fill
-    ctx.globalAlpha = 0.08
+    // Solid severity-colored bar spanning the notch width
+    const barWidth = Math.max(x2 - x1, 3) // min 3px so narrow notches stay visible
     ctx.fillStyle = color
-    ctx.fillRect(x1, 0, x2 - x1, plotHeight)
-
-    // Thin boundary lines at edges
-    ctx.globalAlpha = 0.25
-    ctx.strokeStyle = color
-    ctx.lineWidth = 1
-    ctx.beginPath()
-    ctx.moveTo(x1, 0)
-    ctx.lineTo(x1, plotHeight)
-    ctx.moveTo(x2, 0)
-    ctx.lineTo(x2, plotHeight)
-    ctx.stroke()
+    ctx.globalAlpha = isDark ? 0.20 : 0.25
+    ctx.fillRect(x1, 0, barWidth, plotHeight)
   }
 
   ctx.globalAlpha = 1
