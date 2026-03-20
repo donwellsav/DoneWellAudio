@@ -14,19 +14,12 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '0.177.1',
+    version: '0.178.0',
     date: '2026-03-20',
     changes: [
-      { type: 'ui', description: 'ui: merge nearby notch overlays into solid blocks (#177)' },
-    ],
-  },
-  {
-    version: '0.177.0',
-    date: '2026-03-20',
-    changes: [
-      { type: 'ui', description: 'Notch overlays merge nearby advisories into single solid blocks — wider problem zone highlighting like a real engineer would use one wider-Q cut' },
-      { type: 'ui', description: 'Minimum notch bar width increased to 8px so even narrow-Q notches render as visible blocks' },
-      { type: 'ui', description: 'Marker vertical line skipped when notch overlay exists, eliminating two-line artifact' },
+      { type: 'feat', description: 'Advisory merge threshold widened from 100 cents (1 semitone) to 500 cents (perfect fourth) — nearby EQ bands consolidate into one wider-Q cut like a real engineer would use' },
+      { type: 'ui', description: 'Visual notch merge gap widened to 3% of plot width (~27px) for reliable problem zone block rendering' },
+      { type: 'ui', description: 'Notch overlays merge nearby bars into solid blocks with 8px minimum width; marker vertical line skipped when notch exists' },
     ],
   },
   {

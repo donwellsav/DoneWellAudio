@@ -1,7 +1,7 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
-> **Last updated March 2026. 164 TypeScript/TSX files, 516 tests (511 pass, 4 skip, 1 todo), 29 suites. Version 0.177.0.**
-> Notch overlays merge nearby bars into solid blocks (8px min width). Marker line skipped when notch exists.
+> **Last updated March 2026. 164 TypeScript/TSX files, 516 tests (511 pass, 4 skip, 1 todo), 29 suites. Version 0.178.0.**
+> Advisory merge at 500 cents (perfect fourth). Notch overlays merge into solid blocks. clusterAwareQ() widens Q for merged zones.
 
 ## CRITICAL RULES
 
@@ -353,7 +353,7 @@ Then when user says "PR and merge":
 - **Sensitivity guidance (v0.151.0):** Three-layer contextual hints — idle hint below start buttons, first-detection tooltip, persistent RTA label next to threshold line. Speech/ringOut default 27dB.
 - **RTA label overlap suppression (v0.170.0):** Greedy algorithm prioritizes highest-severity labels with 16px collision padding. Nearby suppressed labels merge into range pills ("820–950 Hz ×3") with highlight bands.
 - **Frequency zone overlay (v0.171.0):** 5 theme-aware bands (Sub/Low Mid/Mid/Presence/Air) with separate dark/light opacity arrays. Merged range labels get filled highlight bands.
-- **Notch overlays (v0.177.0):** Nearby advisory bars merge into single solid blocks (problem zone highlighting). 8px minimum width. Marker vertical line skipped when notch exists. `drawNotchOverlays()` returns notched ID set consumed by `drawMarkers()`.
+- **Notch overlays (v0.178.0):** Advisory merge at 500 cents (perfect fourth) — nearby EQ bands consolidate into one wider-Q cut via `clusterAwareQ()`. Visual bars merge with 3% plot-width gap threshold, 8px minimum width. Marker line skipped when notch exists. `drawNotchOverlays()` returns notched ID set consumed by `drawMarkers()`.
 - **Draggable threshold line:** Drag the dashed line on the RTA to adjust sensitivity directly. 8×28px grab handle with notch affordance.
 
 ### Settings Persistence

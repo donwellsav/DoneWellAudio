@@ -564,13 +564,15 @@ export function drawNotchOverlays(
     bars.push({ x1, x2: Math.max(x2, x1 + 8), color, ids: [advisory.id] })
   }
 
-  // Sort by x1, then merge overlapping/adjacent bars (within 2px gap)
+  // Sort by x1, then merge nearby bars into single solid blocks
+  // 3% of plot width (~27px on 900px) catches advisories in the same problem zone
+  const mergeGap = plotWidth * 0.03
   bars.sort((a, b) => a.x1 - b.x1)
   const merged: typeof bars = []
   for (const bar of bars) {
     const prev = merged[merged.length - 1]
-    if (prev && bar.x1 <= prev.x2 + 2) {
-      // Merge: extend previous bar, use highest-severity color (first in sorted advisories)
+    if (prev && bar.x1 <= prev.x2 + mergeGap) {
+      // Merge: extend previous bar, keep highest-severity color
       prev.x2 = Math.max(prev.x2, bar.x2)
       prev.ids.push(...bar.ids)
     } else {
