@@ -95,7 +95,7 @@ export function useDataCollection(): DataCollectionHandle {
       try {
         const { SnapshotUploader } = await import('@/lib/data/uploader')
         uploaderRef.current = new SnapshotUploader()
-        console.log('[DataCollection] Uploader created')
+        console.debug('[DataCollection] Uploader created')
         // Retry any batches from previous sessions
         uploaderRef.current.retryQueued().catch(() => {})
       } catch (err) {
@@ -104,7 +104,7 @@ export function useDataCollection(): DataCollectionHandle {
       }
     }
 
-    console.log('[DataCollection] Enabling collection, sessionId=' + sessionIdRef.current.slice(0, 8) + '...')
+    console.debug('[DataCollection] Enabling collection, sessionId=' + sessionIdRef.current.slice(0, 8) + '...')
     worker.enableCollection(sessionIdRef.current, fftSize, sampleRate)
     setIsCollecting(true)
   }, [])

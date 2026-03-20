@@ -13,13 +13,13 @@ import { describe, it, expect } from 'vitest'
 import type { WorkerOutboundMessage } from '../dspWorker'
 import type { Advisory } from '@/types/advisory'
 
-/** Minimal advisory for testing — only the fields needed for type compliance */
+/** Minimal advisory for testing — structurally valid (no `as` cast) */
 function makeTestAdvisory(overrides: Partial<Advisory> = {}): Advisory {
   return {
     id: 'test-1',
     trackId: 'track-1',
     timestamp: Date.now(),
-    label: 'FEEDBACK',
+    label: 'ACOUSTIC_FEEDBACK',
     severity: 'RESONANCE',
     confidence: 0.8,
     why: ['test'],
@@ -29,15 +29,17 @@ function makeTestAdvisory(overrides: Partial<Advisory> = {}): Advisory {
     qEstimate: 10,
     bandwidthHz: 50,
     velocityDbPerSec: 0,
-    binIndex: 100,
+    stabilityCentsStd: 0,
+    harmonicityScore: 0,
+    modulationScore: 0,
     advisory: {
-      geq: { bandIndex: 10, bandHz: 1000, cutDb: -3, minCutDb: -2, maxCutDb: -6, confidence: 'high' },
-      peq: { frequencyHz: 1000, gainDb: -3, q: 8, confidence: 'high' },
+      geq: { bandIndex: 10, bandHz: 1000, suggestedDb: -3 },
+      peq: { type: 'bell', hz: 1000, gainDb: -3, q: 8 },
       shelves: [],
-      pitch: { noteName: 'B', octave: 4, centsOff: 0, fullName: 'B4' },
+      pitch: { note: 'B', octave: 4, cents: 0, midi: 71 },
     },
     ...overrides,
-  } as Advisory
+  }
 }
 
 describe('WorkerOutboundMessage types', () => {
@@ -103,18 +105,6 @@ describe('WorkerOutboundMessage types', () => {
     expect(msg.type).toBe('returnBuffers')
     expect(msg.spectrum).toBe(spectrum)
     expect(msg.spectrum.length).toBe(4096)
-  })
-
-  it('advisoryReplaced message has both IDs', () => {
-    const msg: WorkerOutboundMessage = {
-      type: 'advisoryReplaced',
-      replacedId: 'old-1',
-      advisory: makeTestAdvisory({ id: 'new-1', severity: 'GROWING' }),
-    }
-    if (msg.type === 'advisoryReplaced') {
-      expect(msg.replacedId).toBe('old-1')
-      expect(msg.advisory.id).toBe('new-1')
-    }
   })
 
   it('advisoryCleared message has advisory ID', () => {

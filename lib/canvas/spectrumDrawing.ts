@@ -218,6 +218,10 @@ export function drawFreqZones(
       ctx.fillText(zone.label, centerX, 4)
     }
   }
+
+  // Reset text state to avoid leaking font/alignment to subsequent draw calls
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'alphabetic'
 }
 
 export function drawIndicatorLines(

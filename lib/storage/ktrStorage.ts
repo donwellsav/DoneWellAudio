@@ -40,8 +40,8 @@ export function typedStorage<T>(key: string, fallback: T): TypedStorage<T> {
       if (typeof window === 'undefined') return
       try {
         localStorage.setItem(key, JSON.stringify(value))
-      } catch {
-        // QuotaExceeded or blocked — fail silently
+      } catch (err) {
+        console.warn(`[ktrStorage] Failed to save "${key}":`, err instanceof Error ? err.message : err)
       }
     },
 
@@ -82,8 +82,8 @@ export function stringStorage(key: string, fallback: string = ''): StringStorage
       if (typeof window === 'undefined') return
       try {
         localStorage.setItem(key, value)
-      } catch {
-        // QuotaExceeded or blocked
+      } catch (err) {
+        console.warn(`[ktrStorage] Failed to save "${key}":`, err instanceof Error ? err.message : err)
       }
     },
 
@@ -125,8 +125,8 @@ export function flagStorage(key: string): FlagStorage {
       if (typeof window === 'undefined') return
       try {
         localStorage.setItem(key, 'true')
-      } catch {
-        // Ignore
+      } catch (err) {
+        console.warn(`[ktrStorage] Failed to set flag "${key}":`, err instanceof Error ? err.message : err)
       }
     },
 

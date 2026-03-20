@@ -30,6 +30,7 @@ export function middleware(request: NextRequest) {
     "img-src 'self' data: blob:",
     "media-src 'self' blob: mediastream:",
     "font-src 'self'",
+    "frame-ancestors 'none'",
   ].join('; ')
 
   // Set nonce on request headers so server components can read it via headers()

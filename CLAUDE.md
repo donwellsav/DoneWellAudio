@@ -1,7 +1,7 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
-> **Last updated March 2026. 165 TypeScript/TSX files, 516 tests (511 pass, 4 skip, 1 todo), 29 suites. Version 0.180.0.**
-> Deep audit fixes: low-freq phase suppression activated, stale closure ML labels fixed, API security hardened, Next.js CVE patched.
+> **Last updated March 2026. 165 TypeScript/TSX files, 515 tests (510 pass, 4 skip, 1 todo), 29 suites. Version 0.181.0.**
+> Deep audit part 2: dead code removal, type safety hardening, CSP clickjacking protection, per-track comb isolation, coverage expansion.
 
 ## CRITICAL RULES
 

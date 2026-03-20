@@ -17,7 +17,7 @@
 import { TrackManager } from './trackManager'
 import { classifyTrackWithAlgorithms, shouldReportIssue } from './classifier'
 import { generateEQAdvisory, analyzeSpectralTrends } from './eqAdvisor'
-import { fuseAlgorithmResults, DEFAULT_FUSION_CONFIG } from './advancedDetection'
+import { fuseAlgorithmResults, DEFAULT_FUSION_CONFIG, CombStabilityTracker } from './advancedDetection'
 import type { FusionConfig } from './advancedDetection'
 import { AlgorithmEngine } from './workerFft'
 import { AdvisoryManager } from './advisoryManager'
@@ -79,7 +79,6 @@ export type WorkerInboundMessage =
 
 export type WorkerOutboundMessage =
   | { type: 'advisory'; advisory: Advisory }
-  | { type: 'advisoryReplaced'; replacedId: string; advisory: Advisory }
   | { type: 'advisoryCleared'; advisoryId: string }
   | { type: 'tracksUpdate'; tracks: TrackedPeak[]; contentType?: ContentType; algorithmMode?: AlgorithmMode; isCompressed?: boolean; compressionRatio?: number }
   | { type: 'returnBuffers'; spectrum: Float32Array; timeDomain?: Float32Array }
@@ -145,6 +144,9 @@ const trackManager = new TrackManager()
 const algorithmEngine = new AlgorithmEngine()
 const advisoryManager = new AdvisoryManager()
 const decayAnalyzer = new DecayAnalyzer()
+
+/** Per-track comb stability trackers — prevents cross-peak contamination. */
+const combTrackers = new Map<string, CombStabilityTracker>()
 
 // ─── Classification temporal smoothing ──────────────────────────────────────
 // Prevents advisory flickering by requiring N consistent classification frames
@@ -223,6 +225,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
 
       algorithmEngine.init(fftSize)
       trackManager.clear()
+      combTrackers.clear()
       advisoryManager.reset()
       decayAnalyzer.reset()
       classificationLabelHistory.clear()
@@ -265,11 +268,11 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         // Always create a new instance — re-enable may carry new sessionId,
         // fftSize, or sampleRate (e.g., device change, session restart).
         if (snapshotCollector) {
-          console.log('[DSP Worker] enableCollection: replacing existing collector')
+          console.debug('[DSP Worker] enableCollection: replacing existing collector')
           snapshotCollector.reset()
         }
         snapshotCollector = new SnapshotCollector(msg.sessionId, msg.fftSize, msg.sampleRate)
-        console.log('[DSP Worker] SnapshotCollector ready')
+        console.debug('[DSP Worker] SnapshotCollector ready')
         const stats = snapshotCollector.getStats()
         self.postMessage({
           type: 'collectionStats',
@@ -457,8 +460,14 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         mode: settings?.algorithmMode ?? 'auto',
         enabledAlgorithms: settings?.enabledAlgorithms,
       }
+      // Get or create per-track comb stability tracker
+      let trackCst = combTrackers.get(track.id)
+      if (!trackCst) {
+        trackCst = new CombStabilityTracker()
+        combTrackers.set(track.id, trackCst)
+      }
       const fusionResult = fuseAlgorithmResults(
-        algorithmScores, contentType, existingScore, fusionConfig, track.trueFrequencyHz
+        algorithmScores, contentType, existingScore, fusionConfig, track.trueFrequencyHz, trackCst
       )
 
       // Feed fusion result back to AlgorithmEngine for ML's next-frame input
@@ -507,7 +516,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         if (snapshotCollector.hasPendingBatches) {
           const batch = snapshotCollector.extractBatch()
           if (batch) {
-            console.log(`[DSP Worker] Posting snapshot batch: ${batch.snapshots.length} snapshots, event=${batch.event.frequencyHz.toFixed(0)}Hz`)
+            console.debug(`[DSP Worker] Posting snapshot batch: ${batch.snapshots.length} snapshots, event=${batch.event.frequencyHz.toFixed(0)}Hz`)
           }
           self.postMessage({ type: 'snapshotBatch', batch } satisfies WorkerOutboundMessage)
         }
@@ -590,6 +599,11 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       }
       trackManager.pruneInactiveTracks(timestamp)
 
+      // Prune combTrackers for tracks that no longer exist
+      for (const trackId of combTrackers.keys()) {
+        if (!trackManager.getTrack(trackId)) combTrackers.delete(trackId)
+      }
+
       // Clear advisory by frequency (also sets band cooldown)
       const clearedId = advisoryManager.clearByFrequency(frequencyHz, timestamp)
       if (clearedId) {
@@ -598,6 +612,13 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
 
       self.postMessage({ type: 'tracksUpdate', tracks: trackManager.getActiveTracks(), contentType: lastContentType, algorithmMode: settings?.algorithmMode ?? 'auto', isCompressed: lastIsCompressed, compressionRatio: lastCompressionRatio } satisfies WorkerOutboundMessage)
       break
+    }
+
+    default: {
+      // Exhaustiveness check — if a new WorkerInboundMessage variant is added
+      // but not handled, TypeScript will error here at compile time.
+      const _exhaustive: never = msg
+      console.warn('[DSP Worker] Unhandled message type:', (_exhaustive as { type: string }).type)
     }
   }
   } catch (err) {

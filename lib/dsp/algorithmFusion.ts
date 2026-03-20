@@ -484,7 +484,9 @@ export function fuseAlgorithmResults(
   _existingScore: number = 0.5,
   config: FusionConfig = DEFAULT_FUSION_CONFIG,
   /** Peak frequency in Hz. When provided, enables frequency-aware scoring. */
-  peakFrequencyHz?: number
+  peakFrequencyHz?: number,
+  /** Per-track comb stability tracker. Falls back to module-level singleton if not provided. */
+  trackCombTracker?: CombStabilityTracker,
 ): FusedDetectionResult {
   const reasons: string[] = []
   const contributingAlgorithms: string[] = []
@@ -577,14 +579,18 @@ export function fuseAlgorithmResults(
   // Temporal comb stability: track fundamentalSpacing across frames.
   // Static spacing (low CV) = feedback loop. Sweeping spacing (high CV)
   // = flanger/phaser effect → reduce comb confidence to suppress FP.
+  // Use per-track tracker when provided, fall back to module-level singleton.
+  // Per-track trackers prevent cross-peak contamination when multiple peaks
+  // have comb patterns in the same frame window.
+  const cst = trackCombTracker ?? combStabilityTracker
   if (activeAlgorithms.includes('comb') && scores.comb && scores.comb.hasPattern) {
     // Feed spacing into temporal tracker
     if (scores.comb.fundamentalSpacing != null) {
-      combStabilityTracker.push(scores.comb.fundamentalSpacing)
+      cst.push(scores.comb.fundamentalSpacing)
     }
 
     // Apply sweep penalty: if spacing is drifting, this is likely an effect
-    const sweeping = combStabilityTracker.isSweeping
+    const sweeping = cst.isSweeping
     const combConfidence = sweeping
       ? scores.comb.confidence * COMB_SWEEP_PENALTY
       : scores.comb.confidence
@@ -594,8 +600,8 @@ export function fuseAlgorithmResults(
     totalWeight += weights.comb
     contributingAlgorithms.push('Comb')
 
-    const cvStr = combStabilityTracker.length >= 4
-      ? `, CV=${combStabilityTracker.cv.toFixed(3)}`
+    const cvStr = cst.length >= 4
+      ? `, CV=${cst.cv.toFixed(3)}`
       : ''
     const sweepStr = sweeping ? ' [SWEEPING — effect suppressed]' : ''
     reasons.push(
@@ -609,7 +615,7 @@ export function fuseAlgorithmResults(
   } else {
     // No comb pattern this frame — reset tracker to avoid stale history
     // bleeding across unrelated peaks
-    combStabilityTracker.reset()
+    cst.reset()
   }
 
   if (activeAlgorithms.includes('ihr') && scores.ihr) {

@@ -37,7 +37,7 @@ export class SnapshotUploader {
 
   /** Queue a batch for upload (respects rate limit + session cap) */
   enqueue(batch: SnapshotBatch): void {
-    console.log(`[Uploader] Enqueued batch: ${batch.snapshots.length} snapshots, event=${batch.event.frequencyHz.toFixed(0)}Hz`)
+    console.debug(`[Uploader] Enqueued batch: ${batch.snapshots.length} snapshots, event=${batch.event.frequencyHz.toFixed(0)}Hz`)
     this._pendingQueue.push(batch)
     this._processQueue()
   }
@@ -120,7 +120,7 @@ export class SnapshotUploader {
 
         if (response.ok) {
           this._sessionBytes += payloadBytes.length
-          console.log(`[Uploader] Upload SUCCESS (${response.status}), ${payloadBytes.length} bytes`)
+          console.debug(`[Uploader] Upload SUCCESS (${response.status}), ${payloadBytes.length} bytes`)
           return { ok: true, status: response.status }
         }
 

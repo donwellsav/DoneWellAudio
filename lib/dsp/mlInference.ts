@@ -212,7 +212,7 @@ export class MLInferenceEngine {
       const pathMatch = ML_SETTINGS.MODEL_PATH.match(/ktr-fp-filter-(v\d+)/)
       this._modelVersion = pathMatch ? `ktr-fp-${pathMatch[1]}` : 'ktr-fp-v1'
       this._available = true
-      console.log(`[MLInference] Model loaded: ${this._modelVersion}`)
+      console.debug(`[MLInference] Model loaded: ${this._modelVersion}`)
     } catch (err) {
       // ONNX load failed (network error, unsupported browser, etc.)
       // Fusion continues with 6 algorithms — no user-facing error

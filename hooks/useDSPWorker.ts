@@ -36,7 +36,6 @@ import type { RoomDimensionEstimate } from '@/types/calibration'
 export interface DSPWorkerCallbacks {
   onAdvisory?: (advisory: Advisory) => void
   onAdvisoryCleared?: (advisoryId: string) => void
-  onAdvisoryReplaced?: (replacedId: string, advisory: Advisory) => void
   onTracksUpdate?: (tracks: TrackedPeak[], status?: { contentType?: ContentType; algorithmMode?: AlgorithmMode; isCompressed?: boolean; compressionRatio?: number }) => void
   onReady?: () => void
   onError?: (message: string) => void
@@ -133,9 +132,6 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
           break
         case 'advisory':
           callbacksRef.current.onAdvisory?.(msg.advisory)
-          break
-        case 'advisoryReplaced':
-          callbacksRef.current.onAdvisoryReplaced?.(msg.replacedId, msg.advisory)
           break
         case 'advisoryCleared':
           callbacksRef.current.onAdvisoryCleared?.(msg.advisoryId)

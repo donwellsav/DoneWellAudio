@@ -1,3 +1,5 @@
+import type { SeverityLevel, ContentType } from './advisory'
+
 // Spectral Snapshot Collection — types for anonymous data collection (free tier only)
 //
 // Privacy invariants (NON-NEGOTIABLE):
@@ -67,10 +69,10 @@ export interface FeedbackMarker {
   relativeMs: number
   frequencyHz: number
   amplitudeDb: number
-  severity: string
+  severity: SeverityLevel
   confidence: number
   /** Content type detected at time of event */
-  contentType: string
+  contentType: ContentType
   /** Intermediate algorithm scores (v1.1+, omitted in v1.0 batches) */
   algorithmScores?: MarkerAlgorithmScores
   /** User feedback: 'correct' or 'false_positive' (v1.1+, set post-detection) */

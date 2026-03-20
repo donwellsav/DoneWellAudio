@@ -14,10 +14,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '0.180.1',
+    version: '0.181.0',
     date: '2026-03-20',
+    highlights: 'Deep audit part 2: type safety, dead code removal, CSP hardening, coverage expansion',
     changes: [
-      { type: 'fix', description: 'fix: deep audit — activate phase suppression, fix stale closures, harden API (#180)' },
+      { type: 'fix', description: 'Remove dead `advisoryReplaced` message type — no producer existed, handler was unreachable' },
+      { type: 'fix', description: 'Reset canvas text state after frequency zone labels — prevents baseline/alignment bleed into subsequent draws' },
+      { type: 'fix', description: 'Add exhaustive switch check in worker message handler — unhandled message types now caught at compile time' },
+      { type: 'fix', description: 'ktrStorage now warns on save failure instead of silently swallowing — surfaces QuotaExceeded and serialization errors' },
+      { type: 'refactor', description: 'Consolidate `Severity` → `SeverityLevel` with deprecated alias for backward compatibility' },
+      { type: 'refactor', description: 'Tighten wire types: `string` → `SeverityLevel`/`ContentType`/`AlgorithmMode` on calibration and data collection interfaces' },
+      { type: 'fix', description: 'Isolate CombStabilityTracker per track — module-level singleton caused cross-peak contamination of comb spacing history' },
+      { type: 'fix', description: 'Fix test helper `makeTestAdvisory` — remove `as Advisory` cast, correct 6 mismatched field names to match actual interfaces' },
+      { type: 'refactor', description: 'Expand vitest coverage config to include hooks, contexts, canvas, export, storage, calibration, and data modules' },
+      { type: 'fix', description: 'Add `frame-ancestors \'none\'` to CSP — prevents clickjacking via iframe embedding' },
+      { type: 'refactor', description: 'Convert 8 production `console.log` calls to `console.debug` — hidden by default in browser DevTools' },
     ],
   },
   {

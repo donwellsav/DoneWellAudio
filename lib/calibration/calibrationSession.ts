@@ -1,6 +1,6 @@
 // CalibrationSession — in-memory data collection for a single calibration session
 
-import type { Advisory, SpectrumData, DetectorSettings } from '@/types/advisory'
+import type { Advisory, SpectrumData, DetectorSettings, ContentType } from '@/types/advisory'
 import type {
   CalibrationDetection,
   MissedDetection,
@@ -132,7 +132,7 @@ export class CalibrationSession {
     }
   }
 
-  logNoiseFloor(noiseFloorDb: number, peakDb: number, contentType: string): void {
+  logNoiseFloor(noiseFloorDb: number, peakDb: number, contentType: ContentType): void {
     if (this._noiseFloorLog.length >= MAX_NOISE_SAMPLES) return
     this._noiseFloorLog.push({ timestamp: now(), noiseFloorDb, peakDb, contentType })
   }

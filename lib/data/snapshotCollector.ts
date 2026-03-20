@@ -19,6 +19,7 @@ import type {
   SnapshotBatch,
   EncodedSnapshot,
 } from '@/types/data'
+import type { SeverityLevel, ContentType } from '@/types/advisory'
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -175,9 +176,9 @@ export class SnapshotCollector {
   markFeedbackEvent(
     frequencyHz: number,
     amplitudeDb: number,
-    severity: string,
+    severity: SeverityLevel,
     confidence: number,
-    contentType: string,
+    contentType: ContentType,
     algorithmScores?: MarkerAlgorithmScores
   ): void {
     const marker: FeedbackMarker = {

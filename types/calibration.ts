@@ -1,6 +1,6 @@
 // Calibration system types — in-app data collection for DSP tuning
 
-import type { DetectorSettings, ContentType, AlgorithmMode } from './advisory'
+import type { DetectorSettings, ContentType, AlgorithmMode, SeverityLevel } from './advisory'
 
 // ── Room Profile ─────────────────────────────────────────────────────────────
 
@@ -96,13 +96,13 @@ export interface CalibrationDetection {
   frequencyHz: number
   amplitudeDb: number
   confidence: number
-  severity: string
+  severity: SeverityLevel
   qEstimate: number
   bandwidthHz: number
   velocityDbPerSec: number
   harmonicityScore: number
-  contentType: string
-  algorithmMode: string
+  contentType: ContentType
+  algorithmMode: AlgorithmMode
   noiseFloorAtTime: number
   effectiveThresholdAtTime: number
   annotation: 'true_positive' | 'false_positive'
@@ -124,7 +124,7 @@ export interface NoiseFloorSample {
   timestamp: string
   noiseFloorDb: number
   peakDb: number
-  contentType: string
+  contentType: ContentType
 }
 
 export interface SpectrumSnapshot {
