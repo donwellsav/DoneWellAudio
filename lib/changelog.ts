@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.164.2',
+    date: '2026-03-20',
+    changes: [
+      { type: 'feat', description: 'feat: PEQ details toggle + RTA label readability fix (#166)' },
+    ],
+  },
+  {
     version: '0.164.1',
     date: '2026-03-20',
     changes: [
