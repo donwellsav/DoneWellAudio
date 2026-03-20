@@ -14,17 +14,11 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '0.175.1',
+    version: '0.176.0',
     date: '2026-03-20',
     changes: [
-      { type: 'ui', description: 'ui: notch overlay + marker lines at 100% opacity (#175)' },
-    ],
-  },
-  {
-    version: '0.175.0',
-    date: '2026-03-20',
-    changes: [
-      { type: 'ui', description: 'Notch overlay fill and marker vertical lines set to 100% opacity for maximum visibility' },
+      { type: 'ui', description: 'Notch overlays render as single solid blocks — marker vertical line skipped when notch overlay exists, eliminating two-line artifact' },
+      { type: 'ui', description: 'Notch overlay fill and marker vertical lines at 100% opacity' },
     ],
   },
   {

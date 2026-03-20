@@ -525,8 +525,9 @@ export function drawNotchOverlays(
   advisories: Advisory[],
   clearedIds: Set<string> | undefined,
   theme: CanvasTheme = DARK_CANVAS_THEME,
-) {
+): Set<string> {
   const isDark = theme === DARK_CANVAS_THEME
+  const notchedIds = new Set<string>()
   const visible = advisories
     .filter(a => !clearedIds?.has(a.id))
     .slice(-7) // Same cap as drawMarkers
@@ -563,9 +564,11 @@ export function drawNotchOverlays(
     ctx.fillStyle = color
     ctx.globalAlpha = 1.0
     ctx.fillRect(x1, 0, barWidth, plotHeight)
+    notchedIds.add(advisory.id)
   }
 
   ctx.globalAlpha = 1
+  return notchedIds
 }
 
 export function drawMarkers(
@@ -579,6 +582,7 @@ export function drawMarkers(
   peakMarkerRadius: number,
   fontSize: number,
   theme: CanvasTheme = DARK_CANVAS_THEME,
+  notchedIds?: Set<string>,
 ) {
   const isDark = theme === DARK_CANVAS_THEME
   // Early warning predictions
@@ -696,14 +700,16 @@ export function drawMarkers(
     const y = ((range.dbMax - clamp(db, range.dbMin, range.dbMax)) / (range.dbMax - range.dbMin)) * plotHeight
     const color = getSeverityColor(advisory.severity)
 
-    // Vertical line
-    ctx.strokeStyle = color
-    ctx.lineWidth = 2
-    ctx.globalAlpha = 1.0
-    ctx.beginPath()
-    ctx.moveTo(x, y)
-    ctx.lineTo(x, plotHeight)
-    ctx.stroke()
+    // Vertical line — skip when notch overlay already marks this frequency
+    if (!notchedIds?.has(advisory.id)) {
+      ctx.strokeStyle = color
+      ctx.lineWidth = 2
+      ctx.globalAlpha = 1.0
+      ctx.beginPath()
+      ctx.moveTo(x, y)
+      ctx.lineTo(x, plotHeight)
+      ctx.stroke()
+    }
 
     // Peak halo — soft glow ring behind dot
     ctx.fillStyle = color

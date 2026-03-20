@@ -1,7 +1,7 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
-> **Last updated March 2026. 164 TypeScript/TSX files, 516 tests (511 pass, 4 skip, 1 todo), 29 suites. Version 0.175.0.**
-> Notch overlay 100% opacity solid bars, marker lines 100% opacity.
+> **Last updated March 2026. 164 TypeScript/TSX files, 516 tests (511 pass, 4 skip, 1 todo), 29 suites. Version 0.176.0.**
+> Notch overlays render as single solid blocks at 100% opacity. Marker vertical line skipped when notch overlay exists.
 
 ## CRITICAL RULES
 
@@ -353,7 +353,7 @@ Then when user says "PR and merge":
 - **Sensitivity guidance (v0.151.0):** Three-layer contextual hints — idle hint below start buttons, first-detection tooltip, persistent RTA label next to threshold line. Speech/ringOut default 27dB.
 - **RTA label overlap suppression (v0.170.0):** Greedy algorithm prioritizes highest-severity labels with 16px collision padding. Nearby suppressed labels merge into range pills ("820–950 Hz ×3") with highlight bands.
 - **Frequency zone overlay (v0.171.0):** 5 theme-aware bands (Sub/Low Mid/Mid/Presence/Air) with separate dark/light opacity arrays. Merged range labels get filled highlight bands.
-- **Notch overlays (v0.175.0):** Severity-colored solid bars and marker vertical lines at 100% opacity.
+- **Notch overlays (v0.176.0):** Severity-colored solid blocks at 100% opacity. Marker vertical line skipped when notch overlay exists to prevent two-line artifact. `drawNotchOverlays()` returns notched ID set consumed by `drawMarkers()`.
 - **Draggable threshold line:** Drag the dashed line on the RTA to adjust sensitivity directly. 8×28px grab handle with notch affordance.
 
 ### Settings Persistence
