@@ -500,6 +500,74 @@ export function drawFreqRangeOverlay(
   ctx.globalAlpha = 1
 }
 
+/**
+ * Draw semi-transparent notch-width overlays behind advisory markers.
+ *
+ * For clustered advisories, the band spans clusterMinHz–clusterMaxHz
+ * (matching the widened PEQ Q). For single peaks, the band is derived
+ * from the PEQ Q recommendation: bandwidth = centerHz / Q.
+ *
+ * Drawn before drawMarkers() so peak dots/lines render on top.
+ */
+export function drawNotchOverlays(
+  ctx: CanvasRenderingContext2D,
+  plotWidth: number,
+  plotHeight: number,
+  range: DbRange,
+  advisories: Advisory[],
+  clearedIds: Set<string> | undefined,
+) {
+  const visible = advisories
+    .filter(a => !clearedIds?.has(a.id))
+    .slice(-7) // Same cap as drawMarkers
+
+  for (const advisory of visible) {
+    const centerHz = advisory.trueFrequencyHz
+    const peqQ = advisory.advisory?.peq?.q ?? advisory.qEstimate
+
+    // Determine band edges: cluster bounds or Q-derived bandwidth
+    let minHz: number
+    let maxHz: number
+    if (advisory.clusterMinHz && advisory.clusterMaxHz && advisory.clusterMinHz < advisory.clusterMaxHz) {
+      // Cluster: add 25% visual margin beyond the notch edges
+      const span = advisory.clusterMaxHz - advisory.clusterMinHz
+      const margin = span * 0.25
+      minHz = advisory.clusterMinHz - margin
+      maxHz = advisory.clusterMaxHz + margin
+    } else {
+      // Single peak: derive from PEQ Q
+      const halfBw = centerHz / (2 * peqQ)
+      minHz = centerHz - halfBw
+      maxHz = centerHz + halfBw
+    }
+
+    // Clamp to visible range and convert to pixels
+    const x1 = freqToLogPosition(Math.max(minHz, range.freqMin), range.freqMin, range.freqMax) * plotWidth
+    const x2 = freqToLogPosition(Math.min(maxHz, range.freqMax), range.freqMin, range.freqMax) * plotWidth
+    if (x2 - x1 < 1) continue // Too narrow to draw
+
+    const color = getSeverityColor(advisory.severity)
+
+    // Semi-transparent band fill
+    ctx.globalAlpha = 0.08
+    ctx.fillStyle = color
+    ctx.fillRect(x1, 0, x2 - x1, plotHeight)
+
+    // Thin boundary lines at edges
+    ctx.globalAlpha = 0.25
+    ctx.strokeStyle = color
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(x1, 0)
+    ctx.lineTo(x1, plotHeight)
+    ctx.moveTo(x2, 0)
+    ctx.lineTo(x2, plotHeight)
+    ctx.stroke()
+  }
+
+  ctx.globalAlpha = 1
+}
+
 export function drawMarkers(
   ctx: CanvasRenderingContext2D,
   plotWidth: number,

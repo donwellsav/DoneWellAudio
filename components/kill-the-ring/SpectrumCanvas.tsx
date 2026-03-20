@@ -12,7 +12,7 @@ import type { SpectrumData, Advisory } from '@/types/advisory'
 import type { EarlyWarning } from '@/hooks/useAudioAnalyzer'
 import {
   type DbRange, type CanvasTheme, calcPadding, drawGrid, drawFreqZones, drawIndicatorLines, drawSpectrum,
-  drawFreqRangeOverlay, drawMarkers, drawAxisLabels, drawPlaceholder,
+  drawFreqRangeOverlay, drawNotchOverlays, drawMarkers, drawAxisLabels, drawPlaceholder,
   DARK_CANVAS_THEME, LIGHT_CANVAS_THEME,
 } from '@/lib/canvas/spectrumDrawing'
 
@@ -248,6 +248,7 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
     paddingRef.current = { left: padding.left, top: padding.top, plotWidth, plotHeight }
 
     drawFreqRangeOverlay(ctx, plotWidth, plotHeight, range, freqRangeRef.current, canvasThemeRef.current)
+    drawNotchOverlays(ctx, plotWidth, plotHeight, range, advisoriesRef.current, clearedIdsRef.current)
     drawMarkers(ctx, plotWidth, plotHeight, range, earlyWarning, advisoriesRef.current, clearedIdsRef.current, peakMarkerRadius, fontSize)
 
     // Frozen badge — top-right of plot area
