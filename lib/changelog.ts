@@ -14,6 +14,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.162.0',
+    date: '2026-03-20',
+    changes: [
+      { type: 'feat', description: 'Adds inverse eigenvalue solver that estimates room dimensions (L×W×H) from detected resonance frequencies at high sensitivity' },
+      { type: 'feat', description: 'Density-weighted harmonic series extraction prevents spurious "super-series" from absorbing multiple axes' },
+      { type: 'feat', description: 'Worker accumulates stable low-frequency peaks during measurement, then runs solver with forward validation' },
+      { type: 'feat', description: '"Auto-Detect Room" UI section in Room settings with progress bar, confidence meter, and "Apply to Room Settings" button' },
+      { type: 'feat', description: '13 new unit tests (504 total passing)' },
+      { type: 'feat', description: '[x] `npx tsc --noEmit` — clean' },
+      { type: 'feat', description: '[x] `pnpm test` — 504 pass, 4 skip, 1 todo' },
+      { type: 'feat', description: '[ ] Manual: run KTR in ringOut mode, click "Measure Room" in Room settings, verify dimension estimates appear' },
+      { type: 'feat', description: '[ ] Manual: click "Apply to Room Settings" and verify dimensions populate the input fields' },
+    ],
+  },
+  {
     version: '0.161.0',
     date: '2026-03-20',
     changes: [
