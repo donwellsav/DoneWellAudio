@@ -88,7 +88,7 @@ export const GuideTab = memo(function GuideTab() {
           <HelpSection title="Settings Sidebar (5 Icon Tabs)">
             <ul className="space-y-2">
               <li><strong>Detect:</strong> Sensitivity, algorithm mode, FFT size, smoothing, thresholds, A-weighting, harmonic filter, noise floor, peak detection, max tracks, track timeout, whistle suppression. Uses accordion sections for progressive disclosure.</li>
-              <li><strong>Display:</strong> Tooltips, graph font size, max issues, EQ style, RTA dB range, spectrum line width, swipe-to-label, frequency zone overlay (Sub/Low Mid/Mid/Presence/Air — also shown at idle), warm amber spectrum mode, algorithm scores debug toggle.</li>
+              <li><strong>Display:</strong> Tooltips, graph font size, max issues, EQ style, RTA dB range, spectrum line width, swipe-to-label, frequency zone overlay (Sub/Low Mid/Mid/Presence/Air — also shown at idle), warm amber spectrum mode, algorithm scores debug toggle, PEQ details toggle (show recommended parametric EQ on each card).</li>
               <li><strong>Room:</strong> Room acoustics presets, RT60, volume, Schroeder frequency, modal overlap.</li>
               <li><strong>Advanced:</strong> Save/load defaults, reset to factory settings.</li>
               <li><strong>Calibrate:</strong> Room profile (dimensions, materials, mics), ambient noise capture, measurement mic compensation (Behringer ECM8000, dbx RTA-M, or Smartphone MEMS), calibration session recording with live stats and JSON export.</li>

@@ -16,15 +16,14 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     version: '0.167.0',
     date: '2026-03-20',
+    highlights: 'Pro audio RTA labels, cluster-aware Q, notch overlays, PEQ card details',
     changes: [
-      { type: 'feat', description: 'RTA frequency labels now render as FabFilter-inspired frosted glass callout badges with severity-tinted borders and LED accent strips' },
-      { type: 'feat', description: 'Full light/dark mode support: dark glass fill in dark mode, frosted white in light mode with stronger border/accent opacity to compensate for light wash-out' },
-      { type: 'feat', description: 'Passes `canvasThemeRef.current` through to `drawMarkers()` for live theme switching' },
-      { type: 'feat', description: '[x] `npx tsc --noEmit` — 0 errors' },
-      { type: 'feat', description: '[x] `pnpm test` — 511 pass, 4 skip, 1 todo' },
-      { type: 'feat', description: '[ ] Visual: verify labels in dark mode (frosted dark glass, colored text, accent strip)' },
-      { type: 'feat', description: '[ ] Visual: verify labels in light mode (frosted white glass, colored text, stronger borders)' },
-      { type: 'feat', description: '[ ] Toggle theme while running — labels adapt immediately' },
+      { type: 'ui', description: 'RTA frequency labels now render as FabFilter-inspired frosted glass callout badges with severity-tinted borders and LED accent strips' },
+      { type: 'ui', description: 'Full light/dark mode support for RTA labels — frosted white glass in light mode with stronger border opacity' },
+      { type: 'feat', description: 'PEQ details toggle in Display settings — show recommended parametric EQ cut (type, freq, Q, gain) on each issue card' },
+      { type: 'feat', description: 'Notch-width overlay on RTA shows the frequency span covered by each advisory\'s EQ cut' },
+      { type: 'feat', description: 'Cluster-aware Q widening — merged advisories automatically widen PEQ Q to cover the full cluster span with 1.5× margin' },
+      { type: 'feat', description: 'Auto-Detect Room UI wired up via EngineContext — measure button, progress bar, and Apply to Room Settings flow' },
     ],
   },
   {
