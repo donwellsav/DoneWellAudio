@@ -1,7 +1,7 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
-> **Last updated March 2026. 164 TypeScript/TSX files, 516 tests (511 pass, 4 skip, 1 todo), 29 suites. Version 0.172.0.**
-> Solid notch overlay bars (replaces two-line boundary), theme-aware zone bands.
+> **Last updated March 2026. 164 TypeScript/TSX files, 516 tests (511 pass, 4 skip, 1 todo), 29 suites. Version 0.173.0.**
+> Notch overlay 70% opacity solid bars, marker lines 75% opacity.
 
 ## CRITICAL RULES
 

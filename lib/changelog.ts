@@ -14,10 +14,11 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '0.172.1',
+    version: '0.173.0',
     date: '2026-03-20',
     changes: [
-      { type: 'ui', description: 'ui: solid notch overlay bars + v0.172.0 (#172)' },
+      { type: 'ui', description: 'Notch overlay fill opacity increased to 70% for solid bar appearance (was 20%)' },
+      { type: 'ui', description: 'Marker vertical line opacity increased to 75% (was 70%)' },
     ],
   },
   {
