@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.162.1',
+    date: '2026-03-20',
+    changes: [
+      { type: 'feat', description: 'feat: wire up Auto-Detect Room UI via EngineContext (#163)' },
+    ],
+  },
+  {
     version: '0.162.0',
     date: '2026-03-20',
     changes: [
