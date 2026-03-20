@@ -14,10 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '0.170.1',
+    version: '0.171.0',
     date: '2026-03-20',
+    highlights: 'Stronger frequency zone bands, merged range highlight fills',
     changes: [
-      { type: 'feat', description: 'feat: RTA label overlap fix + nearby range merging (#170)' },
+      { type: 'ui', description: 'Frequency zone bands (SUB, LOW MID, MID, PRESENCE, AIR) now theme-aware with stronger fills — 10-12% dark mode, 6-8% light mode (up from 4-6%)' },
+      { type: 'ui', description: 'Zone separator lines and labels more visible (opacity 0.25, font 10px)' },
+      { type: 'feat', description: 'Merged range labels now draw a severity-tinted highlight band across the full RTA height, marking the problem frequency region' },
     ],
   },
   {

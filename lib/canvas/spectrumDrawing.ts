@@ -156,18 +156,23 @@ export function drawGrid(
   ctx.stroke()
 }
 
-/** Frequency zone definitions for the educational overlay */
-const FREQ_ZONES: { label: string; minHz: number; maxHz: number; color: string }[] = [
-  { label: 'SUB',      minHz: 20,   maxHz: 120,   color: 'rgba(139, 92, 246, 0.06)' },  // violet tint
-  { label: 'LOW MID',  minHz: 120,  maxHz: 500,   color: 'rgba(96, 165, 250, 0.05)' },  // blue tint
-  { label: 'MID',      minHz: 500,  maxHz: 2000,  color: 'rgba(75, 146, 255, 0.05)' },  // primary blue tint
-  { label: 'PRESENCE', minHz: 2000, maxHz: 6000,  color: 'rgba(250, 204, 21, 0.04)' },  // yellow tint
-  { label: 'AIR',      minHz: 6000, maxHz: 20000, color: 'rgba(96, 165, 250, 0.04)' },  // light blue tint
-]
+/** Frequency zone band boundaries — colors are theme-dependent */
+const FREQ_ZONE_BANDS = [
+  { label: 'SUB',      minHz: 20,   maxHz: 120,   rgb: '139, 92, 246'  },  // violet
+  { label: 'LOW MID',  minHz: 120,  maxHz: 500,   rgb: '96, 165, 250'  },  // blue
+  { label: 'MID',      minHz: 500,  maxHz: 2000,  rgb: '75, 146, 255'  },  // primary blue
+  { label: 'PRESENCE', minHz: 2000, maxHz: 6000,  rgb: '250, 204, 21'  },  // yellow
+  { label: 'AIR',      minHz: 6000, maxHz: 20000, rgb: '96, 165, 250'  },  // light blue
+] as const
+
+// Zone fill opacity per band — dark mode is stronger (dark bg absorbs color)
+const ZONE_ALPHA_DARK  = [0.12, 0.10, 0.10, 0.08, 0.08]
+const ZONE_ALPHA_LIGHT = [0.08, 0.07, 0.07, 0.06, 0.06]
 
 /**
  * Draw labeled frequency zone bands behind the spectrum.
- * Very faint tinted rectangles with small labels at top to help engineers orient.
+ * Tinted rectangles with labels at top to help engineers orient.
+ * Theme-aware: stronger fills on dark backgrounds, subtler on light.
  * @param showZones - when false, this function is a no-op
  */
 export function drawFreqZones(
@@ -179,19 +184,22 @@ export function drawFreqZones(
   theme: CanvasTheme = DARK_CANVAS_THEME,
 ) {
   if (!showZones) return
+  const isDark = theme === DARK_CANVAS_THEME
+  const alphas = isDark ? ZONE_ALPHA_DARK : ZONE_ALPHA_LIGHT
 
-  for (const zone of FREQ_ZONES) {
+  for (let z = 0; z < FREQ_ZONE_BANDS.length; z++) {
+    const zone = FREQ_ZONE_BANDS[z]
     const x1 = freqToLogPosition(Math.max(zone.minHz, range.freqMin), range.freqMin, range.freqMax) * plotWidth
     const x2 = freqToLogPosition(Math.min(zone.maxHz, range.freqMax), range.freqMin, range.freqMax) * plotWidth
     if (x2 <= x1) continue // zone outside visible range
 
-    // Tinted background
-    ctx.fillStyle = zone.color
+    // Tinted background band
+    ctx.fillStyle = `rgba(${zone.rgb}, ${alphas[z]})`
     ctx.fillRect(x1, 0, x2 - x1, plotHeight)
 
-    // Thin separator at zone start
+    // Separator line at zone boundary
     ctx.strokeStyle = theme.zoneLabel
-    ctx.globalAlpha = 0.15
+    ctx.globalAlpha = 0.25
     ctx.lineWidth = 0.5
     ctx.beginPath()
     ctx.moveTo(x1, 0)
@@ -203,7 +211,7 @@ export function drawFreqZones(
     const centerX = (x1 + x2) / 2
     const labelWidth = x2 - x1
     if (labelWidth > 30) { // only draw label if zone is wide enough
-      ctx.font = '9px var(--font-sans, sans-serif)'
+      ctx.font = '10px var(--font-sans, sans-serif)'
       ctx.fillStyle = theme.zoneLabel
       ctx.textAlign = 'center'
       ctx.textBaseline = 'top'
@@ -665,6 +673,7 @@ export function drawMarkers(
   // producing a range label like "820–950Hz" or "1.2–1.5kHz ×3".
   const mergeDistance = labelPadding * 3
   const mergedLabelText = new Map<number, string>()
+  const mergedLabelRange = new Map<number, { minHz: number; maxHz: number }>()
   const claimed = new Set<number>() // prevent double-claiming suppressed labels
 
   for (const acceptedIdx of accepted) {
@@ -683,6 +692,7 @@ export function drawMarkers(
       const maxF = Math.max(...freqs)
       const countSuffix = group.length >= 3 ? ` ×${group.length}` : ''
       mergedLabelText.set(acceptedIdx, `${formatFrequency(minF)}–${formatFrequency(maxF)}${countSuffix}`)
+      mergedLabelRange.set(acceptedIdx, { minHz: minF, maxHz: maxF })
     }
   }
 
@@ -721,6 +731,18 @@ export function drawMarkers(
     // Frequency label — only show if not occluded by a higher-priority label
     if (labelShowFlags[i]) {
       const labelText = mergedLabelText.get(i) ?? formatFrequency(freq)
+
+      // Merged range highlight band — severity-tinted full-height fill
+      const mergeRange = mergedLabelRange.get(i)
+      if (mergeRange) {
+        const rx1 = freqToLogPosition(mergeRange.minHz, range.freqMin, range.freqMax) * plotWidth
+        const rx2 = freqToLogPosition(mergeRange.maxHz, range.freqMin, range.freqMax) * plotWidth
+        ctx.fillStyle = color
+        ctx.globalAlpha = isDark ? 0.08 : 0.10
+        ctx.fillRect(rx1, 0, rx2 - rx1, plotHeight)
+        ctx.globalAlpha = 1
+      }
+
       ctx.font = labelFont
       ctx.textAlign = 'center'
       const labelY = y - 10
