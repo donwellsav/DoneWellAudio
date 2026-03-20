@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.162.2',
+    date: '2026-03-20',
+    changes: [
+      { type: 'feat', description: 'feat: cluster-aware Q widening for merged advisories (#164)' },
+    ],
+  },
+  {
     version: '0.162.1',
     date: '2026-03-20',
     changes: [
