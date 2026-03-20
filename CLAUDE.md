@@ -1,7 +1,7 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
-> **Last updated March 2026. 165 TypeScript/TSX files, 515 tests (510 pass, 4 skip, 1 todo), 29 suites. Version 0.181.0.**
-> Deep audit part 2: dead code removal, type safety hardening, CSP clickjacking protection, per-track comb isolation, coverage expansion.
+> **Last updated March 2026. 165 TypeScript/TSX files, 515 tests (510 pass, 4 skip, 1 todo), 29 suites. Version 0.182.0.**
+> Notch overlay opacity reduced to 42% for better spectrum readability.
 
 ## CRITICAL RULES
 
@@ -353,7 +353,7 @@ Then when user says "PR and merge":
 - **Sensitivity guidance (v0.151.0):** Three-layer contextual hints — idle hint below start buttons, first-detection tooltip, persistent RTA label next to threshold line. Speech/ringOut default 27dB.
 - **RTA label overlap suppression (v0.170.0):** Greedy algorithm prioritizes highest-severity labels with 16px collision padding. Nearby suppressed labels merge into range pills ("820–950 Hz ×3") with highlight bands.
 - **Frequency zone overlay (v0.171.0):** 5 theme-aware bands (Sub/Low Mid/Mid/Presence/Air) with separate dark/light opacity arrays. Merged range labels get filled highlight bands.
-- **Notch overlays (v0.179.0):** Advisory merge at 1000 cents (minor seventh) — nearby EQ bands consolidate into one wider-Q cut via `clusterAwareQ()`. 60% opacity for fill and marker lines. Visual bars merge with 3% plot-width gap threshold, 8px minimum width. Marker line skipped when notch exists. `drawNotchOverlays()` returns notched ID set consumed by `drawMarkers()`.
+- **Notch overlays (v0.179.0):** Advisory merge at 1000 cents (minor seventh) — nearby EQ bands consolidate into one wider-Q cut via `clusterAwareQ()`. 42% opacity for fill and marker lines. Visual bars merge with 3% plot-width gap threshold, 8px minimum width. Marker line skipped when notch exists. `drawNotchOverlays()` returns notched ID set consumed by `drawMarkers()`.
 - **Draggable threshold line:** Drag the dashed line on the RTA to adjust sensitivity directly. 8×28px grab handle with notch affordance.
 
 ### Settings Persistence

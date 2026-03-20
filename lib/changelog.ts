@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.182.0',
+    date: '2026-03-20',
+    changes: [
+      { type: 'ui', description: 'Reduce notch overlay and marker line opacity from 60% to 42% — spectrum trace more readable beneath EQ cut zones' },
+    ],
+  },
+  {
     version: '0.181.1',
     date: '2026-03-20',
     changes: [

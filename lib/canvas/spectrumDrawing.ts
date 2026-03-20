@@ -587,7 +587,7 @@ export function drawNotchOverlays(
   // Draw merged bars as single solid blocks
   for (const bar of merged) {
     ctx.fillStyle = bar.color
-    ctx.globalAlpha = 0.60
+    ctx.globalAlpha = 0.42
     ctx.fillRect(bar.x1, 0, bar.x2 - bar.x1, plotHeight)
     for (const id of bar.ids) notchedIds.add(id)
   }
@@ -729,7 +729,7 @@ export function drawMarkers(
     if (!notchedIds?.has(advisory.id)) {
       ctx.strokeStyle = color
       ctx.lineWidth = 2
-      ctx.globalAlpha = 0.60
+      ctx.globalAlpha = 0.42
       ctx.beginPath()
       ctx.moveTo(x, y)
       ctx.lineTo(x, plotHeight)
