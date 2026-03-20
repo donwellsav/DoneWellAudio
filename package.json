@@ -1,6 +1,6 @@
 {
   "name": "killthering",
-  "version": "0.164.2",
+  "version": "0.167.0",
   "private": true,
   "packageManager": "pnpm@10.30.1",
   "scripts": {

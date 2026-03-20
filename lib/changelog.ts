@@ -14,6 +14,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.167.0',
+    date: '2026-03-20',
+    changes: [
+      { type: 'feat', description: 'RTA frequency labels now render as FabFilter-inspired frosted glass callout badges with severity-tinted borders and LED accent strips' },
+      { type: 'feat', description: 'Full light/dark mode support: dark glass fill in dark mode, frosted white in light mode with stronger border/accent opacity to compensate for light wash-out' },
+      { type: 'feat', description: 'Passes `canvasThemeRef.current` through to `drawMarkers()` for live theme switching' },
+      { type: 'feat', description: '[x] `npx tsc --noEmit` — 0 errors' },
+      { type: 'feat', description: '[x] `pnpm test` — 511 pass, 4 skip, 1 todo' },
+      { type: 'feat', description: '[ ] Visual: verify labels in dark mode (frosted dark glass, colored text, accent strip)' },
+      { type: 'feat', description: '[ ] Visual: verify labels in light mode (frosted white glass, colored text, stronger borders)' },
+      { type: 'feat', description: '[ ] Toggle theme while running — labels adapt immediately' },
+    ],
+  },
+  {
     version: '0.164.2',
     date: '2026-03-20',
     changes: [
