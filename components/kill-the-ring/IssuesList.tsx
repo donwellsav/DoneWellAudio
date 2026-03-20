@@ -35,11 +35,12 @@ interface IssuesListProps {
   isLowSignal?: boolean
   swipeLabeling?: boolean
   showAlgorithmScores?: boolean
+  showPeqDetails?: boolean
   onStartRingOut?: () => void
   onDismiss?: (id: string) => void
 }
 
-export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10, dismissedIds, onClearAll, onClearResolved, touchFriendly, isRunning, onStart, onFalsePositive, falsePositiveIds, onConfirmFeedback, confirmedIds, isLowSignal, swipeLabeling, showAlgorithmScores, onStartRingOut, onDismiss }: IssuesListProps) {
+export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10, dismissedIds, onClearAll, onClearResolved, touchFriendly, isRunning, onStart, onFalsePositive, falsePositiveIds, onConfirmFeedback, confirmedIds, isLowSignal, swipeLabeling, showAlgorithmScores, showPeqDetails, onStartRingOut, onDismiss }: IssuesListProps) {
   // Filter dismissed, sort repeat offenders to top by hit count, then slice to max.
   // We attach occurrenceCount here so IssueCard doesn't need to re-query feedbackHistory.
   const latestSorted = useMemo(() => {
@@ -245,6 +246,7 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
               isConfirmed={confirmedIds?.has(advisory.id) ?? false}
               swipeLabeling={swipeLabeling}
               showAlgorithmScores={showAlgorithmScores}
+              showPeqDetails={showPeqDetails}
               onDismiss={onDismiss}
             />
           ))}
@@ -300,10 +302,11 @@ interface IssueCardProps {
   isConfirmed?: boolean
   swipeLabeling?: boolean
   showAlgorithmScores?: boolean
+  showPeqDetails?: boolean
   onDismiss?: (advisoryId: string) => void
 }
 
-const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFriendly, onFalsePositive, isFalsePositive, onConfirmFeedback, isConfirmed, swipeLabeling, showAlgorithmScores, onDismiss }: IssueCardProps) {
+const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFriendly, onFalsePositive, isFalsePositive, onConfirmFeedback, isConfirmed, swipeLabeling, showAlgorithmScores, showPeqDetails, onDismiss }: IssueCardProps) {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme !== 'light'
 
@@ -710,6 +713,13 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
               advisory.algorithmScores.ml != null && `ML:${advisory.algorithmScores.ml.toFixed(2)}`,
             ].filter(Boolean).join('  ')}
             {' → '}{advisory.algorithmScores.fusedProbability.toFixed(2)}
+          </div>
+        )}
+        {/* PEQ recommendation row */}
+        {showPeqDetails && advisory.advisory?.peq && (
+          <div className="text-[10px] font-mono text-muted-foreground/60 tracking-wide leading-none -mt-1">
+            PEQ: {advisory.advisory.peq.type} @ {advisory.advisory.peq.hz.toFixed(0)}Hz | Q:{advisory.advisory.peq.q.toFixed(1)} | {advisory.advisory.peq.gainDb}dB
+            {advisory.advisory.peq.bandwidthHz != null && ` | BW:${advisory.advisory.peq.bandwidthHz.toFixed(0)}Hz`}
           </div>
         )}
 

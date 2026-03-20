@@ -688,10 +688,25 @@ export function drawMarkers(
 
     // Frequency label — only show if not occluded by a higher-priority label
     if (labelShowFlags[i]) {
-      ctx.fillStyle = color
+      const labelText = formatFrequency(freq)
       ctx.font = labelFont
       ctx.textAlign = 'center'
-      ctx.fillText(formatFrequency(freq), x, y - 10)
+      const labelY = y - 10
+
+      // Dark backdrop pill for readability over busy spectrum
+      const metrics = ctx.measureText(labelText)
+      const pillPadX = 4
+      const pillPadY = 2
+      const pillW = metrics.width + pillPadX * 2
+      const pillH = (fontSize + 3) + pillPadY * 2
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.65)'
+      ctx.beginPath()
+      ctx.roundRect(x - pillW / 2, labelY - pillH + pillPadY + 2, pillW, pillH, 3)
+      ctx.fill()
+
+      // Label text
+      ctx.fillStyle = color
+      ctx.fillText(labelText, x, labelY)
     }
   }
 }

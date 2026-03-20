@@ -256,6 +256,7 @@ export const MobileLayout = memo(function MobileLayout({
                     isLowSignal={isRunning && inputLevel < -45}
                     swipeLabeling
                     showAlgorithmScores={settings.showAlgorithmScores}
+                    showPeqDetails={settings.showPeqDetails}
                     onStartRingOut={onStartRingOut}
                     onDismiss={onDismiss}
                   />

@@ -160,6 +160,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                           isLowSignal={isRunning && inputLevel < -45}
                           swipeLabeling={settings.swipeLabeling}
                           showAlgorithmScores={settings.showAlgorithmScores}
+                          showPeqDetails={settings.showPeqDetails}
                           onStartRingOut={onStartRingOut}
                           onDismiss={onDismiss}
                         />

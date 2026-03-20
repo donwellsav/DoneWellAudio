@@ -693,6 +693,7 @@ export const DEFAULT_SETTINGS: DetectorSettings = {
   algorithmMode: 'auto' as const, // Content-adaptive algorithm selection
   enabledAlgorithms: ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr'] as ('msd' | 'phase' | 'spectral' | 'comb' | 'ihr' | 'ptmr')[], // All on for custom mode
   showAlgorithmScores: false, // Hide advanced scores by default
+  showPeqDetails: false, // Hide PEQ recommendation on cards by default
   showFreqZones: false, // Frequency zone overlay on RTA (Sub/Voice/Presence/Air)
   spectrumWarmMode: true, // Warm amber spectrum line (default on)
   // Harmonic filter and room mode settings

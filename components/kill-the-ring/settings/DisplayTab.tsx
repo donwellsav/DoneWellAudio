@@ -228,6 +228,20 @@ export const DisplayTab = memo(function DisplayTab({
       </Section>
 
       <Section
+        title="PEQ Details"
+        showTooltip={settings.showTooltips}
+        tooltip="Show the recommended parametric EQ cut (type, frequency, Q, gain) on each issue card."
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground font-mono tracking-wide">Show on cards</span>
+          <PillToggle
+            checked={settings.showPeqDetails}
+            onChange={(checked) => onSettingsChange({ showPeqDetails: checked })}
+          />
+        </div>
+      </Section>
+
+      <Section
         title="Onboarding"
         showTooltip={settings.showTooltips}
         tooltip="Replay the first-run walkthrough that explains the core workflow."
