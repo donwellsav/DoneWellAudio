@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.171.1',
+    date: '2026-03-20',
+    changes: [
+      { type: 'feat', description: 'feat: stronger frequency zone bands + merged range highlight fills (#171)' },
+    ],
+  },
+  {
     version: '0.171.0',
     date: '2026-03-20',
     highlights: 'Stronger frequency zone bands, merged range highlight fills',
