@@ -72,6 +72,12 @@ export function AudioAnalyzerProvider({
     updateSettings,
     resetSettings,
     dspWorker,
+    roomEstimate,
+    roomMeasuring,
+    roomProgress,
+    startRoomMeasurement,
+    stopRoomMeasurement,
+    clearRoomEstimate,
   } = useAudioAnalyzer({}, {
     onSnapshotBatch: (batch: SnapshotBatch) => onSnapshotBatchRef.current?.(batch),
   })
@@ -143,6 +149,12 @@ export function AudioAnalyzerProvider({
     selectedDeviceId,
     handleDeviceChange,
     dspWorker,
+    roomEstimate,
+    roomMeasuring,
+    roomProgress,
+    startRoomMeasurement,
+    stopRoomMeasurement,
+    clearRoomEstimate,
   }), [
     isRunning,
     isStarting,
@@ -155,6 +167,12 @@ export function AudioAnalyzerProvider({
     selectedDeviceId,
     handleDeviceChange,
     dspWorker,
+    roomEstimate,
+    roomMeasuring,
+    roomProgress,
+    startRoomMeasurement,
+    stopRoomMeasurement,
+    clearRoomEstimate,
   ])
 
   const settingsValue = useMemo<SettingsContextValue>(() => ({

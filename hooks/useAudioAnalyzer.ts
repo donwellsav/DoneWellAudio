@@ -14,7 +14,8 @@ import type {
   TrackedPeak,
   DetectorSettings,
 } from '@/types/advisory'
-import { DEFAULT_SETTINGS } from '@/lib/dsp/constants'
+import type { RoomDimensionEstimate } from '@/types/calibration'
+import { DEFAULT_SETTINGS, ROOM_ESTIMATION } from '@/lib/dsp/constants'
 import { customDefaultsStorage } from '@/lib/storage/ktrStorage'
 
 /** Early warning for predicted feedback frequencies based on comb pattern detection */
@@ -79,6 +80,19 @@ export interface UseAudioAnalyzerReturn extends UseAudioAnalyzerState {
   tracksRef: React.RefObject<TrackedPeak[]>
   /** DSP worker handle — used by useDataCollection to enable/disable snapshot collection */
   dspWorker: DSPWorkerHandle
+  // ── Room dimension estimation ──────────────────────────────────────────
+  /** Latest room dimension estimate from inverse solver */
+  roomEstimate: RoomDimensionEstimate | null
+  /** Whether room measurement is in progress */
+  roomMeasuring: boolean
+  /** Room measurement progress */
+  roomProgress: { elapsedMs: number; stablePeaks: number }
+  /** Start room dimension measurement */
+  startRoomMeasurement: () => void
+  /** Stop room dimension measurement */
+  stopRoomMeasurement: () => void
+  /** Clear the current room estimate */
+  clearRoomEstimate: () => void
 }
 
 /** Internal state — advisories owned by useAdvisoryMap */
@@ -134,6 +148,12 @@ export function useAudioAnalyzer(
   // Throttle timestamp for React state updates (~4fps)
   const lastStatusUpdateRef = useRef(0)
 
+  // ── Room estimation state ───────────────────────────────────────────────────
+  const [roomEstimate, setRoomEstimate] = useState<RoomDimensionEstimate | null>(null)
+  const [roomMeasuring, setRoomMeasuring] = useState(false)
+  const [roomProgress, setRoomProgress] = useState({ elapsedMs: 0, stablePeaks: 0 })
+  const roomAutoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   // ── DSP Worker callbacks — stable refs, never change identity ───────────────
 
   // Worker-derived status (contentType, algorithmMode, etc.) — updated on tracksUpdate
@@ -161,6 +181,15 @@ export function useAudioAnalyzer(
     },
     onSnapshotBatch: (batch) => {
       externalCallbacksRef.current?.onSnapshotBatch?.(batch)
+    },
+    onRoomEstimate: (estimate) => {
+      setRoomEstimate(estimate)
+    },
+    onRoomMeasurementProgress: (elapsedMs, stablePeaks) => {
+      setRoomProgress({ elapsedMs, stablePeaks })
+      if (elapsedMs >= ROOM_ESTIMATION.ACCUMULATION_WINDOW_MS) {
+        setRoomMeasuring(false)
+      }
     },
   }).current
 
@@ -328,6 +357,32 @@ export function useAudioAnalyzer(
     setSettings(DEFAULT_SETTINGS)
   }, [])
 
+  // ── Room estimation controls ──────────────────────────────────────────────
+  const startRoomMeasurement = useCallback(() => {
+    setRoomMeasuring(true)
+    setRoomEstimate(null)
+    setRoomProgress({ elapsedMs: 0, stablePeaks: 0 })
+    dspWorkerRef.current.startRoomMeasurement()
+    if (roomAutoStopRef.current) clearTimeout(roomAutoStopRef.current)
+    roomAutoStopRef.current = setTimeout(() => {
+      setRoomMeasuring(false)
+    }, ROOM_ESTIMATION.ACCUMULATION_WINDOW_MS + 500)
+  }, [])
+
+  const stopRoomMeasurement = useCallback(() => {
+    setRoomMeasuring(false)
+    dspWorkerRef.current.stopRoomMeasurement()
+    if (roomAutoStopRef.current) {
+      clearTimeout(roomAutoStopRef.current)
+      roomAutoStopRef.current = null
+    }
+  }, [])
+
+  const clearRoomEstimate = useCallback(() => {
+    setRoomEstimate(null)
+    setRoomProgress({ elapsedMs: 0, stablePeaks: 0 })
+  }, [])
+
   return {
     ...state,
     advisories,
@@ -340,5 +395,12 @@ export function useAudioAnalyzer(
     spectrumRef,
     tracksRef,
     dspWorker,
+    // Room estimation
+    roomEstimate,
+    roomMeasuring,
+    roomProgress,
+    startRoomMeasurement,
+    stopRoomMeasurement,
+    clearRoomEstimate,
   }
 }

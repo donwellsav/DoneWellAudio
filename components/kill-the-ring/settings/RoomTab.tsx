@@ -6,27 +6,9 @@ import { getRoomParametersFromDimensions, feetToMeters, calculateSchroederFreque
 import { ROOM_PRESETS, ROOM_ESTIMATION } from '@/lib/dsp/constants'
 import type { RoomPresetKey } from '@/lib/dsp/constants'
 import type { DetectorSettings } from '@/types/advisory'
-import type { RoomDimensionEstimate } from '@/types/calibration'
+// RoomDimensionEstimate flows through EngineContext — no direct import needed
+import { useEngine } from '@/contexts/EngineContext'
 import { Section, type TabSettingsProps } from './SettingsShared'
-
-// ── Room Estimation Props (optional) ────────────────────────────────────────
-
-interface RoomEstimationProps {
-  isListening: boolean
-  estimate: RoomDimensionEstimate | null
-  elapsedMs: number
-  stablePeaks: number
-  startMeasurement: () => void
-  stopMeasurement: () => void
-  clearEstimate: () => void
-}
-
-export interface RoomTabProps extends TabSettingsProps {
-  /** Room estimation state — pass to enable auto-detect feature */
-  roomEstimation?: RoomEstimationProps
-  /** Whether analysis engine is currently running (needed for Measure Room) */
-  isRunning?: boolean
-}
 
 // ── Room Modes Display ─────────────────────────────────────────────────────────
 
@@ -121,17 +103,22 @@ function formatDim(m: number, unit: 'meters' | 'feet'): string {
 }
 
 function AutoDetectRoom({
-  roomEstimation,
-  isRunning,
   unit,
   onApplyDimensions,
 }: {
-  roomEstimation: RoomEstimationProps
-  isRunning: boolean
   unit: 'meters' | 'feet'
   onApplyDimensions: (lengthM: number, widthM: number, heightM: number) => void
 }) {
-  const { isListening, estimate, elapsedMs, stablePeaks, startMeasurement, stopMeasurement, clearEstimate } = roomEstimation
+  const {
+    isRunning,
+    roomEstimate: estimate,
+    roomMeasuring: isListening,
+    roomProgress,
+    startRoomMeasurement: startMeasurement,
+    stopRoomMeasurement: stopMeasurement,
+    clearRoomEstimate: clearEstimate,
+  } = useEngine()
+  const { elapsedMs, stablePeaks } = roomProgress
   const progressPct = Math.min((elapsedMs / ROOM_ESTIMATION.ACCUMULATION_WINDOW_MS) * 100, 100)
   const unitLabel = unit === 'feet' ? 'ft' : 'm'
 
@@ -254,9 +241,7 @@ function AutoDetectRoom({
 export const RoomTab = memo(function RoomTab({
   settings,
   onSettingsChange,
-  roomEstimation,
-  isRunning,
-}: RoomTabProps) {
+}: TabSettingsProps) {
   // Auto-derive RT60 and Volume from dimensions + treatment whenever they change
   useEffect(() => {
     if (settings.roomPreset === 'none') return // No auto-derivation for 'none'
@@ -431,28 +416,24 @@ export const RoomTab = memo(function RoomTab({
         </div>
       </Section>
 
-      {/* Auto-Detect Room — only shown when roomEstimation prop is provided */}
-      {roomEstimation && (
-        <Section
-          title="Auto-Detect Room"
-          showTooltip={settings.showTooltips}
-          tooltip="Listens for room resonances at high sensitivity and estimates room dimensions from their frequencies. Works best with no audio playing — just the room's natural resonance. Requires analysis to be running."
-        >
-          <AutoDetectRoom
-            roomEstimation={roomEstimation}
-            isRunning={isRunning ?? false}
-            unit={settings.roomDimensionsUnit ?? 'feet'}
-            onApplyDimensions={(l, w, h) => {
-              onSettingsChange({
-                roomPreset: 'custom',
-                roomLengthM: Math.round(l * 10) / 10,
-                roomWidthM: Math.round(w * 10) / 10,
-                roomHeightM: Math.round(h * 10) / 10,
-              })
-            }}
-          />
-        </Section>
-      )}
+      {/* Auto-Detect Room — uses EngineContext directly */}
+      <Section
+        title="Auto-Detect Room"
+        showTooltip={settings.showTooltips}
+        tooltip="Listens for room resonances at high sensitivity and estimates room dimensions from their frequencies. Works best with no audio playing — just the room's natural resonance. Requires analysis to be running."
+      >
+        <AutoDetectRoom
+          unit={settings.roomDimensionsUnit ?? 'feet'}
+          onApplyDimensions={(l, w, h) => {
+            onSettingsChange({
+              roomPreset: 'custom',
+              roomLengthM: Math.round(l * 10) / 10,
+              roomWidthM: Math.round(w * 10) / 10,
+              roomHeightM: Math.round(h * 10) / 10,
+            })
+          }}
+        />
+      </Section>
 
     </div>
   )
