@@ -9,7 +9,7 @@ export const GuideTab = memo(function GuideTab() {
       <HelpSection title="What is Kill The Ring?">
         <p>
           A real-time acoustic feedback detection and analysis tool for professional live sound engineers.
-          Uses 6 detection algorithms from peer-reviewed acoustic research to identify feedback frequencies,
+          Uses 6 detection algorithms and 6 multiplicative false-positive gates from peer-reviewed acoustic research to identify feedback frequencies,
           resonant rings, and problematic tones — then delivers specific EQ recommendations with pitch translation.
         </p>
       </HelpSection>
@@ -103,7 +103,7 @@ export const GuideTab = memo(function GuideTab() {
               </div>
               <div>
                 <p className="font-medium text-foreground text-sm mb-1">Too Many False Positives</p>
-                <p className="text-sm">Switch to Music-Aware mode. In Settings → Algorithms: raise confidence threshold. Lower sidebar Sensitivity (slide left). Enable whistle suppression if sibilance triggers detections.</p>
+                <p className="text-sm">Switch to Music-Aware mode. In Settings → Algorithms: raise confidence threshold. Lower sidebar Sensitivity (slide left). Enable whistle suppression if sibilance triggers detections. HVAC/electrical hum (50/60 Hz harmonics) is automatically suppressed by the mains hum gate when 2+ corroborating peaks are detected.</p>
               </div>
               <div>
                 <p className="font-medium text-foreground text-sm mb-1">Missing Feedback Detection</p>

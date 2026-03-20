@@ -24,7 +24,7 @@ import type { DetectorSettings, OperationMode, AlgorithmMode, Algorithm } from '
 import type { CalibrationTabProps } from './settings/CalibrationTab'
 import { FREQ_RANGE_PRESETS } from '@/lib/dsp/constants'
 import { roundFreqToNice } from '@/lib/utils/mathHelpers'
-import { presetStorage, customDefaultsStorage, settingsViewStorage } from '@/lib/storage/ktrStorage'
+import { presetStorage, customDefaultsStorage } from '@/lib/storage/ktrStorage'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -124,15 +124,6 @@ export const UnifiedControls = memo(function UnifiedControls({
   dataCollection,
 }: UnifiedControlsProps) {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('detect')
-  const [showAdvanced, setShowAdvanced] = useState(() => settingsViewStorage.isSet())
-
-  const handleToggleAdvanced = useCallback(() => {
-    setShowAdvanced(prev => {
-      const next = !prev
-      if (next) { settingsViewStorage.set() } else { settingsViewStorage.clear(); setActiveSubTab('detect') }
-      return next
-    })
-  }, [])
 
   const handleFreqSliderChange = useCallback(([logMin, logMax]: number[]) => {
     const newMin = roundFreqToNice(Math.pow(10, logMin))
@@ -218,19 +209,7 @@ export const UnifiedControls = memo(function UnifiedControls({
     <TooltipProvider delayDuration={400}>
       <div className="@container space-y-1.5">
 
-        {/* Simple / All Settings toggle */}
-        <div className="flex justify-end -mb-0.5">
-          <button
-            onClick={handleToggleAdvanced}
-            className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 text-xs text-muted-foreground hover:text-foreground transition-colors py-0.5"
-          >
-            {showAdvanced ? '\u25C2 Simple View' : 'Show All Settings \u25B8'}
-          </button>
-        </div>
-
-        {showAdvanced ? (
-          <>
-            {/* Sub-tab strip — icon-only with tooltips */}
+        {/* Sub-tab strip — icon-only with tooltips */}
             <div className="flex justify-center gap-1 border-b border-border -mx-1 pb-px">
               {subTabs.map(({ id, label, Icon }) => (
                 <Tooltip key={id}>
@@ -323,16 +302,6 @@ export const UnifiedControls = memo(function UnifiedControls({
                 </Button>
               </div>
             </div>
-          </>
-        ) : (
-          /* ── Simple mode: only Mode, Sensitivity, Max Issues ──── */
-          <SimpleSettings
-            settings={settings}
-            onSettingsChange={onSettingsChange}
-            onModeChange={onModeChange}
-          />
-        )}
-
       </div>
     </TooltipProvider>
   )
@@ -393,46 +362,6 @@ const PresetsList = memo(function PresetsList({ presets, onLoad, onDelete }: {
           </div>
         ))}
       </div>
-    </div>
-  )
-})
-
-// ── SimpleSettings (progressive disclosure — 3 essential controls) ───────────
-
-interface SimpleSettingsProps {
-  settings: DetectorSettings
-  onSettingsChange: (settings: Partial<DetectorSettings>) => void
-  onModeChange: (mode: OperationMode) => void
-}
-
-const SimpleSettings = memo(function SimpleSettings({ settings, onSettingsChange, onModeChange }: SimpleSettingsProps) {
-  return (
-    <div className="space-y-3 py-1">
-      {/* Mode selector */}
-      <div className="space-y-1">
-        <span className="text-xs font-mono font-bold uppercase tracking-[0.15em] text-muted-foreground">Mode</span>
-        <ModeChips current={settings.mode} onModeChange={onModeChange} />
-      </div>
-
-      {/* Sensitivity slider */}
-      <SliderRow
-        label="Sensitivity"
-        value={`${settings.feedbackThresholdDb}dB`}
-        tooltip="Lower = more sensitive, higher = fewer false positives. Drag on the RTA spectrum to adjust visually."
-        min={2} max={50} step={1}
-        sliderValue={52 - settings.feedbackThresholdDb}
-        onChange={(v) => onSettingsChange({ feedbackThresholdDb: 52 - v })}
-      />
-
-      {/* Max Issues slider */}
-      <SliderRow
-        label="Max Issues"
-        value={`${settings.maxDisplayedIssues}`}
-        tooltip="How many feedback issues display at once."
-        min={3} max={12} step={1}
-        sliderValue={settings.maxDisplayedIssues}
-        onChange={(v) => onSettingsChange({ maxDisplayedIssues: v })}
-      />
     </div>
   )
 })

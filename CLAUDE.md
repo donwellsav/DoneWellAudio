@@ -1,7 +1,7 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
-> **Last updated March 2026. 161 TypeScript/TSX files, 488 tests (483 pass, 4 skip, 1 todo), 28 suites. Version 0.158.0.**
-> Tablet portrait layout, SpectrumCanvas deps fix, advisory identity optimization.
+> **Last updated March 2026. 161 TypeScript/TSX files, 496 tests (491 pass, 4 skip, 1 todo), 28 suites. Version 0.160.0.**
+> Mains hum gate (6th gate), tablet portrait layout, SpectrumCanvas deps fix, advisory identity optimization.
 
 ## CRITICAL RULES
 
@@ -53,7 +53,7 @@ pnpm dev              # Dev server on :3000 (Turbopack, no SW)
 pnpm build            # Production build (webpack, generates SW)
 pnpm start            # Production server
 pnpm lint             # ESLint (flat config)
-pnpm test             # Vitest (476 tests: 471 pass + 4 skip + 1 todo)
+pnpm test             # Vitest (496 tests: 491 pass + 4 skip + 1 todo)
 pnpm test:watch       # Vitest watch mode
 pnpm test:coverage    # Vitest with V8 coverage
 npx tsc --noEmit      # Type-check (run BEFORE pnpm build)
@@ -114,6 +114,7 @@ Mic -> getUserMedia -> GainNode -> AnalyserNode (8192 FFT)
 - **Formant gate:** When 2+ active peaks fall in distinct vocal formant bands (F1/F2/F3) AND current peak Q is 3–20, pFeedback *= 0.65. Suppresses sustained vowel FP. File: `classifier.ts`
 - **Chromatic quantization gate:** When peak frequency snaps to 12-TET semitone grid (±5 cents) AND phase coherence > 0.80, phase score contribution scaled by 0.60 (40% reduction). Suppresses Auto-Tune FP. File: `classifier.ts`
 - **Comb stability gate:** CombStabilityTracker monitors fundamentalSpacing CV across 16 frames. When CV > 0.05 (sweeping), comb confidence *= 0.25. Suppresses flanger/phaser FP. File: `algorithmFusion.ts`
+- **Mains hum gate:** When peak is within ±2 Hz of a mains harmonic (50n or 60n Hz) AND 2+ other active peaks match the same series AND phase coherence > 0.70, pFeedback *= 0.40. Auto-detects 50 vs 60 Hz. Suppresses HVAC/electrical equipment FP. File: `classifier.ts`
 
 ## Known Bugs
 
@@ -126,6 +127,7 @@ All previously tracked bugs (P1–P3) have been resolved as of v0.127.0. See git
 | Sustained vowel | Speech | 0.703 | Formant gate: pFeedback *= 0.65 when 2+ formant bands active + Q 3–20 (`classifier.ts`) | **MITIGATED** |
 | Auto-Tuned vocal | Compressed | 0.785 | Chromatic quantization gate: phase boost *= 0.60 when frequency on 12-TET grid ±5 cents + coherence > 0.80 (`classifier.ts`) | **MITIGATED** |
 | Flanger/phaser pedal | Music | 0.681 | CombStabilityTracker: comb confidence *= 0.25 when spacing CV > 0.05 over 16 frames (`algorithmFusion.ts`) | **MITIGATED** |
+| HVAC/mains hum | All | ~0.80 | Mains hum gate: pFeedback *= 0.40 when peak on 50n/60n Hz series + 2 corroborating peaks + phase coherence > 0.70 (`classifier.ts`) | **MITIGATED** |
 
 ## Project Structure
 

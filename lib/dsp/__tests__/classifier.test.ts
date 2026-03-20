@@ -9,10 +9,11 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { classifyTrack, shouldReportIssue, getSeverityText } from '../classifier'
+import { classifyTrack, classifyTrackWithAlgorithms, shouldReportIssue, getSeverityText } from '../classifier'
 import { getSeverityUrgency } from '../severityUtils'
-import { DEFAULT_SETTINGS } from '../constants'
-import type { ClassificationResult, SeverityLevel, Track, DetectorSettings } from '@/types/advisory'
+import { DEFAULT_SETTINGS, MAINS_HUM_GATE } from '../constants'
+import type { ClassificationResult, SeverityLevel, Track, DetectorSettings, FusedDetectionResult } from '@/types/advisory'
+import { buildScores } from '@/tests/helpers/mockAlgorithmScores'
 
 // ── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -305,5 +306,154 @@ describe('classifyTrack', () => {
     const result = classifyTrack(makeTrack())
     expect(Array.isArray(result.reasons)).toBe(true)
     expect(result.reasons.length).toBeGreaterThan(0)
+  })
+})
+
+// ── Mains Hum Gate (classifyTrackWithAlgorithms) ───────────────────────────
+
+/**
+ * Helper: build a minimal FusedDetectionResult for classifyTrackWithAlgorithms.
+ * The mains hum gate only reads algorithmScores.phase, so the fusion result
+ * fields are set to plausible defaults.
+ */
+function makeFusionResult(scores: ReturnType<typeof buildScores>): FusedDetectionResult {
+  return {
+    feedbackProbability: 0.8,
+    confidence: 0.8,
+    contributingAlgorithms: ['msd', 'phase'],
+    algorithmScores: scores,
+    verdict: 'FEEDBACK',
+    reasons: [],
+  }
+}
+
+describe('Mains hum gate', () => {
+  // Feedback-like track at a mains harmonic frequency
+  function mainsTrack(frequencyHz: number) {
+    return makeTrack({
+      trueFrequencyHz: frequencyHz,
+      features: {
+        stabilityCentsStd: 3,
+        harmonicityScore: 0.1,
+        modulationScore: 0.05,
+        noiseSidebandScore: 0.02,
+        meanQ: 40,
+        minQ: 30,
+        meanVelocityDbPerSec: 2,
+        maxVelocityDbPerSec: 5,
+        persistenceMs: 2000,
+      },
+      velocityDbPerSec: 2,
+      prominenceDb: 20,
+      qEstimate: 40,
+    })
+  }
+
+  it('60 Hz series with 2+ corroborating peaks triggers gate', () => {
+    const scores = buildScores({ msd: 0.9, phase: 0.85, spectral: 0.8 })
+    const fusion = makeFusionResult(scores)
+    const activeFreqs = [120, 180, 240] // 60×2, 60×3, 60×4
+
+    const result = classifyTrackWithAlgorithms(
+      mainsTrack(120), scores, fusion, makeSettings(), activeFreqs
+    )
+
+    expect(result.reasons.some(r => r.includes('Mains hum gate'))).toBe(true)
+    expect(result.reasons.some(r => r.includes('60Hz series'))).toBe(true)
+  })
+
+  it('50 Hz series with 2+ corroborating peaks triggers gate', () => {
+    const scores = buildScores({ msd: 0.9, phase: 0.85, spectral: 0.8 })
+    const fusion = makeFusionResult(scores)
+    const activeFreqs = [100, 150, 200] // 50×2, 50×3, 50×4
+
+    const result = classifyTrackWithAlgorithms(
+      mainsTrack(100), scores, fusion, makeSettings(), activeFreqs
+    )
+
+    expect(result.reasons.some(r => r.includes('Mains hum gate'))).toBe(true)
+    expect(result.reasons.some(r => r.includes('50Hz series'))).toBe(true)
+  })
+
+  it('single mains peak without corroboration does NOT trigger', () => {
+    const scores = buildScores({ msd: 0.9, phase: 0.85, spectral: 0.8 })
+    const fusion = makeFusionResult(scores)
+    const activeFreqs = [120] // Only one peak on 60Hz series
+
+    const result = classifyTrackWithAlgorithms(
+      mainsTrack(120), scores, fusion, makeSettings(), activeFreqs
+    )
+
+    expect(result.reasons.some(r => r.includes('Mains hum gate'))).toBe(false)
+  })
+
+  it('off-frequency peaks do NOT trigger gate', () => {
+    const scores = buildScores({ msd: 0.9, phase: 0.85, spectral: 0.8 })
+    const fusion = makeFusionResult(scores)
+    // Peaks close to but not within ±2Hz of 60Hz harmonics
+    const activeFreqs = [123, 185, 247]
+
+    const result = classifyTrackWithAlgorithms(
+      mainsTrack(123), scores, fusion, makeSettings(), activeFreqs
+    )
+
+    expect(result.reasons.some(r => r.includes('Mains hum gate'))).toBe(false)
+  })
+
+  it('low phase coherence does NOT trigger gate', () => {
+    // Phase coherence below 0.70 threshold
+    const scores = buildScores({ msd: 0.9, phase: 0.50, spectral: 0.8 })
+    const fusion = makeFusionResult(scores)
+    const activeFreqs = [120, 180, 240]
+
+    const result = classifyTrackWithAlgorithms(
+      mainsTrack(120), scores, fusion, makeSettings(), activeFreqs
+    )
+
+    expect(result.reasons.some(r => r.includes('Mains hum gate'))).toBe(false)
+  })
+
+  it('auto-detects correct fundamental when both could match', () => {
+    const scores = buildScores({ msd: 0.9, phase: 0.85, spectral: 0.8 })
+    const fusion = makeFusionResult(scores)
+    // 300 Hz is both 50×6 and 60×5. Other peaks: 180 (60×3), 240 (60×4), 360 (60×6)
+    // 60 Hz has 3 corroborating, 50 Hz has 0 corroborating → picks 60 Hz
+    const activeFreqs = [180, 240, 300, 360]
+
+    const result = classifyTrackWithAlgorithms(
+      mainsTrack(300), scores, fusion, makeSettings(), activeFreqs
+    )
+
+    expect(result.reasons.some(r => r.includes('60Hz series'))).toBe(true)
+  })
+
+  it('reduces pFeedback when gate fires', () => {
+    const scores = buildScores({ msd: 0.9, phase: 0.85, spectral: 0.8 })
+    const fusion = makeFusionResult(scores)
+
+    // Without mains corroboration
+    const resultNoGate = classifyTrackWithAlgorithms(
+      mainsTrack(120), scores, fusion, makeSettings(), [120]
+    )
+
+    // With mains corroboration
+    const resultGate = classifyTrackWithAlgorithms(
+      mainsTrack(120), scores, fusion, makeSettings(), [120, 180, 240]
+    )
+
+    expect(resultGate.pFeedback).toBeLessThan(resultNoGate.pFeedback)
+  })
+
+  it('tolerance allows ±2 Hz frequency matching', () => {
+    const scores = buildScores({ msd: 0.9, phase: 0.85, spectral: 0.8 })
+    const fusion = makeFusionResult(scores)
+    // 121.5 is within ±2Hz of 120 (60×2), 179 is within ±2Hz of 180 (60×3)
+    const activeFreqs = [121.5, 179, 241]
+
+    const result = classifyTrackWithAlgorithms(
+      mainsTrack(121.5), scores, fusion, makeSettings(), activeFreqs
+    )
+
+    expect(result.reasons.some(r => r.includes('Mains hum gate'))).toBe(true)
   })
 })

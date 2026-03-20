@@ -14,6 +14,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.160.0',
+    date: '2026-03-20',
+    highlights: 'Mains hum gate (6th multiplicative gate) + document suite',
+    changes: [
+      { type: 'feat', description: '**Mains hum gate** — 6th multiplicative gate suppresses HVAC/electrical equipment false positives (×0.40 when peak on 50n/60n Hz series + 2 corroborating peaks + phase coherence > 0.70)' },
+      { type: 'feat', description: 'Auto-detects 50 Hz (EU/Asia) vs 60 Hz (NA) mains frequency from active peak pattern — no user config needed' },
+      { type: 'feat', description: 'Multi-condition activation: frequency match + corroborating harmonics + AC phase lock — single peaks at 120 Hz won\'t trigger' },
+      { type: 'feat', description: 'Stacks with IHR gate for rich-harmonic mains hum: combined 0.40 × 0.65 = 0.26 probability' },
+      { type: 'feat', description: '**Document suite**: scientific pitch deck, investor pitch deck, executive brief, conference poster, AES paper, whitepaper, provisional patent, internal reference' },
+      { type: 'feat', description: '7 new classifier tests for mains hum gate (496 total tests)' },
+    ],
+  },
+  {
     version: '0.159.1',
     date: '2026-03-19',
     changes: [

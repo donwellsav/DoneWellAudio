@@ -2,7 +2,7 @@
 // Enhanced with acoustic research from "Sound Insulation" (Carl Hopkins, 2007)
 // Now integrates MSD, Phase Coherence, and Spectral Flatness from advancedDetection.ts
 
-import { CLASSIFIER_WEIGHTS, SEVERITY_THRESHOLDS, SCHROEDER_CONSTANTS, PHPR_SETTINGS } from './constants'
+import { CLASSIFIER_WEIGHTS, SEVERITY_THRESHOLDS, SCHROEDER_CONSTANTS, PHPR_SETTINGS, MAINS_HUM_GATE } from './constants'
 import type { 
   Track, 
   ClassificationResult, 
@@ -143,6 +143,67 @@ function isChromaticallyQuantized(frequencyHz: number): boolean {
   // Distance to nearest semitone in cents (1 semitone = 100 cents)
   const centsOffset = Math.abs((semitones - Math.round(semitones)) * 100)
   return centsOffset <= CHROMATIC_SNAP_CENTS
+}
+
+/**
+ * Detect if a frequency belongs to the AC mains electrical harmonic series.
+ * Auto-detects 50 Hz (EU/Asia) vs 60 Hz (NA) by checking which fundamental
+ * produces more matching harmonics among the active peaks.
+ *
+ * HVAC compressors, lighting dimmers, and transformers generate exact integer
+ * multiples of the mains frequency (50n or 60n Hz). These persistent, narrow,
+ * high-Q, phase-locked tones are indistinguishable from feedback to all six
+ * detection algorithms. This gate requires corroborating evidence: the peak
+ * must be on a mains harmonic AND 2+ other active peaks must match the same
+ * series AND phase coherence must be high (AC-locked signal).
+ *
+ * @param frequencyHz - The peak frequency to evaluate
+ * @param activeFrequencies - All currently active peak frequencies
+ * @param phaseCoherence - Phase coherence score for this peak (0–1)
+ * @returns Detection result with matched fundamental and corroboration count
+ */
+function detectMainsHum(
+  frequencyHz: number,
+  activeFrequencies: number[],
+  phaseCoherence: number
+): { isHum: boolean; fundamental: number; matchCount: number } {
+  const noMatch = { isHum: false, fundamental: 0, matchCount: 0 }
+
+  // Phase coherence must be high — mains hum is AC-locked
+  if (phaseCoherence < MAINS_HUM_GATE.PHASE_COHERENCE_THRESHOLD) return noMatch
+
+  const tol = MAINS_HUM_GATE.TOLERANCE_HZ
+  let bestFundamental = 0
+  let bestCount = 0
+
+  for (const fund of MAINS_HUM_GATE.FUNDAMENTALS) {
+    // Check if the current peak is on this mains series
+    let onSeries = false
+    for (let n = 1; n <= MAINS_HUM_GATE.MAX_HARMONIC; n++) {
+      if (Math.abs(frequencyHz - fund * n) <= tol) { onSeries = true; break }
+    }
+    if (!onSeries) continue
+
+    // Count corroborating peaks (other active peaks also on this series)
+    let corroborating = 0
+    for (const af of activeFrequencies) {
+      if (Math.abs(af - frequencyHz) < 1) continue // skip self
+      for (let n = 1; n <= MAINS_HUM_GATE.MAX_HARMONIC; n++) {
+        if (Math.abs(af - fund * n) <= tol) { corroborating++; break }
+      }
+    }
+
+    if (corroborating > bestCount) {
+      bestCount = corroborating
+      bestFundamental = fund
+    }
+  }
+
+  return {
+    isHum: bestCount >= MAINS_HUM_GATE.MIN_CORROBORATING_PEAKS,
+    fundamental: bestFundamental,
+    matchCount: bestCount,
+  }
 }
 
 /**
@@ -756,12 +817,29 @@ export function classifyTrackWithAlgorithms(
     }
   }
   
+  // ==================== Mains Hum Gate ====================
+  // AC mains hum creates exact harmonic series at 50n or 60n Hz with high
+  // phase coherence (AC-locked). When the current peak sits on a mains
+  // harmonic AND 2+ other active peaks corroborate the same series,
+  // reduce feedback probability. Auto-detects 50 vs 60 Hz.
+  if (activeFrequencies && algorithmScores.phase) {
+    const hum = detectMainsHum(
+      trackFreqHz,
+      activeFrequencies,
+      algorithmScores.phase.coherence
+    )
+    if (hum.isHum) {
+      pFeedback *= MAINS_HUM_GATE.GATE_MULTIPLIER
+      reasons.push(`Mains hum gate: ${hum.matchCount} peaks match ${hum.fundamental}Hz series`)
+    }
+  }
+
   // ==================== Renormalize ====================
-  
+
   pFeedback = Math.max(0, Math.min(1, pFeedback))
   pWhistle = Math.max(0, Math.min(1, pWhistle))
   pInstrument = Math.max(0, Math.min(1, pInstrument))
-  
+
   const total = pFeedback + pWhistle + pInstrument
   if (total > 0) {
     pFeedback /= total

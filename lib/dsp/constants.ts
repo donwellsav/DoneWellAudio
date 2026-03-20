@@ -913,6 +913,31 @@ export const SIGNAL_GATE = {
 } as const
 
 /**
+ * Mains hum gate — suppress HVAC/electrical equipment false positives.
+ * Electrical hum from AC-powered equipment (HVAC compressors, lighting dimmers,
+ * transformers) creates exact harmonic series at integer multiples of the mains
+ * frequency: 60n Hz (North America) or 50n Hz (Europe/Asia).
+ * These persistent, narrow, high-Q, phase-locked tones look identical to feedback
+ * and room resonances to all six detection algorithms.
+ * Auto-detects 50 vs 60 Hz from active peak pattern — no user configuration needed.
+ * @see classifier.ts detectMainsHum()
+ */
+export const MAINS_HUM_GATE = {
+  /** Mains fundamental frequencies to check (auto-detect which matches best) */
+  FUNDAMENTALS: [50, 60] as readonly number[],
+  /** Maximum harmonic order to check (60×8 = 480 Hz covers primary HVAC range) */
+  MAX_HARMONIC: 8,
+  /** Frequency tolerance in Hz for matching a mains harmonic */
+  TOLERANCE_HZ: 2,
+  /** Minimum corroborating peaks on the same mains series to trigger gate */
+  MIN_CORROBORATING_PEAKS: 2,
+  /** Phase coherence threshold — mains hum is AC-locked, so coherence is high */
+  PHASE_COHERENCE_THRESHOLD: 0.70,
+  /** Gate multiplier when mains hum detected (60% reduction) */
+  GATE_MULTIPLIER: 0.40,
+} as const
+
+/**
  * Temporal envelope analysis — speech vs music discrimination via energy dynamics.
  * Speech has silence gaps between words (high variance, many quiet frames).
  * Music fills continuously (low variance, few quiet frames).

@@ -19,7 +19,7 @@
 1. **NEVER run `git push`** unless the user explicitly says "push" or "send to GitHub". Committing locally is fine. Pushing is NOT.
 2. **Build verification after every change:** `npx tsc --noEmit && pnpm test`
 3. **Do not modify audio output.** KTR listens and advises. It never touches the audio signal.
-4. **"Update the usuals"** means: update changelog (`lib/changelog.ts`), help menu (`components/kill-the-ring/help/GuideTab.tsx`), version (`package.json` — `0.{PR_NUMBER}.0`), and CLAUDE.md header.
+4. **"Update the usuals"** means: update changelog (`lib/changelog.ts`), help menu (`components/kill-the-ring/help/GuideTab.tsx`), version (`package.json` — `0.{PR_NUMBER}.0`), and CLAUDE.md.
 
 ## Commands
 
