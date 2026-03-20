@@ -3,10 +3,30 @@
 import { useEffect, useMemo, memo } from 'react'
 import { calculateRoomModes, formatRoomModesForDisplay } from '@/lib/dsp/acousticUtils'
 import { getRoomParametersFromDimensions, feetToMeters, calculateSchroederFrequency } from '@/lib/dsp/acousticUtils'
-import { ROOM_PRESETS } from '@/lib/dsp/constants'
+import { ROOM_PRESETS, ROOM_ESTIMATION } from '@/lib/dsp/constants'
 import type { RoomPresetKey } from '@/lib/dsp/constants'
 import type { DetectorSettings } from '@/types/advisory'
+import type { RoomDimensionEstimate } from '@/types/calibration'
 import { Section, type TabSettingsProps } from './SettingsShared'
+
+// ── Room Estimation Props (optional) ────────────────────────────────────────
+
+interface RoomEstimationProps {
+  isListening: boolean
+  estimate: RoomDimensionEstimate | null
+  elapsedMs: number
+  stablePeaks: number
+  startMeasurement: () => void
+  stopMeasurement: () => void
+  clearEstimate: () => void
+}
+
+export interface RoomTabProps extends TabSettingsProps {
+  /** Room estimation state — pass to enable auto-detect feature */
+  roomEstimation?: RoomEstimationProps
+  /** Whether analysis engine is currently running (needed for Measure Room) */
+  isRunning?: boolean
+}
 
 // ── Room Modes Display ─────────────────────────────────────────────────────────
 
@@ -89,12 +109,154 @@ function RoomModesDisplay({ lengthM, widthM, heightM }: { lengthM: number; width
   )
 }
 
+// ── Auto-Detect Room Display ──────────────────────────────────────────────────
+
+function metersToFeet(m: number): number {
+  return m * 3.28084
+}
+
+function formatDim(m: number, unit: 'meters' | 'feet'): string {
+  const val = unit === 'feet' ? metersToFeet(m) : m
+  return val.toFixed(1)
+}
+
+function AutoDetectRoom({
+  roomEstimation,
+  isRunning,
+  unit,
+  onApplyDimensions,
+}: {
+  roomEstimation: RoomEstimationProps
+  isRunning: boolean
+  unit: 'meters' | 'feet'
+  onApplyDimensions: (lengthM: number, widthM: number, heightM: number) => void
+}) {
+  const { isListening, estimate, elapsedMs, stablePeaks, startMeasurement, stopMeasurement, clearEstimate } = roomEstimation
+  const progressPct = Math.min((elapsedMs / ROOM_ESTIMATION.ACCUMULATION_WINDOW_MS) * 100, 100)
+  const unitLabel = unit === 'feet' ? 'ft' : 'm'
+
+  return (
+    <div className="space-y-3">
+      {/* Measure / Stop button */}
+      <div className="flex items-center gap-2">
+        {isListening ? (
+          <button
+            onClick={stopMeasurement}
+            className="flex-1 px-3 py-2 text-sm font-mono rounded bg-destructive/20 text-destructive hover:bg-destructive/30 cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            ■ Stop Measuring
+          </button>
+        ) : (
+          <button
+            onClick={startMeasurement}
+            disabled={!isRunning}
+            className="flex-1 px-3 py-2 text-sm font-mono rounded bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            🎤 Measure Room
+          </button>
+        )}
+        {estimate && !isListening && (
+          <button
+            onClick={clearEstimate}
+            className="px-2 py-2 text-sm font-mono rounded bg-card/40 text-muted-foreground hover:bg-muted cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            title="Clear estimate"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
+      {!isRunning && !isListening && (
+        <p className="text-sm text-muted-foreground font-mono">
+          Start analysis first, then measure room dimensions from detected resonances.
+        </p>
+      )}
+
+      {/* Progress bar */}
+      {isListening && (
+        <div className="space-y-1.5">
+          <div className="h-1.5 bg-card/60 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary/60 rounded-full transition-all duration-500"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+          <div className="flex justify-between text-sm text-muted-foreground font-mono">
+            <span>Listening... {stablePeaks} stable peaks</span>
+            <span>{Math.round(elapsedMs / 1000)}s / {ROOM_ESTIMATION.ACCUMULATION_WINDOW_MS / 1000}s</span>
+          </div>
+        </div>
+      )}
+
+      {/* Results */}
+      {estimate && (
+        <div className="space-y-3">
+          {/* Dimension readouts */}
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              ['L', estimate.dimensions.length],
+              ['W', estimate.dimensions.width],
+              ['H', estimate.dimensions.height],
+            ] as const).map(([label, val]) => (
+              <div key={label} className="bg-primary/10 rounded px-2 py-1.5 text-center">
+                <div className="font-mono font-bold text-foreground tabular-nums">
+                  {val > 0 ? `${formatDim(val, unit)}${unitLabel}` : '—'}
+                </div>
+                <div className="text-sm text-muted-foreground font-mono">{label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Confidence & stats */}
+          <div className="flex items-center gap-3 text-sm font-mono text-muted-foreground">
+            <span>Confidence: <span className={estimate.confidence > 0.7 ? 'text-green-500' : estimate.confidence > 0.4 ? 'text-yellow-500' : 'text-destructive'}>{Math.round(estimate.confidence * 100)}%</span></span>
+            <span>•</span>
+            <span>{estimate.seriesFound}/3 axes found</span>
+            <span>•</span>
+            <span>±{estimate.residualError.toFixed(1)}Hz</span>
+          </div>
+
+          {/* Detected series detail */}
+          {estimate.detectedSeries.map((series, i) => (
+            <div key={i} className="text-sm font-mono pl-2 border-l-2 border-primary/30">
+              <span className="text-muted-foreground">Axis {i + 1}:</span>{' '}
+              <span className="text-foreground">{formatDim(series.dimensionM, unit)}{unitLabel}</span>{' '}
+              <span className="text-muted-foreground">
+                ({series.harmonicsMatched} harmonics @ {series.fundamentalHz.toFixed(1)}Hz spacing)
+              </span>
+            </div>
+          ))}
+
+          {/* Apply button */}
+          {estimate.seriesFound >= 2 && (
+            <button
+              onClick={() => {
+                const { length, width, height } = estimate.dimensions
+                // Convert to user's unit for the dimension inputs
+                const l = unit === 'feet' ? metersToFeet(length) : length
+                const w = unit === 'feet' ? metersToFeet(width) : width
+                const h = unit === 'feet' ? metersToFeet(height > 0 ? height : 2.7) : (height > 0 ? height : 2.7)
+                onApplyDimensions(l, w, h)
+              }}
+              className="w-full px-3 py-2 text-sm font-mono rounded bg-primary/20 text-primary hover:bg-primary/30 cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            >
+              Apply to Room Settings
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Room Tab ────────────────────────────────────────────────────────────────────
 
 export const RoomTab = memo(function RoomTab({
   settings,
   onSettingsChange,
-}: TabSettingsProps) {
+  roomEstimation,
+  isRunning,
+}: RoomTabProps) {
   // Auto-derive RT60 and Volume from dimensions + treatment whenever they change
   useEffect(() => {
     if (settings.roomPreset === 'none') return // No auto-derivation for 'none'
@@ -268,6 +430,30 @@ export const RoomTab = memo(function RoomTab({
           )}
         </div>
       </Section>
+
+      {/* Auto-Detect Room — only shown when roomEstimation prop is provided */}
+      {roomEstimation && (
+        <Section
+          title="Auto-Detect Room"
+          showTooltip={settings.showTooltips}
+          tooltip="Listens for room resonances at high sensitivity and estimates room dimensions from their frequencies. Works best with no audio playing — just the room's natural resonance. Requires analysis to be running."
+        >
+          <AutoDetectRoom
+            roomEstimation={roomEstimation}
+            isRunning={isRunning ?? false}
+            unit={settings.roomDimensionsUnit ?? 'feet'}
+            onApplyDimensions={(l, w, h) => {
+              onSettingsChange({
+                roomPreset: 'custom',
+                roomLengthM: Math.round(l * 10) / 10,
+                roomWidthM: Math.round(w * 10) / 10,
+                roomHeightM: Math.round(h * 10) / 10,
+              })
+            }}
+          />
+        </Section>
+      )}
+
     </div>
   )
 })

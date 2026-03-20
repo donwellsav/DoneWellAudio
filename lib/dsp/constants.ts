@@ -1025,6 +1025,32 @@ export const COMPRESSION_SETTINGS = {
   COMPRESSED_DYNAMIC_RANGE: 8,
 } as const
 
+// Room dimension estimation from detected resonances (inverse eigenvalue solver)
+export const ROOM_ESTIMATION = {
+  /** Speed of sound (m/s) at ~20°C */
+  SPEED_OF_SOUND: 343,
+  /** Minimum stable peaks required to attempt estimation */
+  MIN_PEAKS: 4,
+  /** Maximum frequency to consider for room modes (Hz) — above Schroeder is diffuse */
+  MAX_FREQUENCY_HZ: 500,
+  /** Minimum Q factor for a peak to be considered a room mode */
+  MIN_Q: 10,
+  /** Minimum persistence (ms) before a peak is considered stable */
+  MIN_PERSISTENCE_MS: 500,
+  /** Accumulation window (ms) — how long to listen before estimating */
+  ACCUMULATION_WINDOW_MS: 10_000,
+  /** Frequency tolerance for harmonic series matching (fraction) */
+  HARMONIC_TOLERANCE: 0.04,
+  /** Minimum harmonics in a series to identify a dimension */
+  MIN_HARMONICS: 2,
+  /** Maximum room dimension (meters) — sanity check */
+  MAX_DIMENSION_M: 50,
+  /** Minimum room dimension (meters) — sanity check */
+  MIN_DIMENSION_M: 1.5,
+  /** Minimum confidence to report an estimate */
+  MIN_CONFIDENCE: 0.3,
+} as const
+
 // FUSION_WEIGHTS: canonical definition is in advancedDetection.ts (the only consumer)
 // Removed duplicate from here to avoid conflicting values.
 

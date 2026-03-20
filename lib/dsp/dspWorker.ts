@@ -71,6 +71,9 @@ export type WorkerInboundMessage =
       frequencyHz: number
       feedback: UserFeedback
     }
+  // Room dimension estimation
+  | { type: 'startRoomMeasurement' }
+  | { type: 'stopRoomMeasurement' }
   // Snapshot collection messages (free tier only)
   | SnapshotWorkerInbound
 
@@ -82,6 +85,9 @@ export type WorkerOutboundMessage =
   | { type: 'returnBuffers'; spectrum: Float32Array; timeDomain?: Float32Array }
   | { type: 'ready' }
   | { type: 'error'; message: string }
+  // Room dimension estimation responses
+  | { type: 'roomEstimate'; estimate: import('@/types/calibration').RoomDimensionEstimate }
+  | { type: 'roomMeasurementProgress'; elapsedMs: number; stablePeaks: number }
   // Snapshot collection responses
   | SnapshotWorkerOutbound
 
@@ -110,6 +116,28 @@ let lastCompressionRatio = 1
 // it silently fails in Webpack worker contexts (PR #89).
 
 let snapshotCollector: SnapshotCollector | null = null
+
+// ─── Room dimension estimation ───────────────────────────────────────────────
+// Accumulates stable peaks during measurement mode, then runs inverse solver.
+
+import { estimateRoomDimensions } from './acousticUtils'
+import { ROOM_ESTIMATION } from './constants'
+import type { RoomDimensionEstimate } from '@/types/calibration'
+
+interface RoomMeasurementState {
+  active: boolean
+  startedAt: number
+  /** Map of frequency (quantized to 1Hz) → { firstSeen, lastSeen, qEstimate } */
+  stablePeaks: Map<number, { firstSeen: number; lastSeen: number; q: number }>
+  lastEstimate: RoomDimensionEstimate | null
+}
+
+const roomMeasurement: RoomMeasurementState = {
+  active: false,
+  startedAt: 0,
+  stablePeaks: new Map(),
+  lastEstimate: null,
+}
 
 // ─── Module instances ────────────────────────────────────────────────────────
 
@@ -282,6 +310,26 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       break
     }
 
+    case 'startRoomMeasurement': {
+      roomMeasurement.active = true
+      roomMeasurement.startedAt = Date.now()
+      roomMeasurement.stablePeaks.clear()
+      roomMeasurement.lastEstimate = null
+      break
+    }
+
+    case 'stopRoomMeasurement': {
+      roomMeasurement.active = false
+      // Send final estimate if we have one
+      if (roomMeasurement.lastEstimate) {
+        self.postMessage({
+          type: 'roomEstimate',
+          estimate: roomMeasurement.lastEstimate,
+        } satisfies WorkerOutboundMessage)
+      }
+      break
+    }
+
     case 'processPeak': {
       const spectrum = msg.spectrum
       const timeDomain = msg.timeDomain
@@ -338,6 +386,62 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       // Compute algorithm scores for this peak
       const activeTracks = trackManager.getRawTracks()
       const peakFrequencies = activeTracks.map(t => t.trueFrequencyHz)
+
+      // ── Room dimension measurement accumulation ──────────────────────────
+      if (roomMeasurement.active) {
+        const now = Date.now()
+        const elapsed = now - roomMeasurement.startedAt
+
+        // Accumulate stable low-frequency peaks with sufficient Q
+        for (const t of activeTracks) {
+          if (t.trueFrequencyHz > ROOM_ESTIMATION.MAX_FREQUENCY_HZ) continue
+          if ((t.qEstimate ?? 0) < ROOM_ESTIMATION.MIN_Q) continue
+
+          const key = Math.round(t.trueFrequencyHz)
+          const existing = roomMeasurement.stablePeaks.get(key)
+          if (existing) {
+            existing.lastSeen = now
+            existing.q = Math.max(existing.q, t.qEstimate ?? 0)
+          } else {
+            roomMeasurement.stablePeaks.set(key, { firstSeen: now, lastSeen: now, q: t.qEstimate ?? 0 })
+          }
+        }
+
+        // Filter to peaks that have persisted long enough
+        const stableFreqs: number[] = []
+        for (const [freq, info] of roomMeasurement.stablePeaks) {
+          if (info.lastSeen - info.firstSeen >= ROOM_ESTIMATION.MIN_PERSISTENCE_MS) {
+            stableFreqs.push(freq)
+          }
+        }
+
+        // Send progress every ~500ms (every 25 frames at 50fps)
+        if (peakProcessCount % 25 === 0) {
+          self.postMessage({
+            type: 'roomMeasurementProgress',
+            elapsedMs: elapsed,
+            stablePeaks: stableFreqs.length,
+          } satisfies WorkerOutboundMessage)
+        }
+
+        // Attempt estimation once we have enough data
+        if (stableFreqs.length >= ROOM_ESTIMATION.MIN_PEAKS && elapsed >= 3000) {
+          const estimate = estimateRoomDimensions(stableFreqs)
+          if (estimate) {
+            roomMeasurement.lastEstimate = estimate
+            self.postMessage({
+              type: 'roomEstimate',
+              estimate,
+            } satisfies WorkerOutboundMessage)
+          }
+        }
+
+        // Auto-stop after accumulation window
+        if (elapsed >= ROOM_ESTIMATION.ACCUMULATION_WINDOW_MS) {
+          roomMeasurement.active = false
+        }
+      }
+
       const { algorithmScores, contentType, existingScore } = algorithmEngine.computeScores(
         peak, track, spectrum, sampleRate, fftSize, peakFrequencies
       )

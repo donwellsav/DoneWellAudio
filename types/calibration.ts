@@ -35,6 +35,47 @@ export const EMPTY_ROOM_PROFILE: RoomProfile = {
   notes: '',
 }
 
+// ── Room Dimension Estimation ────────────────────────────────────────────────
+
+/**
+ * A detected harmonic series mapping to one room dimension.
+ * Axial modes along one axis produce evenly-spaced frequencies: f_n = n × c/(2L).
+ * The fundamental spacing Δf = c/(2L) gives the dimension L = c/(2×Δf).
+ */
+export interface DetectedDimensionSeries {
+  /** Fundamental spacing frequency (Hz) — the Δf between harmonics */
+  fundamentalHz: number
+  /** Estimated room dimension from this series (meters) */
+  dimensionM: number
+  /** Number of harmonics that matched this series */
+  harmonicsMatched: number
+  /** The actual peak frequencies belonging to this series */
+  peakFrequencies: number[]
+  /** Confidence for this individual series (0–1) */
+  confidence: number
+}
+
+/**
+ * Result of inverse eigenvalue estimation: detected resonance frequencies → room dimensions.
+ * Uses axial mode decomposition — strongest room modes form harmonic series along each axis.
+ *
+ * @see Kuttruff, "Room Acoustics" 6th ed., §3.3 — eigenfrequencies of rectangular rooms
+ */
+export interface RoomDimensionEstimate {
+  /** Estimated room dimensions in meters (sorted: length ≥ width ≥ height) */
+  dimensions: { length: number; width: number; height: number }
+  /** Overall confidence (0–1), based on series count, harmonic matches, and residual error */
+  confidence: number
+  /** Number of independent harmonic series found (1–3) */
+  seriesFound: number
+  /** Average Hz deviation between detected peaks and forward-predicted modes */
+  residualError: number
+  /** The individual harmonic series that were identified */
+  detectedSeries: DetectedDimensionSeries[]
+  /** Total stable peaks that were analyzed */
+  totalPeaksAnalyzed: number
+}
+
 // ── Ambient Capture ──────────────────────────────────────────────────────────
 
 export interface AmbientCapture {

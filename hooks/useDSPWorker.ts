@@ -31,6 +31,7 @@ import type {
 import type { WorkerInboundMessage, WorkerOutboundMessage } from '@/lib/dsp/dspWorker'
 
 import type { SnapshotBatch } from '@/types/data'
+import type { RoomDimensionEstimate } from '@/types/calibration'
 
 export interface DSPWorkerCallbacks {
   onAdvisory?: (advisory: Advisory) => void
@@ -41,6 +42,10 @@ export interface DSPWorkerCallbacks {
   onError?: (message: string) => void
   /** Called when a snapshot batch is ready for upload (free tier only) */
   onSnapshotBatch?: (batch: SnapshotBatch) => void
+  /** Called when the worker produces a room dimension estimate */
+  onRoomEstimate?: (estimate: RoomDimensionEstimate) => void
+  /** Called with room measurement progress updates */
+  onRoomMeasurementProgress?: (elapsedMs: number, stablePeaks: number) => void
 }
 
 export interface DSPWorkerHandle {
@@ -68,6 +73,10 @@ export interface DSPWorkerHandle {
   disableCollection: () => void
   /** Send user feedback (false positive / correct / confirmed) to the worker for snapshot enrichment */
   sendUserFeedback: (frequencyHz: number, feedback: 'correct' | 'false_positive' | 'confirmed_feedback') => void
+  /** Start room dimension measurement — accumulates stable low-frequency peaks */
+  startRoomMeasurement: () => void
+  /** Stop room dimension measurement — sends final estimate */
+  stopRoomMeasurement: () => void
 }
 
 /**
@@ -150,6 +159,12 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
           break
         case 'collectionStats':
           // Stats available but no callback needed yet — could be used by a future UI
+          break
+        case 'roomEstimate':
+          callbacksRef.current.onRoomEstimate?.(msg.estimate)
+          break
+        case 'roomMeasurementProgress':
+          callbacksRef.current.onRoomMeasurementProgress?.(msg.elapsedMs, msg.stablePeaks)
           break
         case 'error':
           busyRef.current = false  // Unblock pipeline so analysis continues after soft error
@@ -345,6 +360,14 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
     [postMessage]
   )
 
+  const startRoomMeasurement = useCallback(() => {
+    postMessage({ type: 'startRoomMeasurement' })
+  }, [postMessage])
+
+  const stopRoomMeasurement = useCallback(() => {
+    postMessage({ type: 'stopRoomMeasurement' })
+  }, [postMessage])
+
   const terminate = useCallback(() => {
     workerRef.current?.terminate()
     workerRef.current = null
@@ -369,5 +392,7 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
     enableCollection,
     disableCollection,
     sendUserFeedback,
+    startRoomMeasurement,
+    stopRoomMeasurement,
   }
 }
