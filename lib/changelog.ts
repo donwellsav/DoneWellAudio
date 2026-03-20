@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.181.1',
+    date: '2026-03-20',
+    changes: [
+      { type: 'fix', description: 'fix: deep audit part 2 — type safety, dead code, CSP, coverage, comb isolation (#181)' },
+    ],
+  },
+  {
     version: '0.181.0',
     date: '2026-03-20',
     highlights: 'Deep audit part 2: type safety, dead code removal, CSP hardening, coverage expansion',
