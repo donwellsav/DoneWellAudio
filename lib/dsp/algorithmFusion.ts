@@ -180,8 +180,8 @@ export class CombStabilityTracker {
   }
 }
 
-/** Module-level singleton — lives for the duration of the worker. */
-export const combStabilityTracker = new CombStabilityTracker()
+/** Module-level fallback — only used when no per-track tracker is provided. */
+const combStabilityTracker = new CombStabilityTracker()
 
 // Three-model consensus (Claude+Gemini+ChatGPT): 'existing' was a legacy
 // prominence metric that overlapped with spectral/MSD (double-counting).

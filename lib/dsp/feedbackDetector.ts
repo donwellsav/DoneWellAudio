@@ -917,7 +917,12 @@ export class FeedbackDetector {
 
     const since = timestamp - this.lastAnalysisTs
     if (since >= this.config.analysisIntervalMs) {
-      this.analyze(timestamp, since)
+      try {
+        this.analyze(timestamp, since)
+      } catch (err) {
+        // Don't let a single bad frame kill the RAF loop — log and continue
+        this.callbacks.onError?.(`Analysis error: ${err instanceof Error ? err.message : String(err)}`)
+      }
       this.lastAnalysisTs = timestamp
     }
 
@@ -1150,11 +1155,13 @@ export class FeedbackDetector {
       // Apply software input gain
       db += inputGain
 
-      db = clamp(db, -100, 0)
-
-      // Apply A-weighting if enabled
+      // Apply calibration offsets BEFORE clamping — pre-calibration clamp at
+      // -100 dB was losing precision for quiet low-frequency signals that get
+      // boosted by mic calibration (e.g. MEMS +12 dB at 20 Hz). Single clamp
+      // after calibration uses expanded bounds that account for A-weighting
+      // and mic cal extremes. LUT bounds guard (line below) handles any
+      // resulting values outside [-100, 0].
       if (useAWeighting && aTable) db += aTable[i]
-      // Apply mic calibration compensation (inverse frequency response)
       if (useMicCalibration && micCalTable) db += micCalTable[i]
       db = clamp(db, this.analysisMinDb, this.analysisMaxDb)
 

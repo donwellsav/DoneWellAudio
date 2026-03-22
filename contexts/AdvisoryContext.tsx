@@ -7,6 +7,7 @@ import {
   useCallback,
   useMemo,
   useEffect,
+  useRef,
   type ReactNode,
 } from 'react'
 import type { Advisory } from '@/types/advisory'
@@ -88,29 +89,33 @@ export function AdvisoryProvider({
 
   const [clearState, setClearState] = useState<ClearState>(EMPTY_CLEAR_STATE)
 
+  // Ref for stable callback identity — avoids recreating callbacks on every advisory change
+  const advisoriesRef = useRef(advisories)
+  advisoriesRef.current = advisories
+
   const onDismiss = useCallback((id: string) => {
     setClearState(prev => ({ ...prev, dismissed: new Set(prev.dismissed).add(id) }))
   }, [])
 
   const onClearAll = useCallback(() => {
-    setClearState(prev => ({ ...prev, dismissed: new Set(advisories.map(a => a.id)) }))
-  }, [advisories])
+    setClearState(prev => ({ ...prev, dismissed: new Set(advisoriesRef.current.map(a => a.id)) }))
+  }, [])
 
   const onClearResolved = useCallback(() => {
     setClearState(prev => {
       const next = new Set(prev.dismissed)
-      advisories.forEach(a => { if (a.resolved) next.add(a.id) })
+      advisoriesRef.current.forEach(a => { if (a.resolved) next.add(a.id) })
       return { ...prev, dismissed: next }
     })
-  }, [advisories])
+  }, [])
 
   const onClearGEQ = useCallback(() => {
-    setClearState(prev => ({ ...prev, geqCleared: new Set(advisories.map(a => a.id)) }))
-  }, [advisories])
+    setClearState(prev => ({ ...prev, geqCleared: new Set(advisoriesRef.current.map(a => a.id)) }))
+  }, [])
 
   const onClearRTA = useCallback(() => {
-    setClearState(prev => ({ ...prev, rtaCleared: new Set(advisories.map(a => a.id)) }))
-  }, [advisories])
+    setClearState(prev => ({ ...prev, rtaCleared: new Set(advisoriesRef.current.map(a => a.id)) }))
+  }, [])
 
   // ── Derived booleans ──────────────────────────────────────────────────
 

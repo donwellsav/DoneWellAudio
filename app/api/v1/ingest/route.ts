@@ -20,6 +20,18 @@ import type { SnapshotBatch } from '@/types/data'
 const SUPABASE_INGEST_URL = process.env.SUPABASE_INGEST_URL ?? ''
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
 
+// Validate SUPABASE_INGEST_URL is a known Supabase domain (SSRF defense-in-depth)
+if (SUPABASE_INGEST_URL) {
+  try {
+    const host = new URL(SUPABASE_INGEST_URL).hostname
+    if (!host.endsWith('.supabase.co') && !host.endsWith('.supabase.com') && !host.endsWith('.functions.supabase.co')) {
+      console.error(`[ingest] SUPABASE_INGEST_URL host not in allowlist: ${host}`)
+    }
+  } catch {
+    console.error('[ingest] SUPABASE_INGEST_URL is not a valid URL')
+  }
+}
+
 /** Max payload size: 512KB (batches are typically 2-10KB uncompressed) */
 const MAX_PAYLOAD_BYTES = 512 * 1024
 
@@ -155,17 +167,26 @@ function validateBatch(batch: unknown): string | null {
   if (b.snapshots.length === 0) return 'Empty snapshots'
   if (b.snapshots.length > 240) return 'Too many snapshots (max 240)'
 
-  // Spot-check first snapshot
-  const first = b.snapshots[0] as Record<string, unknown>
-  if (typeof first.t !== 'number') return 'Invalid snapshot.t'
-  if (typeof first.s !== 'string') return 'Invalid snapshot.s'
-  // Base64 of 512 bytes = ceil(512/3)*4 = 684 chars
-  if (first.s.length < 100 || first.s.length > 800) return 'Invalid snapshot.s length'
+  // Spot-check snapshots: first, last, and one random middle entry
+  const indicesToCheck = [0, b.snapshots.length - 1]
+  if (b.snapshots.length > 2) {
+    indicesToCheck.push(1 + Math.floor(Math.random() * (b.snapshots.length - 2)))
+  }
+  for (const idx of indicesToCheck) {
+    const snap = b.snapshots[idx] as Record<string, unknown>
+    if (typeof snap.t !== 'number') return `Invalid snapshot[${idx}].t`
+    if (typeof snap.s !== 'string') return `Invalid snapshot[${idx}].s`
+    // Base64 of 512 bytes = ceil(512/3)*4 = 684 chars
+    if (snap.s.length < 100 || snap.s.length > 800) return `Invalid snapshot[${idx}].s length`
+  }
 
   return null
 }
 
 // ─── Rate limiting ──────────────────────────────────────────────────────────
+
+/** Monotonic counter for amortised pruning — shared across both rate limit maps */
+let rateLimitCallCount = 0
 
 function isRateLimitedByKey(
   map: Map<string, { count: number; windowStart: number }>,
@@ -175,8 +196,9 @@ function isRateLimitedByKey(
   const now = Date.now()
   const entry = map.get(key)
 
-  // Prune stale entries when map grows large (prevents unbounded growth on long-lived instances)
-  if (map.size > 1000) {
+  // Amortised time-based pruning: sweep stale entries every 100 calls
+  rateLimitCallCount++
+  if (rateLimitCallCount % 100 === 0) {
     for (const [k, val] of map) {
       if (now - val.windowStart > RATE_LIMIT_WINDOW_MS) map.delete(k)
     }

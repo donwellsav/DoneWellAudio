@@ -208,25 +208,42 @@ export function useAudioAnalyzer(
         const now = performance.now()
         if (now - lastStatusUpdateRef.current > STATUS_THROTTLE_MS) {
           lastStatusUpdateRef.current = now
-          setState(prev => ({
-            ...prev,
-            spectrumStatus: {
-              peak: data.peak,
-              autoGainDb: data.autoGainDb,
-              autoGainEnabled: data.autoGainEnabled,
-              autoGainLocked: data.autoGainLocked,
-              algorithmMode: workerStatusRef.current.algorithmMode ?? data.algorithmMode,
-              // Main thread contentType runs every ~500ms regardless of peaks.
-              // Worker only classifies when peaks arrive. Main thread is the authority.
-              contentType: data.contentType ?? workerStatusRef.current.contentType,
-              msdFrameCount: data.msdFrameCount,
-              isCompressed: workerStatusRef.current.isCompressed ?? data.isCompressed,
-              compressionRatio: workerStatusRef.current.compressionRatio ?? data.compressionRatio,
-              isSignalPresent: data.isSignalPresent,
-              rawPeakDb: data.rawPeakDb,
-            },
-            noiseFloorDb: data.noiseFloorDb,
-          }))
+          const nextStatus: SpectrumStatus = {
+            peak: data.peak,
+            autoGainDb: data.autoGainDb,
+            autoGainEnabled: data.autoGainEnabled,
+            autoGainLocked: data.autoGainLocked,
+            algorithmMode: workerStatusRef.current.algorithmMode ?? data.algorithmMode,
+            // Main thread contentType runs every ~500ms regardless of peaks.
+            // Worker only classifies when peaks arrive. Main thread is the authority.
+            contentType: data.contentType ?? workerStatusRef.current.contentType,
+            msdFrameCount: data.msdFrameCount,
+            isCompressed: workerStatusRef.current.isCompressed ?? data.isCompressed,
+            compressionRatio: workerStatusRef.current.compressionRatio ?? data.compressionRatio,
+            isSignalPresent: data.isSignalPresent,
+            rawPeakDb: data.rawPeakDb,
+          }
+          const nextNoiseFloor = data.noiseFloorDb
+          setState(prev => {
+            // Skip re-render if all scalar fields are unchanged (reference stability)
+            const ps = prev.spectrumStatus
+            if (
+              ps &&
+              ps.peak === nextStatus.peak &&
+              ps.autoGainDb === nextStatus.autoGainDb &&
+              ps.autoGainEnabled === nextStatus.autoGainEnabled &&
+              ps.autoGainLocked === nextStatus.autoGainLocked &&
+              ps.algorithmMode === nextStatus.algorithmMode &&
+              ps.contentType === nextStatus.contentType &&
+              ps.msdFrameCount === nextStatus.msdFrameCount &&
+              ps.isCompressed === nextStatus.isCompressed &&
+              ps.isSignalPresent === nextStatus.isSignalPresent &&
+              prev.noiseFloorDb === nextNoiseFloor
+            ) {
+              return prev
+            }
+            return { ...prev, spectrumStatus: nextStatus, noiseFloorDb: nextNoiseFloor }
+          })
         }
       },
       // Route raw peaks to the DSP worker (includes time-domain for phase coherence)

@@ -382,6 +382,9 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
     if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null }
   }, [])
 
+  // Clean up long-press timer on unmount to prevent stale callback firing
+  useEffect(() => clearLongPress, [clearLongPress])
+
   const onTouchStart = useCallback((e: React.TouchEvent) => {
     if (!swipeLabeling) return
     const t = e.touches[0]

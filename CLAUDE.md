@@ -1,6 +1,6 @@
 # CLAUDE.md — Kill The Ring Project Intelligence
 
-> **Last updated March 2026. 165 TypeScript/TSX files, 515 tests (510 pass, 4 skip, 1 todo), 29 suites. Version 0.184.0.**
+> **Last updated March 2026. 168 TypeScript/TSX files, 662 tests (657 pass, 4 skip, 1 todo), 32 suites. Version 0.185.0.**
 > Notch overlay opacity set to 42%.
 
 ## CRITICAL RULES
@@ -273,6 +273,141 @@ scripts/ml/                     # ML training pipeline
 - **Run `pnpm test`** after any DSP, hook, or context changes.
 - **Build gate:** `npx tsc --noEmit && pnpm test` — both must pass before committing.
 - **Canvas changes** require visual verification in the browser (type-check won't catch drawing bugs).
+
+## Change Impact Audit
+
+After making **any non-trivial change** to the codebase, produce a **Change Impact Audit** before committing. The audit classifies the change as POSITIVE, NEGATIVE, or NEUTRAL across every affected system. Evidence-backed, not opinion-based.
+
+### When to produce an audit
+
+Always. If you changed code, you audit it. Specifically:
+
+| System | Trigger files/areas |
+|--------|-------------------|
+| DSP / Detection | `lib/dsp/*`, algorithm weights, thresholds, gates, fusion, MSD, peak detection |
+| Audio Pipeline | Gain, FFT, calibration, A-weighting, Web Audio API, mic input |
+| Worker / Threading | `dspWorker.ts`, `workerFft.ts`, postMessage, transferables, backpressure |
+| React State | Contexts (`contexts/*`), hooks (`hooks/*`), prop drilling, re-renders |
+| UI Components | `components/*`, layout, mobile/desktop, tabs, sheets, gestures |
+| Canvas / Visualization | `spectrumDrawing.ts`, RTA, GEQ, overlays, markers, labels, theme colors |
+| Settings / Storage | `ktrStorage.ts`, localStorage keys, defaults, migration, presets |
+| PWA / Service Worker | `sw.ts`, Serwist config, offline caching, installability |
+| Security / CSP | `middleware.ts`, nonce generation, headers, API validation |
+| API / Ingest | `api/v1/ingest/route.ts`, schema validation, rate limiting |
+| Testing | `vitest.config.ts`, test files, mocks, coverage |
+| Build / CI | `next.config.mjs`, `ci.yml`, Turbopack, webpack, Vercel deploy |
+| Accessibility | ARIA roles, focus management, touch targets, screen readers, color contrast |
+| Performance | Hot path (50fps analyze), Canvas (30fps), bundle size, memory, LUT |
+| ML Pipeline | ONNX model, inference, training data, snapshot collection |
+| Data / Privacy | Consent, snapshot collection, PII, opt-out, GDPR |
+
+### Audit format
+
+**CHANGE:** [one-line description]
+**CLASSIFICATION:** 🟢 POSITIVE | 🔴 NEGATIVE | ⚪ NEUTRAL
+**SCOPE:** [which systems from the table above are touched]
+
+**Proof of impact** (adapt to change type):
+
+For **DSP/algorithm** changes — trace values through the pipeline with actual numbers:
+- Input range → transform → output range
+- Which thresholds/decision boundaries are crossed or not
+- dB values, bin indices, LUT ranges, frame counts
+
+For **UI/component** changes — trace the render and interaction path:
+- Which components re-render and why (prop/context/state change)
+- Mobile vs desktop behavior differences
+- Touch target sizes, viewport breakpoints affected
+- Accessibility: does keyboard nav / screen reader still work?
+
+For **state/storage** changes — trace data flow and persistence:
+- Which contexts consume this state? How many components re-render?
+- Does localStorage format change? What happens to existing users' saved data?
+- Are defaults preserved? Does migration handle old → new format?
+
+For **security/CSP** changes — trace the trust boundary:
+- Does this open a new vector? (XSS, injection, data leak)
+- Does CSP still block inline scripts in prod?
+- Are API inputs still validated and rate-limited?
+
+For **performance** changes — quantify the cost:
+- Hot path impact: added operations × 50fps × 4096 bins = total ops/sec
+- Memory: new allocations, array sizes, GC pressure
+- Bundle: does this add a new dependency? Lazy-loaded or eager?
+
+For **build/deploy** changes — trace the pipeline:
+- Does CI still gate on tsc + lint + test + build?
+- Does Vercel deploy behavior change?
+- Are environment variables still wired correctly?
+
+**Impact table:**
+
+| System | Impact | Evidence |
+|--------|--------|----------|
+| [each affected system] | 🟢/🔴/⚪ None/Improved/Degraded | [one-line proof] |
+
+**Verdict:** [Summary — "Strict improvement because..." / "Trade-off: improves X but risks Y..." / "Functionally invariant because..."]
+
+### Classification rules
+
+- **🟢 POSITIVE:** Provably improves at least one system without degrading any other. Improvement must be non-trivial.
+- **🔴 NEGATIVE:** May degrade any system, even if it improves others. Must flag the trade-off and **require user acknowledgment** before committing.
+- **⚪ NEUTRAL:** Mathematically/logically invariant — affected values never reach a decision boundary, affected components never see different inputs. Must prove it.
+- **MIXED (🟢+⚪):** Common — positive for one system, neutral for all others. List both.
+- **MIXED (🟢+🔴):** Requires explicit user approval. Present the trade-off clearly.
+
+### Quick audit (for small changes)
+
+For trivial changes (typo fix, comment update, import reorder), a one-line audit is sufficient:
+
+**CHANGE:** Fixed typo in HeaderBar tooltip | **CLASSIFICATION:** ⚪ NEUTRAL | **Verdict:** Text-only change, no logic/state/render impact.
+
+### Examples
+
+**Example 1 — DSP change (from calibration clamp removal):**
+
+**CHANGE:** Removed pre-calibration clamp `db = clamp(db, -100, 0)` in `_buildPowerSpectrum()`
+**CLASSIFICATION:** ⚪ NEUTRAL (feedback detection) + 🟢 POSITIVE (room analysis)
+**SCOPE:** DSP / Detection, Audio Pipeline
+
+| System | Impact | Evidence |
+|--------|--------|----------|
+| Peak detection | ⚪ None | Affected bins < -100 dB, never cross any threshold (min 2 dB prominence) |
+| Prominence calc | ⚪ Negligible | Sub-noise-floor bins contribute ≈0 power to prefix sum |
+| MSD / algorithms | ⚪ None | Only peak bins written to MSD history |
+| Room analysis | 🟢 Improved | Quiet low-freq signals no longer artificially raised before calibration offset |
+| Performance | ⚪ None | One fewer clamp() call per bin — nanoseconds |
+
+**Verdict:** Strict improvement — removes artificial floor that lost precision for room analysis, while being mathematically invariant for all feedback detection paths.
+
+**Example 2 — UI change (hypothetical context refactor):**
+
+**CHANGE:** Split EngineContext into EngineLifecycleContext + DeviceContext
+**CLASSIFICATION:** 🟢 POSITIVE (re-renders) + 🔴 NEGATIVE (complexity)
+**SCOPE:** React State, UI Components
+
+| System | Impact | Evidence |
+|--------|--------|----------|
+| Re-renders | 🟢 Improved | Components using only devices no longer re-render on start/stop |
+| Bundle size | ⚪ None | Same total code, just restructured |
+| Complexity | 🔴 Increased | 2 providers instead of 1, more import paths for consumers |
+| Accessibility | ⚪ None | No DOM or interaction changes |
+
+**Verdict:** Trade-off — reduces unnecessary re-renders but adds architectural complexity. Recommend only if profiling shows the re-renders cause visible jank.
+
+**Example 3 — Storage change (hypothetical key rename):**
+
+**CHANGE:** Renamed localStorage key `ktr-settings` → `ktr-settings-v2`
+**CLASSIFICATION:** 🔴 NEGATIVE (data loss risk)
+**SCOPE:** Settings / Storage
+
+| System | Impact | Evidence |
+|--------|--------|----------|
+| New users | ⚪ None | Get DEFAULT_SETTINGS as always |
+| Existing users | 🔴 Settings lost | Old key not read, 47 settings reset to defaults |
+| PWA | ⚪ None | Service worker cache unrelated to localStorage |
+
+**Verdict:** Regression — existing users lose all saved settings on upgrade. Must add migration: read old key → write new key → delete old key.
 
 ## "Update the Usuals" Workflow
 

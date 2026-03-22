@@ -32,7 +32,7 @@ import type {
 } from '@/types/advisory'
 import type { SnapshotWorkerInbound, SnapshotWorkerOutbound, MarkerAlgorithmScores, UserFeedback } from '@/types/data'
 import { SnapshotCollector } from '@/lib/data/snapshotCollector'
-import { DEFAULT_SETTINGS } from './constants'
+import { DEFAULT_SETTINGS, MSD_SETTINGS } from './constants'
 
 // ─── Message types ──────────────────────────────────────────────────────────
 
@@ -96,6 +96,13 @@ let settings: DetectorSettings = { ...DEFAULT_SETTINGS }
 let sampleRate = 48000
 let fftSize = 8192
 let peakProcessCount = 0
+
+/** Compute MSD min frames from operation mode — mirrors FeedbackDetector.updateMsdMinFrames() */
+function getMsdMinFramesForMode(mode?: string): number {
+  if (mode === 'speech' || mode === 'broadcast') return MSD_SETTINGS.MIN_FRAMES_SPEECH
+  if (mode === 'liveMusic' || mode === 'worship' || mode === 'outdoor') return MSD_SETTINGS.MIN_FRAMES_MUSIC
+  return MSD_SETTINGS.DEFAULT_MIN_FRAMES
+}
 
 // ─── Per-cycle shelf cache (cross-advisory dedup) ────────────────────────────
 // Shelves are broadband (global spectrum), not peak-specific. Computing once
@@ -364,10 +371,13 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
           decayAnalyzer.pruneExpired(now)
           advisoryManager.pruneBandCooldowns(now)
 
-          // Prune classification label history for dead tracks
+          // Prune classification label history and comb trackers for dead tracks
           const activeTrackIds = new Set(trackManager.getActiveTracks().map(t => t.id))
           for (const trackId of classificationLabelHistory.keys()) {
             if (!activeTrackIds.has(trackId)) classificationLabelHistory.delete(trackId)
+          }
+          for (const trackId of combTrackers.keys()) {
+            if (!activeTrackIds.has(trackId)) combTrackers.delete(trackId)
           }
         }
 
@@ -459,6 +469,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         ...DEFAULT_FUSION_CONFIG,
         mode: settings?.algorithmMode ?? 'auto',
         enabledAlgorithms: settings?.enabledAlgorithms,
+        msdMinFrames: getMsdMinFramesForMode(settings?.mode),
       }
       // Get or create per-track comb stability tracker
       let trackCst = combTrackers.get(track.id)
@@ -484,8 +495,11 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       )
       if (smoothedLabel !== classification.label) {
         classification.label = smoothedLabel as typeof classification.label
+        // Remap severity to match the smoothed label — all label types must be handled
         if (smoothedLabel === 'WHISTLE') classification.severity = 'WHISTLE'
         else if (smoothedLabel === 'INSTRUMENT') classification.severity = 'INSTRUMENT'
+        else if (smoothedLabel === 'ACOUSTIC_FEEDBACK') classification.severity = 'RESONANCE'
+        else if (smoothedLabel === 'POSSIBLE_RING') classification.severity = 'POSSIBLE_RING'
       }
 
       // ── Mark ALL classified peaks for snapshot collection ──

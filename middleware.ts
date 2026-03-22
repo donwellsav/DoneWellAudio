@@ -30,6 +30,9 @@ export function middleware(request: NextRequest) {
     "img-src 'self' data: blob:",
     "media-src 'self' blob: mediastream:",
     "font-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
     "frame-ancestors 'none'",
   ].join('; ')
 
