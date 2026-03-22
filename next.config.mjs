@@ -46,18 +46,27 @@ const nextConfig = {
 }
 
 export default withSentryConfig(withSerwist(nextConfig), {
-  // Suppress Sentry CLI source map upload warnings when no auth token is set
-  silent: !process.env.SENTRY_AUTH_TOKEN,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
 
-  // Disable source map upload until SENTRY_AUTH_TOKEN is configured
+  // Upload wider set of client source files for better stack traces
+  widenClientFileUpload: true,
+
+  // Proxy route to bypass ad-blockers
+  tunnelRoute: "/monitoring",
+
+  // Suppress output unless in CI
+  silent: !process.env.CI,
+
+  // Disable source map upload when no auth token is configured
   sourcemaps: {
     disable: !process.env.SENTRY_AUTH_TOKEN,
   },
 
-  // Don't widen the existing Webpack config unnecessarily
   hideSourceMaps: true,
 
-  // Tree-shake Sentry debug logging in production
+  // Tree-shake Sentry debug logging in production (webpack only)
   webpack: {
     treeshake: {
       removeDebugLogging: true,

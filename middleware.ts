@@ -52,7 +52,7 @@ export const config = {
   matcher: [
     // Skip prefetches and static assets (SW, icons, manifest, Next.js internals)
     {
-      source: '/((?!api|_next/static|_next/image|favicon.ico|icon-.*|apple-icon.*|manifest.json|sw.js|swe-worker-.*).*)',
+      source: '/((?!api|monitoring|_next/static|_next/image|favicon.ico|icon-.*|apple-icon.*|manifest.json|sw.js|swe-worker-.*).*)',
       missing: [{ type: 'header', key: 'next-router-prefetch' }],
     },
   ],
