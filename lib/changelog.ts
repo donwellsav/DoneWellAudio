@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.185.1',
+    date: '2026-03-22',
+    changes: [
+      { type: 'fix', description: 'audit: deep codebase audit — 13 fixes, 4 new test suites (+147 tests) (#185) (#185)' },
+    ],
+  },
+  {
     version: '0.185.0',
     date: '2026-03-22',
     changes: [
