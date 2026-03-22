@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.3.1',
+    date: '2026-03-22',
+    changes: [
+      { type: 'fix', description: 'fix: explicit Float32Array<ArrayBuffer> type for TS 5.7 CI compat' },
+    ],
+  },
+  {
     version: '0.3.0',
     date: '2026-03-22',
     changes: [
