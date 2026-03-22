@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.0.1',
+    date: '2026-03-22',
+    changes: [
+      { type: 'fix', description: 'rebrand: Kill The Ring → DoneWell Audio (complete)' },
+    ],
+  },
+  {
     version: '0.187.1',
     date: '2026-03-22',
     changes: [
