@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.3.7',
+    date: '2026-03-22',
+    changes: [
+      { type: 'fix', description: 'fix: cast Float32Array at Web Audio call sites for CI TS compat' },
+    ],
+  },
+  {
     version: '0.3.6',
     date: '2026-03-22',
     changes: [
