@@ -1030,9 +1030,10 @@ export class FeedbackDetector {
     const n = freqDb.length
 
     // Read spectrum + time-domain waveform (phase coherence requires raw samples)
-    analyser.getFloatFrequencyData(freqDb)
+    // Cast needed: TS 5.7+ with newer @types/node widens Float32Array generic through non-null assertion
+    analyser.getFloatFrequencyData(freqDb as Float32Array<ArrayBuffer>)
     if (this.timeDomain) {
-      analyser.getFloatTimeDomainData(this.timeDomain)
+      analyser.getFloatTimeDomainData(this.timeDomain as Float32Array<ArrayBuffer>)
     }
 
     // ── Auto-gain: measure raw peak BEFORE applying gain ──────────────────
