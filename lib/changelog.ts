@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.8.0',
+    date: '2026-03-23',
+    changes: [
+      { type: 'feat', description: 'The ML inference worker does a dynamic `import(\'onnxruntime-web\')`, but the runtime package was not declared as a dependency, causing the worker to fall back and disable ML scoring in production.' },
+      { type: 'feat', description: 'Add `onnxruntime-web@^1.24.3` to `dependencies` in `package.json` and update `pnpm-lock.yaml` so the browser worker\'s dynamic ONNX import can resolve at runtime.' },
+      { type: 'feat', description: 'Ran `pnpm test` (full test suite) and `pnpm exec vitest run lib/dsp/__tests__/mlInference.test.ts`, both passed; `eslint lib/dsp/mlInference.ts` timed out in this environment but produced no reported lint failures.' },
+    ],
+  },
+  {
     version: '0.7.0',
     date: '2026-03-23',
     highlights: 'Comprehensive UX audit — tooltips, accessibility, touch optimization',
