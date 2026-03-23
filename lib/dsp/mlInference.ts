@@ -187,7 +187,6 @@ export class MLInferenceEngine {
   private async _loadModel(): Promise<void> {
     try {
       // Dynamic import — ONNX Runtime Web is code-split, not in initial bundle
-      // @ts-expect-error -- onnxruntime-web is an optional peer dep, installed separately
       const onnx = (await import(/* webpackIgnore: true */ 'onnxruntime-web')) as unknown as OnnxModule
       if (this._disposed) return
 
