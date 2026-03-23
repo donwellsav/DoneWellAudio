@@ -2,17 +2,12 @@
 
 import { memo } from 'react'
 import { Button } from '@/components/ui/button'
-import { Slider } from '@/components/ui/slider'
-import { PillToggle } from '@/components/ui/pill-toggle'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { GraduationCap } from 'lucide-react'
-import { Section, SettingsGrid, type TabSettingsProps } from './SettingsShared'
+import { ConsoleSlider } from '@/components/ui/console-slider'
+import { LEDToggle } from '@/components/ui/led-toggle'
+import { ChannelSection } from '@/components/ui/channel-section'
+import { PillToggle } from '@/components/ui/pill-toggle'
+import type { TabSettingsProps } from './SettingsShared'
 import { onboardingStorage } from '@/lib/storage/dwaStorage'
 
 export const DisplayTab = memo(function DisplayTab({
@@ -20,247 +15,115 @@ export const DisplayTab = memo(function DisplayTab({
   onSettingsChange,
 }: TabSettingsProps) {
   return (
-    <div className="mt-4">
-      <SettingsGrid>
+    <div className="space-y-1 pt-1">
 
-      <Section
-        title="EQ Recommendation Style"
-        showTooltip={settings.showTooltips}
-        tooltip="Surgical: narrow Q (8-16), deep cuts. Heavy: wider Q (2-4), moderate cuts."
-      >
-        <Select
-          value={settings.eqPreset}
-          onValueChange={(v) => onSettingsChange({ eqPreset: v as 'surgical' | 'heavy' })}
-        >
-          <SelectTrigger className="h-8 text-sm">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="surgical">Surgical - Narrow Q, Deep Cuts</SelectItem>
-            <SelectItem value="heavy">Heavy - Wide Q, Moderate Cuts</SelectItem>
-          </SelectContent>
-        </Select>
-      </Section>
+      {/* ═══ QUICK TOGGLES — always visible ═══ */}
+      <div className="grid grid-cols-2 gap-x-4">
+        <LEDToggle
+          checked={settings.showAlgorithmScores}
+          onChange={(checked) => onSettingsChange({ showAlgorithmScores: checked })}
+          label="Algorithm Scores"
+          tooltip={settings.showTooltips ? 'Show MSD, Phase, Spectral, Comb, IHR, PTMR, and ML scores on each advisory card for debugging.' : undefined}
+        />
+        <LEDToggle
+          checked={settings.showPeqDetails}
+          onChange={(checked) => onSettingsChange({ showPeqDetails: checked })}
+          label="PEQ Details"
+          tooltip={settings.showTooltips ? 'Show parametric EQ band numbers (Q, gain, frequency) on advisory cards.' : undefined}
+        />
+        <LEDToggle
+          checked={settings.showFreqZones}
+          onChange={(checked) => onSettingsChange({ showFreqZones: checked })}
+          label="Frequency Zones"
+          tooltip={settings.showTooltips ? 'Overlay colored bands (Sub, Low Mid, Mid, Presence, Air) on the RTA spectrum.' : undefined}
+        />
+        <LEDToggle
+          checked={settings.spectrumWarmMode}
+          onChange={(checked) => onSettingsChange({ spectrumWarmMode: checked })}
+          label="Warm Spectrum"
+          color="amber"
+          tooltip={settings.showTooltips ? 'Switch RTA spectrum color to warm amber tones.' : undefined}
+        />
+        <LEDToggle
+          checked={settings.swipeLabeling}
+          onChange={(checked) => onSettingsChange({ swipeLabeling: checked })}
+          label="Swipe to Label"
+          tooltip={settings.showTooltips ? 'Enable swipe gestures on issue cards: left = dismiss, right = confirm, long-press = false positive.' : undefined}
+        />
+      </div>
 
-      <Section
-        title="Max Issues Shown"
-        showTooltip={settings.showTooltips}
-        tooltip="How many feedback issues display at once. 6 for focused work, 12 for full overview."
-      >
+      {/* ═══ SECTION: Graph ═══ */}
+      <ChannelSection title="Graph" defaultOpen>
         <div className="space-y-1">
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground font-mono tracking-wide">Limit</span>
-            <span className="text-sm font-mono tabular-nums">{settings.maxDisplayedIssues}</span>
-          </div>
-          <Slider
-            value={[settings.maxDisplayedIssues]}
-            onValueChange={([v]) => onSettingsChange({ maxDisplayedIssues: v })}
-            min={3} max={12} step={1}
-          />
-          <div className="flex justify-between text-sm text-muted-foreground font-mono">
-            <span>Focused</span><span>All Issues</span>
-          </div>
-        </div>
-      </Section>
+          <ConsoleSlider label="RTA Range (Min)" value={`${settings.rtaDbMin} dB`}
+            tooltip={settings.showTooltips ? 'Lower bound of the visible RTA amplitude range.' : undefined}
+            min={-120} max={-60} step={5} sliderValue={settings.rtaDbMin}
+            onChange={(v) => onSettingsChange({ rtaDbMin: v })} />
 
-      <Section
-        title="RTA dB Range"
-        showTooltip={settings.showTooltips}
-        tooltip="Adjusts the visible amplitude range on the RTA graph. Narrower range shows more detail in the visible portion."
-      >
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground font-mono tracking-wide">Min</span>
-              <span className="text-sm font-mono tabular-nums">{settings.rtaDbMin}dB</span>
-            </div>
-            <Slider
-              value={[settings.rtaDbMin]}
-              onValueChange={([v]) => onSettingsChange({ rtaDbMin: v })}
-              min={-120} max={-60} step={5}
+          <ConsoleSlider label="RTA Range (Max)" value={`${settings.rtaDbMax} dB`}
+            tooltip={settings.showTooltips ? 'Upper bound of the visible RTA amplitude range.' : undefined}
+            min={-20} max={0} step={5} sliderValue={settings.rtaDbMax}
+            onChange={(v) => onSettingsChange({ rtaDbMax: v })} />
+
+          <ConsoleSlider label="Line Width" value={`${settings.spectrumLineWidth.toFixed(1)} px`}
+            tooltip={settings.showTooltips ? 'Spectrum curve thickness. Thinner for detail, thicker for distance.' : undefined}
+            min={0.5} max={4} step={0.5} sliderValue={settings.spectrumLineWidth}
+            onChange={(v) => onSettingsChange({ spectrumLineWidth: v })} />
+
+          <ConsoleSlider label="Canvas FPS" value={`${settings.canvasTargetFps} fps`}
+            tooltip={settings.showTooltips ? 'Target frame rate. Lower = less CPU/GPU usage.' : undefined}
+            min={15} max={60} step={5} sliderValue={settings.canvasTargetFps}
+            onChange={(v) => onSettingsChange({ canvasTargetFps: v })} />
+
+          <ConsoleSlider label="Label Size" value={`${settings.graphFontSize} px`}
+            tooltip={settings.showTooltips ? 'Font size for RTA/GEQ labels. Increase for distance viewing.' : undefined}
+            min={8} max={26} step={1} sliderValue={settings.graphFontSize}
+            onChange={(v) => onSettingsChange({ graphFontSize: v })} />
+
+          <LEDToggle
+            checked={settings.showThresholdLine}
+            onChange={(checked) => onSettingsChange({ showThresholdLine: checked })}
+            label="Show Threshold Line"
+            tooltip={settings.showTooltips ? 'Display the detection threshold as a dashed line on the RTA spectrum.' : undefined}
+          />
+
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-xs text-muted-foreground font-mono uppercase tracking-wide">Fader Mode</span>
+            <PillToggle
+              checked={settings.faderMode === 'sensitivity'}
+              onChange={(isSensitivity) => onSettingsChange({ faderMode: isSensitivity ? 'sensitivity' : 'gain' })}
+              labelOn="Sensitivity"
+              labelOff="Input Gain"
+              tooltip={settings.showTooltips ? 'Sensitivity adjusts detection threshold. Input Gain adjusts mic input level.' : undefined}
             />
           </div>
-          <div className="space-y-1">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground font-mono tracking-wide">Max</span>
-              <span className="text-sm font-mono tabular-nums">{settings.rtaDbMax}dB</span>
-            </div>
-            <Slider
-              value={[settings.rtaDbMax]}
-              onValueChange={([v]) => onSettingsChange({ rtaDbMax: v })}
-              min={-20} max={0} step={5}
-            />
-          </div>
         </div>
-      </Section>
+      </ChannelSection>
 
-      <Section
-        title="Spectrum Line Width"
-        showTooltip={settings.showTooltips}
-        tooltip="Thickness of the RTA spectrum line. Thinner for detailed analysis, thicker for visibility from a distance."
-      >
-        <div className="space-y-1">
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground font-mono tracking-wide">Width</span>
-            <span className="text-sm font-mono tabular-nums">{settings.spectrumLineWidth.toFixed(1)}px</span>
-          </div>
-          <Slider
-            value={[settings.spectrumLineWidth]}
-            onValueChange={([v]) => onSettingsChange({ spectrumLineWidth: v })}
-            min={0.5} max={4} step={0.5}
-          />
-          <div className="flex justify-between text-sm text-muted-foreground font-mono">
-            <span>Thin</span><span>Thick</span>
-          </div>
-        </div>
-      </Section>
-
-      <Section
-        title="Canvas FPS"
-        showTooltip={settings.showTooltips}
-        tooltip="Target frame rate for spectrum display. Lower values reduce CPU/GPU usage and help with stuttering on older devices."
-      >
-        <div className="space-y-1">
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground font-mono tracking-wide">FPS</span>
-            <span className="text-sm font-mono tabular-nums">{settings.canvasTargetFps}</span>
-          </div>
-          <Slider
-            value={[settings.canvasTargetFps]}
-            onValueChange={([v]) => onSettingsChange({ canvasTargetFps: v })}
-            min={15} max={60} step={5}
-          />
-          <div className="flex justify-between text-sm text-muted-foreground font-mono">
-            <span>Battery saver</span><span>Smooth</span>
-          </div>
-        </div>
-      </Section>
-
-      <Section
-        title="Graph Label Size"
-        showTooltip={settings.showTooltips}
-        tooltip="Font size for labels inside RTA and GEQ graphs. Increase for high-DPI displays or distance viewing."
-      >
-        <div className="space-y-1">
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground font-mono tracking-wide">Size</span>
-            <span className="text-sm font-mono tabular-nums">{settings.graphFontSize}px</span>
-          </div>
-          <Slider
-            value={[settings.graphFontSize]}
-            onValueChange={([v]) => onSettingsChange({ graphFontSize: v })}
-            min={8} max={26} step={1}
-          />
-          <div className="flex justify-between text-sm text-muted-foreground font-mono">
-            <span>Small</span><span>Large</span>
-          </div>
-        </div>
-      </Section>
-
-      <Section
-        title="Tooltips"
-        showTooltip={settings.showTooltips}
-        tooltip="Show contextual help on controls. Disable once you know the system."
-      >
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground font-mono tracking-wide">Show help tooltips</span>
-          <PillToggle
+      {/* ═══ SECTION: Preferences ═══ */}
+      <ChannelSection title="Preferences">
+        <div className="space-y-2">
+          <LEDToggle
             checked={settings.showTooltips}
             onChange={(checked) => onSettingsChange({ showTooltips: checked })}
+            label="Tooltips"
+            tooltip="Show help icons with explanations next to controls. This tooltip will disappear when turned off."
           />
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full min-h-11"
+            onClick={() => {
+              onboardingStorage.clear()
+              window.location.reload()
+            }}
+          >
+            <GraduationCap className="h-3.5 w-3.5 mr-2" />
+            Replay Onboarding
+          </Button>
         </div>
-      </Section>
+      </ChannelSection>
 
-      <Section
-        title="Swipe to Label"
-        showTooltip={settings.showTooltips}
-        tooltip="Swipe issue cards left to flag as FALSE+, right to CONFIRM. On mobile, swipe is always enabled. This toggle controls desktop/tablet behavior."
-      >
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground font-mono tracking-wide">Swipe gestures</span>
-          <PillToggle
-            checked={settings.swipeLabeling}
-            onChange={(checked) => onSettingsChange({ swipeLabeling: checked })}
-          />
-        </div>
-      </Section>
-
-      <Section
-        title="Frequency Zones"
-        showTooltip={settings.showTooltips}
-        tooltip="Show labeled frequency zone bands (Sub, Voice, Presence, Air) behind the RTA spectrum. Helps orient quickly during live shows."
-      >
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground font-mono tracking-wide">Show on RTA</span>
-          <PillToggle
-            checked={settings.showFreqZones}
-            onChange={(checked) => onSettingsChange({ showFreqZones: checked })}
-          />
-        </div>
-      </Section>
-
-      <Section
-        title="Warm Spectrum"
-        showTooltip={settings.showTooltips}
-        tooltip="Switch spectrum line from blue to warm amber. Easier on the eyes during extended sessions."
-      >
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground font-mono tracking-wide">Amber mode</span>
-          <PillToggle
-            checked={settings.spectrumWarmMode}
-            onChange={(checked) => onSettingsChange({ spectrumWarmMode: checked })}
-          />
-        </div>
-      </Section>
-
-      <Section
-        title="Algorithm Scores"
-        showTooltip={settings.showTooltips}
-        tooltip="Show contributing algorithm scores on each issue card. Useful for debugging detection behavior."
-      >
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground font-mono tracking-wide">Show on cards</span>
-          <PillToggle
-            checked={settings.showAlgorithmScores}
-            onChange={(checked) => onSettingsChange({ showAlgorithmScores: checked })}
-          />
-        </div>
-      </Section>
-
-      <Section
-        title="PEQ Details"
-        showTooltip={settings.showTooltips}
-        tooltip="Show the recommended parametric EQ cut (type, frequency, Q, gain) on each issue card."
-      >
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground font-mono tracking-wide">Show on cards</span>
-          <PillToggle
-            checked={settings.showPeqDetails}
-            onChange={(checked) => onSettingsChange({ showPeqDetails: checked })}
-          />
-        </div>
-      </Section>
-
-      <Section
-        title="Onboarding"
-        showTooltip={settings.showTooltips}
-        tooltip="Replay the first-run walkthrough that explains the core workflow."
-      >
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full"
-          onClick={() => {
-            onboardingStorage.clear()
-            window.location.reload()
-          }}
-        >
-          <GraduationCap className="h-3.5 w-3.5 mr-2" />
-          Replay Onboarding
-        </Button>
-      </Section>
-
-      </SettingsGrid>
     </div>
   )
 })

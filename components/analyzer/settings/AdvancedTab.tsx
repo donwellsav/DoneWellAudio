@@ -70,6 +70,9 @@ export const AdvancedTab = memo(function AdvancedTab({
               onValueChange={([v]) => onSettingsChange({ noiseFloorAttackMs: v })}
               min={50} max={1000} step={25}
             />
+            <div className="flex justify-between text-sm text-muted-foreground font-mono">
+              <span>Fast response</span><span>Smooth</span>
+            </div>
           </div>
 
           <div className="space-y-1">
@@ -82,6 +85,9 @@ export const AdvancedTab = memo(function AdvancedTab({
               onValueChange={([v]) => onSettingsChange({ noiseFloorReleaseMs: v })}
               min={200} max={5000} step={100}
             />
+            <div className="flex justify-between text-sm text-muted-foreground font-mono">
+              <span>Quick drop</span><span>Gradual</span>
+            </div>
           </div>
         </div>
       </Section>
@@ -168,6 +174,9 @@ export const AdvancedTab = memo(function AdvancedTab({
               onValueChange={([v]) => onSettingsChange({ relativeThresholdDb: v })}
               min={6} max={30} step={1}
             />
+            <div className="flex justify-between text-sm text-muted-foreground font-mono">
+              <span>Sensitive</span><span>Conservative</span>
+            </div>
           </div>
 
           <div className="space-y-1">

@@ -80,7 +80,7 @@ export const DataConsentDialog = memo(function DataConsentDialog({
               'inline-flex items-center gap-1 text-sm font-mono tracking-wide',
               'text-muted-foreground hover:text-foreground transition-colors',
               'px-3 py-2 rounded hover:bg-card/40',
-              'cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50'
+              'cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50'
             )}
           >
             <X className="w-4 h-4" />
@@ -93,7 +93,7 @@ export const DataConsentDialog = memo(function DataConsentDialog({
               'inline-flex items-center gap-1 text-sm font-mono font-bold tracking-wide',
               'bg-primary text-primary-foreground px-4 py-2 rounded',
               'hover:bg-primary/90 transition-colors',
-              'cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50'
+              'cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50'
             )}
           >
             <Database className="w-4 h-4" />

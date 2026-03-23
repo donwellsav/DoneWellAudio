@@ -262,7 +262,7 @@ export const InputMeterSlider = memo(function InputMeterSlider({
       {onAutoGainToggle && (
         <button
           onClick={() => onAutoGainToggle(!autoGainEnabled)}
-          className={`flex-shrink-0 px-1.5 py-0.5 rounded text-sm font-bold uppercase tracking-wider transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+          className={`flex-shrink-0 px-1.5 py-0.5 rounded text-sm font-bold uppercase tracking-wider transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
             autoGainEnabled
               ? autoGainLocked
                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'

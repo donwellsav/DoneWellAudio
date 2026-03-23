@@ -39,7 +39,7 @@ export const HeaderBar = memo(function HeaderBar() {
           <button
             onClick={isRunning ? stop : start}
             aria-label={isRunning ? 'Stop analysis' : 'Start analysis'}
-            className="relative flex items-center justify-center flex-shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
+            className="relative flex items-center justify-center flex-shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary rounded"
           >
             <DwaLogo
               className={`size-16 ${isRunning ? 'text-foreground drop-shadow-[0_0_8px_rgba(75,146,255,0.6)]' : 'text-foreground/70 hover:text-foreground'}`}
@@ -97,23 +97,6 @@ export const HeaderBar = memo(function HeaderBar() {
         {/* ── Primary actions group ───────────────────── */}
         <div className="flex items-center gap-0">
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={resetLayout}
-              className="hidden tablet:flex tablet:landscape:hidden md:landscape:flex h-10 w-10 text-muted-foreground hover:text-foreground btn-glow"
-              aria-label="Reset panel layout"
-            >
-              <LayoutGrid className="size-6" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="text-sm">
-            Reset panel layout
-          </TooltipContent>
-        </Tooltip>
-
         {isRunning && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -168,6 +151,11 @@ export const HeaderBar = memo(function HeaderBar() {
 
         {/* ── Utility group (desktop: inline, mobile: overflow menu) ── */}
         <div className="hidden tablet:flex items-center gap-0">
+          <FeedbackHistoryPanel />
+          <Suspense fallback={<div className="h-10 w-10" />}>
+            <LazyHelpMenu />
+          </Suspense>
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -185,10 +173,22 @@ export const HeaderBar = memo(function HeaderBar() {
             </TooltipContent>
           </Tooltip>
 
-          <FeedbackHistoryPanel />
-          <Suspense fallback={<div className="h-10 w-10" />}>
-            <LazyHelpMenu />
-          </Suspense>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={resetLayout}
+                className="h-10 w-10 text-muted-foreground hover:text-foreground btn-glow"
+                aria-label="Reset panel layout"
+              >
+                <LayoutGrid className="size-6" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-sm">
+              Reset panel layout
+            </TooltipContent>
+          </Tooltip>
         </div>
 
         {/* ── Fullscreen (far right) ──────────────────── */}

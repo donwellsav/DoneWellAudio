@@ -40,7 +40,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
           </p>
           <button
             onClick={() => this.setState({ hasError: false, error: null })}
-            className="px-4 py-2 text-sm font-mono font-medium rounded bg-destructive/15 text-destructive border border-destructive/40 hover:bg-destructive/25 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-destructive/50"
+            className="px-4 py-2 text-sm font-mono font-medium rounded bg-destructive/15 text-destructive border border-destructive/40 hover:bg-destructive/25 transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-destructive/50"
           >
             Try again
           </button>

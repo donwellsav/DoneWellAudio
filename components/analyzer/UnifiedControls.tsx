@@ -1,7 +1,7 @@
 'use client'
 
 import React, { memo, useCallback, useState, useEffect } from 'react'
-import { HelpCircle, Save, Trash2, RotateCcw, Download, FileJson, BarChart3, Monitor, Ruler, Wrench, Crosshair } from 'lucide-react'
+import { HelpCircle, Save, Trash2, RotateCcw, Download, FileJson, BarChart3, Monitor, Ruler, Wrench, Crosshair, X } from 'lucide-react'
 import { Slider } from '@/components/ui/slider'
 import { PillToggle } from '@/components/ui/pill-toggle'
 import { Button } from '@/components/ui/button'
@@ -221,7 +221,7 @@ export const UnifiedControls = memo(function UnifiedControls({
                     <button
                       onClick={() => setActiveSubTab(id as SubTab)}
                       aria-label={label}
-                      className={`w-9 h-8 flex items-center justify-center rounded-t transition-all duration-200 border-b-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+                      className={`w-9 h-8 flex items-center justify-center rounded-t transition-all duration-200 border-b-2 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                         activeSubTab === id
                           ? 'text-foreground border-primary bg-primary/5'
                           : 'text-muted-foreground border-transparent hover:text-foreground'
@@ -325,7 +325,7 @@ const ModeChips = memo(function ModeChips({ current, onModeChange }: { current: 
         <button
           key={mode}
           onClick={() => onModeChange(mode)}
-          className={`cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 px-1 py-0.5 rounded text-xs font-mono font-bold tracking-wide transition-colors ${
+          className={`cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 px-1 py-0.5 rounded text-xs font-mono font-bold tracking-wide transition-colors ${
             current === mode
               ? 'bg-primary/20 text-primary border border-primary/40'
               : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'
@@ -352,13 +352,13 @@ const PresetsList = memo(function PresetsList({ presets, onLoad, onDelete }: {
           <div key={preset.name} className="inline-flex items-center gap-0.5">
             <button
               onClick={() => onLoad(preset)}
-              className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 px-1.5 py-0.5 rounded text-sm font-medium text-muted-foreground hover:text-foreground border border-transparent hover:border-border transition-colors"
+              className="cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 px-1.5 py-0.5 rounded text-sm font-medium text-muted-foreground hover:text-foreground border border-transparent hover:border-border transition-colors"
             >
               {preset.name}
             </button>
             <button
               onClick={() => onDelete(preset.name)}
-              className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 text-muted-foreground/50 hover:text-red-400 transition-colors"
+              className="cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 text-muted-foreground/50 hover:text-red-400 transition-colors"
               aria-label={`Delete ${preset.name} preset`}
             >
               <Trash2 className="w-2.5 h-2.5" />
@@ -410,6 +410,7 @@ const DetectContent = memo(function DetectContent({
                   onChange={(isSensitivity) => onSettingsChange({ faderMode: isSensitivity ? 'sensitivity' : 'gain' })}
                   labelOn="Sensitivity"
                   labelOff="Input Gain"
+                  tooltip={settings.showTooltips ? 'Sensitivity adjusts detection threshold. Input Gain adjusts mic input level.' : undefined}
                 />
               </div>
 
@@ -419,8 +420,11 @@ const DetectContent = memo(function DetectContent({
                     const isActive = settings.minFrequency === preset.minFrequency && settings.maxFrequency === preset.maxFrequency
                     return (
                       <button key={preset.label} onClick={() => onSettingsChange({ minFrequency: preset.minFrequency, maxFrequency: preset.maxFrequency })}
-                        className={`cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 px-1.5 py-0.5 rounded text-sm font-mono font-bold tracking-wide transition-colors ${isActive ? 'bg-primary/20 text-primary border border-primary/40' : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'}`}
-                      >{preset.label}</button>
+                        className={`cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 px-1.5 py-0.5 rounded text-sm font-mono font-bold tracking-wide transition-colors ${isActive ? 'bg-primary/20 text-primary border border-primary/40' : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'}`}
+                      >
+                        {preset.label}
+                        <span className="text-[10px] font-normal opacity-60 ml-1">{preset.shortRange}</span>
+                      </button>
                     )
                   })}
                 </div>
@@ -437,7 +441,8 @@ const DetectContent = memo(function DetectContent({
 
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Show on RTA</span>
-                <PillToggle checked={settings.showThresholdLine} onChange={(checked) => onSettingsChange({ showThresholdLine: checked })} />
+                <PillToggle checked={settings.showThresholdLine} onChange={(checked) => onSettingsChange({ showThresholdLine: checked })}
+                  tooltip={settings.showTooltips ? 'Show/hide the detection threshold line on the spectrum.' : undefined} />
               </div>
             </AccordionContent>
           </AccordionItem>
@@ -509,7 +514,7 @@ const DetectContent = memo(function DetectContent({
               <div className="space-y-1">
                 <button
                   onClick={() => onSettingsChange({ algorithmMode: (settings.algorithmMode !== 'auto' ? 'auto' : 'custom') as AlgorithmMode })}
-                  className={`cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 w-full px-1.5 py-0.5 rounded text-sm font-mono font-bold tracking-wide transition-colors ${
+                  className={`cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 w-full px-1.5 py-0.5 rounded text-sm font-mono font-bold tracking-wide transition-colors ${
                     settings.algorithmMode === 'auto' ? 'bg-primary/20 text-primary border border-primary/40' : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'
                   }`}
                 >Auto</button>
@@ -527,7 +532,7 @@ const DetectContent = memo(function DetectContent({
                           else { next = [...current, key] }
                           onSettingsChange({ enabledAlgorithms: next })
                         }}
-                        className={`cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 px-1 py-0.5 rounded text-sm font-mono font-bold text-center transition-colors ${
+                        className={`cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 px-1 py-0.5 rounded text-sm font-mono font-bold text-center transition-colors ${
                           isAuto ? 'text-primary/60 border border-primary/20 bg-transparent'
                             : enabled ? 'bg-primary/20 text-primary border border-primary/40'
                             : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'
@@ -566,12 +571,14 @@ const DetectContent = memo(function DetectContent({
 
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Ignore whistle</span>
-                <PillToggle checked={settings.ignoreWhistle} onChange={(checked) => onSettingsChange({ ignoreWhistle: checked })} />
+                <PillToggle checked={settings.ignoreWhistle} onChange={(checked) => onSettingsChange({ ignoreWhistle: checked })}
+                  tooltip={settings.showTooltips ? 'Suppress alerts from deliberate whistling or single-tone test signals.' : undefined} />
               </div>
 
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Algo Scores</span>
-                <PillToggle checked={settings.showAlgorithmScores} onChange={(checked) => onSettingsChange({ showAlgorithmScores: checked })} />
+                <PillToggle checked={settings.showAlgorithmScores} onChange={(checked) => onSettingsChange({ showAlgorithmScores: checked })}
+                  tooltip={settings.showTooltips ? 'Show detection algorithm scores (MSD, Phase, etc.) on each advisory card.' : undefined} />
               </div>
             </AccordionContent>
           </AccordionItem>
@@ -636,11 +643,19 @@ const DetectContent = memo(function DetectContent({
               </div>
 
               <div className="space-y-1">
-                <span className="section-label">EQ Style</span>
+                <div className="flex items-center gap-1">
+                  <span className="section-label">EQ Style</span>
+                  {settings.showTooltips && (
+                    <Tooltip>
+                      <TooltipTrigger asChild><HelpCircle className="w-3 h-3 text-muted-foreground/70 hover:text-muted-foreground cursor-help" /></TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-[260px] text-sm">Surgical: narrow Q cuts for precision. Heavy: wider, deeper cuts for aggressive feedback.</TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
                 <div className="flex items-center gap-1">
                   {([['surgical', 'Surgical'], ['heavy', 'Heavy']] as const).map(([style, label]) => (
                     <button key={style} onClick={() => onSettingsChange({ eqPreset: style })}
-                      className={`cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 px-1.5 py-0.5 rounded text-sm font-mono font-bold tracking-wide transition-colors ${
+                      className={`cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 px-1.5 py-0.5 rounded text-sm font-mono font-bold tracking-wide transition-colors ${
                         settings.eqPreset === style ? 'bg-primary/20 text-primary border border-primary/40' : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'
                       }`}
                     >{label}</button>
@@ -657,14 +672,14 @@ const DetectContent = memo(function DetectContent({
                     placeholder="Preset name..." autoFocus maxLength={20}
                     className="flex-1 px-1.5 py-0.5 rounded text-sm bg-muted border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                   <button onClick={handleSavePreset} disabled={!presetName.trim()}
-                    className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 px-1.5 py-0.5 rounded text-sm font-medium bg-primary/20 text-primary border border-primary/40 disabled:opacity-40 transition-colors">Save</button>
+                    className="cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 px-1.5 py-0.5 rounded text-sm font-medium bg-primary/20 text-primary border border-primary/40 disabled:opacity-40 transition-colors">Save</button>
                   <button onClick={() => { setShowSaveInput(false); setPresetName('') }}
-                    className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 text-sm text-muted-foreground hover:text-foreground">✕</button>
+                    className="cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 text-muted-foreground hover:text-foreground p-0.5"><X className="w-4 h-4" /></button>
                 </div>
               ) : (
                 customPresets.length < MAX_CUSTOM_PRESETS && (
                   <button onClick={() => setShowSaveInput(true)}
-                    className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    className="cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
                     <Save className="w-3 h-3" /> Save as Preset
                   </button>
                 )

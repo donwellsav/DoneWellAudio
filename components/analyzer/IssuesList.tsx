@@ -154,7 +154,7 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
             <button
               onClick={onStart}
               aria-label="Start analysis"
-              className="group relative flex flex-col items-center justify-center gap-2 w-full max-w-[200px] py-4 px-4 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all duration-300 cursor-pointer animate-start-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="group relative flex flex-col items-center justify-center gap-2 w-full max-w-[200px] py-4 px-4 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all duration-300 cursor-pointer animate-start-glow focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary"
             >
               <DwaLogo className="w-20 h-20 text-foreground drop-shadow-[0_0_10px_rgba(37,99,235,0.3)] dark:drop-shadow-[0_0_10px_rgba(75,146,255,0.4)]" />
               <div className="flex flex-col items-center">
@@ -178,7 +178,7 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
                 <button
                   onClick={onStartRingOut}
                   aria-label="Start ring-out wizard"
-                  className="group relative flex flex-col items-center justify-center gap-1 w-full max-w-[200px] py-3 px-4 rounded-lg border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 transition-all duration-300 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                  className="group relative flex flex-col items-center justify-center gap-1 w-full max-w-[200px] py-3 px-4 rounded-lg border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 transition-all duration-300 cursor-pointer focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-amber-500"
                 >
                   <span className="font-mono text-sm font-black tracking-[0.15em] text-amber-500 dark:text-amber-400">
                     RING OUT ROOM
@@ -631,7 +631,7 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
                   <button
                     onClick={() => onFalsePositive(advisory.id)}
                     aria-label={`${isFalsePositive ? 'Unflag' : 'Flag'} ${exactFreqStr} as false positive`}
-                    className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1.5 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 h-7 min-w-[40px] ${
+                    className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1.5 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-8 min-w-[44px] ${
                       isFalsePositive ? 'text-red-400 bg-red-500/20 border border-red-500/40' : 'text-muted-foreground/50 hover:text-red-400 hover:bg-red-500/10 border border-transparent'
                     }`}
                   >
@@ -642,7 +642,7 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
                   <button
                     onClick={() => onDismiss(advisory.id)}
                     aria-label={`Dismiss ${exactFreqStr}`}
-                    className="rounded flex items-center justify-center cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 text-muted-foreground/30 hover:text-muted-foreground hover:bg-muted/60 transition-colors min-h-[44px] min-w-[44px]"
+                    className="rounded flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 text-muted-foreground/30 hover:text-muted-foreground hover:bg-muted/60 transition-colors min-h-[44px] min-w-[44px]"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -654,7 +654,7 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
                   <button
                     onClick={() => onConfirmFeedback(advisory.id)}
                     aria-label={`${isConfirmed ? 'Unconfirm' : 'Confirm'} ${exactFreqStr} as real feedback`}
-                    className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1.5 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 h-7 min-w-[40px] ${
+                    className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1.5 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-8 min-w-[44px] ${
                       isConfirmed ? 'text-emerald-400 bg-emerald-500/20 border border-emerald-500/40' : 'text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-500/10 border border-transparent'
                     }`}
                   >
@@ -664,7 +664,7 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
                 <button
                   onClick={handleCopy}
                   aria-label={`Copy ${exactFreqStr} frequency info`}
-                  className={`rounded btn-glow flex items-center justify-center cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 h-7 w-7 ${
+                  className={`rounded btn-glow flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-8 w-8 ${
                     copied ? 'text-emerald-400' : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60'
                   }`}
                 >
@@ -679,7 +679,7 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
             <button
               onClick={handleCopy}
               aria-label={`Copy ${exactFreqStr} frequency info`}
-              className={`rounded btn-glow flex items-center justify-center cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 w-8 h-8 flex-shrink-0 self-center ${
+              className={`rounded btn-glow flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 w-8 h-8 flex-shrink-0 self-center ${
                 copied ? 'text-emerald-400' : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60'
               }`}
             >
@@ -737,7 +737,7 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
                 <button
                   onClick={() => onFalsePositive(advisory.id)}
                   aria-label={`${isFalsePositive ? 'Unflag' : 'Flag'} false positive`}
-                  className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 h-8 min-w-[44px] ${
+                  className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-2 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-8 min-w-[44px] ${
                     isFalsePositive ? 'text-red-400 bg-red-500/20 border border-red-500/40' : 'text-muted-foreground/50 hover:text-red-400 hover:bg-red-500/10 border border-transparent'
                   }`}
                 >
@@ -748,7 +748,7 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
                 <button
                   onClick={() => onDismiss(advisory.id)}
                   aria-label={`Dismiss ${exactFreqStr}`}
-                  className="rounded flex items-center justify-center cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 text-muted-foreground/30 hover:text-muted-foreground hover:bg-muted/60 transition-colors min-h-[44px] min-w-[44px]"
+                  className="rounded flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 text-muted-foreground/30 hover:text-muted-foreground hover:bg-muted/60 transition-colors min-h-[44px] min-w-[44px]"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -760,7 +760,7 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
                 <button
                   onClick={() => onConfirmFeedback(advisory.id)}
                   aria-label={`${isConfirmed ? 'Unconfirm' : 'Confirm'} feedback`}
-                  className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 h-8 min-w-[44px] ${
+                  className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-2 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-8 min-w-[44px] ${
                     isConfirmed ? 'text-emerald-400 bg-emerald-500/20 border border-emerald-500/40' : 'text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-500/10 border border-transparent'
                   }`}
                 >
@@ -770,7 +770,7 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
               <button
                 onClick={handleCopy}
                 aria-label={`Copy ${exactFreqStr}`}
-                className={`rounded btn-glow flex items-center justify-center cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 w-9 h-8 ${
+                className={`rounded btn-glow flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 w-9 h-8 ${
                   copied ? 'text-emerald-400' : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60'
                 }`}
               >
@@ -786,7 +786,7 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
       {!isResolved && (
         <div className="h-[2px] w-full" aria-hidden>
           <div
-            className="h-full rounded-full transition-[width] duration-1000 ease-linear"
+            className="h-full rounded-full transition-[width] duration-500 ease-linear"
             style={{
               width: `${Math.max(0, (1 - ageSec / 60)) * 100}%`,
               backgroundColor: `${severityColor}50`,

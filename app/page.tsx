@@ -1,5 +1,9 @@
 import { AudioAnalyzerClient } from '@/components/analyzer/AudioAnalyzerClient'
 
 export default function Page() {
-  return <AudioAnalyzerClient />
+  return (
+    <main id="main">
+      <AudioAnalyzerClient />
+    </main>
+  )
 }

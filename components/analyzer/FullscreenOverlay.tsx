@@ -31,7 +31,7 @@ export const FullscreenOverlay = memo(function FullscreenOverlay({
       <button
         onClick={onStartStop}
         aria-label={isRunning ? 'Stop analysis' : 'Start analysis'}
-        className="relative w-8 h-8 flex items-center justify-center flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full"
+        className="relative w-8 h-8 flex items-center justify-center flex-shrink-0 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary rounded-full"
       >
         <div className={`absolute inset-0.5 rounded-full border-2 transition-colors duration-300 ${isRunning ? 'border-primary' : 'border-primary/50'}`} />
         {isRunning && (

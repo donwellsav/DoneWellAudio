@@ -555,7 +555,7 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-sm"
+      className="relative w-full h-full focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-offset-1 rounded-sm"
       tabIndex={onFreqRangeChange ? 0 : undefined}
       role={onFreqRangeChange ? 'slider' : undefined}
       aria-label={onFreqRangeChange ? 'Frequency range selector' : undefined}

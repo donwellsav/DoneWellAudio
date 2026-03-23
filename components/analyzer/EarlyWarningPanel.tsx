@@ -37,7 +37,7 @@ export const EarlyWarningPanel = memo(function EarlyWarningPanel({ earlyWarning 
     <div className="mt-2 rounded border border-amber-500/20 bg-amber-500/5 overflow-hidden">
       <button
         onClick={() => setIsExpanded(prev => !prev)}
-        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-amber-400 font-medium uppercase tracking-wide hover:bg-amber-500/10 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
+        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-amber-400 font-medium uppercase tracking-wide hover:bg-amber-500/10 transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-amber-500/50"
         aria-expanded={isExpanded}
       >
         <Radio className="w-3 h-3" aria-hidden="true" />
@@ -84,7 +84,7 @@ export const EarlyWarningPanel = memo(function EarlyWarningPanel({ earlyWarning 
           {elapsedSec > 0 && (
             <div className="h-1 rounded-full bg-amber-500/10 overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all duration-1000 ease-linear ${
+                className={`h-full rounded-full transition-all duration-500 ease-linear ${
                   elapsedSec >= 10 ? 'bg-red-400/70' : elapsedSec >= 5 ? 'bg-amber-400/70' : 'bg-amber-400/40'
                 }`}
                 style={{ width: `${Math.min(100, (elapsedSec / 15) * 100)}%` }}

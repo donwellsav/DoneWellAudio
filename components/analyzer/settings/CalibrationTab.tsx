@@ -53,13 +53,13 @@ const CEILING_OPTIONS: { value: CeilingMaterial; label: string }[] = [
   { value: 'open', label: 'Open / Exposed' },
 ]
 
-const MIC_OPTIONS: { value: MicType; label: string }[] = [
-  { value: 'lav', label: 'LAV' },
-  { value: 'handheld', label: 'HH' },
-  { value: 'headset', label: 'HEADSET' },
-  { value: 'gooseneck', label: 'GOOSE' },
-  { value: 'shotgun', label: 'SHOT' },
-  { value: 'boundary', label: 'PZM' },
+const MIC_OPTIONS: { value: MicType; label: string; fullName: string }[] = [
+  { value: 'lav', label: 'LAV', fullName: 'Lavalier' },
+  { value: 'handheld', label: 'HH', fullName: 'Handheld' },
+  { value: 'headset', label: 'HEADSET', fullName: 'Headset' },
+  { value: 'gooseneck', label: 'GOOSE', fullName: 'Gooseneck' },
+  { value: 'shotgun', label: 'SHOT', fullName: 'Shotgun' },
+  { value: 'boundary', label: 'PZM', fullName: 'Pressure Zone (Boundary)' },
 ]
 
 // ── Props ────────────────────────────────────────────────────────────────────
@@ -178,7 +178,7 @@ export const CalibrationTab = memo(function CalibrationTab({
                 <button
                   key={u}
                   onClick={() => handleUnit(u)}
-                  className={`px-2 py-1 text-xs font-mono rounded border transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+                  className={`px-2 py-1 text-xs font-mono rounded border transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                     room.dimensions.unit === u
                       ? 'bg-primary/20 text-primary border-primary/40'
                       : 'bg-muted/40 text-muted-foreground border-border hover:text-foreground'
@@ -229,7 +229,8 @@ export const CalibrationTab = memo(function CalibrationTab({
               <button
                 key={mic.value}
                 onClick={() => handleMicToggle(mic.value)}
-                className={`px-2.5 py-1 text-xs font-mono font-bold tracking-wider rounded border transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+                title={mic.fullName}
+                className={`px-2.5 py-1 text-xs font-mono font-bold tracking-wider rounded border transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                   room.micTypes.includes(mic.value)
                     ? 'bg-primary/20 text-primary border-primary/40'
                     : 'bg-muted/40 text-muted-foreground border-border hover:text-foreground'

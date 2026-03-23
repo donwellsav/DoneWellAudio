@@ -792,10 +792,10 @@ export type RoomPresetKey = keyof typeof ROOM_PRESETS
 
 // Frequency range presets — quick switching for different use cases
 export const FREQ_RANGE_PRESETS = [
-  { label: 'Vocal',    minFrequency: 200,  maxFrequency: 8000  },
-  { label: 'Monitor',  minFrequency: 300,  maxFrequency: 3000  },
-  { label: 'Full',     minFrequency: 20,   maxFrequency: 20000 },
-  { label: 'Sub',      minFrequency: 20,   maxFrequency: 250   },
+  { label: 'Vocal',   shortRange: '200–8k',  minFrequency: 200,  maxFrequency: 8000  },
+  { label: 'Monitor', shortRange: '300–3k',  minFrequency: 300,  maxFrequency: 3000  },
+  { label: 'Full',    shortRange: '20–20k',  minFrequency: 20,   maxFrequency: 20000 },
+  { label: 'Sub',     shortRange: '20–250',  minFrequency: 20,   maxFrequency: 250   },
 ] as const
 
 // Color palette for visualizations

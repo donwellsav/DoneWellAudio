@@ -1,13 +1,17 @@
 'use client'
 
 import { memo } from 'react'
+import { HelpCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface PillToggleProps {
   checked: boolean
   onChange: (checked: boolean) => void
   labelOn?: string
   labelOff?: string
+  /** Optional tooltip text shown via HelpCircle icon */
+  tooltip?: string
   className?: string
 }
 
@@ -20,6 +24,7 @@ export const PillToggle = memo(function PillToggle({
   onChange,
   labelOn = 'ON',
   labelOff = 'OFF',
+  tooltip,
   className,
 }: PillToggleProps) {
   return (
@@ -38,6 +43,16 @@ export const PillToggle = memo(function PillToggle({
       >
         {labelOff}
       </button>
+      {tooltip && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <HelpCircle className="w-3 h-3 text-muted-foreground/70 hover:text-muted-foreground cursor-help flex-shrink-0" />
+          </TooltipTrigger>
+          <TooltipContent side="right" className="max-w-[260px] text-sm">
+            {tooltip}
+          </TooltipContent>
+        </Tooltip>
+      )}
     </div>
   )
 })

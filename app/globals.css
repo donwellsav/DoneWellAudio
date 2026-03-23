@@ -56,6 +56,22 @@
   --sidebar-accent-foreground: #4B92FF;
   --sidebar-border: #1e2530;
   --sidebar-ring: #4B92FF;
+  /* Console accent colors — pro-audio instrument aesthetic */
+  --console-amber: #f59e0b;
+  --console-amber-glow: rgba(245, 158, 11, 0.35);
+  --console-cyan: #06b6d4;
+  --console-cyan-glow: rgba(6, 182, 212, 0.25);
+  --console-green: #22c55e;
+  --console-green-glow: rgba(34, 197, 94, 0.3);
+  --console-readout-text: #f59e0b;
+  --console-readout-glow: rgba(245, 158, 11, 0.35);
+}
+
+/* ── Global touch & scroll behavior ──────────────────────────────────────────── */
+/* Eliminate 300ms tap delay on mobile; prevent accidental pull-to-refresh */
+html {
+  touch-action: manipulation;
+  overscroll-behavior: contain;
 }
 
 /* Light theme — overrides via .light class (next-themes adds this to <html>) */
@@ -71,7 +87,7 @@
   --secondary: #e8ecf2;
   --secondary-foreground: #1a1a1e;
   --muted: #e8eaee;
-  --muted-foreground: #5a6478;
+  --muted-foreground: #475569;
   --accent: #2563eb;
   --accent-foreground: #ffffff;
   --destructive: #dc2626;
@@ -98,6 +114,15 @@
   --sidebar-accent-foreground: #2563eb;
   --sidebar-border: #d0d5dd;
   --sidebar-ring: #2563eb;
+  /* Console accent colors — muted for light theme (no glow) */
+  --console-amber: #d97706;
+  --console-amber-glow: rgba(217, 119, 6, 0.15);
+  --console-cyan: #0891b2;
+  --console-cyan-glow: rgba(8, 145, 178, 0.12);
+  --console-green: #16a34a;
+  --console-green-glow: rgba(22, 163, 74, 0.15);
+  --console-readout-text: #d97706;
+  --console-readout-glow: rgba(217, 119, 6, 0.08);
 }
 
 @theme inline {
@@ -335,6 +360,53 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   }
 
+  /* ── Console slider — pro-audio recessed track + amber fill ─────────── */
+  .console-range {
+    background: linear-gradient(90deg, rgba(var(--console-amber-rgb, 245, 158, 11), 0.3), rgba(var(--console-amber-rgb, 245, 158, 11), 0.7));
+    box-shadow: 0 0 6px var(--console-amber-glow);
+  }
+  .light .console-range {
+    background: linear-gradient(90deg, rgba(217, 119, 6, 0.2), rgba(217, 119, 6, 0.5));
+    box-shadow: none;
+  }
+  .console-thumb {
+    background: linear-gradient(135deg, #2a2d32, #1a1d22);
+    border: 2px solid var(--console-amber);
+    box-shadow: 0 0 8px var(--console-amber-glow), 0 2px 4px rgba(0, 0, 0, 0.5);
+  }
+  .console-thumb:hover,
+  .console-thumb:focus-visible {
+    box-shadow: 0 0 12px var(--console-amber-glow), 0 0 4px var(--console-amber-glow);
+  }
+  .light .console-thumb {
+    background: linear-gradient(135deg, #f0f1f4, #e0e2e6);
+    border-color: var(--console-amber);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  }
+  .console-readout {
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--console-readout-text);
+    text-shadow: 0 0 8px var(--console-readout-glow);
+  }
+  .light .console-readout {
+    text-shadow: none;
+  }
+  /* Expert badge — amber pill for Advanced sections */
+  .expert-badge {
+    font-size: 0.5625rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--console-amber);
+    background: rgba(var(--console-amber-rgb, 245, 158, 11), 0.1);
+    border: 1px solid rgba(var(--console-amber-rgb, 245, 158, 11), 0.25);
+    padding: 2px 7px;
+    border-radius: 10px;
+  }
+
   /* ── Section label — sans-serif variant for non-data headers ────────── */
   .section-label-sans {
     font-family: var(--font-sans);
@@ -390,5 +462,13 @@
   .animate-arrow-flash {
     animation: none;
     opacity: 1;
+  }
+  /* Blanket: suppress all Tailwind utility transitions for motion-sensitive users */
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }

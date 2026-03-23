@@ -416,7 +416,7 @@ export const VerticalGainFader = memo(function VerticalGainFader({
       <div className="flex-shrink-0 flex flex-col w-full rounded-md overflow-hidden border border-border/60">
         <button
           onClick={() => onFaderModeChange('gain')}
-          className={`flex-1 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+          className={`flex-1 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
             !isSensitivity
               ? 'bg-white/15 text-foreground'
               : 'bg-transparent text-muted-foreground hover:text-foreground/70'
@@ -427,7 +427,7 @@ export const VerticalGainFader = memo(function VerticalGainFader({
         </button>
         <button
           onClick={() => onFaderModeChange('sensitivity')}
-          className={`flex-1 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+          className={`flex-1 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
             isSensitivity
               ? 'bg-blue-500/20 text-blue-400'
               : 'bg-transparent text-muted-foreground hover:text-foreground/70'
@@ -487,7 +487,7 @@ export const VerticalGainFader = memo(function VerticalGainFader({
       {!isSensitivity && onAutoGainToggle && (
         <button
           onClick={() => onAutoGainToggle(!autoGainEnabled)}
-          className={`flex-shrink-0 px-1 py-0.5 rounded text-sm font-bold uppercase tracking-wider transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+          className={`flex-shrink-0 px-1 py-0.5 rounded text-sm font-bold uppercase tracking-wider transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
             autoGainEnabled
               ? autoGainLocked
                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'

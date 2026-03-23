@@ -99,7 +99,7 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
       <Tooltip>
         <TooltipTrigger asChild>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-10 sm:w-10 text-muted-foreground hover:text-foreground" aria-label="Feedback History">
+            <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-foreground" aria-label="Feedback History">
               <History className="size-5 sm:size-6" />
             </Button>
           </SheetTrigger>

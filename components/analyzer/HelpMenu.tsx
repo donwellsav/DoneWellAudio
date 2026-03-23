@@ -27,7 +27,7 @@ export const HelpMenu = memo(function HelpMenu() {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-10 sm:w-10 text-muted-foreground hover:text-foreground" aria-label="Help">
+        <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-foreground" aria-label="Help">
           <HelpCircle className="size-5 sm:size-6" />
         </Button>
       </SheetTrigger>

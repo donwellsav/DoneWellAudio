@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Settings } from 'lucide-react'
-import { UnifiedControls, type DataCollectionTabProps } from './UnifiedControls'
+import { SettingsPanel, type DataCollectionTabProps } from './settings/SettingsPanel'
 import type { DetectorSettings, OperationMode } from '@/types/advisory'
 import type { CalibrationTabProps } from './settings/CalibrationTab'
 
@@ -44,7 +44,7 @@ export const LandscapeSettingsSheet = memo(function LandscapeSettingsSheet({
       </SheetTrigger>
       <SheetContent side="bottom" className="max-h-[70vh] overflow-y-auto channel-strip pb-6">
         <SheetTitle className="sr-only">Settings</SheetTitle>
-        <UnifiedControls
+        <SettingsPanel
           settings={settings}
           onSettingsChange={onSettingsChange}
           onModeChange={onModeChange}

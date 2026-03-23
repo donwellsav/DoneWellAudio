@@ -14,6 +14,28 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.7.0',
+    date: '2026-03-23',
+    highlights: 'Comprehensive UX audit — tooltips, accessibility, touch optimization',
+    changes: [
+      { type: 'ui', description: 'Tooltip prop on LEDToggle and PillToggle — help icons across all settings controls' },
+      { type: 'ui', description: 'Hz range labels on frequency preset buttons (Vocal, Monitor, Full, Sub)' },
+      { type: 'ui', description: 'Full mic names on Calibration abbreviations via title attribute' },
+      { type: 'ui', description: 'Replace emoji icons with Lucide SVGs in RoomTab, SoundTab, UnifiedControls' },
+      { type: 'ui', description: 'Move theme toggle between Help and Reset Layout icons in header' },
+      { type: 'fix', description: 'Sensitivity slider invisible track/thumb — CSS layer specificity with Tailwind v4' },
+      { type: 'fix', description: 'Add touch-action: manipulation on html element for mobile tap delay' },
+      { type: 'fix', description: 'Add overscroll-behavior: contain to prevent pull-to-refresh interference' },
+      { type: 'fix', description: 'Darken light mode muted-foreground for better contrast at small text sizes' },
+      { type: 'fix', description: 'Standardize focus-visible ring to 3px across all component files' },
+      { type: 'fix', description: 'Expand prefers-reduced-motion to suppress all CSS transitions and animations' },
+      { type: 'fix', description: 'Increase desktop FALSE+/CONFIRM button touch targets' },
+      { type: 'fix', description: 'Reduce progress bar animation duration in EarlyWarningPanel and IssuesList' },
+      { type: 'feat', description: 'Skip-to-main-content link for keyboard navigation (WCAG 2.4.1)' },
+      { type: 'feat', description: 'Range hint labels on Advanced tab sliders (Fast/Slow, Sensitive/Conservative)' },
+    ],
+  },
+  {
     version: '0.6.0',
     date: '2026-03-23',
     highlights: 'Deep audit fixes, bundle optimization, Companion design doc',

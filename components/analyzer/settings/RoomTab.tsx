@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, memo } from 'react'
+import { Mic, Square, X } from 'lucide-react'
 import { calculateRoomModes, formatRoomModesForDisplay } from '@/lib/dsp/acousticUtils'
 import { getRoomParametersFromDimensions, feetToMeters, calculateSchroederFrequency } from '@/lib/dsp/acousticUtils'
 import { ROOM_PRESETS, ROOM_ESTIMATION } from '@/lib/dsp/constants'
@@ -129,26 +130,26 @@ function AutoDetectRoom({
         {isListening ? (
           <button
             onClick={stopMeasurement}
-            className="flex-1 px-3 py-2 text-sm font-mono rounded bg-destructive/20 text-destructive hover:bg-destructive/30 cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            className="flex-1 px-3 py-2 text-sm font-mono rounded bg-destructive/20 text-destructive hover:bg-destructive/30 cursor-pointer transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
           >
-            ■ Stop Measuring
+            <Square className="w-3 h-3 inline mr-1" /> Stop Measuring
           </button>
         ) : (
           <button
             onClick={startMeasurement}
             disabled={!isRunning}
-            className="flex-1 px-3 py-2 text-sm font-mono rounded bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            className="flex-1 px-3 py-2 text-sm font-mono rounded bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
           >
-            🎤 Measure Room
+            <Mic className="w-3.5 h-3.5 inline mr-1" /> Measure Room
           </button>
         )}
         {estimate && !isListening && (
           <button
             onClick={clearEstimate}
-            className="px-2 py-2 text-sm font-mono rounded bg-card/40 text-muted-foreground hover:bg-muted cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            className="px-2 py-2 text-sm font-mono rounded bg-card/40 text-muted-foreground hover:bg-muted cursor-pointer transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             title="Clear estimate"
           >
-            ✕
+            <X className="w-4 h-4" />
           </button>
         )}
       </div>
@@ -225,7 +226,7 @@ function AutoDetectRoom({
                 const h = unit === 'feet' ? metersToFeet(height > 0 ? height : 2.7) : (height > 0 ? height : 2.7)
                 onApplyDimensions(l, w, h)
               }}
-              className="w-full px-3 py-2 text-sm font-mono rounded bg-primary/20 text-primary hover:bg-primary/30 cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              className="w-full px-3 py-2 text-sm font-mono rounded bg-primary/20 text-primary hover:bg-primary/30 cursor-pointer transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
               Apply to Room Settings
             </button>
@@ -294,7 +295,7 @@ export const RoomTab = memo(function RoomTab({
                       }
                       onSettingsChange(updates)
                     }}
-                    className={`flex flex-col items-start px-2 py-1.5 rounded text-left transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+                    className={`flex flex-col items-start px-2 py-1.5 rounded text-left transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                       isSelected
                         ? 'bg-primary/20 border border-primary/50 text-primary'
                         : 'bg-card/40 border border-transparent hover:bg-muted'
@@ -319,7 +320,7 @@ export const RoomTab = memo(function RoomTab({
                     <button
                       key={unit}
                       onClick={() => onSettingsChange({ roomDimensionsUnit: unit })}
-                      className={`px-2 py-0.5 text-sm rounded cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+                      className={`px-2 py-0.5 text-sm rounded cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                         settings.roomDimensionsUnit === unit
                           ? 'bg-primary/20 text-primary'
                           : 'bg-card/40 text-muted-foreground hover:bg-muted'
@@ -364,18 +365,19 @@ export const RoomTab = memo(function RoomTab({
                 <label className="text-sm text-muted-foreground font-mono">Acoustic Treatment</label>
                 <div className="flex gap-1">
                   {([
-                    ['untreated', 'Untreated'],
-                    ['typical', 'Typical'],
-                    ['treated', 'Treated'],
-                  ] as const).map(([val, label]) => (
+                    ['untreated', 'Untreated', 'Hard walls, no panels or curtains — high reflections'],
+                    ['typical', 'Typical', 'Some soft furnishings, partial treatment — average venue'],
+                    ['treated', 'Treated', 'Acoustic panels, bass traps, diffusers — studio-grade'],
+                  ] as const).map(([val, label, desc]) => (
                     <button
                       key={val}
+                      title={desc}
                       onClick={() => {
                         const update: Partial<DetectorSettings> = { roomTreatment: val }
                         if (settings.roomPreset !== 'custom') update.roomPreset = 'custom'
                         onSettingsChange(update)
                       }}
-                      className={`flex-1 px-2 py-1 text-sm rounded cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+                      className={`flex-1 px-2 py-1 text-sm rounded cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                         settings.roomTreatment === val
                           ? 'bg-primary/20 text-primary'
                           : 'bg-card/40 text-muted-foreground hover:bg-muted'

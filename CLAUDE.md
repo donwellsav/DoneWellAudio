@@ -1,6 +1,6 @@
 # CLAUDE.md — DoneWell Audio Project Intelligence
 
-> **Last updated March 2026. 170 TypeScript/TSX files, 679 tests (674 pass, 4 skip, 1 todo), 34 suites. Version 0.6.0.**
+> **Last updated March 2026. 156 TypeScript/TSX files, 679 tests (674 pass, 4 skip, 1 todo), 34 suites. Version 0.7.0.**
 > Notch overlay opacity set to 42%.
 
 ## CRITICAL RULES
@@ -469,10 +469,12 @@ Then when user says "PR and merge":
 
 - **MobileLayout:** Exemplary WAI-ARIA tabs (roving tabindex, ArrowLeft/Right/Home/End)
 - **Color contrast:** All combinations pass WCAG AA (lowest: 5.1:1 destructive red on dark bg)
-- **Canvas:** NOT accessible to screen readers (KNOWN ISSUE — add aria-live region for peak announcements)
-- **Touch targets:** Most >=44x44px. Advisory dismiss is 44px on mobile (`touchFriendly`), 20px on desktop (KNOWN ISSUE — increase desktop size)
-- **Focus indicators:** Partially applied (`focus-visible:ring-2` on some components, inconsistent on others)
-- **Reduced motion:** `prefers-reduced-motion` block exists in globals.css
+- **Canvas:** Not directly accessible to screen readers. Mitigated via `aria-live="polite"` region in IssuesList.tsx that announces new detections (frequency, severity, EQ recommendation) throttled to 1 per 3s.
+- **Touch targets:** All >=44x44px on mobile (`touchFriendly`). Desktop action buttons (FALSE+, CONFIRM, Copy) h-8 with min-w-[44px]. Dismiss uses min-h-[44px] min-w-[44px] on both layouts.
+- **Focus indicators:** Standardized `focus-visible:ring-[3px]` across all component files. Matches shadcn button.tsx ring width.
+- **Skip link:** "Skip to main content" link in layout.tsx, visible on keyboard focus (WCAG 2.4.1).
+- **Reduced motion:** `prefers-reduced-motion` blanket in globals.css — suppresses all CSS transitions and animations for motion-sensitive users.
+- **Touch optimization:** `touch-action: manipulation` (eliminates 300ms tap delay) and `overscroll-behavior: contain` (prevents accidental pull-to-refresh) on `html`.
 
 ## Data Privacy
 

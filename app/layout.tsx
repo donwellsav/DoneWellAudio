@@ -52,6 +52,9 @@ export default async function RootLayout({
   return (
     <html lang="en" className={`${geist.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <body className="font-sans antialiased" nonce={nonce} suppressHydrationWarning>
+        <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:rounded focus:bg-primary focus:text-primary-foreground focus:text-sm focus:font-medium focus:ring-[3px] focus:ring-ring/50 focus:outline-none">
+          Skip to main content
+        </a>
         <ThemeProvider attribute="class" defaultTheme="dark" storageKey="dwa-theme" disableTransitionOnChange>
           {children}
         </ThemeProvider>

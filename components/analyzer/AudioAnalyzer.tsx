@@ -408,14 +408,14 @@ const AudioAnalyzerInner = memo(function AudioAnalyzerInner({
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   <button
                     onClick={handleRetry}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-sm font-mono font-medium bg-destructive/15 text-destructive hover:bg-destructive/25 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-destructive/50"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-sm font-mono font-medium bg-destructive/15 text-destructive hover:bg-destructive/25 transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-destructive/50"
                   >
                     <RotateCcw className="w-3 h-3" />
                     Try Again
                   </button>
                   <button
                     onClick={() => setIsErrorDismissed(true)}
-                    className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-card/40 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                    className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-card/40 transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                     aria-label="Dismiss error"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -434,7 +434,7 @@ const AudioAnalyzerInner = memo(function AudioAnalyzerInner({
                 </p>
                 <button
                   onClick={handleRetry}
-                  className="ml-auto text-sm font-mono text-amber-400 hover:text-amber-300 underline underline-offset-2 flex-shrink-0 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
+                  className="ml-auto text-sm font-mono text-amber-400 hover:text-amber-300 underline underline-offset-2 flex-shrink-0 transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-amber-500/50"
                 >
                   Restart
                 </button>
