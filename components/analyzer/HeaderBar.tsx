@@ -48,20 +48,12 @@ export const HeaderBar = memo(function HeaderBar() {
           </button>
         </div>
 
-        <div className="flex flex-col justify-center gap-0 min-w-0 leading-none">
-          <span className="font-mono text-sm sm:text-base font-black tracking-[0.15em] sm:tracking-[0.2em] text-foreground/90">DONEWELL</span>
-          <span className="font-mono text-base sm:text-lg font-black tracking-[0.15em] sm:tracking-[0.2em] text-primary drop-shadow-[0_0_10px_rgba(37,99,235,0.3)] dark:drop-shadow-[0_0_10px_rgba(75,146,255,0.4)]">AUDIO</span>
-          <span className="text-[7px] sm:text-[8px] font-mono font-light tracking-[0.1em] text-muted-foreground/40 mt-[1px]">
-            v{process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0'}
+        <div className="flex flex-col justify-center min-w-0" style={{ gap: '2px' }}>
+          <span className="font-mono text-[8px] font-bold tracking-[0.25em] text-foreground/80 uppercase leading-none">Donewell</span>
+          <span className="font-mono text-[10px] font-normal tracking-[0.2em] text-muted-foreground/35 leading-none">
+            V{(process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0').toUpperCase()}
           </span>
         </div>
-      </div>
-
-      {/* ── Action icons (right side) ──────────────────── */}
-      <div className="flex items-center justify-end gap-0 sm:gap-1 text-sm text-muted-foreground flex-shrink-0">
-
-        {/* ── Primary actions group ───────────────────── */}
-        <div className="flex items-center gap-0">
 
         {/* Audio source selector */}
         {devices.length > 0 && (
@@ -83,7 +75,7 @@ export const HeaderBar = memo(function HeaderBar() {
                 Audio input
               </TooltipContent>
             </Tooltip>
-            <DropdownMenuContent align="end" className="max-w-[360px]">
+            <DropdownMenuContent align="start" className="max-w-[360px]">
               <DropdownMenuRadioGroup value={selectedDeviceId} onValueChange={handleDeviceChange}>
                 <DropdownMenuRadioItem value="" className="text-sm">
                   Default (System)
@@ -97,6 +89,13 @@ export const HeaderBar = memo(function HeaderBar() {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+      </div>
+
+      {/* ── Action icons (right side) ──────────────────── */}
+      <div className="flex items-center justify-end gap-0 sm:gap-1 text-sm text-muted-foreground flex-shrink-0">
+
+        {/* ── Primary actions group ───────────────────── */}
+        <div className="flex items-center gap-0">
 
         <Tooltip>
           <TooltipTrigger asChild>
@@ -112,23 +111,6 @@ export const HeaderBar = memo(function HeaderBar() {
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-sm">
             Reset panel layout
-          </TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleFullscreen}
-              className={`flex h-10 w-10 btn-glow ${isFullscreen ? 'text-primary bg-primary/15 rounded-md' : 'text-muted-foreground hover:text-foreground'}`}
-              aria-label={isFullscreen ? 'Exit App Fullscreen' : 'App Fullscreen'}
-            >
-              {isFullscreen ? <Minimize2 className="size-6" /> : <Maximize2 className="size-6" />}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="text-sm">
-            {isFullscreen ? 'Exit App Fullscreen' : 'App Fullscreen'}
           </TooltipContent>
         </Tooltip>
 
@@ -208,6 +190,24 @@ export const HeaderBar = memo(function HeaderBar() {
             <LazyHelpMenu />
           </Suspense>
         </div>
+
+        {/* ── Fullscreen (far right) ──────────────────── */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleFullscreen}
+              className={`h-10 w-10 btn-glow ${isFullscreen ? 'text-primary bg-primary/15 rounded-md' : 'text-muted-foreground hover:text-foreground'}`}
+              aria-label={isFullscreen ? 'Exit App Fullscreen' : 'App Fullscreen'}
+            >
+              {isFullscreen ? <Minimize2 className="size-6" /> : <Maximize2 className="size-6" />}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-sm">
+            {isFullscreen ? 'Exit App Fullscreen' : 'App Fullscreen'}
+          </TooltipContent>
+        </Tooltip>
 
         {/* ── Mobile overflow menu (< tablet breakpoint) ────────────── */}
         <div className="flex tablet:hidden items-center">

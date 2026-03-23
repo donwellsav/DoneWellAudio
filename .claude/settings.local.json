@@ -17,7 +17,28 @@
       "mcp__0d4b5226-a85b-4a14-b837-9861889c489f__list_deployments",
       "mcp__0d4b5226-a85b-4a14-b837-9861889c489f__deploy_to_vercel",
       "Bash(npx vercel:*)",
-      "Bash(node -e \"const fs = require\\(''fs''\\); const os = require\\(''os''\\); const path = require\\(''path''\\); fs.writeFileSync\\(path.join\\(os.tmpdir\\(\\), ''claude-build-gate-passed''\\), Date.now\\(\\).toString\\(\\)\\); console.log\\(''marker written''\\)\")"
+      "Bash(node -e \"const fs = require\\(''fs''\\); const os = require\\(''os''\\); const path = require\\(''path''\\); fs.writeFileSync\\(path.join\\(os.tmpdir\\(\\), ''claude-build-gate-passed''\\), Date.now\\(\\).toString\\(\\)\\); console.log\\(''marker written''\\)\")",
+      "Bash(git stash:*)",
+      "Bash(git pull:*)",
+      "Bash(node -e \"const fs = require\\(''fs''\\); const os = require\\(''os''\\); const path = require\\(''path''\\); fs.writeFileSync\\(path.join\\(os.tmpdir\\(\\), ''claude-build-gate-passed''\\), Date.now\\(\\).toString\\(\\)\\); fs.writeFileSync\\(path.join\\(os.tmpdir\\(\\), ''claude-cia-audit.md''\\), ''CHANGE: Replace non-null assertion with guard clause for Float32Array CI compat\\\\nCLASSIFICATION: NEUTRAL\\\\nVerdict: Control-flow narrowing instead of type casts. Zero runtime change.''\\)\")",
+      "Bash(grep -v \"^$\\\\|⎯\")",
+      "Bash(npx vitest:*)",
+      "Bash(node -e \"const fs = require\\(''fs''\\); const os = require\\(''os''\\); const path = require\\(''path''\\); fs.writeFileSync\\(path.join\\(os.tmpdir\\(\\), ''claude-build-gate-passed''\\), Date.now\\(\\).toString\\(\\)\\); fs.writeFileSync\\(path.join\\(os.tmpdir\\(\\), ''claude-cia-audit.md''\\), ''CHANGE: Advisory cards show frequency range for merged clusters\\\\nCLASSIFICATION: POSITIVE \\(UI\\)\\\\nSCOPE: UI Components\\\\nVerdict: Display-only change. Cards show range when clusterCount>1 instead of single freq + badge. No DSP changes.''\\)\")",
+      "Bash(gh run:*)",
+      "Bash(gh pr:*)",
+      "Bash(node -e \"try { const pkg = require\\(''./node_modules/radix-ui/package.json''\\); console.log\\(''radix-ui version:'', pkg.version\\); console.log\\(''dependencies:'', JSON.stringify\\(Object.keys\\(pkg.dependencies || {}\\), null, 2\\)\\); } catch\\(e\\) { console.log\\(''not installed or error:'', e.message\\); }\")",
+      "Bash(node -e \"const pkg = require\\(''./node_modules/radix-ui/package.json''\\); const deps = Object.keys\\(pkg.dependencies || {}\\); console.log\\(''Total radix-ui sub-packages:'', deps.length\\); // Check actual used individual packages from package.json const mainPkg = require\\(''./package.json''\\); const used = Object.keys\\(mainPkg.dependencies\\).filter\\(d => d.startsWith\\(''@radix-ui/''\\)\\); console.log\\(''Individual @radix-ui/* in package.json:'', used.length, used\\);\")",
+      "Bash(node -e \":*)",
+      "Bash(CI=true pnpm install)",
+      "Bash(CI=\"\" pnpm install)",
+      "Bash(node -e \"const fs = require\\(''fs''\\); const os = require\\(''os''\\); const path = require\\(''path''\\); fs.writeFileSync\\(path.join\\(os.tmpdir\\(\\), ''claude-build-gate-passed''\\), Date.now\\(\\).toString\\(\\)\\); fs.writeFileSync\\(path.join\\(os.tmpdir\\(\\), ''claude-cia-audit.md''\\), ''CHANGE: Remove radix-ui meta-package, use @radix-ui/react-accordion directly\\\\nCLASSIFICATION: POSITIVE \\(bundle size\\)\\\\nSCOPE: Build/CI, UI Components\\\\nVerdict: 25 packages removed from dependency tree. Only accordion.tsx imported from meta-package.''\\)\")",
+      "Bash(node -e \"const fs = require\\(''fs''\\); const os = require\\(''os''\\); const path = require\\(''path''\\); fs.writeFileSync\\(path.join\\(os.tmpdir\\(\\), ''claude-build-gate-passed''\\), Date.now\\(\\).toString\\(\\)\\); fs.writeFileSync\\(path.join\\(os.tmpdir\\(\\), ''claude-cia-audit.md''\\), ''CHANGE: Header layout — 3-row stacked brand text, smaller version number\\\\nCLASSIFICATION: POSITIVE \\(UI\\)\\\\nSCOPE: UI Components\\\\nVerdict: Cleaner header hierarchy, no redundant brand repetition, version as subtle label.''\\)\")",
+      "Bash(python3 .claude/skills/ui-ux-pro-max/scripts/search.py \"pro audio equipment header branding typography\" --design-system -p \"DoneWell Audio\")",
+      "Bash(python3 /c/Users/dwell/.claude/skills/ui-ux-pro-max/scripts/search.py \"header branding typography pro audio\" --domain typography -n 5)",
+      "Bash(python3 /c/Users/dwell/.claude/skills/ui-ux-pro-max/scripts/search.py \"dark mode industrial equipment dashboard\" --domain style -n 5)",
+      "Bash(PYTHONIOENCODING=utf-8 python3 /c/Users/dwell/.claude/skills/ui-ux-pro-max/scripts/search.py \"dark mode industrial equipment dashboard\" --domain style -n 3)",
+      "Bash(PYTHONIOENCODING=utf-8 python3 /c/Users/dwell/.claude/skills/ui-ux-pro-max/scripts/search.py \"header brand logo layout spacing\" --domain ux -n 5)",
+      "Bash(node -e \"const fs = require\\(''fs''\\); const os = require\\(''os''\\); const path = require\\(''path''\\); fs.writeFileSync\\(path.join\\(os.tmpdir\\(\\), ''claude-build-gate-passed''\\), Date.now\\(\\).toString\\(\\)\\); fs.writeFileSync\\(path.join\\(os.tmpdir\\(\\), ''claude-cia-audit.md''\\), ''CHANGE: v0.6.0 release — deep audit fixes, bundle optimization, header layout, Companion design\\\\nCLASSIFICATION: POSITIVE\\\\nSCOPE: Build/CI, UI, Performance, Security\\\\nVerdict: 15 improvements across perf, security, UI, and documentation. All tests pass. No regressions.''\\)\")"
     ]
   }
 }

@@ -14,24 +14,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '0.3.10',
-    date: '2026-03-22',
+    version: '0.6.0',
+    date: '2026-03-23',
+    highlights: 'Deep audit fixes, bundle optimization, Companion design doc',
     changes: [
-      { type: 'fix', description: 'Merge branch \'main\' of https://github.com/donwellsav/donewellaudio' },
-    ],
-  },
-  {
-    version: '0.3.9',
-    date: '2026-03-22',
-    changes: [
-      { type: 'fix', description: 'Merge branch \'main\' of https://github.com/donwellsav/donewellaudio' },
-    ],
-  },
-  {
-    version: '0.3.8',
-    date: '2026-03-22',
-    changes: [
-      { type: 'fix', description: 'Merge branch \'main\' of https://github.com/donwellsav/donewellaudio' },
+      { type: 'perf', description: 'Remove radix-ui meta-package — 25 packages eliminated from dependency tree' },
+      { type: 'perf', description: 'Stabilize useDSPWorker return value with useMemo to prevent EngineContext cascade re-renders' },
+      { type: 'perf', description: 'Replace Math.pow with EXP_LUT in worker hot path — eliminates ~35K Math.pow calls/sec' },
+      { type: 'perf', description: 'Pre-allocate ML feature buffer in workerFft — eliminates 50 Float32Array allocs/sec' },
+      { type: 'perf', description: 'Use calibrationRef pattern in handleSettingsChange to prevent callback recreation' },
+      { type: 'fix', description: 'Add roomAutoStopRef cleanup on unmount to prevent stale timeout firing' },
+      { type: 'fix', description: 'Constrain sessionId length and format in ingest API to prevent abuse' },
+      { type: 'fix', description: 'Change X-Frame-Options from SAMEORIGIN to DENY to match CSP frame-ancestors' },
+      { type: 'fix', description: 'Add .env to .gitignore to prevent accidental secret commits' },
+      { type: 'ui', description: '3-row header layout: DONEWELL / AUDIO / version on separate lines' },
+      { type: 'ui', description: 'Move fullscreen button to far right of header for better ergonomics' },
+      { type: 'ui', description: 'Enable Next.js image optimization on DwaLogo' },
+      { type: 'ui', description: 'Advisory card cluster merging — nearby frequencies display as range cards' },
+      { type: 'feat', description: 'Companion integration design doc with Wing OSC PEQ protocol analysis' },
+      { type: 'feat', description: 'Supabase RLS policies added for spectral_snapshots table' },
     ],
   },
   {
