@@ -104,7 +104,7 @@ export const GuideTab = memo(function GuideTab() {
               </div>
               <div>
                 <p className="font-medium text-foreground text-sm mb-1">Too Many False Positives</p>
-                <p className="text-sm">Switch to Music-Aware mode. In Settings → Algorithms: raise confidence threshold. Lower sidebar Sensitivity (slide left). Enable whistle suppression if sibilance triggers detections. HVAC/electrical hum (50/60 Hz harmonics) is automatically suppressed by the mains hum gate when 2+ corroborating peaks are detected.</p>
+                <p className="text-sm">In Settings, raise confidence threshold. Lower sidebar Sensitivity (slide left). Enable whistle suppression if sibilance triggers detections. For live music, switch to the Live Music or Worship mode preset. HVAC/electrical hum (50/60 Hz harmonics) is automatically suppressed by the mains hum gate when 2+ corroborating peaks are detected.</p>
               </div>
               <div>
                 <p className="font-medium text-foreground text-sm mb-1">Missing Feedback Detection</p>

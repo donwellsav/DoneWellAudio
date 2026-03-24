@@ -412,13 +412,18 @@ describe('analyzeSpectralTrends', () => {
     expect(mud).toBeDefined()
   })
 
-  it('detects high-frequency harshness (6-10 kHz)', () => {
+  it('detects high-frequency harshness (6-10 kHz) with narrow spike', () => {
+    // A narrow spike drives the average up while keeping flatness low (< 0.4)
     const spectrum = flatSpectrum(-40)
     const hzPerBin = sampleRate / fftSize
     const harshLow = Math.round(6000 / hzPerBin)
     const harshHigh = Math.round(10000 / hzPerBin)
-    for (let i = harshLow; i < harshHigh; i++) {
-      spectrum[i] = -33 // 7 dB excess
+    const spikeCenterBin = Math.round(8000 / hzPerBin)
+    const spikeHalfWidth = 75
+    for (let i = spikeCenterBin - spikeHalfWidth; i <= spikeCenterBin + spikeHalfWidth; i++) {
+      if (i >= harshLow && i < harshHigh) {
+        spectrum[i] = -10
+      }
     }
     const result = analyzeSpectralTrends(spectrum, sampleRate, fftSize)
     const harsh = result.find(s => s.type === 'highShelf')
@@ -490,6 +495,40 @@ describe('analyzeSpectralTrends', () => {
     expect(result.find(s => s.type === 'lowShelf')).toBeDefined()
   })
 
+  it('skips highShelf when harsh region has broad spectral elevation (flatness > 0.4)', () => {
+    // Broad, uniform elevation in 6-10 kHz → high spectral flatness → skip highShelf
+    const spectrum = flatSpectrum(-40)
+    const hzPerBin = sampleRate / fftSize
+    const harshLow = Math.round(6000 / hzPerBin)
+    const harshHigh = Math.round(10000 / hzPerBin)
+    // Uniform +7 dB across entire harsh region → flatness near 1.0 (perfectly flat)
+    for (let i = harshLow; i < harshHigh; i++) {
+      spectrum[i] = -33 // 7 dB excess
+    }
+    const result = analyzeSpectralTrends(spectrum, sampleRate, fftSize)
+    // Flatness of a perfectly uniform region ≈ 1.0, well above 0.4 → no highShelf
+    expect(result.find(s => s.type === 'highShelf')).toBeUndefined()
+  })
+
+  it('recommends highShelf when harsh region has a concentrated spike (low flatness)', () => {
+    const spectrum = flatSpectrum(-40)
+    const hzPerBin = sampleRate / fftSize
+    const harshLow = Math.round(6000 / hzPerBin)
+    const harshHigh = Math.round(10000 / hzPerBin)
+    const spikeCenterBin = Math.round(8000 / hzPerBin)
+    // Spike covers ~20% of the harsh region at -10 dB (rest at -40 dB)
+    const spikeHalfWidth = 75
+    for (let i = spikeCenterBin - spikeHalfWidth; i <= spikeCenterBin + spikeHalfWidth; i++) {
+      if (i >= harshLow && i < harshHigh) {
+        spectrum[i] = -10
+      }
+    }
+
+    const result = analyzeSpectralTrends(spectrum, sampleRate, fftSize)
+    const harsh = result.find(s => s.type === 'highShelf')
+    expect(harsh).toBeDefined()
+  })
+
   it('all three shelf types can coexist when conditions are met', () => {
     const spectrum = flatSpectrum(-40)
     const hzPerBin = sampleRate / fftSize
@@ -503,10 +542,15 @@ describe('analyzeSpectralTrends', () => {
     const mudHigh = Math.round(400 / hzPerBin)
     for (let i = mudLow; i < mudHigh; i++) spectrum[i] = -32
 
-    // Harshness
+    // Harshness: use a narrow spike so the spectral flatness guard passes
     const harshLow = Math.round(6000 / hzPerBin)
     const harshHigh = Math.round(10000 / hzPerBin)
-    for (let i = harshLow; i < harshHigh; i++) spectrum[i] = -33
+    const spikeBin = Math.round(8000 / hzPerBin)
+    for (let i = spikeBin - 75; i <= spikeBin + 75; i++) {
+      if (i >= harshLow && i < harshHigh) {
+        spectrum[i] = -10
+      }
+    }
 
     const result = analyzeSpectralTrends(spectrum, sampleRate, fftSize)
     expect(result).toHaveLength(3)

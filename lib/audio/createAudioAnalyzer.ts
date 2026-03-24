@@ -17,6 +17,8 @@ export interface AudioAnalyzerCallbacks {
   onSpectrum?: (data: SpectrumData) => void
   /** Raw peak detected — route to DSP worker for classification */
   onPeakDetected?: (peak: DetectedPeak, spectrum: Float32Array, sampleRate: number, fftSize: number, timeDomain?: Float32Array) => void
+  /** Periodic spectrum snapshot for worker content-type detection (~500ms cadence) */
+  onSpectrumUpdate?: (spectrum: Float32Array, crestFactor: number, sampleRate: number, fftSize: number) => void
   /** Peak cleared — route to DSP worker */
   onPeakCleared?: (peak: { binIndex: number; frequencyHz: number; timestamp: number }) => void
   /** Comb filter pattern detected — includes predicted feedback frequencies (early warning) */
@@ -47,6 +49,8 @@ export class AudioAnalyzer {
   private rafId: number = 0
   private lastSpectrumTime: number = 0
   private spectrumIntervalMs: number = 33 // ~30fps for spectrum display
+  private lastSpectrumUpdateTime: number = 0
+  private spectrumUpdateIntervalMs: number = 500 // ~2fps for content-type detection
 
   private _isRunning: boolean = false
   private _hasPermission: boolean = false
@@ -184,6 +188,27 @@ export class AudioAnalyzer {
         }
 
         this.callbacks.onSpectrum?.(spectrumData)
+
+        // S7: Periodic spectrum feed for worker content-type detection (~500ms)
+        if (timestamp - this.lastSpectrumUpdateTime >= this.spectrumUpdateIntervalMs) {
+          this.lastSpectrumUpdateTime = timestamp
+          let specMax = -Infinity
+          let sumLinear = 0
+          let validBins = 0
+          for (let i = 0; i < spectrum.length; i++) {
+            const v = spectrum[i]
+            if (Number.isFinite(v)) {
+              if (v > specMax) specMax = v
+              sumLinear += Math.pow(10, v / 10)
+              validBins++
+            }
+          }
+          if (validBins > 0 && specMax > -100) {
+            const rmsDb = 10 * Math.log10(sumLinear / validBins)
+            const crestFactor = specMax - rmsDb
+            this.callbacks.onSpectrumUpdate?.(spectrum, crestFactor, state.sampleRate, state.fftSize)
+          }
+        }
       }
 
       this.lastSpectrumTime = timestamp

@@ -316,14 +316,9 @@ export interface DetectorSettings {
   feedbackThresholdDb: number
   ringThresholdDb: number
   growthRateThreshold: number
-  holdTimeMs: number
-  noiseFloorDecay: number
   peakMergeCents: number
   maxDisplayedIssues: number
   eqPreset: 'surgical' | 'heavy'
-  musicAware: boolean
-  autoMusicAware: boolean // Auto-switch to music-aware mode based on signal level
-  autoMusicAwareHysteresisDb: number // dB above noise floor to trigger music-aware mode
   inputGainDb: number // Software gain applied to analysis (-40 to +40 dB)
   autoGainEnabled: boolean // Auto-adjust inputGainDb based on signal level
   autoGainTargetDb: number // Target post-gain peak level for auto-gain (-30 to -6 dBFS)
@@ -343,8 +338,6 @@ export interface DetectorSettings {
   roomWidthM: number // Room width
   roomHeightM: number // Room height
   roomDimensionsUnit: 'meters' | 'feet' // Unit for dimension input
-  // Phase 1: Harmonic Series Filter (reduces bass guitar/instrument false positives)
-  harmonicFilterEnabled: boolean // Enable harmonic series detection to filter instruments
   // Algorithm mode and scoring display
   algorithmMode: AlgorithmMode // 'auto' (content-adaptive) or 'custom' (user-selected algorithms)
   enabledAlgorithms: Algorithm[] // Which algorithms are active when algorithmMode === 'custom'
@@ -357,7 +350,6 @@ export interface DetectorSettings {
   clearMs: number // Time before peak declared dead (100-2000, default 400)
   // Threshold control
   thresholdMode: ThresholdMode // 'absolute' | 'relative' | 'hybrid' (default 'hybrid')
-  relativeThresholdDb: number // Relative threshold above noise (2-50, default 18)
   prominenceDb: number // Peak prominence required (4-30, default 12)
   // Noise floor timing
   noiseFloorAttackMs: number // Noise floor attack time (50-1000, default 200)
@@ -372,7 +364,6 @@ export interface DetectorSettings {
   spectrumLineWidth: number // RTA line width in pixels (0.5-4, default 1.5)
   showThresholdLine: boolean // Show effective threshold line on RTA graph
   canvasTargetFps: number // Target FPS for canvas rendering (15-60, default 30)
-  quickControlsMode: boolean // Show simplified controls (true) or full controls (false)
   faderMode: 'gain' | 'sensitivity' // Vertical fader strip mode: input gain (white) or sensitivity (blue)
   swipeLabeling: boolean // Enable swipe-to-label on issue cards (left=false+, right=confirm). Hides buttons when on.
 }

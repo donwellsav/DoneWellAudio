@@ -148,28 +148,6 @@ const AudioAnalyzerInner = memo(function AudioAnalyzerInner({
   // needing context before UIProvider renders. Freeze toggle is wired via the
   // Orchestrator component below.
 
-  // ── Auto music-aware ────────────────────────────────────────────────────
-
-  const autoMusicDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => {
-    if (!settings.autoMusicAware || !isRunning) return
-    const peak = spectrumStatus?.peak ?? -100
-    const floor = noiseFloorDb ?? -80
-    const hysteresis = settings.autoMusicAwareHysteresisDb ?? 15
-    const shouldBeMusic = peak > floor + hysteresis
-    const isCurrentlyMusic = settings.musicAware
-
-    if (shouldBeMusic === isCurrentlyMusic) return
-    if (autoMusicDebounceRef.current) clearTimeout(autoMusicDebounceRef.current)
-    autoMusicDebounceRef.current = setTimeout(() => {
-      updateSettings({ musicAware: shouldBeMusic })
-    }, 1000) // 1s debounce to avoid flapping
-
-    return () => {
-      if (autoMusicDebounceRef.current) clearTimeout(autoMusicDebounceRef.current)
-    }
-  }, [spectrumStatus?.peak, noiseFloorDb, settings.autoMusicAware, settings.musicAware, settings.autoMusicAwareHysteresisDb, isRunning, updateSettings])
-
   // ── Advisory logging + calibration forwarding ───────────────────────────
 
   useAdvisoryLogging(advisories)

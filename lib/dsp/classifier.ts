@@ -29,7 +29,7 @@ import {
 
 // ── Classifier Tuning Constants ─────────────────────────────────────────────
 /**
- * Bayesian prior probabilities per class.
+ * Heuristic prior weights per class (Bayesian-style classification).
  * Feedback prior is elevated (0.45 vs uniform 0.33) because the user has
  * explicitly opened a feedback-detection tool — the base rate of feedback
  * in this context is higher than uniform.  Whistle and instrument share
@@ -69,6 +69,14 @@ function belowSchroederWeight(freq: number, schroederHz: number): number {
 const CHROMATIC_SNAP_CENTS = 5
 const CHROMATIC_PHASE_THRESHOLD = 0.80
 const CHROMATIC_PHASE_REDUCTION = 0.60
+
+/**
+ * Maximum absolute delta that room-physics adjustments can cumulatively apply
+ * to pFeedback. Room cues (RT60, modal density, Schroeder penalty, mode
+ * clustering, mode proximity) are correlated — they all derive from Q,
+ * frequency, and RT60 — so unbounded stacking can over-suppress.
+ */
+const MAX_ROOM_DELTA = 0.30
 
 const FORMANT_BANDS = [
   { min: 300, max: 900 },   // F1
@@ -246,7 +254,7 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     features.persistenceMs
   )
 
-  // Initialize probabilities with context-aware priors
+  // Initialize confidence scores with context-aware priors
   let pFeedback = PRIOR_FEEDBACK
   let pWhistle = PRIOR_WHISTLE
   let pInstrument = PRIOR_INSTRUMENT
@@ -327,6 +335,9 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     reasons.push(`Narrow Q: ${features.minQ.toFixed(1)} (band: ${freqBand.band})`)
   }
 
+  // Track cumulative room-physics delta for MAX_ROOM_DELTA cap
+  let roomDelta = 0
+
   // 6a. Reverberation-aware Q adjustment (Hopkins §1.2.6.3)
   // Rooms with high RT60 produce naturally high-Q room modes.
   // A peak Q ≤ Q_room = π·f·T₆₀/6.9 is more likely a room mode than feedback.
@@ -338,6 +349,7 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     const rt60Adj = reverberationQAdjustment(features.minQ, features.frequencyHz, effectiveRT60)
     if (rt60Adj.delta !== 0) {
       pFeedback += rt60Adj.delta
+      roomDelta += rt60Adj.delta
       if (rt60Adj.reason) reasons.push(rt60Adj.reason)
     }
   }
@@ -370,6 +382,7 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     )
     if (nfAdj.delta !== 0) {
       pFeedback += nfAdj.delta
+      roomDelta += nfAdj.delta
       if (nfAdj.note) reasons.push(nfAdj.note)
     }
   }
@@ -417,7 +430,9 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
   if (roomConfigured && schroederFreq > 0) {
     const bw = belowSchroederWeight(features.frequencyHz, schroederFreq)
     if (bw > 0.001) {
-      pFeedback   -= MODE_PRESENCE_BONUS * bw
+      const schroederDelta = -MODE_PRESENCE_BONUS * bw
+      pFeedback   += schroederDelta
+      roomDelta   += schroederDelta
       pInstrument += MODE_ABSENCE_PENALTY * bw
       reasons.push(`Below Schroeder boundary (${schroederFreq.toFixed(0)} Hz, weight ${bw.toFixed(2)}) — possible room mode`)
     }
@@ -434,8 +449,16 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     )
     if (modeProximity.delta !== 0) {
       pFeedback += modeProximity.delta
+      roomDelta += modeProximity.delta
       if (modeProximity.reason) reasons.push(modeProximity.reason)
     }
+  }
+
+  // Room-physics delta cap: clamp cumulative room-only adjustments
+  if (roomConfigured && Math.abs(roomDelta) > MAX_ROOM_DELTA) {
+    const excess = roomDelta - Math.sign(roomDelta) * MAX_ROOM_DELTA
+    pFeedback -= excess
+    reasons.push(`Room delta clamped: ${roomDelta.toFixed(3)} to ${MAX_ROOM_DELTA}`)
   }
 
   // 11. Formant gate — suppress sustained vowel false positives (Fant 1960)
@@ -456,7 +479,7 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
 
   // ==================== Normalization ====================
 
-  // Clamp probabilities to valid range before normalization
+  // Clamp scores to valid range before normalization
   pFeedback = Math.max(0, Math.min(1, pFeedback))
   pWhistle = Math.max(0, Math.min(1, pWhistle))
   pInstrument = Math.max(0, Math.min(1, pInstrument))
@@ -476,9 +499,19 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     modalAnalysis.feedbackProbabilityBoost,
     cumulativeGrowth.severity
   )
-  
+
+  // F5 fix: apply adjustedPFeedback and renormalize so the scores
+  // and confidence describe the same model state.
+  pFeedback = calibratedResult.adjustedPFeedback
+  const postCalibTotal = pFeedback + pWhistle + pInstrument
+  if (postCalibTotal > 0) {
+    pFeedback /= postCalibTotal
+    pWhistle /= postCalibTotal
+    pInstrument /= postCalibTotal
+  }
+
   const confidence = calibratedResult.confidence
-  const pUnknown = 1 - confidence
+  // pUnknown is computed after severity overrides (below) to maintain score consistency
 
   // ==================== Classification ====================
 
@@ -523,9 +556,16 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     severity = 'RESONANCE'
   }
 
-  // Overrides above are final — no re-normalization after severity boosts.
-  // The first normalization (before classification) already ensured valid
-  // probabilities; severity overrides intentionally shift the distribution.
+  // F5: Renormalize after severity overrides so the scores sum to 1.
+  // Severity overrides (e.g. RUNAWAY Math.max(pFeedback, 0.85)) can push
+  // the class sum above 1.0 — renormalize to maintain a valid distribution.
+  const postSeverityTotal = pFeedback + pWhistle + pInstrument
+  if (postSeverityTotal > 1) {
+    pFeedback /= postSeverityTotal
+    pWhistle /= postSeverityTotal
+    pInstrument /= postSeverityTotal
+  }
+  const pUnknown = Math.max(0, 1 - (pFeedback + pWhistle + pInstrument))
 
   // Determine label
   if (pWhistle >= CLASSIFIER_WEIGHTS.WHISTLE_THRESHOLD && pWhistle > pFeedback) {
@@ -704,128 +744,35 @@ export function classifyTrackWithAlgorithms(
   // Extract frequency for chromatic quantization detection
   const trackFreqHz = 'trueFrequencyHz' in track ? track.trueFrequencyHz : track.frequency
 
-  // ==================== Integrate Advanced Algorithm Scores ====================
+  // ==================== Fusion Result (algorithm evidence counted once) ====================
+  //
+  // Fusion owns the algorithm-level scoring (MSD, phase, spectral, comb,
+  // IHR, PTMR, ML). Classifier adds only track/acoustic context.
+  // Per-algorithm scores are NOT re-added here to avoid double-counting.
 
-  // MSD Analysis
-  if (algorithmScores.msd) {
-    const msd = algorithmScores.msd
-    if (msd.isFeedbackLikely) {
-      // Strong MSD indicator - boost feedback probability
-      pFeedback = Math.min(1, pFeedback + msd.feedbackScore * 0.2)
-      reasons.push(`MSD: ${msd.msd.toFixed(3)} dB²/frame² (${msd.framesAnalyzed} frames)`)
-    } else if (msd.feedbackScore < 0.3) {
-      // Strong non-feedback indicator
-      pFeedback = Math.max(0, pFeedback - 0.15)
-      pInstrument = Math.min(1, pInstrument + 0.1)
-      reasons.push(`MSD indicates musical content (score: ${(msd.feedbackScore * 100).toFixed(0)}%)`)
-    }
-  }
-  
-  // Phase Coherence Analysis
-  if (algorithmScores.phase) {
-    const phase = algorithmScores.phase
-    if (phase.isFeedbackLikely) {
-      // Chromatic quantization gate: pitch-corrected audio (Auto-Tune, Melodyne)
-      // snaps to the 12-TET grid, producing artificially high phase coherence.
-      // When quantized AND coherence > threshold, reduce phase boost by 40%.
-      const chromaticGated =
-        phase.coherence > CHROMATIC_PHASE_THRESHOLD &&
-        isChromaticallyQuantized(trackFreqHz)
-      const phaseScale = chromaticGated ? CHROMATIC_PHASE_REDUCTION : 1.0
+  // Blend track-level base score toward fusion's algorithm-level score.
+  const FUSION_BLEND = 0.6
+  pFeedback = pFeedback * (1 - FUSION_BLEND) + fusionResult.feedbackProbability * FUSION_BLEND
+  reasons.push(`Fusion: ${(fusionResult.feedbackProbability * 100).toFixed(0)}% (${fusionResult.contributingAlgorithms.join('+')})`)
 
-      // High phase coherence - strong feedback indicator (scaled if quantized)
-      pFeedback = Math.min(1, pFeedback + phase.feedbackScore * 0.15 * phaseScale)
-      if (chromaticGated) {
-        reasons.push(`Phase coherence: ${(phase.coherence * 100).toFixed(0)}% (reduced — chromatic quantization detected)`)
-      } else {
-        reasons.push(`Phase coherence: ${(phase.coherence * 100).toFixed(0)}%`)
-      }
-    } else if (phase.coherence < 0.4) {
-      // Low coherence - likely music/noise
-      pFeedback = Math.max(0, pFeedback - 0.1)
-      reasons.push(`Random phase (${(phase.coherence * 100).toFixed(0)}%) - likely music`)
-    }
-  }
-  
-  // Spectral Flatness Analysis
-  if (algorithmScores.spectral) {
-    const spectral = algorithmScores.spectral
-    if (spectral.isFeedbackLikely) {
-      // Pure tone detected
-      pFeedback = Math.min(1, pFeedback + 0.1)
-      reasons.push(`Pure tone: flatness ${spectral.flatness.toFixed(3)}, kurtosis ${spectral.kurtosis.toFixed(1)}`)
-    } else if (spectral.flatness > 0.2) {
-      // Broadband content
-      pInstrument = Math.min(1, pInstrument + 0.1)
-    }
-  }
-  
-  // Comb Pattern Detection
-  if (algorithmScores.comb && algorithmScores.comb.hasPattern) {
-    const comb = algorithmScores.comb
-    // Comb pattern is a strong indicator of feedback loop
-    pFeedback = Math.min(1, pFeedback + comb.confidence * 0.2)
-    reasons.push(`Comb pattern: ${comb.matchingPeaks} peaks @ ${comb.fundamentalSpacing?.toFixed(0)}Hz`)
-    
-    // Add predicted frequencies as a note
-    if (comb.predictedFrequencies.length > 0) {
-      reasons.push(`Predicted feedback: ${comb.predictedFrequencies.slice(0, 3).map(f => f.toFixed(0)).join(', ')}Hz`)
-    }
-  }
-  
-  // Inter-Harmonic Ratio Analysis
-  if (algorithmScores.ihr) {
-    const ihr = algorithmScores.ihr
-    if (ihr.isFeedbackLike) {
-      // Clean tone with few harmonics — strong feedback indicator
-      pFeedback = Math.min(1, pFeedback + ihr.feedbackScore * 0.15)
-      reasons.push(`Clean tone (IHR ${ihr.interHarmonicRatio.toFixed(2)}, ${ihr.harmonicsFound} harmonics)`)
-    } else if (ihr.isMusicLike) {
-      // Rich harmonic content with inter-harmonic energy — suppress feedback
-      pFeedback = Math.max(0, pFeedback - 0.15)
-      pInstrument = Math.min(1, pInstrument + 0.15)
-      reasons.push(`Musical harmonics (IHR ${ihr.interHarmonicRatio.toFixed(2)}, ${ihr.harmonicsFound} harmonics)`)
+  // Chromatic quantization gate (classifier-only context, not in fusion)
+  if (algorithmScores.phase && algorithmScores.phase.isFeedbackLikely) {
+    const chromaticGated =
+      algorithmScores.phase.coherence > CHROMATIC_PHASE_THRESHOLD &&
+      isChromaticallyQuantized(trackFreqHz)
+    if (chromaticGated) {
+      pFeedback *= CHROMATIC_PHASE_REDUCTION
+      reasons.push(`Chromatic quantization gate: phase reduced`)
     }
   }
 
-  // Peak-to-Median Ratio Analysis
-  if (algorithmScores.ptmr) {
-    const ptmr = algorithmScores.ptmr
-    if (ptmr.isFeedbackLike) {
-      // Sharp spectral spike well above local floor — feedback hallmark
-      pFeedback = Math.min(1, pFeedback + ptmr.feedbackScore * 0.1)
-      reasons.push(`Sharp peak (PTMR ${ptmr.ptmrDb.toFixed(1)} dB above median)`)
-    } else if (ptmr.ptmrDb < 8) {
-      // Broad spectral energy — likely broadband content, not feedback
-      pInstrument = Math.min(1, pInstrument + 0.05)
-    }
-  }
-
-  // Compression Adjustment
+  // Compression context (classifier-only)
   if (algorithmScores.compression && algorithmScores.compression.isCompressed) {
-    const comp = algorithmScores.compression
-    // Compressed content needs more careful analysis
-    // Apply threshold multiplier from compression detection
-    const adjustment = comp.thresholdMultiplier - 1
+    const adjustment = algorithmScores.compression.thresholdMultiplier - 1
     pFeedback = Math.max(0, pFeedback - adjustment * 0.1)
-    reasons.push(`Compressed audio (crest: ${comp.crestFactor.toFixed(1)}dB)`)
+    reasons.push(`Compressed audio (crest: ${algorithmScores.compression.crestFactor.toFixed(1)}dB)`)
   }
-  
-  // ==================== Use Fusion Result ====================
-  
-  // Override with fusion result if it's decisive
-  if (fusionResult.verdict === 'FEEDBACK' && fusionResult.confidence > 0.7) {
-    pFeedback = Math.max(pFeedback, fusionResult.feedbackProbability)
-    if (!reasons.some(r => r.includes('Algorithm fusion'))) {
-      reasons.push(`Algorithm fusion: ${(fusionResult.feedbackProbability * 100).toFixed(0)}% (${fusionResult.contributingAlgorithms.join('+')})`)
-    }
-  } else if (fusionResult.verdict === 'NOT_FEEDBACK' && fusionResult.confidence > 0.7 && baseResult.severity !== 'RUNAWAY' && baseResult.severity !== 'GROWING') {
-    pFeedback = Math.min(pFeedback, 0.3)
-    if (!reasons.some(r => r.includes('Algorithm fusion'))) {
-      reasons.push(`Fusion: likely not feedback (${(fusionResult.confidence * 100).toFixed(0)}% confident)`)
-    }
-  }
-  
+
   // ==================== Mains Hum Gate ====================
   // AC mains hum creates exact harmonic series at 50n or 60n Hz with high
   // phase coherence (AC-locked). When the current peak sits on a mains
@@ -863,17 +810,30 @@ export function classifyTrackWithAlgorithms(
     pFeedback = Math.max(pFeedback, 0.7)
   }
 
-  // Recalculate confidence
+  // Renormalize after severity overrides to maintain valid distribution.
+  // Matches the base classifyTrack() contract at lines 559-568.
+  // Without this, the wrapper path returns class scores that don't sum
+  // consistently with pUnknown, creating a score contract divergence.
+  const postOverrideTotal = pFeedback + pWhistle + pInstrument
+  if (postOverrideTotal > 1) {
+    pFeedback /= postOverrideTotal
+    pWhistle /= postOverrideTotal
+    pInstrument /= postOverrideTotal
+  }
+
+  // Confidence from fusion and base classifier
   const maxProb = Math.max(pFeedback, pWhistle, pInstrument)
   const confidence = fusionResult
     ? Math.max(fusionResult.confidence, baseResult.confidence, maxProb)
     : Math.max(baseResult.confidence, maxProb)
-  const pUnknown = 1 - confidence
+
+  // pUnknown as residual mass — matches base path contract
+  const pUnknown = Math.max(0, 1 - (pFeedback + pWhistle + pInstrument))
   
   // Determine updated label and severity
   let { label, severity } = baseResult
   
-  // Override based on new probabilities
+  // Override based on updated scores
   if (pFeedback >= 0.6 && fusionResult?.verdict === 'FEEDBACK') {
     label = 'ACOUSTIC_FEEDBACK'
     if (severity !== 'RUNAWAY' && severity !== 'GROWING') {

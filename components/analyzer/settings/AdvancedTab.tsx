@@ -47,21 +47,6 @@ export const AdvancedTab = memo(function AdvancedTab({
         <div className="space-y-3">
           <div className="space-y-1">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground font-mono tracking-wide">Decay Rate</span>
-              <span className="text-sm font-mono tabular-nums">{settings.noiseFloorDecay.toFixed(3)}</span>
-            </div>
-            <Slider
-              value={[settings.noiseFloorDecay]}
-              onValueChange={([v]) => onSettingsChange({ noiseFloorDecay: v })}
-              min={0.90} max={0.999} step={0.005}
-            />
-            <div className="flex justify-between text-sm text-muted-foreground font-mono">
-              <span>Fast (dynamic)</span><span>Slow (stable)</span>
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground font-mono tracking-wide">Attack Time</span>
               <span className="text-sm font-mono tabular-nums">{settings.noiseFloorAttackMs}ms</span>
             </div>
@@ -163,21 +148,6 @@ export const AdvancedTab = memo(function AdvancedTab({
               </SelectContent>
             </Select>
           </Section>
-
-          <div className="space-y-1">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground font-mono tracking-wide">Relative Threshold</span>
-              <span className="text-sm font-mono tabular-nums">{settings.relativeThresholdDb}dB</span>
-            </div>
-            <Slider
-              value={[settings.relativeThresholdDb]}
-              onValueChange={([v]) => onSettingsChange({ relativeThresholdDb: v })}
-              min={6} max={30} step={1}
-            />
-            <div className="flex justify-between text-sm text-muted-foreground font-mono">
-              <span>Sensitive</span><span>Conservative</span>
-            </div>
-          </div>
 
           <div className="space-y-1">
             <div className="flex justify-between items-center">

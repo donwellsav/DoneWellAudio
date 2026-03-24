@@ -323,6 +323,45 @@ export class CombStabilityTracker {
   }
 }
 
+// 14.8: Agreement persistence tracker (EWMA of single-frame agreement)
+export class AgreementPersistenceTracker {
+  private _ewma = 0
+  private _alpha: number
+  private _frames = 0
+  constructor(alpha = 0.15) { this._alpha = alpha }
+  update(agreement: number): void {
+    this._frames++
+    this._ewma = this._frames === 1 ? agreement : this._alpha * agreement + (1 - this._alpha) * this._ewma
+  }
+  get persistenceBonus(): number {
+    return this._frames >= 4 && this._ewma > 0.6 ? Math.min((this._ewma - 0.6) * 0.15, 0.05) : 0
+  }
+  get ewma(): number { return this._ewma }
+  get frames(): number { return this._frames }
+  reset(): void { this._ewma = 0; this._frames = 0 }
+}
+
+// 14.3: Post-gate probability calibration types and function
+export interface CalibrationBreakpoint { raw: number; calibrated: number }
+export interface CalibrationTable { breakpoints: CalibrationBreakpoint[] }
+export const IDENTITY_CALIBRATION: CalibrationTable = { breakpoints: [] }
+
+export function calibrateProbability(raw: number, table?: CalibrationTable): number {
+  if (!table || table.breakpoints.length === 0) return raw
+  const bp = table.breakpoints
+  if (raw <= bp[0].raw) return bp[0].calibrated
+  if (raw >= bp[bp.length - 1].raw) return bp[bp.length - 1].calibrated
+  for (let i = 0; i < bp.length - 1; i++) {
+    if (raw >= bp[i].raw && raw <= bp[i + 1].raw) {
+      const span = bp[i + 1].raw - bp[i].raw
+      if (span === 0) return bp[i].calibrated
+      const t = (raw - bp[i].raw) / span
+      return bp[i].calibrated + t * (bp[i + 1].calibrated - bp[i].calibrated)
+    }
+  }
+  return raw
+}
+
 /** Module-level fallback — only used when no per-track tracker is provided. */
 const combStabilityTracker = new CombStabilityTracker()
 
@@ -640,12 +679,15 @@ export function calculatePTMR(
 export function fuseAlgorithmResults(
   scores: AlgorithmScores,
   contentType: ContentType = 'unknown',
-  _existingScore: number = 0.5,
   config: FusionConfig = DEFAULT_FUSION_CONFIG,
   /** Peak frequency in Hz. When provided, enables frequency-aware scoring. */
   peakFrequencyHz?: number,
   /** Per-track comb stability tracker. Falls back to module-level singleton if not provided. */
   trackCombTracker?: CombStabilityTracker,
+  /** Per-track agreement persistence tracker for confidence bonus. */
+  agreementTracker?: AgreementPersistenceTracker,
+  /** Optional calibration table for post-gate probability mapping. Default is identity. */
+  calibrationTable?: CalibrationTable,
 ): FusedDetectionResult {
   const reasons: string[] = []
   const contributingAlgorithms: string[] = []
@@ -694,10 +736,13 @@ export function fuseAlgorithmResults(
 
   let weightedSum  = 0
   let totalWeight  = 0
+  // F2 fix: collect effective (transformed) scores for agreement/confidence
+  const effectiveScores: number[] = []
 
   if (activeAlgorithms.includes('msd') && scores.msd) {
     weightedSum += scores.msd.feedbackScore * weights.msd
     totalWeight += weights.msd
+    effectiveScores.push(scores.msd.feedbackScore)
     contributingAlgorithms.push('MSD')
     if (scores.msd.isFeedbackLikely) {
       reasons.push(`MSD indicates feedback (${scores.msd.msd.toFixed(3)} dB/frame\u00b2)`)
@@ -714,6 +759,7 @@ export function fuseAlgorithmResults(
       : scores.phase.feedbackScore
     weightedSum += phaseScore * weights.phase
     totalWeight += weights.phase
+    effectiveScores.push(phaseScore)
     contributingAlgorithms.push('Phase')
     if (scores.phase.isFeedbackLikely) {
       reasons.push(`High phase coherence (${(scores.phase.coherence * 100).toFixed(0)}%)`)
@@ -723,6 +769,7 @@ export function fuseAlgorithmResults(
   if (activeAlgorithms.includes('spectral') && scores.spectral) {
     weightedSum += scores.spectral.feedbackScore * weights.spectral
     totalWeight += weights.spectral
+    effectiveScores.push(scores.spectral.feedbackScore)
     contributingAlgorithms.push('Spectral')
     if (scores.spectral.isFeedbackLikely) {
       reasons.push(`Pure tone detected (flatness ${scores.spectral.flatness.toFixed(3)})`)
@@ -757,6 +804,7 @@ export function fuseAlgorithmResults(
     const combWeight = weights.comb * 2
     weightedSum += combConfidence * combWeight
     totalWeight += weights.comb
+    effectiveScores.push(combConfidence)
     contributingAlgorithms.push('Comb')
 
     const cvStr = cst.length >= 4
@@ -780,6 +828,7 @@ export function fuseAlgorithmResults(
   if (activeAlgorithms.includes('ihr') && scores.ihr) {
     weightedSum += scores.ihr.feedbackScore * weights.ihr
     totalWeight += weights.ihr
+    effectiveScores.push(scores.ihr.feedbackScore)
     contributingAlgorithms.push('IHR')
     if (scores.ihr.isFeedbackLike) {
       reasons.push(`Clean tone (IHR ${scores.ihr.interHarmonicRatio.toFixed(2)}, ${scores.ihr.harmonicsFound} harmonics)`)
@@ -791,6 +840,7 @@ export function fuseAlgorithmResults(
   if (activeAlgorithms.includes('ptmr') && scores.ptmr) {
     weightedSum += scores.ptmr.feedbackScore * weights.ptmr
     totalWeight += weights.ptmr
+    effectiveScores.push(scores.ptmr.feedbackScore)
     contributingAlgorithms.push('PTMR')
     if (scores.ptmr.isFeedbackLike) {
       reasons.push(`Sharp spectral peak (PTMR ${scores.ptmr.ptmrDb.toFixed(1)} dB)`)
@@ -802,6 +852,7 @@ export function fuseAlgorithmResults(
   if (activeAlgorithms.includes('ml') && scores.ml?.isAvailable) {
     weightedSum += scores.ml.feedbackScore * weights.ml
     totalWeight += weights.ml
+    effectiveScores.push(scores.ml.feedbackScore)
     contributingAlgorithms.push('ML')
     reasons.push(`ML: ${(scores.ml.feedbackScore * 100).toFixed(0)}% (${scores.ml.modelVersion})`)
   }
@@ -824,23 +875,25 @@ export function fuseAlgorithmResults(
     feedbackProbability *= 0.80
   }
 
-  // FIX-003: comb now included when active — fixes asymmetry where comb could
-  // flip verdict without confidence being aware of the score shift
-  // Note: 'existing' weight was fully removed (see FUSION_WEIGHTS comment)
-  const algorithmScoresList = [
-    scores.msd?.feedbackScore,
-    scores.phase?.feedbackScore,
-    scores.spectral?.feedbackScore,
-    scores.ihr?.feedbackScore,
-    scores.ptmr?.feedbackScore,
-    (scores.comb?.hasPattern ? scores.comb.confidence : undefined),
-    scores.ml?.isAvailable ? scores.ml.feedbackScore : undefined,
-  ].filter((s): s is number => s !== undefined && s !== null)
+  // 14.3: Apply post-gate calibration (identity by default — zero behavior change)
+  feedbackProbability = calibrateProbability(feedbackProbability, calibrationTable)
 
-  const mean     = algorithmScoresList.reduce((a, b) => a + b, 0) / algorithmScoresList.length
-  const variance = algorithmScoresList.reduce((sum, s) => sum + Math.pow(s - mean, 2), 0) / algorithmScoresList.length
+  // Agreement and confidence use effectiveScores (collected above) so that
+  // active algorithm filtering, phase suppression, and comb sweep penalties
+  // are reflected in both probability and confidence.
+  const mean     = effectiveScores.length > 0
+    ? effectiveScores.reduce((a, b) => a + b, 0) / effectiveScores.length
+    : 0
+  const variance = effectiveScores.length > 0
+    ? effectiveScores.reduce((sum, s) => sum + Math.pow(s - mean, 2), 0) / effectiveScores.length
+    : 0
   const agreement = 1 - Math.sqrt(variance)
-  const confidence = feedbackProbability * (0.5 + 0.5 * agreement)
+  // 14.8: Update agreement tracker and add persistence bonus to confidence
+  agreementTracker?.update(agreement)
+  const confidence = Math.min(
+    feedbackProbability * (0.5 + 0.5 * agreement) + (agreementTracker?.persistenceBonus ?? 0),
+    1,
+  )
 
   let verdict: FusedDetectionResult['verdict']
   if (feedbackProbability >= config.feedbackThreshold && confidence >= 0.6) {

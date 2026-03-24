@@ -168,10 +168,15 @@ export class TrackManager {
       this.tracks.delete(id)
     }
 
-    // Also limit total tracks
+    // Also limit total tracks — evict by quality-weighted staleness score.
+    // High-confidence tracks (high prominence, high Q, stable pitch) survive longer.
     if (this.tracks.size > this.maxTracks) {
       const sorted = Array.from(this.tracks.values())
-        .sort((a, b) => a.lastUpdateTime - b.lastUpdateTime)
+        .sort((a, b) => {
+          const scoreA = this._evictionScore(a, currentTime)
+          const scoreB = this._evictionScore(b, currentTime)
+          return scoreB - scoreA // highest eviction score first
+        })
 
       const toRemove = sorted.slice(0, this.tracks.size - this.maxTracks)
       for (const track of toRemove) {
@@ -193,6 +198,29 @@ export class TrackManager {
   }
 
   // ==================== Private Methods ====================
+
+  /**
+   * Compute eviction score for overflow pruning.
+   * Higher score = more likely to be evicted.
+   *
+   * evictionScore = staleness - clarity * 0.5
+   *
+   * staleness: (now - lastUpdateTime) / trackTimeoutMs, normalised 0..1+
+   * clarity:   average of normalised prominence, Q, and pitch stability
+   *
+   * This preserves high-confidence feedback tracks (high prominence,
+   * narrow Q, stable pitch) longer than low-quality transient tracks.
+   */
+  private _evictionScore(track: Track, now: number): number {
+    const staleness = (now - track.lastUpdateTime) / this.trackTimeoutMs
+
+    const normProminence = Math.min(Math.max(track.prominenceDb / 30, 0), 1)
+    const normQ = Math.min(track.qEstimate, 50) / 50
+    const normStability = 1 - Math.min(track.features.stabilityCentsStd, 100) / 100
+    const clarity = (normProminence + normQ + normStability) / 3
+
+    return staleness - clarity * 0.5
+  }
 
   private _rebuildActiveCache(): void {
     this._activeTracksCache = Array.from(this.tracks.values()).filter(t => t.isActive)

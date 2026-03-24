@@ -321,15 +321,16 @@ export const AlgorithmsTab = memo(function AlgorithmsTab() {
             </div>
             <div className="bg-background/80 px-3 py-2 rounded font-mono text-sm border border-border/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)] space-y-0.5">
               <p className="text-foreground font-semibold">Confidence Calculation</p>
-              <p>confidence = agreement · P<sub>feedback</sub> + (1 - agreement) · 0.5</p>
-              <p className="mt-1 text-muted-foreground">When algorithms disagree, confidence regresses toward 0.5 (maximum uncertainty).</p>
+              <p>confidence = P<sub>feedback</sub> · (0.5 + 0.5 · agreement) + persistenceBonus</p>
+              <p className="mt-1 text-muted-foreground">High agreement amplifies confidence toward P<sub>feedback</sub>. Low agreement halves it. Persistence bonus rewards sustained detections.</p>
             </div>
             <div className="bg-background/80 px-3 py-2 rounded font-mono text-sm border border-border/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)] space-y-0.5">
               <p className="text-foreground font-semibold">Verdict Thresholds</p>
-              <p>FEEDBACK:     P ≥ 0.65 AND confidence ≥ 0.6</p>
-              <p>POSSIBLE:     P ≥ 0.46 AND confidence ≥ 0.4</p>
+              <p>FEEDBACK:     P ≥ T AND confidence ≥ 0.6</p>
+              <p>POSSIBLE:     P ≥ 0.7·T AND confidence ≥ 0.4</p>
               <p>NOT_FEEDBACK: P &lt; 0.30 AND confidence ≥ 0.6</p>
               <p>UNCERTAIN:    all other cases</p>
+              <p className="mt-1 text-muted-foreground">T = feedbackThreshold (default 0.60, configurable per mode)</p>
             </div>
             <div className="bg-background/80 px-3 py-2 rounded font-mono text-sm border border-border/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
               <p className="text-foreground font-semibold">Comb Pattern Boost (Flaw 6 Fix)</p>

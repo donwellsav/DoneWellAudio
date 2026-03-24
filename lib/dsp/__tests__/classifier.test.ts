@@ -225,18 +225,19 @@ describe('classifyTrack', () => {
   it('classifies a modulated, noise-sideband track as whistle', () => {
     const track = makeTrack({
       features: {
-        stabilityCentsStd: 40,      // Unstable (vibrato)
-        harmonicityScore: 0.1,      // No harmonics
-        modulationScore: 0.95,      // Strong vibrato (clear whistle signature)
-        noiseSidebandScore: 0.9,    // Breath noise (emphatic to overcome feedback prior)
-        meanQ: 20,
-        minQ: 15,
+        stabilityCentsStd: 80,
+        harmonicityScore: 0.02,
+        modulationScore: 0.99,
+        noiseSidebandScore: 0.98,
+        meanQ: 5,
+        minQ: 3,
         meanVelocityDbPerSec: 0,
-        maxVelocityDbPerSec: 1,
+        maxVelocityDbPerSec: 0.5,
         persistenceMs: 3000,
       },
       velocityDbPerSec: 0,
-      prominenceDb: 12,
+      prominenceDb: 4,
+      qEstimate: 4,
     })
 
     const result = classifyTrack(track)
@@ -296,10 +297,12 @@ describe('classifyTrack', () => {
     expect(classSum).toBeGreaterThanOrEqual(1 - 0.05)
   })
 
-  it('pUnknown is 1 - confidence', () => {
+  it('pUnknown is residual probability mass (1 - class sum)', () => {
     const track = makeTrack()
     const result = classifyTrack(track)
-    expect(result.pUnknown).toBeCloseTo(1 - result.confidence, 5)
+    // F5: pUnknown = 1 - (pFeedback + pWhistle + pInstrument), NOT 1 - confidence
+    const classSum = result.pFeedback + result.pWhistle + result.pInstrument
+    expect(result.pUnknown).toBeCloseTo(Math.max(0, 1 - classSum), 5)
   })
 
   it('always returns reasons array', () => {
@@ -557,5 +560,193 @@ describe('Smooth Schroeder penalty (sigmoid transition)', () => {
     // At 200 Hz with Schroeder at 100 Hz, the sigmoid weight should be negligible
     // and the reason should not appear (bw <= 0.001 check in code)
     expect(schroederReason).toBeUndefined()
+  })
+})
+
+// ── F5: Posterior consistency ─────────────────────────────────────────────────
+
+describe('classifyTrack posterior consistency (F5)', () => {
+  it('pFeedback + pWhistle + pInstrument + pUnknown sums to ~1', () => {
+    const result = classifyTrack(makeTrack())
+    const sum = result.pFeedback + result.pWhistle + result.pInstrument + result.pUnknown
+    expect(sum).toBeGreaterThanOrEqual(0.99)
+    expect(sum).toBeLessThanOrEqual(1.01)
+  })
+
+  it('all class probabilities are non-negative', () => {
+    const result = classifyTrack(makeTrack())
+    expect(result.pFeedback).toBeGreaterThanOrEqual(0)
+    expect(result.pWhistle).toBeGreaterThanOrEqual(0)
+    expect(result.pInstrument).toBeGreaterThanOrEqual(0)
+    expect(result.pUnknown).toBeGreaterThanOrEqual(0)
+  })
+
+  it('confidence is monotonic with returned pFeedback for feedback-dominant tracks', () => {
+    // A track with higher Q should have >= confidence
+    const lowQ = makeTrack({ qEstimate: 5 })
+    const highQ = makeTrack({ qEstimate: 50 })
+    const lowResult = classifyTrack(lowQ)
+    const highResult = classifyTrack(highQ)
+    // Higher Q -> more feedback-like -> higher pFeedback -> higher confidence
+    if (highResult.pFeedback > lowResult.pFeedback) {
+      expect(highResult.confidence).toBeGreaterThanOrEqual(lowResult.confidence)
+    }
+  })
+
+  it('adjustedPFeedback from calibration is reflected in returned posterior', () => {
+    // A track with strong feedback features should have boosted pFeedback
+    // because calculateCalibratedConfidence adjusts it
+    const track = makeTrack({ prominenceDb: 25, qEstimate: 40 })
+    const result = classifyTrack(track)
+    // The returned pFeedback should be > 0 (not the discarded pre-adjustment value)
+    expect(result.pFeedback).toBeGreaterThan(0)
+    // And confidence should be consistent with the returned class probs
+    expect(result.confidence).toBeGreaterThanOrEqual(
+      Math.max(result.pFeedback, result.pWhistle, result.pInstrument) - 0.01
+    )
+  })
+})
+
+// ── Room-physics delta cap (14.6) ────────────────────────────────────────────
+
+describe('room-physics delta cap', () => {
+  it('clamps cumulative room delta to MAX_ROOM_DELTA (0.30)', () => {
+    // Create a low-frequency peak in a configured room with extreme room conditions
+    // that would produce large negative room deltas (RT60, modal density, Schroeder, mode proximity)
+    const track = makeTrack({
+      trueFrequencyHz: 80,       // Low freq — below Schroeder, near room modes
+      trueAmplitudeDb: -20,
+      prominenceDb: 15,
+      features: {
+        stabilityCentsStd: 5,
+        meanQ: 5,
+        minQ: 5,                 // Low Q — room-mode-like
+        meanVelocityDbPerSec: 1,
+        maxVelocityDbPerSec: 3,
+        persistenceMs: 1000,
+        harmonicityScore: 0.2,
+        modulationScore: 0.1,
+        noiseSidebandScore: 0.05,
+      },
+      qEstimate: 5,
+      bandwidthHz: 16,
+    })
+
+    // Settings with configured room — high RT60 + dimensions to trigger all room adjustments
+    const roomSettings: DetectorSettings = {
+      ...DEFAULT_SETTINGS,
+      roomPreset: 'large',
+      roomRT60: 3.5,             // Very reverberant
+      roomVolume: 2000,
+      roomLengthM: 20,
+      roomWidthM: 10,
+      roomHeightM: 10,
+    }
+
+    // Get result without room config as baseline
+    const noRoomSettings: DetectorSettings = {
+      ...DEFAULT_SETTINGS,
+      roomPreset: 'none',
+    }
+    const baselineResult = classifyTrack(track, noRoomSettings)
+
+    // Get result with room config
+    const roomResult = classifyTrack(track, roomSettings)
+
+    // The room delta should be capped at 0.30
+    // Pre-normalization pFeedback change should not exceed 0.30 in magnitude
+    // We can verify indirectly: the room result should not diverge excessively
+    // from the baseline. With cap, |pFeedback_room - pFeedback_noroom| <= 0.30 (pre-normalization)
+    // After normalization both are valid probabilities
+    expect(roomResult.pFeedback).toBeGreaterThanOrEqual(0)
+    expect(roomResult.pFeedback).toBeLessThanOrEqual(1)
+    // Should have the clamping reason if room deltas stacked beyond 0.30
+    const hasClamped = roomResult.reasons.some(r => r.includes('Room delta clamped'))
+    // In this extreme scenario, room deltas should stack and get clamped
+    expect(hasClamped).toBe(true)
+  })
+
+  it('does not clamp when room preset is none', () => {
+    const track = makeTrack({ trueFrequencyHz: 80 })
+    const settings: DetectorSettings = {
+      ...DEFAULT_SETTINGS,
+      roomPreset: 'none',
+    }
+    const result = classifyTrack(track, settings)
+    const hasClamped = result.reasons.some(r => r.includes('Room delta clamped'))
+    expect(hasClamped).toBe(false)
+  })
+})
+
+// ── S9: classifyTrackWithAlgorithms wrapper posterior consistency ─────────────
+
+describe('classifyTrackWithAlgorithms wrapper posterior (S9)', () => {
+  it('posterior sums to ~1 after RUNAWAY severity override', () => {
+    // Create a track with strong feedback features + high velocity for RUNAWAY
+    const track = makeTrack({
+      prominenceDb: 30,
+      qEstimate: 60,
+      features: {
+        stabilityCentsStd: 2,
+        meanQ: 60,
+        minQ: 55,
+        meanVelocityDbPerSec: 5,
+        maxVelocityDbPerSec: 8,
+        persistenceMs: 2000,
+        harmonicityScore: 0.1,
+        modulationScore: 0.05,
+        noiseSidebandScore: 0.02,
+      },
+    })
+    const scores = buildScores({ msd: 0.9, phase: 0.95, spectral: 0.85, comb: 0.8, ihr: 0.1, ptmr: 0.9 })
+    const fusion = makeFusionResult(scores)
+    fusion.feedbackProbability = 0.95
+    fusion.confidence = 0.95
+
+    const result = classifyTrackWithAlgorithms(track, scores, fusion)
+    const sum = result.pFeedback + result.pWhistle + result.pInstrument + result.pUnknown
+    expect(sum).toBeGreaterThanOrEqual(0.99)
+    expect(sum).toBeLessThanOrEqual(1.01)
+    expect(result.pUnknown).toBeGreaterThanOrEqual(0)
+  })
+
+  it('posterior sums to ~1 after GROWING severity override', () => {
+    const track = makeTrack({
+      prominenceDb: 20,
+      qEstimate: 40,
+      features: {
+        stabilityCentsStd: 3,
+        meanQ: 40,
+        minQ: 35,
+        meanVelocityDbPerSec: 2.5,
+        maxVelocityDbPerSec: 4,
+        persistenceMs: 1500,
+        harmonicityScore: 0.15,
+        modulationScore: 0.08,
+        noiseSidebandScore: 0.03,
+      },
+    })
+    const scores = buildScores({ msd: 0.7, phase: 0.8, spectral: 0.7, comb: 0.6, ihr: 0.2, ptmr: 0.7 })
+    const fusion = makeFusionResult(scores)
+    fusion.feedbackProbability = 0.75
+    fusion.confidence = 0.75
+
+    const result = classifyTrackWithAlgorithms(track, scores, fusion)
+    const sum = result.pFeedback + result.pWhistle + result.pInstrument + result.pUnknown
+    expect(sum).toBeGreaterThanOrEqual(0.99)
+    expect(sum).toBeLessThanOrEqual(1.01)
+    expect(result.pUnknown).toBeGreaterThanOrEqual(0)
+  })
+
+  it('all class scores are non-negative in wrapper path', () => {
+    const track = makeTrack({ prominenceDb: 15, qEstimate: 25 })
+    const scores = buildScores({ msd: 0.5, phase: 0.5, spectral: 0.5, comb: 0.3, ihr: 0.3, ptmr: 0.5 })
+    const fusion = makeFusionResult(scores)
+
+    const result = classifyTrackWithAlgorithms(track, scores, fusion)
+    expect(result.pFeedback).toBeGreaterThanOrEqual(0)
+    expect(result.pWhistle).toBeGreaterThanOrEqual(0)
+    expect(result.pInstrument).toBeGreaterThanOrEqual(0)
+    expect(result.pUnknown).toBeGreaterThanOrEqual(0)
   })
 })

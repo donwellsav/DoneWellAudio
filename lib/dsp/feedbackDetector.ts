@@ -1,7 +1,7 @@
 // DoneWell Audio Feedback Detector - Core DSP engine for peak detection
 // Adapted from FeedbackDetector.js with TypeScript and enhancements
 
-import { A_WEIGHTING, MIC_CALIBRATION_PROFILES, EXP_LUT, HARMONIC_SETTINGS, MSD_SETTINGS, PERSISTENCE_SCORING, SIGNAL_GATE, HYSTERESIS, PHPR_SETTINGS, TEMPORAL_ENVELOPE } from './constants'
+import { A_WEIGHTING, MIC_CALIBRATION_PROFILES, EXP_LUT, HARMONIC_SETTINGS, MSD_SETTINGS, PERSISTENCE_SCORING, SIGNAL_GATE, HYSTERESIS, PHPR_SETTINGS } from './constants'
 import { 
   medianInPlace, 
   buildPrefixSum, 
@@ -13,7 +13,6 @@ import {
 import type { DetectedPeak, AnalysisConfig, DetectorSettings, AlgorithmMode, ContentType } from '@/types/advisory'
 import { DEFAULT_CONFIG } from '@/types/advisory'
 import type { CombPatternResult } from './advancedDetection'
-import { detectContentType } from './algorithmFusion'
 import { MSDPool } from './msdPool'
 
 const HOLD_DECAY_RATE_MULTIPLIER = 2
@@ -180,16 +179,8 @@ export class FeedbackDetector {
   // Advanced algorithm state — set externally by DSP pipeline, returned via getState()
   private _algorithmMode: AlgorithmMode | undefined = undefined
   private _contentType: ContentType | undefined = undefined
-  /** Rolling window of recent content type classifications for majority-vote smoothing.
-   *  10 slots × 500ms interval = 5-second smoothing window. Prevents single-frame flips. */
-  private _contentTypeHistory: ContentType[] = []
-  private static readonly CONTENT_TYPE_WINDOW = 10
-
-  // ── Temporal envelope buffer for speech/music discrimination ──────────
-  /** Ring buffer of per-frame energy (dB) for temporal analysis. */
-  private _energyBuffer: Float32Array = new Float32Array(TEMPORAL_ENVELOPE.BUFFER_SIZE)
-  private _energyBufferPos: number = 0
-  private _energyBufferFilled: boolean = false
+  // S7: Content-type detection moved to worker (temporal metrics + smoothing).
+  // _contentType is now set externally via setAlgorithmState().
   private _msdFrameCount: number | undefined = undefined
   private _isCompressed: boolean | undefined = undefined
   private _compressionRatio: number | undefined = undefined
@@ -437,10 +428,6 @@ export class FeedbackDetector {
     if (settings.feedbackThresholdDb !== undefined) {
       mappedConfig.relativeThresholdDb = settings.feedbackThresholdDb
     }
-    // NOTE: holdTimeMs is UI-side "how long to show advisory cards after peak clears"
-    // clearMs is DSP-side "how long to wait before declaring a peak dead"
-    // These are DIFFERENT concepts - holdTimeMs should NOT be mapped to clearMs
-    // The UI handles holdTimeMs display logic in AudioAnalyzer.tsx advisory rendering
     if (settings.eqPreset !== undefined) {
       mappedConfig.preset = settings.eqPreset
     }
@@ -522,10 +509,8 @@ export class FeedbackDetector {
     if (settings.thresholdMode !== undefined) {
       mappedConfig.thresholdMode = settings.thresholdMode
     }
-    // NOTE: relativeThresholdDb is NOT mapped here — it's controlled exclusively
-    // via feedbackThresholdDb (the UI slider) at line 385-386 above.
-    // DetectorSettings.relativeThresholdDb exists in presets but is legacy;
-    // the slider value is the single source of truth for this config field.
+    // NOTE: AnalysisConfig.relativeThresholdDb is driven exclusively by
+    // feedbackThresholdDb (the hero slider) mapped above — no separate UI control.
     if (settings.prominenceDb !== undefined) {
       mappedConfig.prominenceDb = settings.prominenceDb
     }
@@ -541,6 +526,13 @@ export class FeedbackDetector {
     // Whistle suppression
     if (settings.ignoreWhistle !== undefined) {
       mappedConfig.ignoreWhistle = settings.ignoreWhistle
+    }
+
+    // Mic calibration profile — compensates for microphone frequency response.
+    // Without this mapping, CalibrationTab and mobile auto-MEMS profile changes
+    // would not propagate to the detector via the normal updateSettings() path.
+    if (settings.micCalibrationProfile !== undefined) {
+      mappedConfig.micCalibrationProfile = settings.micCalibrationProfile
     }
 
     if (Object.keys(mappedConfig).length > 0) {
@@ -680,11 +672,7 @@ export class FeedbackDetector {
     this._msdPool?.reset()
     this._msdFrameCount = 0
     this._fastConfirmCounts.clear()
-    this._contentTypeHistory = []
     this._contentType = undefined
-    this._energyBuffer.fill(-100)
-    this._energyBufferPos = 0
-    this._energyBufferFilled = false
     
     // Reset persistence scoring
     if (this.persistenceCount) this.persistenceCount.fill(0)
@@ -694,43 +682,8 @@ export class FeedbackDetector {
     this._recentlyClearedBins.clear()
   }
 
-  /** Write a single energy sample to the temporal ring buffer. */
-  private _writeEnergyBuffer(db: number): void {
-    this._energyBuffer[this._energyBufferPos % TEMPORAL_ENVELOPE.BUFFER_SIZE] = db
-    this._energyBufferPos++
-    if (this._energyBufferPos >= TEMPORAL_ENVELOPE.BUFFER_SIZE) this._energyBufferFilled = true
-  }
-
-  /**
-   * Compute temporal envelope metrics from the energy ring buffer.
-   * Speech has high energy variance (silence gaps between words) and many quiet frames.
-   * Music has low energy variance (continuous signal) and few quiet frames.
-   * @returns Metrics for temporal scoring, or undefined if insufficient data.
-   */
-  private _computeTemporalMetrics(): { energyVariance: number; silenceGapRatio: number } | undefined {
-    const count = this._energyBufferFilled ? TEMPORAL_ENVELOPE.BUFFER_SIZE : this._energyBufferPos
-    if (count < TEMPORAL_ENVELOPE.MIN_FRAMES) return undefined
-
-    const buf = this._energyBuffer
-    let sum = 0
-    let silentFrames = 0
-    for (let i = 0; i < count; i++) {
-      sum += buf[i]
-      if (buf[i] < this._silenceThresholdDb) silentFrames++
-    }
-    const mean = sum / count
-
-    let varianceSum = 0
-    for (let i = 0; i < count; i++) {
-      const d = buf[i] - mean
-      varianceSum += d * d
-    }
-
-    return {
-      energyVariance: varianceSum / count,
-      silenceGapRatio: silentFrames / count,
-    }
-  }
+  // S7: _writeEnergyBuffer() and _computeTemporalMetrics() removed.
+  // Temporal envelope analysis now runs in the worker (AlgorithmEngine.updateContentType).
 
   private computeAWeightingTable(): void {
     const table = this.aWeightingTable
@@ -971,42 +924,7 @@ export class FeedbackDetector {
     // counts near 1 even when the system has been analyzing for seconds.
     this._msdFrameCount = Math.min(this._analyzeCallCount, this._msdPool ? MSD_SETTINGS.HISTORY_SIZE : 0)
 
-    // Content type detection — throttled to every ~500ms (25 frames at 50fps).
-    // Runs on the main thread so it works even when no peaks are detected
-    // (speech without feedback produces no peaks → worker never classifies).
-    if (this._analyzeCallCount % 25 === 1) {
-      const freqDb = this.freqDb!
-      let specMax = -Infinity
-      let sumLinear = 0
-      let validBins = 0
-      for (let i = this.startBin; i <= this.endBin; i++) {
-        const v = freqDb[i]
-        if (Number.isFinite(v)) {
-          if (v > specMax) specMax = v
-          sumLinear += Math.pow(10, v / 10)
-          validBins++
-        }
-      }
-      if (validBins > 0 && specMax > this._silenceThresholdDb) {
-        const rmsDb = 10 * Math.log10(sumLinear / validBins)
-        const crestFactor = specMax - rmsDb
-        const temporalMetrics = this._computeTemporalMetrics()
-        const instantType = detectContentType(freqDb, crestFactor, temporalMetrics)
-
-        // Majority-vote smoothing: push to ring buffer, pick most frequent non-'unknown'
-        this._contentTypeHistory.push(instantType)
-        if (this._contentTypeHistory.length > FeedbackDetector.CONTENT_TYPE_WINDOW) {
-          this._contentTypeHistory.shift()
-        }
-        const counts: Record<string, number> = {}
-        for (const t of this._contentTypeHistory) {
-          if (t !== 'unknown') counts[t] = (counts[t] ?? 0) + 1
-        }
-        const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]
-        // Need at least 3 agreeing non-unknown votes to commit to a classification
-        this._contentType = best && best[1] >= 3 ? best[0] as ContentType : (this._contentType ?? 'unknown')
-      }
-    }
+    // Content-type detection now handled by worker via spectrumUpdate messages.
 
     if (debugPerf) {
       const t3 = performance.now()
@@ -1094,7 +1012,6 @@ export class FeedbackDetector {
 
       // When no signal present, skip peak detection. Noise floor continues tracking.
       if (!this._isSignalPresent) {
-        this._writeEnergyBuffer(rawPeak)
         this._clearStalePeaksOnSilence(dt, now)
         return false
       }
@@ -1110,13 +1027,10 @@ export class FeedbackDetector {
       this._rawPeakDb = rawPeak
       this._isSignalPresent = rawPeak >= this._silenceThresholdDb
       if (!this._isSignalPresent) {
-        this._writeEnergyBuffer(rawPeak)
         this._clearStalePeaksOnSilence(dt, now)
         return false
       }
     }
-
-    this._writeEnergyBuffer(this._rawPeakDb)
     return true
   }
 

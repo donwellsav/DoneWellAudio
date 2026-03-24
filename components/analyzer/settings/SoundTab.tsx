@@ -158,41 +158,6 @@ export const SoundTab = memo(function SoundTab({
       {/* ═══ SECTION: Detection ═══ */}
       <ChannelSection title="Detection" defaultOpen>
         <div className="space-y-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm text-muted-foreground">Auto Music-Aware</span>
-              {settings.showTooltips && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="w-3 h-3 text-muted-foreground/70 hover:text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="max-w-[260px] text-sm">
-                    Auto-activates when signal rises {settings.autoMusicAwareHysteresisDb}dB above noise floor.
-                  </TooltipContent>
-                </Tooltip>
-              )}
-              {settings.autoMusicAware && (
-                <span className={`px-1 py-px rounded text-xs font-medium border leading-4 ${settings.musicAware ? 'bg-primary/10 border-primary/40 text-primary' : 'bg-muted border-border text-muted-foreground'}`}>
-                  {settings.musicAware ? 'ON' : 'OFF'}
-                </span>
-              )}
-            </div>
-            <LEDToggle
-              checked={settings.autoMusicAware}
-              onChange={(checked) => onSettingsChange({ autoMusicAware: checked })}
-              label=""
-              color="amber"
-              className="w-auto"
-            />
-          </div>
-
-          {settings.autoMusicAware && (
-            <ConsoleSlider label="MA Trigger" value={`${settings.autoMusicAwareHysteresisDb}dB`}
-              tooltip={settings.showTooltips ? 'Signal level above noise floor that triggers music-aware mode.' : undefined}
-              min={5} max={30} step={1} sliderValue={settings.autoMusicAwareHysteresisDb}
-              onChange={(v) => onSettingsChange({ autoMusicAwareHysteresisDb: v })} />
-          )}
-
           <ConsoleSlider label="Ring" value={`${settings.ringThresholdDb}dB`}
             tooltip={settings.showTooltips ? 'Resonance detection. 2-3 dB ring out/monitors, 4-5 dB normal, 6+ dB live music/outdoor.' : undefined}
             min={1} max={12} step={0.5} sliderValue={settings.ringThresholdDb}
@@ -239,8 +204,6 @@ export const SoundTab = memo(function SoundTab({
 
           <LEDToggle checked={settings.aWeightingEnabled} onChange={(checked) => onSettingsChange({ aWeightingEnabled: checked })} label="A-Weighting (IEC 61672-1)"
             tooltip={settings.showTooltips ? 'Apply IEC 61672-1 A-weighting curve. Emphasizes 1–5 kHz where hearing is most sensitive.' : undefined} />
-          <LEDToggle checked={settings.harmonicFilterEnabled} onChange={(checked) => onSettingsChange({ harmonicFilterEnabled: checked })} label="Harmonic Filter"
-            tooltip={settings.showTooltips ? 'Filter harmonic series to reduce false positives from instruments and voices.' : undefined} />
           <LEDToggle checked={settings.ignoreWhistle} onChange={(checked) => onSettingsChange({ ignoreWhistle: checked })} label="Ignore Whistle"
             tooltip={settings.showTooltips ? 'Suppress alerts from deliberate whistling or single-tone test signals.' : undefined} />
         </div>
@@ -258,11 +221,6 @@ export const SoundTab = memo(function SoundTab({
             tooltip={settings.showTooltips ? 'How fast resolved issues disappear.' : undefined}
             min={100} max={2000} step={50} sliderValue={settings.clearMs}
             onChange={(v) => onSettingsChange({ clearMs: v })} />
-
-          <ConsoleSlider label="Hold" value={`${(settings.holdTimeMs / 1000).toFixed(1)}s`}
-            tooltip={settings.showTooltips ? 'How long feedback stays flagged. 0.5-1s fast, 2-3s relaxed.' : undefined}
-            min={500} max={5000} step={100} sliderValue={settings.holdTimeMs}
-            onChange={(v) => onSettingsChange({ holdTimeMs: v })} />
 
           <ConsoleSlider label="Max Issues" value={`${settings.maxDisplayedIssues}`}
             tooltip={settings.showTooltips ? 'How many feedback issues display at once.' : undefined}
@@ -299,14 +257,14 @@ export const SoundTab = memo(function SoundTab({
               }`}
             >Auto</button>
             <div className={`grid grid-cols-3 gap-1 ${settings.algorithmMode === 'auto' ? 'pointer-events-none' : ''}`}>
-              {([['msd', 'MSD'], ['phase', 'Phase'], ['spectral', 'Spectral'], ['comb', 'Comb'], ['ihr', 'IHR'], ['ptmr', 'PTMR']] as const).map(([key, label]) => {
+              {([['msd', 'MSD'], ['phase', 'Phase'], ['spectral', 'Spectral'], ['comb', 'Comb'], ['ihr', 'IHR'], ['ptmr', 'PTMR'], ['ml', 'ML']] as const).map(([key, label]) => {
                 const isAuto = settings.algorithmMode === 'auto'
                 const enabled = isAuto || (settings.enabledAlgorithms?.includes(key) ?? true)
                 return (
                   <button key={key}
                     onClick={() => {
                       if (isAuto) return
-                      const current = settings.enabledAlgorithms ?? ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr']
+                      const current = settings.enabledAlgorithms ?? ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml']
                       let next: Algorithm[]
                       if (enabled) { next = current.filter(a => a !== key); if (next.length === 0) { onSettingsChange({ algorithmMode: 'auto' as AlgorithmMode }); return } }
                       else { next = [...current, key] }
@@ -326,9 +284,6 @@ export const SoundTab = memo(function SoundTab({
           {/* Noise Floor */}
           <div className="space-y-1 pt-1 panel-groove">
             <span className="section-label text-muted-foreground">Noise Floor</span>
-            <ConsoleSlider label="Decay Rate" value={settings.noiseFloorDecay.toFixed(3)}
-              min={0.90} max={0.999} step={0.005} sliderValue={settings.noiseFloorDecay}
-              onChange={(v) => onSettingsChange({ noiseFloorDecay: v })} />
             <ConsoleSlider label="Attack" value={`${settings.noiseFloorAttackMs}ms`}
               min={50} max={1000} step={25} sliderValue={settings.noiseFloorAttackMs}
               onChange={(v) => onSettingsChange({ noiseFloorAttackMs: v })} />
@@ -356,10 +311,6 @@ export const SoundTab = memo(function SoundTab({
                 </SelectContent>
               </Select>
             </Section>
-
-            <ConsoleSlider label="Relative Threshold" value={`${settings.relativeThresholdDb}dB`}
-              min={6} max={30} step={1} sliderValue={settings.relativeThresholdDb}
-              onChange={(v) => onSettingsChange({ relativeThresholdDb: v })} />
 
             <ConsoleSlider label="Prominence" value={`${settings.prominenceDb}dB`}
               min={4} max={30} step={1} sliderValue={settings.prominenceDb}

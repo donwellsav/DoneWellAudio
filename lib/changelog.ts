@@ -14,6 +14,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.14.0',
+    date: '2026-03-24',
+    highlights: 'Control surface cleanup + worker-owned content-type + hot-path test harness',
+    changes: [
+      { type: 'fix', description: 'Fix mic calibration bridge gap — updateSettings() now maps micCalibrationProfile to updateConfig()' },
+      { type: 'fix', description: 'Fix wrapper posterior divergence — classifyTrackWithAlgorithms() renormalizes after severity overrides' },
+      { type: 'refactor', description: 'Remove 8 dead controls: musicAware, autoMusicAware, autoMusicAwareHysteresisDb, noiseFloorDecay, harmonicFilterEnabled, holdTimeMs, quickControlsMode, relativeThresholdDb UI slider' },
+      { type: 'fix', description: 'Fix peakMergeCents default from 1000 to 100 (synced with ASSOCIATION_TOLERANCE_CENTS)' },
+      { type: 'ui', description: 'Room preset selector now discloses sensitivity coupling' },
+      { type: 'feat', description: 'ML (ONNX) toggle added to custom algorithm mode across all 4 UI surfaces' },
+      { type: 'refactor', description: 'Classifier comments updated from Bayesian language to confidence scores; AlgorithmsTab help text synced with runtime formulas' },
+      { type: 'feat', description: 'Content-type detection moved to worker thread with periodic spectrum feed independent of peak backpressure' },
+      { type: 'feat', description: 'Hot-path test harness: 27 new tests covering analyze() pipeline (silence gate, prominence, sustain, PHPR, Q, persistence)' },
+    ],
+  },
+  {
     version: '0.8.1',
     date: '2026-03-23',
     changes: [

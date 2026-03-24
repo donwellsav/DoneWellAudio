@@ -396,9 +396,6 @@ export interface ModePreset {
   feedbackThresholdDb: number
   ringThresholdDb: number
   growthRateThreshold: number
-  // Content awareness
-  musicAware: boolean
-  autoMusicAware: boolean
   // Analysis parameters
   fftSize: 4096 | 8192 | 16384
   minFrequency: number
@@ -406,7 +403,6 @@ export interface ModePreset {
   // Timing
   sustainMs: number
   clearMs: number
-  holdTimeMs: number
   // Sensitivity
   confidenceThreshold: number
   prominenceDb: number
@@ -433,14 +429,11 @@ export const OPERATION_MODES: Record<string, ModePreset> = {
     feedbackThresholdDb: 27, // Conservative — reduces HVAC/ambient FP in conference rooms
     ringThresholdDb: 5,      // Proven value — filters HVAC/ambient without missing genuine resonances
     growthRateThreshold: 1.0,
-    musicAware: false,
-    autoMusicAware: false,
     fftSize: 8192,           // 5.9 Hz resolution, 170 ms time constant at 48 kHz
     minFrequency: 150,       // Extended for chest-resonance body mics
     maxFrequency: 10000,     // Catches condenser sibilance feedback in 8–10 kHz range
     sustainMs: 300,          // 300 ms — filters plosives/transients while still catching real feedback
     clearMs: 400,            // Slightly longer decay reduces display flicker
-    holdTimeMs: 4000,        // Long hold — time to walk to EQ rack during load-in
     confidenceThreshold: 0.35, // Catches early quiet feedback while filtering noise
     prominenceDb: 8,         // Lowered to catch quieter peaks with MSD confirmation
     eqPreset: 'surgical',   // Narrow cuts preserve speech clarity
@@ -463,14 +456,11 @@ export const OPERATION_MODES: Record<string, ModePreset> = {
     feedbackThresholdDb: 35, // Reverberant — reflections cause many false positives
     ringThresholdDb: 5,
     growthRateThreshold: 2.0,
-    musicAware: true,
-    autoMusicAware: true,    // Auto-switch when worship band starts/stops
     fftSize: 8192,
     minFrequency: 100,       // Organ and piano extend low
     maxFrequency: 12000,     // Cymbals and choir harmonics
     sustainMs: 280,          // Tightened for load-in — reverb decay still handled
     clearMs: 500,            // Slower clearing in reverberant environment
-    holdTimeMs: 4000,        // Long hold in reverberant space
     confidenceThreshold: 0.45, // Slightly more aggressive — surface more during setup
     prominenceDb: 12,        // Lowered to catch quieter resonances during load-in
     eqPreset: 'surgical',   // Narrow cuts avoid coloring worship music
@@ -493,14 +483,11 @@ export const OPERATION_MODES: Record<string, ModePreset> = {
     feedbackThresholdDb: 42, // Most conservative — high SPL, harmonic content causes false positives
     ringThresholdDb: 8,
     growthRateThreshold: 4.0,
-    musicAware: true,
-    autoMusicAware: false,   // Always music-aware in this mode
     fftSize: 4096,           // Fast 85 ms time response for dynamic transients
     minFrequency: 60,        // Full range for bass/sub instruments
     maxFrequency: 16000,     // Full range for cymbals, brass harmonics
     sustainMs: 350,          // Tightened for load-in — still avoids musical transients
     clearMs: 600,            // Slow clearing for sustained musical content
-    holdTimeMs: 3000,        // Extended — time to walk to EQ during sound check
     confidenceThreshold: 0.55, // Slightly more sensitive for load-in discovery
     prominenceDb: 14,        // Lowered to catch resonances in empty venue
     eqPreset: 'heavy',      // Wider cuts for emergency feedback killing
@@ -522,14 +509,11 @@ export const OPERATION_MODES: Record<string, ModePreset> = {
     feedbackThresholdDb: 28, // Treated theater — between speech and reverberant environments
     ringThresholdDb: 4,
     growthRateThreshold: 1.5,
-    musicAware: true,
-    autoMusicAware: true,    // Auto-detect when orchestra starts/stops
     fftSize: 8192,
     minFrequency: 150,       // Body mic range with proximity effect
     maxFrequency: 10000,     // Extended for sibilance from lavaliers
     sustainMs: 250,          // Require ¼ second persistence — reduces transient false positives
     clearMs: 400,            // Standard clearing
-    holdTimeMs: 4000,        // Extended — time to walk to EQ during load-in
     confidenceThreshold: 0.40, // More aggressive — surface more during setup
     prominenceDb: 10,        // Lowered to catch quieter resonances in empty theater
     eqPreset: 'surgical',   // Narrow cuts preserve dialogue clarity
@@ -552,14 +536,11 @@ export const OPERATION_MODES: Record<string, ModePreset> = {
     feedbackThresholdDb: 15, // Stage — fast detection, but less false positives from stage noise
     ringThresholdDb: 3,
     growthRateThreshold: 0.8,
-    musicAware: false,       // Monitor feedback is priority over music discrimination
-    autoMusicAware: false,
     fftSize: 4096,           // Fastest time response for instant detection
     minFrequency: 200,       // Monitor feedback typically mid-range
     maxFrequency: 6000,      // Most monitor feedback is mid-range
     sustainMs: 250,          // Require ¼ second persistence — reduces transient false positives
     clearMs: 300,            // Fast clearing
-    holdTimeMs: 3000,        // Extended — time to walk to EQ during load-in
     confidenceThreshold: 0.35, // More aggressive — surface everything during ring-out
     prominenceDb: 8,         // Lowered to catch subtler resonances during setup
     eqPreset: 'surgical',   // Narrow notches preserve monitor clarity
@@ -581,14 +562,11 @@ export const OPERATION_MODES: Record<string, ModePreset> = {
     feedbackThresholdDb: 27, // Calibration — conservative default, adjustable via slider/RTA drag
     ringThresholdDb: 2,
     growthRateThreshold: 0.5,
-    musicAware: false,
-    autoMusicAware: false,
     fftSize: 16384,          // Maximum frequency resolution (2.93 Hz at 48 kHz)
     minFrequency: 60,        // Full range analysis
     maxFrequency: 16000,     // Full range
     sustainMs: 250,          // Require ¼ second persistence — reduces transient false positives
     clearMs: 300,            // Fast clearing
-    holdTimeMs: 5000,        // Long hold for reference during EQ adjustments
     confidenceThreshold: 0.30, // Surface everything
     prominenceDb: 8,         // Very low prominence threshold
     eqPreset: 'surgical',   // Precise notch placement
@@ -611,14 +589,11 @@ export const OPERATION_MODES: Record<string, ModePreset> = {
     feedbackThresholdDb: 22, // Quiet studio — more sensitive than speech, low noise floor
     ringThresholdDb: 3,
     growthRateThreshold: 1.0,
-    musicAware: false,
-    autoMusicAware: false,
     fftSize: 8192,
     minFrequency: 80,        // Extended low for proximity effect on broadcast mics
     maxFrequency: 12000,     // Broadcast audio extends higher than speech
     sustainMs: 250,          // Require ¼ second persistence — reduces transient false positives
     clearMs: 350,            // Fast clearing
-    holdTimeMs: 4000,        // Extended — time to walk to EQ during setup
     confidenceThreshold: 0.30, // Very aggressive — surface everything in quiet studio
     prominenceDb: 8,         // Lowered to catch subtle resonances in treated room
     eqPreset: 'surgical',   // Precise cuts for broadcast quality
@@ -642,14 +617,11 @@ export const OPERATION_MODES: Record<string, ModePreset> = {
     feedbackThresholdDb: 38, // Conservative — wind and ambient noise cause false positives
     ringThresholdDb: 6,
     growthRateThreshold: 2.5,
-    musicAware: false,       // User enables if music present
-    autoMusicAware: false,
     fftSize: 4096,           // Fast time response for dynamic outdoor conditions
     minFrequency: 100,       // Above wind rumble range
     maxFrequency: 12000,     // Reduced HF due to atmospheric absorption
     sustainMs: 250,          // Tightened for load-in — less ambient during setup
     clearMs: 450,            // Moderate clearing
-    holdTimeMs: 3500,        // Extended — time to walk to EQ during load-in
     confidenceThreshold: 0.45, // Slightly more aggressive — less ambient during setup
     prominenceDb: 12,        // Lowered — quieter environment during load-in
     eqPreset: 'heavy',      // Wider cuts for outdoor PA
@@ -674,14 +646,9 @@ export const DEFAULT_SETTINGS: DetectorSettings = {
   feedbackThresholdDb: 25, // Balanced default — matches "Norm" preset, sweet spot for most venues
   ringThresholdDb: 5, // Proven default — filters HVAC/ambient without missing genuine resonances
   growthRateThreshold: 1.0, // Allows MSD analysis on slower-growing early feedback
-  holdTimeMs: 4000, // Long hold — time to walk to EQ rack during load-in
-  noiseFloorDecay: 0.98, // Fast adaptation for dynamic conference environments
-  peakMergeCents: 1000, // Minor seventh — merge nearby advisories into one wider-Q cut (real engineer practice). Track association stays at 100 cents for granular detection.
+  peakMergeCents: 100, // Semitone — synced with ASSOCIATION_TOLERANCE_CENTS and FREQUENCY_GROUPING_CENTS. UI range is 10-150.
   maxDisplayedIssues: 8, // Show more issues — don't hide potential problems
   eqPreset: 'surgical' as const, // Precise narrow cuts preserve speech clarity
-  musicAware: false, // Disabled — no music in corporate/conference
-  autoMusicAware: false, // Auto music-aware off for speech systems
-  autoMusicAwareHysteresisDb: 15, // 15 dB above noise floor = band is playing
   inputGainDb: 0, // Zero gain — modern interfaces deliver adequate signal
   autoGainEnabled: false, // Auto-gain off by default — user clicks venue pill to start calibration
   autoGainTargetDb: -18, // Target post-gain peak level (-18 dBFS = 18 dB headroom, balanced for detection)
@@ -703,13 +670,12 @@ export const DEFAULT_SETTINGS: DetectorSettings = {
   // Based on DAFx-16, DBX, and KU Leuven research papers
   // TUNED FOR FAST DETECTION (accepts more false positives for speed)
   algorithmMode: 'auto' as const, // Content-adaptive algorithm selection
-  enabledAlgorithms: ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr'] as ('msd' | 'phase' | 'spectral' | 'comb' | 'ihr' | 'ptmr')[], // All on for custom mode
+  enabledAlgorithms: ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml'] as ('msd' | 'phase' | 'spectral' | 'comb' | 'ihr' | 'ptmr' | 'ml')[], // All on for custom mode
   showAlgorithmScores: false, // Hide advanced scores by default
   showPeqDetails: false, // Hide PEQ recommendation on cards by default
   showFreqZones: false, // Frequency zone overlay on RTA (Sub/Voice/Presence/Air)
   spectrumWarmMode: true, // Warm amber spectrum line (default on)
-  // Harmonic filter and room mode settings
-  harmonicFilterEnabled: true, // Enable harmonic series detection to filter instruments
+  // Room mode settings
   roomLengthM: 15, // Default room length — large ballroom (~50 ft)
   roomWidthM: 12, // Default room width — large ballroom (~40 ft)
   roomHeightM: 5, // Default ceiling height — ballroom (~16 ft)
@@ -719,7 +685,6 @@ export const DEFAULT_SETTINGS: DetectorSettings = {
   clearMs: 400, // Slightly longer decay reduces display flicker
   // Threshold control
   thresholdMode: 'hybrid' as const,
-  relativeThresholdDb: 30, // Matches feedbackThresholdDb — headroom above noise floor
   prominenceDb: 8, // Lowered to catch quieter peaks with MSD confirmation
   // Noise floor timing
   noiseFloorAttackMs: 200, // Fast attack for dynamic conference environments
@@ -734,7 +699,6 @@ export const DEFAULT_SETTINGS: DetectorSettings = {
   spectrumLineWidth: 0.5,
   showThresholdLine: true,
   canvasTargetFps: 15, // 15 fps saves CPU/GPU; sufficient for spectrum visualization on average devices
-  quickControlsMode: true, // Default to simplified controls for less overwhelming UX
   faderMode: 'sensitivity' as const, // Fader strip: 'gain' (input gain, white) or 'sensitivity' (threshold, blue)
   swipeLabeling: false, // Swipe-to-label on issue cards (off by default — opt-in feature)
 }

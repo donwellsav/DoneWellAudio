@@ -21,6 +21,9 @@ import {
   FUSION_WEIGHTS,
   DEFAULT_FUSION_CONFIG,
   COMB_CONSTANTS,
+  AgreementPersistenceTracker,
+  calibrateProbability,
+  IDENTITY_CALIBRATION,
 } from '../algorithmFusion'
 import type {
   AlgorithmScores,
@@ -28,7 +31,9 @@ import type {
   CombPatternResult,
   PTMRResult,
   MINDSResult,
+  CalibrationTable,
 } from '../algorithmFusion'
+import { buildScores } from '@/tests/helpers/mockAlgorithmScores'
 
 // ── detectCombPattern ──────────────────────────────────────────────────────
 
@@ -531,7 +536,7 @@ describe('fuseAlgorithmResults', () => {
   }
 
   it('returns FEEDBACK verdict for high-scoring algorithms', () => {
-    const result = fuseAlgorithmResults(feedbackScores(), 'unknown', 0.8)
+    const result = fuseAlgorithmResults(feedbackScores(), 'unknown')
     expect(result.verdict).toBe('FEEDBACK')
     expect(result.feedbackProbability).toBeGreaterThan(0.6)
     expect(result.confidence).toBeGreaterThan(0.5)
@@ -546,13 +551,13 @@ describe('fuseAlgorithmResults', () => {
     if (scores.ihr) scores.ihr.feedbackScore = 0.05
     if (scores.ptmr) scores.ptmr.feedbackScore = 0.05
 
-    const result = fuseAlgorithmResults(scores, 'unknown', 0.05)
+    const result = fuseAlgorithmResults(scores, 'unknown')
     expect(result.feedbackProbability).toBeLessThan(0.3)
     expect(['NOT_FEEDBACK', 'UNCERTAIN']).toContain(result.verdict)
   })
 
   it('lists contributing algorithms', () => {
-    const result = fuseAlgorithmResults(feedbackScores(), 'unknown', 0.5)
+    const result = fuseAlgorithmResults(feedbackScores(), 'unknown')
     expect(result.contributingAlgorithms).toContain('MSD')
     expect(result.contributingAlgorithms).toContain('Phase')
     // Legacy/existing weight removed — no longer contributes
@@ -564,13 +569,13 @@ describe('fuseAlgorithmResults', () => {
   })
 
   it('feedbackProbability stays in [0, 1]', () => {
-    const result = fuseAlgorithmResults(feedbackScores(), 'unknown', 1.0)
+    const result = fuseAlgorithmResults(feedbackScores(), 'unknown')
     expect(result.feedbackProbability).toBeGreaterThanOrEqual(0)
     expect(result.feedbackProbability).toBeLessThanOrEqual(1)
   })
 
   it('handles all-null scores gracefully', () => {
-    const result = fuseAlgorithmResults(emptyScores(), 'unknown', 0.5)
+    const result = fuseAlgorithmResults(emptyScores(), 'unknown')
     // No algorithms contribute (existing weight removed), probability should be 0
     expect(result.feedbackProbability).toBe(0)
     expect(result.feedbackProbability).toBeGreaterThanOrEqual(0)
@@ -578,7 +583,7 @@ describe('fuseAlgorithmResults', () => {
   })
 
   it('uses speech weights for speech content', () => {
-    const result = fuseAlgorithmResults(feedbackScores(), 'speech', 0.5)
+    const result = fuseAlgorithmResults(feedbackScores(), 'speech')
     // Speech mode upweights MSD (0.33 vs 0.30 default)
     expect(result.contributingAlgorithms).toContain('MSD')
   })
@@ -647,7 +652,7 @@ describe('confidence formula', () => {
   it('confidence = probability * (0.5 + 0.5 * agreement)', () => {
     // When all algorithms agree (uniform scores), variance=0 → agreement=1
     // confidence = probability * (0.5 + 0.5 * 1.0) = probability
-    const result = fuseAlgorithmResults(uniformScores(0.9), 'unknown', 0.9)
+    const result = fuseAlgorithmResults(uniformScores(0.9), 'unknown')
     // With uniform scores at 0.9, probability ≈ 0.9, agreement ≈ 1
     // So confidence ≈ probability
     expect(result.confidence).toBeGreaterThan(0.7)
@@ -655,7 +660,7 @@ describe('confidence formula', () => {
   })
 
   it('mixed scores produce lower confidence than uniform scores', () => {
-    const uniform = fuseAlgorithmResults(uniformScores(0.8), 'unknown', 0.8)
+    const uniform = fuseAlgorithmResults(uniformScores(0.8), 'unknown')
 
     // Create mixed scores — some high, some low
     const mixed = uniformScores(0.8)
@@ -664,7 +669,7 @@ describe('confidence formula', () => {
     if (mixed.spectral) mixed.spectral.feedbackScore = 0.7
     if (mixed.ihr) mixed.ihr.feedbackScore = 0.3
     if (mixed.ptmr) mixed.ptmr.feedbackScore = 0.9
-    const mixedResult = fuseAlgorithmResults(mixed, 'unknown', 0.5)
+    const mixedResult = fuseAlgorithmResults(mixed, 'unknown')
 
     // Higher variance → lower agreement → confidence scaled down toward 0.5 * probability
     expect(mixedResult.confidence).toBeLessThan(uniform.confidence)
@@ -701,17 +706,17 @@ describe('verdict boundaries', () => {
   }
 
   it('very low scores → NOT_FEEDBACK or UNCERTAIN', () => {
-    const result = fuseAlgorithmResults(uniformScores(0.05), 'unknown', 0.05)
+    const result = fuseAlgorithmResults(uniformScores(0.05), 'unknown')
     expect(['NOT_FEEDBACK', 'UNCERTAIN']).toContain(result.verdict)
   })
 
   it('very high scores → FEEDBACK', () => {
-    const result = fuseAlgorithmResults(uniformScores(0.95), 'unknown', 0.95)
+    const result = fuseAlgorithmResults(uniformScores(0.95), 'unknown')
     expect(result.verdict).toBe('FEEDBACK')
   })
 
   it('moderate scores → POSSIBLE_FEEDBACK or UNCERTAIN', () => {
-    const result = fuseAlgorithmResults(uniformScores(0.5), 'unknown', 0.5)
+    const result = fuseAlgorithmResults(uniformScores(0.5), 'unknown')
     expect(['POSSIBLE_FEEDBACK', 'UNCERTAIN', 'FEEDBACK']).toContain(result.verdict)
   })
 })
@@ -746,14 +751,14 @@ describe('content-weight interaction', () => {
   }
 
   it('speech mode uses SPEECH weights', () => {
-    const result = fuseAlgorithmResults(feedbackScoresForWeight(), 'speech', 0.8)
+    const result = fuseAlgorithmResults(feedbackScoresForWeight(), 'speech')
     // Speech mode upweights MSD (0.33) vs default (0.30)
     expect(result.contributingAlgorithms).toContain('MSD')
     expect(result.verdict).toBe('FEEDBACK')
   })
 
   it('music mode uses MUSIC weights', () => {
-    const result = fuseAlgorithmResults(feedbackScoresForWeight(), 'music', 0.8)
+    const result = fuseAlgorithmResults(feedbackScoresForWeight(), 'music')
     // Music mode upweights Phase (0.35) vs default (0.25)
     expect(result.contributingAlgorithms).toContain('Phase')
     expect(result.verdict).toBe('FEEDBACK')
@@ -782,5 +787,178 @@ describe('FUSION_WEIGHTS', () => {
 
   it('COMPRESSED mode upweights Phase over MSD', () => {
     expect(FUSION_WEIGHTS.COMPRESSED.phase).toBeGreaterThan(FUSION_WEIGHTS.COMPRESSED.msd)
+  })
+})
+
+// ── Confidence/probability consistency ────────────────────────────────────────
+
+describe('Fusion confidence uses transformed scores', () => {
+  it('low-frequency phase suppression reduces confidence, not just probability', () => {
+    const scores = buildScores({ msd: 0.7, phase: 0.9, spectral: 0.5, ihr: 0.8, ptmr: 0.7 })
+
+    const highFreq = fuseAlgorithmResults(scores, 'unknown', DEFAULT_FUSION_CONFIG, 1000)
+    const lowFreq = fuseAlgorithmResults(scores, 'unknown', DEFAULT_FUSION_CONFIG, 100)
+
+    // Phase is suppressed at 100 Hz, so both probability AND confidence should drop
+    expect(lowFreq.feedbackProbability).toBeLessThan(highFreq.feedbackProbability)
+    expect(lowFreq.confidence).toBeLessThan(highFreq.confidence)
+  })
+
+  it('inactive algorithms do not affect confidence', () => {
+    const scores = buildScores({ msd: 0.8, phase: 0.7, spectral: 0.6, ihr: 0.5, ptmr: 0.5 })
+
+    // MSD-only mode: only MSD, IHR, PTMR, ML active
+    const msdOnly = fuseAlgorithmResults(scores, 'unknown', {
+      ...DEFAULT_FUSION_CONFIG,
+      mode: 'msd',
+    })
+
+    // Combined mode: all algorithms active
+    const combined = fuseAlgorithmResults(scores, 'unknown', {
+      ...DEFAULT_FUSION_CONFIG,
+      mode: 'combined',
+    })
+
+    // Different modes should produce different confidence values
+    // because different algorithm sets contribute
+    expect(msdOnly.confidence).not.toBeCloseTo(combined.confidence, 2)
+  })
+
+  it('confidence never exceeds probability', () => {
+    const scores = buildScores({ msd: 0.3, phase: 0.4, spectral: 0.2, ihr: 0.3, ptmr: 0.2 })
+    const result = fuseAlgorithmResults(scores)
+    // confidence = probability * (0.5 + 0.5 * agreement), agreement <= 1
+    // so confidence <= probability
+    expect(result.confidence).toBeLessThanOrEqual(result.feedbackProbability)
+  })
+})
+
+// ── AgreementPersistenceTracker (14.8) ───────────────────────────────────────
+
+describe('AgreementPersistenceTracker', () => {
+  it('returns zero bonus with only 1 frame', () => {
+    const tracker = new AgreementPersistenceTracker()
+    tracker.update(0.9)
+    expect(tracker.persistenceBonus).toBe(0)
+  })
+
+  it('returns zero bonus with 3 frames (below threshold of 4)', () => {
+    const tracker = new AgreementPersistenceTracker()
+    tracker.update(0.9)
+    tracker.update(0.9)
+    tracker.update(0.9)
+    expect(tracker.persistenceBonus).toBe(0)
+    expect(tracker.frames).toBe(3)
+  })
+
+  it('returns positive bonus after 6 frames of high agreement', () => {
+    const tracker = new AgreementPersistenceTracker()
+    for (let i = 0; i < 6; i++) tracker.update(0.9)
+    expect(tracker.frames).toBe(6)
+    expect(tracker.ewma).toBeGreaterThan(0.6)
+    expect(tracker.persistenceBonus).toBeGreaterThan(0)
+    expect(tracker.persistenceBonus).toBeLessThanOrEqual(0.05)
+  })
+
+  it('bonus never exceeds 0.05', () => {
+    const tracker = new AgreementPersistenceTracker()
+    for (let i = 0; i < 100; i++) tracker.update(1.0)
+    expect(tracker.persistenceBonus).toBeLessThanOrEqual(0.05)
+  })
+
+  it('returns zero bonus when ewma <= 0.6', () => {
+    const tracker = new AgreementPersistenceTracker()
+    for (let i = 0; i < 6; i++) tracker.update(0.5)
+    expect(tracker.persistenceBonus).toBe(0)
+  })
+
+  it('reset clears state', () => {
+    const tracker = new AgreementPersistenceTracker()
+    for (let i = 0; i < 6; i++) tracker.update(0.9)
+    expect(tracker.persistenceBonus).toBeGreaterThan(0)
+    tracker.reset()
+    expect(tracker.frames).toBe(0)
+    expect(tracker.ewma).toBe(0)
+    expect(tracker.persistenceBonus).toBe(0)
+  })
+
+  it('adds persistence bonus to confidence in fuseAlgorithmResults', () => {
+    const scores = buildScores({ msd: 0.8, phase: 0.8, spectral: 0.8, ihr: 0.8, ptmr: 0.8 })
+    const tracker = new AgreementPersistenceTracker()
+    for (let i = 0; i < 6; i++) tracker.update(0.9)
+    const withTracker = fuseAlgorithmResults(scores, 'unknown', DEFAULT_FUSION_CONFIG, undefined, undefined, tracker)
+    const without = fuseAlgorithmResults(scores, 'unknown', DEFAULT_FUSION_CONFIG)
+    expect(withTracker.confidence).toBeGreaterThan(without.confidence)
+    expect(withTracker.confidence).toBeLessThanOrEqual(1)
+  })
+})
+
+// ── calibrateProbability (14.3) ──────────────────────────────────────────────
+
+describe('calibrateProbability', () => {
+  it('returns raw when no table is provided', () => {
+    expect(calibrateProbability(0.5)).toBe(0.5)
+    expect(calibrateProbability(0.0)).toBe(0.0)
+    expect(calibrateProbability(1.0)).toBe(1.0)
+  })
+
+  it('returns raw with identity (empty breakpoints) table', () => {
+    expect(calibrateProbability(0.5, IDENTITY_CALIBRATION)).toBe(0.5)
+    expect(calibrateProbability(0.75, IDENTITY_CALIBRATION)).toBe(0.75)
+  })
+
+  it('interpolates linearly between two breakpoints', () => {
+    const table: CalibrationTable = {
+      breakpoints: [
+        { raw: 0.0, calibrated: 0.0 },
+        { raw: 1.0, calibrated: 0.5 },
+      ],
+    }
+    expect(calibrateProbability(0.0, table)).toBeCloseTo(0.0)
+    expect(calibrateProbability(0.5, table)).toBeCloseTo(0.25)
+    expect(calibrateProbability(1.0, table)).toBeCloseTo(0.5)
+  })
+
+  it('clamps below first breakpoint', () => {
+    const table: CalibrationTable = {
+      breakpoints: [
+        { raw: 0.2, calibrated: 0.1 },
+        { raw: 0.8, calibrated: 0.9 },
+      ],
+    }
+    expect(calibrateProbability(0.0, table)).toBe(0.1)
+  })
+
+  it('clamps above last breakpoint', () => {
+    const table: CalibrationTable = {
+      breakpoints: [
+        { raw: 0.2, calibrated: 0.1 },
+        { raw: 0.8, calibrated: 0.9 },
+      ],
+    }
+    expect(calibrateProbability(1.0, table)).toBe(0.9)
+  })
+
+  it('preserves monotonicity for monotonic input', () => {
+    const table: CalibrationTable = {
+      breakpoints: [
+        { raw: 0.0, calibrated: 0.0 },
+        { raw: 0.3, calibrated: 0.2 },
+        { raw: 0.6, calibrated: 0.5 },
+        { raw: 1.0, calibrated: 1.0 },
+      ],
+    }
+    const values = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    const calibrated = values.map(v => calibrateProbability(v, table))
+    for (let i = 1; i < calibrated.length; i++) {
+      expect(calibrated[i]).toBeGreaterThanOrEqual(calibrated[i - 1])
+    }
+  })
+
+  it('does not change fuseAlgorithmResults with identity table', () => {
+    const scores = buildScores({ msd: 0.7, phase: 0.6, spectral: 0.5, ihr: 0.4, ptmr: 0.5 })
+    const without = fuseAlgorithmResults(scores)
+    const withIdentity = fuseAlgorithmResults(scores, 'unknown', DEFAULT_FUSION_CONFIG, undefined, undefined, undefined, IDENTITY_CALIBRATION)
+    expect(withIdentity.feedbackProbability).toBeCloseTo(without.feedbackProbability, 10)
   })
 })

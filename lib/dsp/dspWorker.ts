@@ -71,6 +71,14 @@ export type WorkerInboundMessage =
       frequencyHz: number
       feedback: UserFeedback
     }
+  // Periodic spectrum feed for content-type detection (independent of peak backpressure)
+  | {
+      type: 'spectrumUpdate'
+      spectrum: Float32Array
+      crestFactor: number
+      sampleRate: number
+      fftSize: number
+    }
   // Room dimension estimation
   | { type: 'startRoomMeasurement' }
   | { type: 'stopRoomMeasurement' }
@@ -82,6 +90,7 @@ export type WorkerOutboundMessage =
   | { type: 'advisoryCleared'; advisoryId: string }
   | { type: 'tracksUpdate'; tracks: TrackedPeak[]; contentType?: ContentType; algorithmMode?: AlgorithmMode; isCompressed?: boolean; compressionRatio?: number }
   | { type: 'returnBuffers'; spectrum: Float32Array; timeDomain?: Float32Array }
+  | { type: 'contentTypeUpdate'; contentType: ContentType; isCompressed: boolean; compressionRatio: number }
   | { type: 'ready' }
   | { type: 'error'; message: string }
   // Room dimension estimation responses
@@ -340,6 +349,34 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       break
     }
 
+    case 'spectrumUpdate': {
+      const suSpectrum = msg.spectrum
+      try {
+        const changed = algorithmEngine.updateContentType(
+          suSpectrum, msg.crestFactor, msg.sampleRate, msg.fftSize
+        )
+        lastContentType = algorithmEngine.getContentType()
+        lastIsCompressed = algorithmEngine.getIsCompressed()
+        lastCompressionRatio = algorithmEngine.getCompressionRatio()
+        if (changed !== null) {
+          self.postMessage({
+            type: 'contentTypeUpdate',
+            contentType: lastContentType,
+            isCompressed: lastIsCompressed,
+            compressionRatio: lastCompressionRatio,
+          } satisfies WorkerOutboundMessage)
+        }
+      } finally {
+        if (suSpectrum.buffer.byteLength > 0) {
+          self.postMessage(
+            { type: 'returnBuffers', spectrum: suSpectrum } satisfies WorkerOutboundMessage,
+            [suSpectrum.buffer as ArrayBuffer]
+          )
+        }
+      }
+      break
+    }
+
     case 'processPeak': {
       // Guard: worker must be initialized before processing peaks
       if (!sampleRate || !fftSize) {
@@ -460,9 +497,17 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         }
       }
 
-      const { algorithmScores, contentType, existingScore } = algorithmEngine.computeScores(
+      const algorithmResult = algorithmEngine.computeScores(
         peak, track, spectrum, sampleRate, fftSize, peakFrequencies
       )
+      const { algorithmScores } = algorithmResult
+
+      // Worker owns authoritative content type (S7 refactor: temporal metrics +
+      // majority-vote smoothing now run in worker via spectrumUpdate).
+      // algorithmResult.contentType is instantaneous (no temporal); use as fallback only.
+      const contentType = algorithmEngine.getContentType() !== 'unknown'
+        ? algorithmEngine.getContentType()
+        : algorithmResult.contentType
 
       // Update worker-side status for UI
       lastContentType = contentType
@@ -483,7 +528,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         combTrackers.set(track.id, trackCst)
       }
       const fusionResult = fuseAlgorithmResults(
-        algorithmScores, contentType, existingScore, fusionConfig, track.trueFrequencyHz, trackCst
+        algorithmScores, contentType, fusionConfig, track.trueFrequencyHz, trackCst
       )
 
       // Feed fusion result back to AlgorithmEngine for ML's next-frame input

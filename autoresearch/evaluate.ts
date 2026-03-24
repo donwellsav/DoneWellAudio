@@ -134,7 +134,6 @@ function evaluateScenario(scenario: Scenario): ScenarioResult {
   const result = fuseAlgorithmResults(
     scores,
     scenario.contentType,
-    scenario.existingScore,
     undefined,
     scenario.peakFrequencyHz
   )

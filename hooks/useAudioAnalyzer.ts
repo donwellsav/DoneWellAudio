@@ -171,6 +171,14 @@ export function useAudioAnalyzer(
       tracksRef.current = tracks
       if (status) workerStatusRef.current = status
     },
+    onContentTypeUpdate: (contentType, isCompressed, compressionRatio) => {
+      workerStatusRef.current = {
+        ...workerStatusRef.current,
+        contentType,
+        isCompressed,
+        compressionRatio,
+      }
+    },
     onReady: () => {
       // Worker (re)started successfully — clear any crash warning
       setState(prev => prev.workerError ? { ...prev, workerError: null } : prev)
@@ -214,9 +222,9 @@ export function useAudioAnalyzer(
             autoGainEnabled: data.autoGainEnabled,
             autoGainLocked: data.autoGainLocked,
             algorithmMode: workerStatusRef.current.algorithmMode ?? data.algorithmMode,
-            // Main thread contentType runs every ~500ms regardless of peaks.
-            // Worker only classifies when peaks arrive. Main thread is the authority.
-            contentType: data.contentType ?? workerStatusRef.current.contentType,
+            // S7: Worker owns authoritative content type (temporal metrics + smoothing).
+            // data.contentType is stale main-thread value; worker's is preferred.
+            contentType: workerStatusRef.current.contentType ?? data.contentType,
             msdFrameCount: data.msdFrameCount,
             isCompressed: workerStatusRef.current.isCompressed ?? data.isCompressed,
             compressionRatio: workerStatusRef.current.compressionRatio ?? data.compressionRatio,
@@ -249,6 +257,10 @@ export function useAudioAnalyzer(
       // Route raw peaks to the DSP worker (includes time-domain for phase coherence)
       onPeakDetected: (peak, spectrum, sampleRate, fftSize, timeDomain) => {
         dspWorkerRef.current.processPeak(peak, spectrum, sampleRate, fftSize, timeDomain)
+      },
+      // S7: Periodic spectrum feed for worker content-type detection (bypasses backpressure)
+      onSpectrumUpdate: (spectrum, crestFactor, sRate, fft) => {
+        dspWorkerRef.current.sendSpectrumUpdate(spectrum, crestFactor, sRate, fft)
       },
       onPeakCleared: (peak) => {
         dspWorkerRef.current.clearPeak(peak.binIndex, peak.frequencyHz, peak.timestamp)

@@ -307,6 +307,7 @@ export const RoomTab = memo(function RoomTab({
                 )
               })}
             </div>
+            <p className="text-xs text-muted-foreground/70 font-mono mt-1">Also adjusts detection sensitivity for that environment.</p>
           </div>
 
           {/* All controls below are only shown when preset !== 'none' */}

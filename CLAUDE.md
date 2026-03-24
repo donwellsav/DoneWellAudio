@@ -1,6 +1,6 @@
 # CLAUDE.md — DoneWell Audio Project Intelligence
 
-> **Last updated March 2026. 160+ TypeScript/TSX files, 744 tests (740 pass, 4 skip), 38 suites. Version 0.11.0.**
+> **Last updated March 2026. 165+ TypeScript/TSX files, 799 tests (795 pass, 4 skip), 39 suites. Version 0.14.0.**
 > Notch overlay opacity set to 42%.
 
 ## CRITICAL RULES
@@ -53,7 +53,7 @@ When the user asks to cut a release or "update the usuals":
 
 ## Project Overview
 
-**DoneWell Audio** (donewellaudio.com) is a browser-based real-time acoustic feedback detection PWA for live sound engineers. It captures microphone input via the Web Audio API, identifies feedback frequencies using six fused detection algorithms, and delivers EQ recommendations with pitch translation. Version 0.11.0. Repository: github.com/donwellsav/donewellaudio.
+**DoneWell Audio** (donewellaudio.com) is a browser-based real-time acoustic feedback detection PWA for live sound engineers. It captures microphone input via the Web Audio API, identifies feedback frequencies using six fused detection algorithms, and delivers EQ recommendations with pitch translation. Version 0.13.0. Repository: github.com/donwellsav/donewellaudio.
 
 ## Tech Stack
 
@@ -66,7 +66,7 @@ When the user asks to cut a release or "update the usuals":
 | DSP Offload | Web Worker (dspWorker.ts, ~458 lines) |
 | Visualization | HTML5 Canvas at 30fps |
 | State | React 19 hooks + 4 context providers (no external state library) |
-| Testing | Vitest (740 tests, 38 suites, under 10s) |
+| Testing | Vitest (799 tests, 39 suites, under 10s) |
 | Error Reporting | Sentry (browser + server + worker runtimes) |
 | PWA | Serwist (service worker, offline caching, installable) |
 | Package Manager | pnpm |
@@ -78,7 +78,7 @@ pnpm dev              # Dev server on :3000 (Turbopack, no SW)
 pnpm build            # Production build (webpack, generates SW)
 pnpm start            # Production server
 pnpm lint             # ESLint (flat config)
-pnpm test             # Vitest (744 tests: 740 pass + 4 skip)
+pnpm test             # Vitest (799 tests: 795 pass + 4 skip)
 pnpm test:watch       # Vitest watch mode
 pnpm test:coverage    # Vitest with V8 coverage
 npx tsc --noEmit      # Type-check (run BEFORE pnpm build)
@@ -143,7 +143,7 @@ Mic -> getUserMedia -> GainNode -> AnalyserNode (8192 FFT)
 
 ## Known Bugs
 
-All previously tracked bugs (P1–P3) have been resolved as of v0.127.0. See git history for details.
+All previously tracked bugs (P1–P3) have been resolved as of v0.127.0. All Phase 0 control surface bugs (B1–B7) are resolved as of v0.14.0. See git history for details.
 
 ## Known False Positives
 
