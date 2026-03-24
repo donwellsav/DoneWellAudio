@@ -721,128 +721,35 @@ export function classifyTrackWithAlgorithms(
   // Extract frequency for chromatic quantization detection
   const trackFreqHz = 'trueFrequencyHz' in track ? track.trueFrequencyHz : track.frequency
 
-  // ==================== Integrate Advanced Algorithm Scores ====================
+  // ==================== Fusion Result (algorithm evidence counted once) ====================
+  //
+  // Fusion owns the algorithm-level posterior (MSD, phase, spectral, comb,
+  // IHR, PTMR, ML). Classifier adds only track/acoustic context.
+  // Per-algorithm scores are NOT re-added here to avoid double-counting.
 
-  // MSD Analysis
-  if (algorithmScores.msd) {
-    const msd = algorithmScores.msd
-    if (msd.isFeedbackLikely) {
-      // Strong MSD indicator - boost feedback probability
-      pFeedback = Math.min(1, pFeedback + msd.feedbackScore * 0.2)
-      reasons.push(`MSD: ${msd.msd.toFixed(3)} dB²/frame² (${msd.framesAnalyzed} frames)`)
-    } else if (msd.feedbackScore < 0.3) {
-      // Strong non-feedback indicator
-      pFeedback = Math.max(0, pFeedback - 0.15)
-      pInstrument = Math.min(1, pInstrument + 0.1)
-      reasons.push(`MSD indicates musical content (score: ${(msd.feedbackScore * 100).toFixed(0)}%)`)
-    }
-  }
-  
-  // Phase Coherence Analysis
-  if (algorithmScores.phase) {
-    const phase = algorithmScores.phase
-    if (phase.isFeedbackLikely) {
-      // Chromatic quantization gate: pitch-corrected audio (Auto-Tune, Melodyne)
-      // snaps to the 12-TET grid, producing artificially high phase coherence.
-      // When quantized AND coherence > threshold, reduce phase boost by 40%.
-      const chromaticGated =
-        phase.coherence > CHROMATIC_PHASE_THRESHOLD &&
-        isChromaticallyQuantized(trackFreqHz)
-      const phaseScale = chromaticGated ? CHROMATIC_PHASE_REDUCTION : 1.0
+  // Blend track-level base probability toward fusion's algorithm posterior.
+  const FUSION_BLEND = 0.6
+  pFeedback = pFeedback * (1 - FUSION_BLEND) + fusionResult.feedbackProbability * FUSION_BLEND
+  reasons.push(`Fusion: ${(fusionResult.feedbackProbability * 100).toFixed(0)}% (${fusionResult.contributingAlgorithms.join('+')})`)
 
-      // High phase coherence - strong feedback indicator (scaled if quantized)
-      pFeedback = Math.min(1, pFeedback + phase.feedbackScore * 0.15 * phaseScale)
-      if (chromaticGated) {
-        reasons.push(`Phase coherence: ${(phase.coherence * 100).toFixed(0)}% (reduced — chromatic quantization detected)`)
-      } else {
-        reasons.push(`Phase coherence: ${(phase.coherence * 100).toFixed(0)}%`)
-      }
-    } else if (phase.coherence < 0.4) {
-      // Low coherence - likely music/noise
-      pFeedback = Math.max(0, pFeedback - 0.1)
-      reasons.push(`Random phase (${(phase.coherence * 100).toFixed(0)}%) - likely music`)
-    }
-  }
-  
-  // Spectral Flatness Analysis
-  if (algorithmScores.spectral) {
-    const spectral = algorithmScores.spectral
-    if (spectral.isFeedbackLikely) {
-      // Pure tone detected
-      pFeedback = Math.min(1, pFeedback + 0.1)
-      reasons.push(`Pure tone: flatness ${spectral.flatness.toFixed(3)}, kurtosis ${spectral.kurtosis.toFixed(1)}`)
-    } else if (spectral.flatness > 0.2) {
-      // Broadband content
-      pInstrument = Math.min(1, pInstrument + 0.1)
-    }
-  }
-  
-  // Comb Pattern Detection
-  if (algorithmScores.comb && algorithmScores.comb.hasPattern) {
-    const comb = algorithmScores.comb
-    // Comb pattern is a strong indicator of feedback loop
-    pFeedback = Math.min(1, pFeedback + comb.confidence * 0.2)
-    reasons.push(`Comb pattern: ${comb.matchingPeaks} peaks @ ${comb.fundamentalSpacing?.toFixed(0)}Hz`)
-    
-    // Add predicted frequencies as a note
-    if (comb.predictedFrequencies.length > 0) {
-      reasons.push(`Predicted feedback: ${comb.predictedFrequencies.slice(0, 3).map(f => f.toFixed(0)).join(', ')}Hz`)
-    }
-  }
-  
-  // Inter-Harmonic Ratio Analysis
-  if (algorithmScores.ihr) {
-    const ihr = algorithmScores.ihr
-    if (ihr.isFeedbackLike) {
-      // Clean tone with few harmonics — strong feedback indicator
-      pFeedback = Math.min(1, pFeedback + ihr.feedbackScore * 0.15)
-      reasons.push(`Clean tone (IHR ${ihr.interHarmonicRatio.toFixed(2)}, ${ihr.harmonicsFound} harmonics)`)
-    } else if (ihr.isMusicLike) {
-      // Rich harmonic content with inter-harmonic energy — suppress feedback
-      pFeedback = Math.max(0, pFeedback - 0.15)
-      pInstrument = Math.min(1, pInstrument + 0.15)
-      reasons.push(`Musical harmonics (IHR ${ihr.interHarmonicRatio.toFixed(2)}, ${ihr.harmonicsFound} harmonics)`)
+  // Chromatic quantization gate (classifier-only context, not in fusion)
+  if (algorithmScores.phase && algorithmScores.phase.isFeedbackLikely) {
+    const chromaticGated =
+      algorithmScores.phase.coherence > CHROMATIC_PHASE_THRESHOLD &&
+      isChromaticallyQuantized(trackFreqHz)
+    if (chromaticGated) {
+      pFeedback *= CHROMATIC_PHASE_REDUCTION
+      reasons.push(`Chromatic quantization gate: phase reduced`)
     }
   }
 
-  // Peak-to-Median Ratio Analysis
-  if (algorithmScores.ptmr) {
-    const ptmr = algorithmScores.ptmr
-    if (ptmr.isFeedbackLike) {
-      // Sharp spectral spike well above local floor — feedback hallmark
-      pFeedback = Math.min(1, pFeedback + ptmr.feedbackScore * 0.1)
-      reasons.push(`Sharp peak (PTMR ${ptmr.ptmrDb.toFixed(1)} dB above median)`)
-    } else if (ptmr.ptmrDb < 8) {
-      // Broad spectral energy — likely broadband content, not feedback
-      pInstrument = Math.min(1, pInstrument + 0.05)
-    }
-  }
-
-  // Compression Adjustment
+  // Compression context (classifier-only)
   if (algorithmScores.compression && algorithmScores.compression.isCompressed) {
-    const comp = algorithmScores.compression
-    // Compressed content needs more careful analysis
-    // Apply threshold multiplier from compression detection
-    const adjustment = comp.thresholdMultiplier - 1
+    const adjustment = algorithmScores.compression.thresholdMultiplier - 1
     pFeedback = Math.max(0, pFeedback - adjustment * 0.1)
-    reasons.push(`Compressed audio (crest: ${comp.crestFactor.toFixed(1)}dB)`)
+    reasons.push(`Compressed audio (crest: ${algorithmScores.compression.crestFactor.toFixed(1)}dB)`)
   }
-  
-  // ==================== Use Fusion Result ====================
-  
-  // Override with fusion result if it's decisive
-  if (fusionResult.verdict === 'FEEDBACK' && fusionResult.confidence > 0.7) {
-    pFeedback = Math.max(pFeedback, fusionResult.feedbackProbability)
-    if (!reasons.some(r => r.includes('Algorithm fusion'))) {
-      reasons.push(`Algorithm fusion: ${(fusionResult.feedbackProbability * 100).toFixed(0)}% (${fusionResult.contributingAlgorithms.join('+')})`)
-    }
-  } else if (fusionResult.verdict === 'NOT_FEEDBACK' && fusionResult.confidence > 0.7 && baseResult.severity !== 'RUNAWAY' && baseResult.severity !== 'GROWING') {
-    pFeedback = Math.min(pFeedback, 0.3)
-    if (!reasons.some(r => r.includes('Algorithm fusion'))) {
-      reasons.push(`Fusion: likely not feedback (${(fusionResult.confidence * 100).toFixed(0)}% confident)`)
-    }
-  }
-  
+
   // ==================== Mains Hum Gate ====================
   // AC mains hum creates exact harmonic series at 50n or 60n Hz with high
   // phase coherence (AC-locked). When the current peak sits on a mains
