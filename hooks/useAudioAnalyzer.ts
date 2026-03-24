@@ -247,8 +247,8 @@ export function useAudioAnalyzer(
         }
       },
       // Route raw peaks to the DSP worker (includes time-domain for phase coherence)
-      onPeakDetected: (peak, spectrum, sampleRate, fftSize, timeDomain) => {
-        dspWorkerRef.current.processPeak(peak, spectrum, sampleRate, fftSize, timeDomain)
+      onPeakDetected: (peak, spectrum, sampleRate, fftSize, timeDomain, contentType) => {
+        dspWorkerRef.current.processPeak(peak, spectrum, sampleRate, fftSize, timeDomain, contentType)
       },
       onPeakCleared: (peak) => {
         dspWorkerRef.current.clearPeak(peak.binIndex, peak.frequencyHz, peak.timestamp)

@@ -56,6 +56,9 @@ export type WorkerInboundMessage =
       /** Optional time-domain samples for phase coherence analysis.
        *  Send via AnalyserNode.getFloatTimeDomainData() on the main thread. */
       timeDomain?: Float32Array
+      /** Smoothed content type from main thread (temporal metrics + majority vote).
+       *  When provided, the worker uses this instead of instantaneous spectral classification. */
+      contentType?: ContentType
     }
   | {
       type: 'clearPeak'
@@ -460,9 +463,14 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         }
       }
 
-      const { algorithmScores, contentType, existingScore } = algorithmEngine.computeScores(
+      const algorithmResult = algorithmEngine.computeScores(
         peak, track, spectrum, sampleRate, fftSize, peakFrequencies
       )
+      const { algorithmScores } = algorithmResult
+
+      // Prefer main thread's smoothed content type (has temporal metrics + majority
+      // vote smoothing). Fall back to worker's instantaneous classification.
+      const contentType = msg.contentType ?? algorithmResult.contentType
 
       // Update worker-side status for UI
       lastContentType = contentType
@@ -483,7 +491,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         combTrackers.set(track.id, trackCst)
       }
       const fusionResult = fuseAlgorithmResults(
-        algorithmScores, contentType, existingScore, fusionConfig, track.trueFrequencyHz, trackCst
+        algorithmScores, contentType, fusionConfig, track.trueFrequencyHz, trackCst
       )
 
       // Feed fusion result back to AlgorithmEngine for ML's next-frame input

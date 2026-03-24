@@ -30,13 +30,11 @@ import { buildScores, type ScoreInput } from '../helpers/mockAlgorithmScores'
 function fuse(
   input: ScoreInput,
   contentType: 'speech' | 'music' | 'compressed' | 'unknown' = 'unknown',
-  existingScore: number = 0.5,
   config?: Partial<FusionConfig>
 ) {
   return fuseAlgorithmResults(
     buildScores(input),
     contentType,
-    existingScore,
     { ...DEFAULT_FUSION_CONFIG, ...config }
   )
 }
@@ -58,8 +56,7 @@ describe('GPT-5.4 Scenarios — DEFAULT Profile', () => {
   it('BORDERLINE: alarm/siren scores near threshold', () => {
     const result = fuse(
       { msd: 0.9, phase: 0.6, spectral: 0.8, comb: 0, ihr: 0.2, ptmr: 0.9 },
-      'unknown',
-      0.9
+      'unknown'
     )
     console.log(`[GPT DEFAULT FP] alarm: probability=${result.feedbackProbability.toFixed(3)}, verdict=${result.verdict}`)
     // GPT calculated 0.685 — should be close to threshold boundary
@@ -79,8 +76,7 @@ describe('GPT-5.4 Scenarios — DEFAULT Profile', () => {
   it('FALSE NEGATIVE: moving mic Doppler feedback missed', () => {
     const result = fuse(
       { msd: 0.3, phase: 0.2, spectral: 0.8, comb: 0.8, ihr: 0.9, ptmr: 0.6 },
-      'unknown',
-      0.7
+      'unknown'
     )
     console.log(`[GPT DEFAULT FN] moving mic: probability=${result.feedbackProbability.toFixed(3)}, verdict=${result.verdict}`)
     // Note: comb=0.8 activates the weight doubling, which should help
@@ -102,8 +98,7 @@ describe('GPT-5.4 Scenarios — SPEECH Profile', () => {
   it('FALSE POSITIVE: shouting presenter triggers false detection', () => {
     const result = fuse(
       { msd: 0.95, phase: 0.4, spectral: 0.8, comb: 0, ihr: 0.2, ptmr: 0.8 },
-      'speech',
-      0.9
+      'speech'
     )
     console.log(`[GPT SPEECH FP] shouting: probability=${result.feedbackProbability.toFixed(3)}, verdict=${result.verdict}`)
     expect(result.feedbackProbability).toBeGreaterThan(0.60)
@@ -121,8 +116,7 @@ describe('GPT-5.4 Scenarios — SPEECH Profile', () => {
   it('FALSE NEGATIVE: plosive-triggered transient howl missed', () => {
     const result = fuse(
       { msd: 0.1, phase: 0.9, spectral: 0.9, comb: 0, ihr: 0.8, ptmr: 0.9 },
-      'speech',
-      0.9
+      'speech'
     )
     console.log(`[GPT SPEECH FN] plosive chirp: probability=${result.feedbackProbability.toFixed(3)}, verdict=${result.verdict}`)
     // This is essentially the same vulnerability as Gemini's limiter scenario
@@ -149,8 +143,7 @@ describe('GPT-5.4 Scenarios — MUSIC Profile', () => {
   it('FALSE POSITIVE: flanger/phaser pedal mimics feedback signature', () => {
     const result = fuse(
       { msd: 0.7, phase: 0.8, spectral: 0.7, comb: 0.8, ihr: 0.4, ptmr: 0.6 },
-      'music',
-      0.8
+      'music'
     )
     console.log(`[GPT MUSIC FP] flanger: probability=${result.feedbackProbability.toFixed(3)}, verdict=${result.verdict}`)
     // This is the worst vulnerability GPT found — common guitar effect
@@ -170,8 +163,7 @@ describe('GPT-5.4 Scenarios — MUSIC Profile', () => {
   it('FALSE NEGATIVE: feedback buried in cymbal-heavy mix', () => {
     const result = fuse(
       { msd: 0.8, phase: 0.2, spectral: 0.6, comb: 0, ihr: 0.6, ptmr: 0.5 },
-      'music',
-      0.6
+      'music'
     )
     console.log(`[GPT MUSIC FN] cymbal mix: probability=${result.feedbackProbability.toFixed(3)}, verdict=${result.verdict}`)
     // GPT's score (0.437) is even LOWER than Gemini's (0.496)
@@ -197,8 +189,7 @@ describe('GPT-5.4 Scenarios — COMPRESSED Profile', () => {
   it('FALSE POSITIVE: Auto-Tuned vocal triggers phase-locked detection', () => {
     const result = fuse(
       { msd: 0.7, phase: 0.95, spectral: 0.85, comb: 0, ihr: 0.5, ptmr: 0.7, compressed: true },
-      'unknown',
-      0.9
+      'unknown'
     )
     console.log(`[GPT COMPRESSED FP] AutoTune: probability=${result.feedbackProbability.toFixed(3)}, verdict=${result.verdict}`)
     expect(result.feedbackProbability).toBeGreaterThan(0.65)
@@ -219,8 +210,7 @@ describe('GPT-5.4 Scenarios — COMPRESSED Profile', () => {
   it('FALSE NEGATIVE: sidechain-pumped feedback missed', () => {
     const result = fuse(
       { msd: 0.1, phase: 0.8, spectral: 0.7, comb: 0, ihr: 0.8, ptmr: 0.3, compressed: true },
-      'unknown',
-      0.6
+      'unknown'
     )
     console.log(`[GPT COMPRESSED FN] sidechain: probability=${result.feedbackProbability.toFixed(3)}, verdict=${result.verdict}`)
     expect(result.feedbackProbability).toBeLessThan(0.65)
@@ -247,8 +237,7 @@ describe('Cross-Model Consensus Vulnerabilities', () => {
     // Average of Gemini and GPT scenarios
     const result = fuse(
       { msd: 0.92, phase: 0.6, spectral: 0.6, comb: 0, ihr: 0.2, ptmr: 0.7 },
-      'speech',
-      0.8
+      'speech'
     )
     // All three models predict this exceeds threshold
     expect(result.feedbackProbability).toBeGreaterThan(0.55)
@@ -266,40 +255,12 @@ describe('Cross-Model Consensus Vulnerabilities', () => {
   it('CONSENSUS: dense mix false negative in MUSIC mode', () => {
     const result = fuse(
       { msd: 0.7, phase: 0.25, spectral: 0.7, comb: 0, ihr: 0.7, ptmr: 0.6 },
-      'music',
-      0.6
+      'music'
     )
     expect(result.feedbackProbability).toBeLessThan(0.60)
     console.log(`[CONSENSUS] dense mix: probability=${result.feedbackProbability.toFixed(3)}, verdict=${result.verdict}`)
   })
 
-  /**
-   * ALL THREE MODELS AGREE: "existing" weight is redundant and should
-   * be deprecated, redistributing to IHR and PTMR.
-   *
-   * Test: verify that removing "existing" and boosting IHR/PTMR
-   * reduces the sustained vowel false positive.
-   */
-  it('CONSENSUS: "existing" weight has been removed from all profiles', () => {
-    // The existing weight has been removed from all 4 fusion profiles.
-    // The _existingScore parameter is kept for API compat but ignored.
-    // Verify that changing existingScore has no effect on results.
-    const withHighExisting = fuse(
-      { msd: 0.92, phase: 0.6, spectral: 0.6, comb: 0, ihr: 0.2, ptmr: 0.7 },
-      'speech',
-      0.9 // high existing score — should be ignored
-    )
-
-    const withLowExisting = fuse(
-      { msd: 0.92, phase: 0.6, spectral: 0.6, comb: 0, ihr: 0.2, ptmr: 0.7 },
-      'speech',
-      0.1 // low existing score — should be ignored
-    )
-
-    // Both should produce identical results since existing is ignored
-    expect(withHighExisting.feedbackProbability).toBeCloseTo(withLowExisting.feedbackProbability, 10)
-    console.log(`[CONSENSUS] existing removed: high=${withHighExisting.feedbackProbability.toFixed(3)}, low=${withLowExisting.feedbackProbability.toFixed(3)}`)
-  })
 })
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -318,8 +279,7 @@ describe('GPT Proposal: Multiplicative IHR Gate (concept validation)', () => {
   it('IHR gate would fix the sustained synth false positive', () => {
     const result = fuse(
       { msd: 0.8, phase: 0.9, spectral: 0.4, comb: 0, ihr: 0.1, ptmr: 0.7 },
-      'unknown',
-      0.8
+      'unknown'
     )
 
     // Current: probability > 0.60 (false positive)

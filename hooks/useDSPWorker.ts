@@ -59,7 +59,7 @@ export interface DSPWorkerHandle {
   /** Push updated settings to the worker */
   updateSettings: (settings: Partial<DetectorSettings>) => void
   /** Send a detected peak + current spectrum + time-domain waveform for classification */
-  processPeak: (peak: DetectedPeak, spectrum: Float32Array, sampleRate: number, fftSize: number, timeDomain?: Float32Array) => void
+  processPeak: (peak: DetectedPeak, spectrum: Float32Array, sampleRate: number, fftSize: number, timeDomain?: Float32Array, contentType?: string) => void
   /** Notify the worker a peak has been cleared */
   clearPeak: (binIndex: number, frequencyHz: number, timestamp: number) => void
   /** Clear all worker state (tracks, advisories) */
@@ -274,7 +274,7 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
   )
 
   const processPeak = useCallback(
-    (peak: DetectedPeak, spectrum: Float32Array, sampleRate: number, fftSize: number, timeDomain?: Float32Array) => {
+    (peak: DetectedPeak, spectrum: Float32Array, sampleRate: number, fftSize: number, timeDomain?: Float32Array, contentType?: string) => {
       // Backpressure: skip if worker hasn't finished the previous batch
       totalFramesRef.current++
       if (busyRef.current || crashedRef.current || !isReadyRef.current) {
@@ -312,7 +312,7 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
 
       busyRef.current = true
       workerRef.current?.postMessage(
-        { type: 'processPeak', peak, spectrum: specBuf, sampleRate, fftSize, timeDomain: tdBuf } as WorkerInboundMessage,
+        { type: 'processPeak', peak, spectrum: specBuf, sampleRate, fftSize, timeDomain: tdBuf, contentType: contentType as ContentType | undefined } as WorkerInboundMessage,
         transferList
       )
     },

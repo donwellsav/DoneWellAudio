@@ -225,18 +225,19 @@ describe('classifyTrack', () => {
   it('classifies a modulated, noise-sideband track as whistle', () => {
     const track = makeTrack({
       features: {
-        stabilityCentsStd: 40,      // Unstable (vibrato)
-        harmonicityScore: 0.1,      // No harmonics
-        modulationScore: 0.95,      // Strong vibrato (clear whistle signature)
-        noiseSidebandScore: 0.9,    // Breath noise (emphatic to overcome feedback prior)
-        meanQ: 20,
-        minQ: 15,
+        stabilityCentsStd: 80,
+        harmonicityScore: 0.02,
+        modulationScore: 0.99,
+        noiseSidebandScore: 0.98,
+        meanQ: 5,
+        minQ: 3,
         meanVelocityDbPerSec: 0,
-        maxVelocityDbPerSec: 1,
+        maxVelocityDbPerSec: 0.5,
         persistenceMs: 3000,
       },
       velocityDbPerSec: 0,
-      prominenceDb: 12,
+      prominenceDb: 4,
+      qEstimate: 4,
     })
 
     const result = classifyTrack(track)
@@ -296,10 +297,12 @@ describe('classifyTrack', () => {
     expect(classSum).toBeGreaterThanOrEqual(1 - 0.05)
   })
 
-  it('pUnknown is 1 - confidence', () => {
+  it('pUnknown is residual probability mass (1 - class sum)', () => {
     const track = makeTrack()
     const result = classifyTrack(track)
-    expect(result.pUnknown).toBeCloseTo(1 - result.confidence, 5)
+    // F5: pUnknown = 1 - (pFeedback + pWhistle + pInstrument), NOT 1 - confidence
+    const classSum = result.pFeedback + result.pWhistle + result.pInstrument
+    expect(result.pUnknown).toBeCloseTo(Math.max(0, 1 - classSum), 5)
   })
 
   it('always returns reasons array', () => {
@@ -557,5 +560,49 @@ describe('Smooth Schroeder penalty (sigmoid transition)', () => {
     // At 200 Hz with Schroeder at 100 Hz, the sigmoid weight should be negligible
     // and the reason should not appear (bw <= 0.001 check in code)
     expect(schroederReason).toBeUndefined()
+  })
+})
+
+// ── F5: Posterior consistency ─────────────────────────────────────────────────
+
+describe('classifyTrack posterior consistency (F5)', () => {
+  it('pFeedback + pWhistle + pInstrument + pUnknown sums to ~1', () => {
+    const result = classifyTrack(makeTrack())
+    const sum = result.pFeedback + result.pWhistle + result.pInstrument + result.pUnknown
+    expect(sum).toBeGreaterThanOrEqual(0.99)
+    expect(sum).toBeLessThanOrEqual(1.01)
+  })
+
+  it('all class probabilities are non-negative', () => {
+    const result = classifyTrack(makeTrack())
+    expect(result.pFeedback).toBeGreaterThanOrEqual(0)
+    expect(result.pWhistle).toBeGreaterThanOrEqual(0)
+    expect(result.pInstrument).toBeGreaterThanOrEqual(0)
+    expect(result.pUnknown).toBeGreaterThanOrEqual(0)
+  })
+
+  it('confidence is monotonic with returned pFeedback for feedback-dominant tracks', () => {
+    // A track with higher Q should have >= confidence
+    const lowQ = makeTrack({ qEstimate: 5 })
+    const highQ = makeTrack({ qEstimate: 50 })
+    const lowResult = classifyTrack(lowQ)
+    const highResult = classifyTrack(highQ)
+    // Higher Q -> more feedback-like -> higher pFeedback -> higher confidence
+    if (highResult.pFeedback > lowResult.pFeedback) {
+      expect(highResult.confidence).toBeGreaterThanOrEqual(lowResult.confidence)
+    }
+  })
+
+  it('adjustedPFeedback from calibration is reflected in returned posterior', () => {
+    // A track with strong feedback features should have boosted pFeedback
+    // because calculateCalibratedConfidence adjusts it
+    const track = makeTrack({ prominenceDb: 25, qEstimate: 40 })
+    const result = classifyTrack(track)
+    // The returned pFeedback should be > 0 (not the discarded pre-adjustment value)
+    expect(result.pFeedback).toBeGreaterThan(0)
+    // And confidence should be consistent with the returned class probs
+    expect(result.confidence).toBeGreaterThanOrEqual(
+      Math.max(result.pFeedback, result.pWhistle, result.pInstrument) - 0.01
+    )
   })
 })

@@ -45,7 +45,6 @@ function dbToLinear(db: number): number {
 
 const SIDEBAND_NOISE_OFFSET_DB = 3
 const SIDEBAND_NOISE_RANGE_DB = 9
-const EXISTING_PROMINENCE_THRESHOLD_DB = 10
 
 // ── Pure helper functions (exported for testability) ────────────────────────
 
@@ -88,28 +87,6 @@ export function computeNoiseSidebandScore(spectrum: Float32Array, peakBin: numbe
   return Math.max(0, Math.min(1, (excessDb - SIDEBAND_NOISE_OFFSET_DB) / SIDEBAND_NOISE_RANGE_DB))
 }
 
-/**
- * Build a richer "existing" (legacy) score from multiple feature dimensions.
- *
- * Combines prominence, feedbackDetector MSD, persistence, and Q data
- * to give the fusion engine a more informative baseline signal.
- */
-export function computeExistingScore(peak: DetectedPeak): number {
-  let score = 0.3 // base
-
-  if (peak.prominenceDb > 15) score += 0.2
-  else if (peak.prominenceDb > EXISTING_PROMINENCE_THRESHOLD_DB) score += 0.1
-
-  if (peak.msdIsHowl) score += 0.15
-  else if (peak.msd !== undefined && peak.msd < 0.15) score += 0.1
-
-  if (peak.isHighlyPersistent) score += 0.1
-  else if (peak.isPersistent) score += 0.05
-
-  if (peak.qEstimate !== undefined && peak.qEstimate > 40) score += 0.1
-
-  return Math.min(score, 1)
-}
 
 /**
  * Choose MSD minimum frames based on detected content type.
@@ -242,8 +219,6 @@ export interface FrameStats {
 export interface AlgorithmResult {
   algorithmScores: AlgorithmScores
   contentType: ContentType
-  /** @deprecated Legacy existing score — retained for API compatibility but no longer used in fusion. */
-  existingScore: number
 }
 
 /**
@@ -414,9 +389,7 @@ export class AlgorithmEngine {
       ml: mlResult,
     }
 
-    const existingScore = computeExistingScore(peak)
-
-    return { algorithmScores, contentType, existingScore }
+    return { algorithmScores, contentType }
   }
 
   /**

@@ -640,7 +640,6 @@ export function calculatePTMR(
 export function fuseAlgorithmResults(
   scores: AlgorithmScores,
   contentType: ContentType = 'unknown',
-  _existingScore: number = 0.5,
   config: FusionConfig = DEFAULT_FUSION_CONFIG,
   /** Peak frequency in Hz. When provided, enables frequency-aware scoring. */
   peakFrequencyHz?: number,
@@ -694,10 +693,13 @@ export function fuseAlgorithmResults(
 
   let weightedSum  = 0
   let totalWeight  = 0
+  // F2 fix: collect effective (transformed) scores for agreement/confidence
+  const effectiveScores: number[] = []
 
   if (activeAlgorithms.includes('msd') && scores.msd) {
     weightedSum += scores.msd.feedbackScore * weights.msd
     totalWeight += weights.msd
+    effectiveScores.push(scores.msd.feedbackScore)
     contributingAlgorithms.push('MSD')
     if (scores.msd.isFeedbackLikely) {
       reasons.push(`MSD indicates feedback (${scores.msd.msd.toFixed(3)} dB/frame\u00b2)`)
@@ -714,6 +716,7 @@ export function fuseAlgorithmResults(
       : scores.phase.feedbackScore
     weightedSum += phaseScore * weights.phase
     totalWeight += weights.phase
+    effectiveScores.push(phaseScore)
     contributingAlgorithms.push('Phase')
     if (scores.phase.isFeedbackLikely) {
       reasons.push(`High phase coherence (${(scores.phase.coherence * 100).toFixed(0)}%)`)
@@ -723,6 +726,7 @@ export function fuseAlgorithmResults(
   if (activeAlgorithms.includes('spectral') && scores.spectral) {
     weightedSum += scores.spectral.feedbackScore * weights.spectral
     totalWeight += weights.spectral
+    effectiveScores.push(scores.spectral.feedbackScore)
     contributingAlgorithms.push('Spectral')
     if (scores.spectral.isFeedbackLikely) {
       reasons.push(`Pure tone detected (flatness ${scores.spectral.flatness.toFixed(3)})`)
@@ -757,6 +761,7 @@ export function fuseAlgorithmResults(
     const combWeight = weights.comb * 2
     weightedSum += combConfidence * combWeight
     totalWeight += weights.comb
+    effectiveScores.push(combConfidence)
     contributingAlgorithms.push('Comb')
 
     const cvStr = cst.length >= 4
@@ -780,6 +785,7 @@ export function fuseAlgorithmResults(
   if (activeAlgorithms.includes('ihr') && scores.ihr) {
     weightedSum += scores.ihr.feedbackScore * weights.ihr
     totalWeight += weights.ihr
+    effectiveScores.push(scores.ihr.feedbackScore)
     contributingAlgorithms.push('IHR')
     if (scores.ihr.isFeedbackLike) {
       reasons.push(`Clean tone (IHR ${scores.ihr.interHarmonicRatio.toFixed(2)}, ${scores.ihr.harmonicsFound} harmonics)`)
@@ -791,6 +797,7 @@ export function fuseAlgorithmResults(
   if (activeAlgorithms.includes('ptmr') && scores.ptmr) {
     weightedSum += scores.ptmr.feedbackScore * weights.ptmr
     totalWeight += weights.ptmr
+    effectiveScores.push(scores.ptmr.feedbackScore)
     contributingAlgorithms.push('PTMR')
     if (scores.ptmr.isFeedbackLike) {
       reasons.push(`Sharp spectral peak (PTMR ${scores.ptmr.ptmrDb.toFixed(1)} dB)`)
@@ -802,6 +809,7 @@ export function fuseAlgorithmResults(
   if (activeAlgorithms.includes('ml') && scores.ml?.isAvailable) {
     weightedSum += scores.ml.feedbackScore * weights.ml
     totalWeight += weights.ml
+    effectiveScores.push(scores.ml.feedbackScore)
     contributingAlgorithms.push('ML')
     reasons.push(`ML: ${(scores.ml.feedbackScore * 100).toFixed(0)}% (${scores.ml.modelVersion})`)
   }
@@ -824,21 +832,15 @@ export function fuseAlgorithmResults(
     feedbackProbability *= 0.80
   }
 
-  // FIX-003: comb now included when active — fixes asymmetry where comb could
-  // flip verdict without confidence being aware of the score shift
-  // Note: 'existing' weight was fully removed (see FUSION_WEIGHTS comment)
-  const algorithmScoresList = [
-    scores.msd?.feedbackScore,
-    scores.phase?.feedbackScore,
-    scores.spectral?.feedbackScore,
-    scores.ihr?.feedbackScore,
-    scores.ptmr?.feedbackScore,
-    (scores.comb?.hasPattern ? scores.comb.confidence : undefined),
-    scores.ml?.isAvailable ? scores.ml.feedbackScore : undefined,
-  ].filter((s): s is number => s !== undefined && s !== null)
-
-  const mean     = algorithmScoresList.reduce((a, b) => a + b, 0) / algorithmScoresList.length
-  const variance = algorithmScoresList.reduce((sum, s) => sum + Math.pow(s - mean, 2), 0) / algorithmScoresList.length
+  // Agreement and confidence use effectiveScores (collected above) so that
+  // active algorithm filtering, phase suppression, and comb sweep penalties
+  // are reflected in both probability and confidence.
+  const mean     = effectiveScores.length > 0
+    ? effectiveScores.reduce((a, b) => a + b, 0) / effectiveScores.length
+    : 0
+  const variance = effectiveScores.length > 0
+    ? effectiveScores.reduce((sum, s) => sum + Math.pow(s - mean, 2), 0) / effectiveScores.length
+    : 0
   const agreement = 1 - Math.sqrt(variance)
   const confidence = feedbackProbability * (0.5 + 0.5 * agreement)
 

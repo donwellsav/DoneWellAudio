@@ -8,7 +8,7 @@
  *
  * Usage:
  *   const scores = buildScores({ msd: 0.8, phase: 0.9, spectral: 0.4 })
- *   const result = fuseAlgorithmResults(scores, 'speech', 0.8)
+ *   const result = fuseAlgorithmResults(scores, 'speech')
  */
 
 import type { MSDResult } from '@/lib/dsp/msdAnalysis'

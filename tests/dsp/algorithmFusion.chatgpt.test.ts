@@ -49,13 +49,11 @@ import { buildScores, type ScoreInput } from '../helpers/mockAlgorithmScores'
 function fuse(
   input: ScoreInput,
   contentType: 'speech' | 'music' | 'compressed' | 'unknown' = 'unknown',
-  existingScore: number = 0.5,
   config?: Partial<FusionConfig>
 ) {
   return fuseAlgorithmResults(
     buildScores(input),
     contentType,
-    existingScore,
     { ...DEFAULT_FUSION_CONFIG, ...config }
   )
 }
@@ -82,8 +80,7 @@ describe('ChatGPT-5.4 Scenarios — DEFAULT Profile', () => {
   it('FP: music with comb — scores well below threshold (fusion irrelevant)', () => {
     const result = fuse(
       { msd: 0.05, phase: 0.55, spectral: 0.45, comb: 0.70, ihr: 0.15, ptmr: 0.10 },
-      'unknown',
-      0.35
+      'unknown'
     )
     console.log(`[GPT DEFAULT FP] comb music: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
     // ChatGPT's raw sum: 0.3725. After normalization: ~0.345
@@ -104,8 +101,7 @@ describe('ChatGPT-5.4 Scenarios — DEFAULT Profile', () => {
   it('FN: real feedback with only MSD — fusion too low to trigger', () => {
     const result = fuse(
       { msd: 0.90, phase: 0.10, spectral: 0.15, comb: 0, ihr: 0.05, ptmr: 0.05 },
-      'unknown',
-      0.10
+      'unknown'
     )
     console.log(`[GPT DEFAULT FN] MSD-only feedback: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
     // 0.3305 — well below threshold. This validates DA-004.
@@ -129,8 +125,7 @@ describe('ChatGPT-5.4 Scenarios — SPEECH Profile', () => {
   it('FP: sustained music in speech mode — fusion too low to matter', () => {
     const result = fuse(
       { msd: 0.72, phase: 0.15, spectral: 0.15, comb: 0, ihr: 0.05, ptmr: 0.10 },
-      'speech',
-      0.08
+      'speech'
     )
     console.log(`[GPT SPEECH FP] sustained music: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
     expect(result.feedbackProbability).toBeLessThan(0.50)
@@ -147,8 +142,7 @@ describe('ChatGPT-5.4 Scenarios — SPEECH Profile', () => {
   it('FN: phase-locked feedback misses in SPEECH mode', () => {
     const result = fuse(
       { msd: 0.25, phase: 0.85, spectral: 0.35, comb: 0, ihr: 0.10, ptmr: 0.10 },
-      'speech',
-      0.10
+      'speech'
     )
     console.log(`[GPT SPEECH FN] phase-locked: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
     expect(result.feedbackProbability).toBeLessThan(0.50)
@@ -171,8 +165,7 @@ describe('ChatGPT-5.4 Scenarios — MUSIC Profile', () => {
   it('FP: compressed music with comb — below threshold', () => {
     const result = fuse(
       { msd: 0.02, phase: 0.55, spectral: 0.30, comb: 0.65, ihr: 0.20, ptmr: 0.05 },
-      'music',
-      0.20
+      'music'
     )
     console.log(`[GPT MUSIC FP] compressed comb: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
     expect(result.feedbackProbability).toBeLessThan(0.50)
@@ -190,8 +183,7 @@ describe('ChatGPT-5.4 Scenarios — MUSIC Profile', () => {
   it('FN: true feedback in music mode — worst score of all scenarios', () => {
     const result = fuse(
       { msd: 0.95, phase: 0.20, spectral: 0.20, comb: 0, ihr: 0.10, ptmr: 0.30 },
-      'music',
-      0.10
+      'music'
     )
     console.log(`[GPT MUSIC FN] noisy phase: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
     // 0.2825 — the lowest score. Real feedback that the fusion engine
@@ -211,8 +203,7 @@ describe('ChatGPT-5.4 Scenarios — COMPRESSED Profile', () => {
   it('FP: compressed stationary with comb — highest GPT score, still below threshold', () => {
     const result = fuse(
       { msd: 0.05, phase: 0.50, spectral: 0.45, comb: 0.60, ihr: 0.15, ptmr: 0.10, compressed: true },
-      'unknown',
-      0.15
+      'unknown'
     )
     console.log(`[GPT COMPRESS FP] stationary comb: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
     expect(result.feedbackProbability).toBeLessThan(0.50)
@@ -227,8 +218,7 @@ describe('ChatGPT-5.4 Scenarios — COMPRESSED Profile', () => {
   it('FN: early feedback in compressed mode — phase not yet locked', () => {
     const result = fuse(
       { msd: 0.95, phase: 0.20, spectral: 0.20, comb: 0, ihr: 0.10, ptmr: 0.30, compressed: true },
-      'unknown',
-      0.10
+      'unknown'
     )
     console.log(`[GPT COMPRESS FN] noisy phase: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
     expect(result.feedbackProbability).toBeLessThan(0.40)
@@ -260,8 +250,7 @@ describe('Architectural Insight: Fusion Override Threshold', () => {
     // So X >= 0.60 is needed for FEEDBACK verdict
     const borderline = fuse(
       { msd: 0.60, phase: 0.60, spectral: 0.60, comb: 0, ihr: 0.60, ptmr: 0.60 },
-      'unknown',
-      0.60
+      'unknown'
     )
     console.log(`[ARCH] uniform 0.60: probability=${borderline.feedbackProbability.toFixed(3)}, verdict=${borderline.verdict}`)
     expect(borderline.feedbackProbability).toBeCloseTo(0.60, 1)
@@ -271,8 +260,7 @@ describe('Architectural Insight: Fusion Override Threshold', () => {
     // MSD at 1.0, everything else at 0.0
     const msdOnly = fuse(
       { msd: 1.0, phase: 0.0, spectral: 0.0, comb: 0, ihr: 0.0, ptmr: 0.0 },
-      'unknown',
-      0.0
+      'unknown'
     )
     // MSD weight is 0.30, so max contribution = 0.30
     expect(msdOnly.feedbackProbability).toBeLessThan(0.35)
@@ -284,8 +272,7 @@ describe('Architectural Insight: Fusion Override Threshold', () => {
     // MSD (0.30 weight) + Phase (0.25 weight) both at 1.0, rest at 0
     const twoAlgo = fuse(
       { msd: 1.0, phase: 1.0, spectral: 0.0, comb: 0, ihr: 0.0, ptmr: 0.0 },
-      'unknown',
-      0.0
+      'unknown'
     )
     // MSD*0.30 + Phase*0.25 = 0.55. Still below 0.60.
     expect(twoAlgo.feedbackProbability).toBeLessThan(0.60)
@@ -299,8 +286,7 @@ describe('Architectural Insight: Fusion Override Threshold', () => {
     // minimal PTMR support to avoid penalty
     const threeAlgo = fuse(
       { msd: 1.0, phase: 1.0, spectral: 1.0, comb: 0, ihr: 0.0, ptmr: 0.3 },
-      'unknown',
-      0.0
+      'unknown'
     )
     // 0.30 + 0.25 + 0.12 = 0.67. Above 0.60.
     expect(threeAlgo.feedbackProbability).toBeGreaterThan(0.60)
@@ -337,15 +323,13 @@ describe('Three-Model Score Distribution Comparison', () => {
     // Gemini-style: all algorithms see something
     const geminiStyle = fuse(
       { msd: 0.8, phase: 0.9, spectral: 0.4, comb: 0, ihr: 0.1, ptmr: 0.7 },
-      'unknown',
-      0.8
+      'unknown'
     )
 
     // ChatGPT-style: only one algorithm sees something
     const chatgptStyle = fuse(
       { msd: 0.90, phase: 0.10, spectral: 0.15, comb: 0, ihr: 0.05, ptmr: 0.05 },
-      'unknown',
-      0.10
+      'unknown'
     )
 
     console.log(`[3-MODEL] Gemini-style: ${geminiStyle.feedbackProbability.toFixed(3)} (${geminiStyle.verdict})`)

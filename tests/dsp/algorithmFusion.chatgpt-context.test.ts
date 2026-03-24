@@ -46,13 +46,11 @@ import { buildScores, type ScoreInput } from '../helpers/mockAlgorithmScores'
 function fuse(
   input: ScoreInput,
   contentType: 'speech' | 'music' | 'compressed' | 'unknown' = 'unknown',
-  existingScore: number = 0.5,
   config?: Partial<FusionConfig>
 ) {
   return fuseAlgorithmResults(
     buildScores(input),
     contentType,
-    existingScore,
     { ...DEFAULT_FUSION_CONFIG, ...config }
   )
 }
@@ -121,8 +119,7 @@ describe('ChatGPT-5.4 Stress Cases — DEFAULT Profile', () => {
   it('FP: compressed synth note reaches FEEDBACK verdict', () => {
     const result = fuse(
       { msd: 0.85, phase: 0.80, spectral: 0.55, comb: 0, ihr: 0.20, ptmr: 0.35 },
-      'unknown',
-      0.80
+      'unknown'
     )
     console.log(`[GPT-CTX DEFAULT FP] synth: prob=${result.feedbackProbability.toFixed(4)}, conf=${result.confidence.toFixed(4)}, verdict=${result.verdict}`)
     // ChatGPT predicted 0.6973 — verify
@@ -140,8 +137,7 @@ describe('ChatGPT-5.4 Stress Cases — DEFAULT Profile', () => {
   it('FN: spectral-only detection collapses without MSD/phase', () => {
     const result = fuse(
       { msd: 0.0, phase: 0.0, spectral: 0.80, comb: 0, ihr: 0.80, ptmr: 0.80 },
-      'unknown',
-      0.20
+      'unknown'
     )
     console.log(`[GPT-CTX DEFAULT FN] spectral-only: prob=${result.feedbackProbability.toFixed(4)}, conf=${result.confidence.toFixed(4)}, verdict=${result.verdict}`)
     // Three algorithms at 0.80 → probability should be high
@@ -165,8 +161,7 @@ describe('ChatGPT-5.4 Stress Cases — SPEECH Profile', () => {
   it('FP: MSD-only detection with zero phase reaches FEEDBACK', () => {
     const result = fuse(
       { msd: 1.00, phase: 0.0, spectral: 0.60, comb: 0, ihr: 0.40, ptmr: 0.60 },
-      'speech',
-      0.80
+      'speech'
     )
     console.log(`[GPT-CTX SPEECH FP] MSD-only: prob=${result.feedbackProbability.toFixed(4)}, conf=${result.confidence.toFixed(4)}, verdict=${result.verdict}`)
     // MSD at 34.7% effective (existing removed) — no more correlated double-vote
@@ -180,8 +175,7 @@ describe('ChatGPT-5.4 Stress Cases — SPEECH Profile', () => {
   it('FN: real feedback without MSD collapses in SPEECH mode', () => {
     const result = fuse(
       { msd: 0.0, phase: 0.20, spectral: 0.80, comb: 0, ihr: 0.80, ptmr: 0.80 },
-      'speech',
-      0.0
+      'speech'
     )
     console.log(`[GPT-CTX SPEECH FN] no-MSD: prob=${result.feedbackProbability.toFixed(4)}, conf=${result.confidence.toFixed(4)}, verdict=${result.verdict}`)
     // With existing weight removed, non-MSD algos have slightly more influence.
@@ -200,8 +194,7 @@ describe('ChatGPT-5.4 Stress Cases — MUSIC Profile', () => {
   it('FP: phase-dominant music detection reaches FEEDBACK with zero MSD', () => {
     const result = fuse(
       { msd: 0.0, phase: 1.0, spectral: 0.80, comb: 0, ihr: 0.60, ptmr: 0.40 },
-      'music',
-      0.80
+      'music'
     )
     console.log(`[GPT-CTX MUSIC FP] phase-dominant: prob=${result.feedbackProbability.toFixed(4)}, conf=${result.confidence.toFixed(4)}, verdict=${result.verdict}`)
     expect(result.feedbackProbability).toBeGreaterThan(0.60)
@@ -215,8 +208,7 @@ describe('ChatGPT-5.4 Stress Cases — MUSIC Profile', () => {
   it('FN: real feedback without phase collapses in MUSIC mode', () => {
     const result = fuse(
       { msd: 0.80, phase: 0.0, spectral: 0.80, comb: 0, ihr: 0.80, ptmr: 0.20 },
-      'music',
-      0.0
+      'music'
     )
     console.log(`[GPT-CTX MUSIC FN] no-phase: prob=${result.feedbackProbability.toFixed(4)}, conf=${result.confidence.toFixed(4)}, verdict=${result.verdict}`)
     expect(result.feedbackProbability).toBeLessThan(0.40)
@@ -231,8 +223,7 @@ describe('ChatGPT-5.4 Stress Cases — COMPRESSED Profile', () => {
   it('FP: phase-only conviction in compressed mode', () => {
     const result = fuse(
       { msd: 0.0, phase: 1.0, spectral: 0.40, comb: 0, ihr: 0.40, ptmr: 0.60, compressed: true },
-      'unknown',
-      0.80
+      'unknown'
     )
     console.log(`[GPT-CTX COMPRESS FP] phase-only: prob=${result.feedbackProbability.toFixed(4)}, conf=${result.confidence.toFixed(4)}, verdict=${result.verdict}`)
     expect(result.feedbackProbability).toBeGreaterThan(0.55)
@@ -245,8 +236,7 @@ describe('ChatGPT-5.4 Stress Cases — COMPRESSED Profile', () => {
   it('FN: real feedback without phase in compressed mode', () => {
     const result = fuse(
       { msd: 0.80, phase: 0.0, spectral: 0.0, comb: 0, ihr: 0.80, ptmr: 0.80, compressed: true },
-      'unknown',
-      0.0
+      'unknown'
     )
     console.log(`[GPT-CTX COMPRESS FN] no-phase: prob=${result.feedbackProbability.toFixed(4)}, conf=${result.confidence.toFixed(4)}, verdict=${result.verdict}`)
     // With existing weight removed, IHR+PTMR have more influence.
@@ -271,8 +261,7 @@ describe('Comb Verdict Flip (ChatGPT Discovery)', () => {
   it('without comb: POSSIBLE_FEEDBACK', () => {
     const result = fuse(
       { ...baseScores, comb: 0 },
-      'unknown',
-      0.40
+      'unknown'
     )
     console.log(`[COMB FLIP] without comb: prob=${result.feedbackProbability.toFixed(4)}, conf=${result.confidence.toFixed(4)}, verdict=${result.verdict}`)
     // ChatGPT predicted: probability=0.5783, verdict=POSSIBLE_FEEDBACK
@@ -282,8 +271,7 @@ describe('Comb Verdict Flip (ChatGPT Discovery)', () => {
   it('with comb: FEEDBACK (verdict flips)', () => {
     const result = fuse(
       { ...baseScores, comb: 0.80 },
-      'unknown',
-      0.40
+      'unknown'
     )
     console.log(`[COMB FLIP] with comb: prob=${result.feedbackProbability.toFixed(4)}, conf=${result.confidence.toFixed(4)}, verdict=${result.verdict}`)
     // ChatGPT predicted: probability=0.6111, verdict=FEEDBACK
@@ -292,8 +280,8 @@ describe('Comb Verdict Flip (ChatGPT Discovery)', () => {
   })
 
   it('comb participates in confidence agreement list (FIX-003)', () => {
-    const withComb = fuse({ ...baseScores, comb: 0.80 }, 'unknown', 0.40)
-    const withoutComb = fuse({ ...baseScores, comb: 0 }, 'unknown', 0.40)
+    const withComb = fuse({ ...baseScores, comb: 0.80 }, 'unknown')
+    const withoutComb = fuse({ ...baseScores, comb: 0 }, 'unknown')
 
     // FIX-003: comb now included in agreement list when active.
     // Confidence difference reflects both probability shift AND agreement shift.
@@ -303,52 +291,7 @@ describe('Comb Verdict Flip (ChatGPT Discovery)', () => {
 })
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 4. EXISTING WEIGHT REMOVAL VALIDATION
-//
-// The `existing` weight has been removed from all fusion profiles.
-// The _existingScore parameter is kept for API compat but ignored.
-// These tests verify that existingScore no longer affects results.
-// ═════════════════════════════════════════════════════════════════════════════
-
-describe('Existing Weight Removed (ChatGPT Discovery → Fixed)', () => {
-  it('existing score no longer affects probability or confidence', () => {
-    // High existing score
-    const withHighExisting = fuse(
-      { msd: 0.50, phase: 0.50, spectral: 0.50, comb: 0, ihr: 0.50, ptmr: 0.50 },
-      'unknown',
-      0.90 // High existing score — should be ignored
-    )
-
-    // Low existing score
-    const withLowExisting = fuse(
-      { msd: 0.50, phase: 0.50, spectral: 0.50, comb: 0, ihr: 0.50, ptmr: 0.50 },
-      'unknown',
-      0.10 // Low existing score — should be ignored
-    )
-
-    // Both should produce identical results since existing is ignored
-    console.log(`[EXISTING REMOVED] high existing: prob=${withHighExisting.feedbackProbability.toFixed(4)}, conf=${withHighExisting.confidence.toFixed(4)}`)
-    console.log(`[EXISTING REMOVED] low existing: prob=${withLowExisting.feedbackProbability.toFixed(4)}, conf=${withLowExisting.confidence.toFixed(4)}`)
-
-    expect(withHighExisting.feedbackProbability).toBeCloseTo(withLowExisting.feedbackProbability, 10)
-    expect(withHighExisting.confidence).toBeCloseTo(withLowExisting.confidence, 10)
-  })
-
-  it('MSD no longer double-counts via existing in SPEECH', () => {
-    // With existing removed, MSD influence is limited to its own weight (34.7% effective).
-    // No correlated double-vote from existing.
-    const result = fuse(
-      { msd: 0.90, phase: 0.30, spectral: 0.30, comb: 0, ihr: 0.30, ptmr: 0.30 },
-      'speech',
-      0.90 // Ignored — existing weight removed
-    )
-    console.log(`[EXISTING REMOVED] SPEECH MSD-only: prob=${result.feedbackProbability.toFixed(4)}, verdict=${result.verdict}`)
-    // MSD weight is now 34.7% effective (0.33 / 0.95) — no existing amplification
-  })
-})
-
-// ═════════════════════════════════════════════════════════════════════════════
-// 5. STRUCTURAL RECALL FLOOR
+// 4. STRUCTURAL RECALL FLOOR
 //
 // When the two heaviest algorithms (MSD + Phase) are both absent,
 // what is the maximum possible fusion score? This reveals the
@@ -359,8 +302,7 @@ describe('Structural Recall Floor (MSD + Phase Both Absent)', () => {
   it('DEFAULT: max possible score without MSD/Phase is ~0.29', () => {
     const result = fuse(
       { msd: 0.0, phase: 0.0, spectral: 1.0, comb: 0, ihr: 1.0, ptmr: 1.0 },
-      'unknown',
-      1.0
+      'unknown'
     )
     // spectral(0.12) + ihr(0.13) + ptmr(0.12) = 0.37
     // Divided by totalWeight = 0.37 (only those contribute)
@@ -376,8 +318,7 @@ describe('Structural Recall Floor (MSD + Phase Both Absent)', () => {
     // Remaining: phase(25.3%) + spectral(10.5%) + ihr(10.5%) + ptmr(18.9%) = 65.3%
     const result = fuse(
       { msd: 0.0, phase: 1.0, spectral: 1.0, comb: 0, ihr: 1.0, ptmr: 1.0 },
-      'speech',
-      1.0
+      'speech'
     )
     console.log(`[RECALL FLOOR] SPEECH all-max no MSD: prob=${result.feedbackProbability.toFixed(4)}, conf=${result.confidence.toFixed(4)}, verdict=${result.verdict}`)
     // With renormalization: should be 1.0 (all contributing are at max)
