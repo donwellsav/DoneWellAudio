@@ -640,7 +640,6 @@ export function calculatePTMR(
 export function fuseAlgorithmResults(
   scores: AlgorithmScores,
   contentType: ContentType = 'unknown',
-  _existingScore: number = 0.5,
   config: FusionConfig = DEFAULT_FUSION_CONFIG,
   /** Peak frequency in Hz. When provided, enables frequency-aware scoring. */
   peakFrequencyHz?: number,

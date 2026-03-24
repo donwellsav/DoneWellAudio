@@ -460,7 +460,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         }
       }
 
-      const { algorithmScores, contentType, existingScore } = algorithmEngine.computeScores(
+      const { algorithmScores, contentType } = algorithmEngine.computeScores(
         peak, track, spectrum, sampleRate, fftSize, peakFrequencies
       )
 
@@ -483,7 +483,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         combTrackers.set(track.id, trackCst)
       }
       const fusionResult = fuseAlgorithmResults(
-        algorithmScores, contentType, existingScore, fusionConfig, track.trueFrequencyHz, trackCst
+        algorithmScores, contentType, fusionConfig, track.trueFrequencyHz, trackCst
       )
 
       // Feed fusion result back to AlgorithmEngine for ML's next-frame input

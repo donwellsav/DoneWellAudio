@@ -37,14 +37,12 @@ import { buildScores, type ScoreInput } from '../helpers/mockAlgorithmScores'
 function fuse(
   input: ScoreInput,
   contentType: 'speech' | 'music' | 'compressed' | 'unknown' = 'unknown',
-  existingScore: number = 0.5,
   config?: Partial<FusionConfig>,
   peakFrequencyHz?: number
 ) {
   return fuseAlgorithmResults(
     buildScores(input),
     contentType,
-    existingScore,
     { ...DEFAULT_FUSION_CONFIG, ...config },
     peakFrequencyHz
   )
@@ -130,8 +128,7 @@ describe('Single-Algorithm Isolation', () => {
   it('MSD=1.0 alone cannot reach FEEDBACK (probability < 0.35)', () => {
     const result = fuse(
       { msd: 1.0, phase: 0, spectral: 0, comb: 0, ihr: 0, ptmr: 0 },
-      'unknown',
-      0 // existingScore = 0
+      'unknown'
     )
     expect(result.feedbackProbability).toBeLessThan(0.35)
   })
@@ -139,8 +136,7 @@ describe('Single-Algorithm Isolation', () => {
   it('MSD+Phase both=1.0 still below FEEDBACK threshold (< 0.60)', () => {
     const result = fuse(
       { msd: 1.0, phase: 1.0, spectral: 0, comb: 0, ihr: 0, ptmr: 0 },
-      'unknown',
-      0
+      'unknown'
     )
     expect(result.feedbackProbability).toBeLessThan(0.60)
   })
@@ -150,8 +146,7 @@ describe('Single-Algorithm Isolation', () => {
     // minimal PTMR support to avoid penalty
     const result = fuse(
       { msd: 1.0, phase: 1.0, spectral: 1.0, comb: 0, ihr: 0, ptmr: 0.3 },
-      'unknown',
-      0
+      'unknown'
     )
     expect(result.feedbackProbability).toBeGreaterThan(0.60)
   })
@@ -177,8 +172,7 @@ describe('Gemini Vulnerability Scenarios — DEFAULT Profile', () => {
   it('FALSE POSITIVE: sustained synth note scores above threshold', () => {
     const result = fuse(
       { msd: 0.8, phase: 0.9, spectral: 0.4, comb: 0, ihr: 0.1, ptmr: 0.7 },
-      'unknown',
-      0.8 // existing score
+      'unknown'
     )
     // Document the vulnerability: this SHOULD be NOT_FEEDBACK or UNCERTAIN
     // but with current weights it exceeds the threshold
@@ -198,8 +192,7 @@ describe('Gemini Vulnerability Scenarios — DEFAULT Profile', () => {
   it('FALSE NEGATIVE: low-freq reverberant feedback scores below threshold', () => {
     const result = fuse(
       { msd: 0.4, phase: 0.5, spectral: 0.9, comb: 0, ihr: 0.9, ptmr: 0.8 },
-      'unknown',
-      0.9
+      'unknown'
     )
     expect(result.feedbackProbability).toBeLessThan(0.65)
     console.log(`[DEFAULT FN] reverberant feedback: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
@@ -219,8 +212,7 @@ describe('Gemini Vulnerability Scenarios — SPEECH Profile', () => {
   it('FALSE POSITIVE: sustained vowel scores well above threshold', () => {
     const result = fuse(
       { msd: 0.9, phase: 0.8, spectral: 0.5, comb: 0, ihr: 0.2, ptmr: 0.6 },
-      'speech',
-      0.7
+      'speech'
     )
     expect(result.feedbackProbability).toBeGreaterThan(0.60)
     console.log(`[SPEECH FP] sustained vowel: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
@@ -238,8 +230,7 @@ describe('Gemini Vulnerability Scenarios — SPEECH Profile', () => {
   it('FALSE NEGATIVE: limiter-clamped feedback scores below threshold', () => {
     const result = fuse(
       { msd: 0.1, phase: 0.9, spectral: 0.9, comb: 0, ihr: 0.9, ptmr: 0.9 },
-      'speech',
-      0.8
+      'speech'
     )
     expect(result.feedbackProbability).toBeLessThan(0.65)
     console.log(`[SPEECH FN] limiter-clamped: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
@@ -259,8 +250,7 @@ describe('Gemini Vulnerability Scenarios — MUSIC Profile', () => {
   it('FALSE POSITIVE: intentional guitar feedback (expected and acceptable)', () => {
     const result = fuse(
       { msd: 0.8, phase: 0.95, spectral: 0.6, comb: 0, ihr: 0.2, ptmr: 0.8 },
-      'music',
-      0.9
+      'music'
     )
     // This false positive is arguably CORRECT behavior —
     // intentional feedback IS feedback. Documenting, not fixing.
@@ -280,8 +270,7 @@ describe('Gemini Vulnerability Scenarios — MUSIC Profile', () => {
   it('FALSE NEGATIVE: feedback hidden in dense mix', () => {
     const result = fuse(
       { msd: 0.6, phase: 0.3, spectral: 0.8, comb: 0, ihr: 0.8, ptmr: 0.7 },
-      'music',
-      0.6
+      'music'
     )
     expect(result.feedbackProbability).toBeLessThan(0.60)
     console.log(`[MUSIC FN] dense mix: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
@@ -300,8 +289,7 @@ describe('Gemini Vulnerability Scenarios — COMPRESSED Profile', () => {
   it('FALSE POSITIVE: compressed flute sample scores above threshold', () => {
     const result = fuse(
       { msd: 0.5, phase: 0.95, spectral: 0.6, comb: 0, ihr: 0.3, ptmr: 0.6, compressed: true },
-      'unknown', // contentType doesn't matter when compressed=true
-      0.8
+      'unknown' // contentType doesn't matter when compressed=true
     )
     expect(result.feedbackProbability).toBeGreaterThan(0.55)
     console.log(`[COMPRESSED FP] flute: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
@@ -325,8 +313,7 @@ describe('Gemini Vulnerability Scenarios — COMPRESSED Profile', () => {
   it('FN IMPROVED: compressor-pumped feedback now detected (FIX-005)', () => {
     const result = fuse(
       { msd: 0.8, phase: 0.2, spectral: 0.8, comb: 0, ihr: 0.9, ptmr: 0.8, compressed: true },
-      'unknown',
-      0.7
+      'unknown'
     )
     // FIX-005: phase redistribution allows non-phase algorithms to detect.
     // Prob crosses 0.60 but compressed thresholdMultiplier (1.5) raises
@@ -348,8 +335,7 @@ describe('Consensus Vulnerability: DEFAULT Profile', () => {
   it('V1 — FP: Synth note (MSD+Phase dominant)', () => {
     const result = fuse(
       { msd: 0.85, phase: 0.80, spectral: 0.55, ihr: 0.20, ptmr: 0.35, comb: 0 },
-      'unknown',
-      0.80
+      'unknown'
     )
     expect(result.feedbackProbability).toBeGreaterThan(0.60)
     console.log(`[V1 DEFAULT FP] synth: prob=${result.feedbackProbability.toFixed(3)}, conf=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
@@ -358,8 +344,7 @@ describe('Consensus Vulnerability: DEFAULT Profile', () => {
   it('V2 — FN: Spectral-only feedback (MSD+Phase blind)', () => {
     const result = fuse(
       { msd: 0, phase: 0, spectral: 0.80, ihr: 0.80, ptmr: 0.80, comb: 0 },
-      'unknown',
-      0.20
+      'unknown'
     )
     expect(result.feedbackProbability).toBeLessThan(0.35)
     console.log(`[V2 DEFAULT FN] spectral-only: prob=${result.feedbackProbability.toFixed(3)}, conf=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
@@ -370,8 +355,7 @@ describe('Consensus Vulnerability: SPEECH Profile', () => {
   it('V3 — FP FIXED: MSD-only conviction no longer reaches FEEDBACK (FIX-004)', () => {
     const result = fuse(
       { msd: 1.0, phase: 0, spectral: 0.60, ihr: 0.40, ptmr: 0.60, comb: 0 },
-      'speech',
-      0.80
+      'speech'
     )
     // FIX-004: SPEECH MSD reduced from 0.40→0.33.
     // Before: prob=0.634 (FEEDBACK). After: prob≈0.579 (POSSIBLE_FEEDBACK).
@@ -384,8 +368,7 @@ describe('Consensus Vulnerability: SPEECH Profile', () => {
   it('V4 — FN: No MSD (feedback invisible to dominant algorithm)', () => {
     const result = fuse(
       { msd: 0, phase: 0.20, spectral: 0.80, ihr: 0.80, ptmr: 0.80, comb: 0 },
-      'speech',
-      0
+      'speech'
     )
     // With existing weight removed, non-MSD algos have slightly more influence.
     // Probability rises from ~0.33 to ~0.37 — still a false negative.
@@ -398,8 +381,7 @@ describe('Consensus Vulnerability: MUSIC Profile', () => {
   it('V5 — FP: Phase-dominant (phase alone convicts)', () => {
     const result = fuse(
       { msd: 0, phase: 1.0, spectral: 0.80, ihr: 0.60, ptmr: 0.40, comb: 0 },
-      'music',
-      0.80
+      'music'
     )
     expect(result.feedbackProbability).toBeGreaterThan(0.60)
     console.log(`[V5 MUSIC FP] phase-dominant: prob=${result.feedbackProbability.toFixed(3)}, conf=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
@@ -408,8 +390,7 @@ describe('Consensus Vulnerability: MUSIC Profile', () => {
   it('V6 — FN: No phase (feedback invisible to dominant algorithm)', () => {
     const result = fuse(
       { msd: 0.80, phase: 0, spectral: 0.80, ihr: 0.80, ptmr: 0.20, comb: 0 },
-      'music',
-      0
+      'music'
     )
     expect(result.feedbackProbability).toBeLessThan(0.40)
     console.log(`[V6 MUSIC FN] no-phase: prob=${result.feedbackProbability.toFixed(3)}, conf=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
@@ -420,13 +401,13 @@ describe('Consensus Vulnerability: COMB Pattern', () => {
   it('V7 — Comb flip: same scores, comb presence crosses threshold', () => {
     const scores = { msd: 0.60, phase: 0.60, spectral: 0.60, ihr: 0.60, ptmr: 0.60, comb: 0 }
 
-    const noComb = fuse(scores, 'unknown', 0.40)
+    const noComb = fuse(scores, 'unknown')
     // With uniform scores of 0.60, weighted average ≈ 0.60
     // (ML is null/unavailable so excluded from fusion). Comb absent → no doubling.
     // Floating point: 0.6000000000000001, so use closeTo.
     expect(noComb.feedbackProbability).toBeCloseTo(0.60, 10)
 
-    const withComb = fuse({ ...scores, comb: 0.80 }, 'unknown', 0.40)
+    const withComb = fuse({ ...scores, comb: 0.80 }, 'unknown')
     expect(withComb.feedbackProbability).toBeGreaterThan(0.60)
 
     console.log(`[V7 COMB] noComb=${noComb.feedbackProbability.toFixed(3)}, withComb=${withComb.feedbackProbability.toFixed(3)}, delta=${(withComb.feedbackProbability - noComb.feedbackProbability).toFixed(3)}`)
@@ -437,8 +418,7 @@ describe('Consensus Vulnerability: COMPRESSED Profile', () => {
   it('V8 — FP FIXED: Phase conviction under compression no longer reaches FEEDBACK (FIX-005)', () => {
     const result = fuse(
       { msd: 0, phase: 1.0, spectral: 0.40, ihr: 0.40, ptmr: 0.60, compressed: true, comb: 0 },
-      'unknown',
-      0.80
+      'unknown'
     )
     // FIX-005: COMPRESSED phase reduced 0.38→0.30, prob drops below 0.60
     expect(result.feedbackProbability).toBeLessThan(0.60)
@@ -455,8 +435,7 @@ describe('Baseline: Obvious Cases', () => {
   it('Pure feedback: all algorithms agree → FEEDBACK', () => {
     const result = fuse(
       { msd: 0.95, phase: 0.95, spectral: 0.95, comb: 0, ihr: 0.95, ptmr: 0.95 },
-      'unknown',
-      0.95
+      'unknown'
     )
     expect(result.verdict).toBe('FEEDBACK')
     expect(result.feedbackProbability).toBeGreaterThan(0.90)
@@ -466,8 +445,7 @@ describe('Baseline: Obvious Cases', () => {
   it('Pure music: all algorithms agree → low probability', () => {
     const result = fuse(
       { msd: 0.05, phase: 0.1, spectral: 0.05, comb: 0, ihr: 0.05, ptmr: 0.05 },
-      'music',
-      0.1
+      'music'
     )
     // Verdict may be NOT_FEEDBACK or UNCERTAIN depending on confidence;
     // the key assertion is that probability stays well below threshold.
@@ -478,8 +456,7 @@ describe('Baseline: Obvious Cases', () => {
   it('Silence: no algorithm data → zero probability', () => {
     const result = fuse(
       {}, // All null
-      'unknown',
-      0.5
+      'unknown'
     )
     // No algorithms contribute (existing weight removed), result should be 0.0
     expect(result.feedbackProbability).toBe(0.0)
@@ -488,16 +465,14 @@ describe('Baseline: Obvious Cases', () => {
   it('Feedback with comb pattern: comb doubles weight and boosts score', () => {
     const result = fuse(
       { msd: 0.8, phase: 0.85, spectral: 0.7, comb: 0.9, ihr: 0.8, ptmr: 0.8 },
-      'unknown',
-      0.7
+      'unknown'
     )
     expect(result.verdict).toBe('FEEDBACK')
     expect(result.contributingAlgorithms).toContain('Comb')
     // Comb should increase total probability
     const noComb = fuse(
       { msd: 0.8, phase: 0.85, spectral: 0.7, comb: 0, ihr: 0.8, ptmr: 0.8 },
-      'unknown',
-      0.7
+      'unknown'
     )
     expect(result.feedbackProbability).toBeGreaterThan(noComb.feedbackProbability)
   })
@@ -516,8 +491,7 @@ describe('Edge Cases', () => {
   it('DA-004: single strong MSD should still reach POSSIBLE_FEEDBACK', () => {
     const result = fuse(
       { msd: 0.9, msdFrames: 15 },
-      'speech',
-      0.5
+      'speech'
     )
     // With only MSD (0.9) contributing (existing weight removed), we want at least POSSIBLE_FEEDBACK
     // Current behavior: confidence may be low due to single-algorithm detection
@@ -529,8 +503,8 @@ describe('Edge Cases', () => {
   it('Content type selects correct weight profile', () => {
     const scores = { msd: 0.5, phase: 0.5, spectral: 0.5, comb: 0, ihr: 0.5, ptmr: 0.5 }
 
-    const speech = fuse(scores, 'speech', 0.5)
-    const music = fuse(scores, 'music', 0.5)
+    const speech = fuse(scores, 'speech')
+    const music = fuse(scores, 'music')
 
     // SPEECH weights MSD at 0.33, MUSIC at 0.08
     // With same feedbackScores, SPEECH should produce higher probability
@@ -544,8 +518,7 @@ describe('Edge Cases', () => {
   it('Compressed audio triggers COMPRESSED weight profile', () => {
     const result = fuse(
       { msd: 0.5, phase: 0.5, spectral: 0.5, comb: 0, ihr: 0.5, ptmr: 0.5, compressed: true },
-      'speech', // Content type is overridden by compressed detection
-      0.5
+      'speech' // Content type is overridden by compressed detection
     )
     expect(result.reasons.some(r => r.includes('Compression detected'))).toBe(true)
   })
@@ -554,7 +527,6 @@ describe('Edge Cases', () => {
     const result = fuse(
       { msd: 0.9, phase: 0.9, spectral: 0.9, comb: 0.9, ihr: 0.9, ptmr: 0.9 },
       'unknown',
-      0.9,
       { mode: 'msd' }
     )
     expect(result.contributingAlgorithms).toContain('MSD')
@@ -567,7 +539,6 @@ describe('Edge Cases', () => {
     const result = fuse(
       { msd: 0.9, phase: 0.9, spectral: 0.9, comb: 0.9, ihr: 0.9, ptmr: 0.9 },
       'unknown',
-      0.9,
       { mode: 'phase' }
     )
     expect(result.contributingAlgorithms).not.toContain('MSD')
@@ -578,8 +549,7 @@ describe('Edge Cases', () => {
     // Extreme high scores
     const high = fuse(
       { msd: 1.0, phase: 1.0, spectral: 1.0, comb: 1.0, ihr: 1.0, ptmr: 1.0 },
-      'unknown',
-      1.0
+      'unknown'
     )
     expect(high.feedbackProbability).toBeLessThanOrEqual(1.0)
     expect(high.feedbackProbability).toBeGreaterThanOrEqual(0.0)
@@ -587,8 +557,7 @@ describe('Edge Cases', () => {
     // Extreme low scores
     const low = fuse(
       { msd: 0.0, phase: 0.0, spectral: 0.0, comb: 0, ihr: 0.0, ptmr: 0.0 },
-      'unknown',
-      0.0
+      'unknown'
     )
     expect(low.feedbackProbability).toBeLessThanOrEqual(1.0)
     expect(low.feedbackProbability).toBeGreaterThanOrEqual(0.0)
@@ -601,15 +570,13 @@ describe('Edge Cases', () => {
 
     const feedback = fuse(
       { msd: 0.95, phase: 0.95, spectral: 0.95, comb: 0, ihr: 0.95, ptmr: 0.95 },
-      'unknown',
-      0.95
+      'unknown'
     )
     expect(feedback.verdict).toBe('FEEDBACK')
 
     const notFeedback = fuse(
       { msd: 0.02, phase: 0.05, spectral: 0.02, comb: 0, ihr: 0.02, ptmr: 0.02 },
-      'unknown',
-      0.05
+      'unknown'
     )
     // Low scores yield low probability; verdict is NOT_FEEDBACK or UNCERTAIN
     // depending on confidence (variance between small values reduces agreement).
@@ -626,8 +593,8 @@ describe('Low-Frequency Phase Suppression (ADV-002)', () => {
   const highPhaseScores = { msd: 0.5, phase: 1.0, spectral: 0.5, comb: 0, ihr: 0.5, ptmr: 0.5 }
 
   it('phase is suppressed at 100 Hz (below 200 Hz threshold)', () => {
-    const normal = fuse(highPhaseScores, 'unknown', 0.5, undefined, undefined)
-    const lowFreq = fuse(highPhaseScores, 'unknown', 0.5, undefined, 100)
+    const normal = fuse(highPhaseScores, 'unknown', undefined, undefined)
+    const lowFreq = fuse(highPhaseScores, 'unknown', undefined, 100)
 
     // Low-frequency version should have lower probability due to phase × 0.5
     expect(lowFreq.feedbackProbability).toBeLessThan(normal.feedbackProbability)
@@ -635,16 +602,16 @@ describe('Low-Frequency Phase Suppression (ADV-002)', () => {
   })
 
   it('phase is NOT suppressed at 500 Hz (above 200 Hz threshold)', () => {
-    const normal = fuse(highPhaseScores, 'unknown', 0.5, undefined, undefined)
-    const midFreq = fuse(highPhaseScores, 'unknown', 0.5, undefined, 500)
+    const normal = fuse(highPhaseScores, 'unknown', undefined, undefined)
+    const midFreq = fuse(highPhaseScores, 'unknown', undefined, 500)
 
     // Above 200 Hz: no suppression, same probability
     expect(midFreq.feedbackProbability).toBeCloseTo(normal.feedbackProbability, 10)
   })
 
   it('phase is NOT suppressed when peakFrequencyHz is undefined', () => {
-    const withoutFreq = fuse(highPhaseScores, 'unknown', 0.5, undefined, undefined)
-    const withHighFreq = fuse(highPhaseScores, 'unknown', 0.5, undefined, 1000)
+    const withoutFreq = fuse(highPhaseScores, 'unknown', undefined, undefined)
+    const withHighFreq = fuse(highPhaseScores, 'unknown', undefined, 1000)
 
     // Both should be identical: no suppression
     expect(withoutFreq.feedbackProbability).toBeCloseTo(withHighFreq.feedbackProbability, 10)
@@ -652,8 +619,8 @@ describe('Low-Frequency Phase Suppression (ADV-002)', () => {
 
   it('suppression at 50 Hz reduces phase influence significantly', () => {
     // Use MUSIC profile where phase is dominant (35% weight)
-    const normal = fuse(highPhaseScores, 'music', 0.5, undefined, undefined)
-    const subBass = fuse(highPhaseScores, 'music', 0.5, undefined, 50)
+    const normal = fuse(highPhaseScores, 'music', undefined, undefined)
+    const subBass = fuse(highPhaseScores, 'music', undefined, 50)
 
     const delta = normal.feedbackProbability - subBass.feedbackProbability
     // Phase score halved × 35% nominal weight → expect noticeable drop
@@ -672,7 +639,7 @@ describe('ML 7th Algorithm Integration', () => {
     const scores = buildScores({ msd: 0.8, phase: 0.9, spectral: 0.7, ihr: 0.6, ptmr: 0.8 })
     expect(scores.ml).toBeNull()
 
-    const result = fuseAlgorithmResults(scores, 'unknown', 0.5)
+    const result = fuseAlgorithmResults(scores, 'unknown')
     // ML null → excluded from fusion, result driven by 5 algorithms only
     expect(result.feedbackProbability).toBeGreaterThan(0)
     expect(result.feedbackProbability).toBeLessThanOrEqual(1)
@@ -689,7 +656,7 @@ describe('ML 7th Algorithm Integration', () => {
       modelVersion: 'dwa-fp-v1',
     }
 
-    const result = fuseAlgorithmResults(scores, 'unknown', 0.5)
+    const result = fuseAlgorithmResults(scores, 'unknown')
     expect(result.contributingAlgorithms).toContain('ML')
     expect(result.reasons.some(r => r.startsWith('ML:'))).toBe(true)
   })
@@ -697,7 +664,7 @@ describe('ML 7th Algorithm Integration', () => {
   it('ML score at 0 reduces fusion probability compared to ML unavailable', () => {
     const baseScores = { msd: 0.8, phase: 0.9, spectral: 0.7, ihr: 0.6, ptmr: 0.8 }
 
-    const withoutML = fuseAlgorithmResults(buildScores(baseScores), 'unknown', 0.5)
+    const withoutML = fuseAlgorithmResults(buildScores(baseScores), 'unknown')
 
     const scoresWithML = buildScores(baseScores)
     scoresWithML.ml = {
@@ -706,7 +673,7 @@ describe('ML 7th Algorithm Integration', () => {
       isAvailable: true,
       modelVersion: 'dwa-fp-v1',
     }
-    const withML = fuseAlgorithmResults(scoresWithML, 'unknown', 0.5)
+    const withML = fuseAlgorithmResults(scoresWithML, 'unknown')
 
     // ML at 0 should pull probability down relative to ML absent
     expect(withML.feedbackProbability).toBeLessThan(withoutML.feedbackProbability)
@@ -715,7 +682,7 @@ describe('ML 7th Algorithm Integration', () => {
   it('ML score at 1.0 increases fusion probability compared to ML unavailable', () => {
     const baseScores = { msd: 0.5, phase: 0.5, spectral: 0.5, ihr: 0.5, ptmr: 0.5 }
 
-    const withoutML = fuseAlgorithmResults(buildScores(baseScores), 'unknown', 0.5)
+    const withoutML = fuseAlgorithmResults(buildScores(baseScores), 'unknown')
 
     const scoresWithML = buildScores(baseScores)
     scoresWithML.ml = {
@@ -724,7 +691,7 @@ describe('ML 7th Algorithm Integration', () => {
       isAvailable: true,
       modelVersion: 'dwa-fp-v1',
     }
-    const withML = fuseAlgorithmResults(scoresWithML, 'unknown', 0.5)
+    const withML = fuseAlgorithmResults(scoresWithML, 'unknown')
 
     // ML at 1.0 should pull probability up
     expect(withML.feedbackProbability).toBeGreaterThan(withoutML.feedbackProbability)
@@ -741,8 +708,8 @@ describe('ML 7th Algorithm Integration', () => {
     const disagreeing = buildScores(baseScores)
     disagreeing.ml = { feedbackScore: 0.1, modelConfidence: 1.0, isAvailable: true, modelVersion: 'v1' }
 
-    const agreeResult = fuseAlgorithmResults(agreeing, 'unknown', 0.5)
-    const disagreeResult = fuseAlgorithmResults(disagreeing, 'unknown', 0.5)
+    const agreeResult = fuseAlgorithmResults(agreeing, 'unknown')
+    const disagreeResult = fuseAlgorithmResults(disagreeing, 'unknown')
 
     // When ML disagrees, confidence should be lower (higher variance)
     expect(agreeResult.confidence).toBeGreaterThan(disagreeResult.confidence)
@@ -780,7 +747,6 @@ describe.skip('Proposed V2 Weights — Regression Tests', () => {
     const result = fuse(
       { msd: 0.9, phase: 0.8, spectral: 0.5, comb: 0, ihr: 0.2, ptmr: 0.6 },
       'speech',
-      0.7,
       { customWeights: { msd: 0.35, phase: 0.20, spectral: 0.10, comb: 0.05, ihr: 0.10, ptmr: 0.20 } as W }
     )
     // With V2 weights, this should score BELOW threshold
@@ -792,7 +758,6 @@ describe.skip('Proposed V2 Weights — Regression Tests', () => {
     const result = fuse(
       { msd: 0.1, phase: 0.9, spectral: 0.9, comb: 0, ihr: 0.9, ptmr: 0.9 },
       'speech',
-      0.8,
       { customWeights: { msd: 0.35, phase: 0.20, spectral: 0.10, comb: 0.05, ihr: 0.10, ptmr: 0.20 } as W }
     )
     // With V2 weights, PTMR at 0.15 and IHR at 0.10 should compensate for low MSD
@@ -803,7 +768,6 @@ describe.skip('Proposed V2 Weights — Regression Tests', () => {
     const result = fuse(
       { msd: 0.6, phase: 0.3, spectral: 0.8, comb: 0, ihr: 0.8, ptmr: 0.7 },
       'music',
-      0.6,
       { customWeights: { msd: 0.05, phase: 0.30, spectral: 0.12, comb: 0.10, ihr: 0.18, ptmr: 0.25 } as W }
     )
     // With V2 weights, IHR at 0.18 and PTMR at 0.15 should push this above threshold
@@ -814,7 +778,6 @@ describe.skip('Proposed V2 Weights — Regression Tests', () => {
     const result = fuse(
       { msd: 0.8, phase: 0.2, spectral: 0.8, comb: 0, ihr: 0.9, ptmr: 0.8, compressed: true },
       'unknown',
-      0.7,
       { customWeights: { msd: 0.08, phase: 0.30, spectral: 0.15, comb: 0.10, ihr: 0.15, ptmr: 0.22 } as W }
     )
     // With V2 weights, reduced phase dependency and increased IHR/spectral
