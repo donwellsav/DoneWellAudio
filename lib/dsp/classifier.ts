@@ -70,6 +70,14 @@ const CHROMATIC_SNAP_CENTS = 5
 const CHROMATIC_PHASE_THRESHOLD = 0.80
 const CHROMATIC_PHASE_REDUCTION = 0.60
 
+/**
+ * Maximum absolute delta that room-physics adjustments can cumulatively apply
+ * to pFeedback. Room cues (RT60, modal density, Schroeder penalty, mode
+ * clustering, mode proximity) are correlated — they all derive from Q,
+ * frequency, and RT60 — so unbounded stacking can over-suppress.
+ */
+const MAX_ROOM_DELTA = 0.30
+
 const FORMANT_BANDS = [
   { min: 300, max: 900 },   // F1
   { min: 800, max: 2500 },  // F2
@@ -327,6 +335,9 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     reasons.push(`Narrow Q: ${features.minQ.toFixed(1)} (band: ${freqBand.band})`)
   }
 
+  // Track cumulative room-physics delta for MAX_ROOM_DELTA cap
+  let roomDelta = 0
+
   // 6a. Reverberation-aware Q adjustment (Hopkins §1.2.6.3)
   // Rooms with high RT60 produce naturally high-Q room modes.
   // A peak Q ≤ Q_room = π·f·T₆₀/6.9 is more likely a room mode than feedback.
@@ -338,6 +349,7 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     const rt60Adj = reverberationQAdjustment(features.minQ, features.frequencyHz, effectiveRT60)
     if (rt60Adj.delta !== 0) {
       pFeedback += rt60Adj.delta
+      roomDelta += rt60Adj.delta
       if (rt60Adj.reason) reasons.push(rt60Adj.reason)
     }
   }
@@ -370,6 +382,7 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     )
     if (nfAdj.delta !== 0) {
       pFeedback += nfAdj.delta
+      roomDelta += nfAdj.delta
       if (nfAdj.note) reasons.push(nfAdj.note)
     }
   }
@@ -417,7 +430,9 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
   if (roomConfigured && schroederFreq > 0) {
     const bw = belowSchroederWeight(features.frequencyHz, schroederFreq)
     if (bw > 0.001) {
-      pFeedback   -= MODE_PRESENCE_BONUS * bw
+      const schroederDelta = -MODE_PRESENCE_BONUS * bw
+      pFeedback   += schroederDelta
+      roomDelta   += schroederDelta
       pInstrument += MODE_ABSENCE_PENALTY * bw
       reasons.push(`Below Schroeder boundary (${schroederFreq.toFixed(0)} Hz, weight ${bw.toFixed(2)}) — possible room mode`)
     }
@@ -434,8 +449,16 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     )
     if (modeProximity.delta !== 0) {
       pFeedback += modeProximity.delta
+      roomDelta += modeProximity.delta
       if (modeProximity.reason) reasons.push(modeProximity.reason)
     }
+  }
+
+  // Room-physics delta cap: clamp cumulative room-only adjustments
+  if (roomConfigured && Math.abs(roomDelta) > MAX_ROOM_DELTA) {
+    const excess = roomDelta - Math.sign(roomDelta) * MAX_ROOM_DELTA
+    pFeedback -= excess
+    reasons.push(`Room delta clamped: ${roomDelta.toFixed(3)} to ${MAX_ROOM_DELTA}`)
   }
 
   // 11. Formant gate — suppress sustained vowel false positives (Fant 1960)

@@ -21,6 +21,9 @@ import {
   FUSION_WEIGHTS,
   DEFAULT_FUSION_CONFIG,
   COMB_CONSTANTS,
+  AgreementPersistenceTracker,
+  calibrateProbability,
+  IDENTITY_CALIBRATION,
 } from '../algorithmFusion'
 import type {
   AlgorithmScores,
@@ -28,6 +31,7 @@ import type {
   CombPatternResult,
   PTMRResult,
   MINDSResult,
+  CalibrationTable,
 } from '../algorithmFusion'
 import { buildScores } from '@/tests/helpers/mockAlgorithmScores'
 
@@ -826,5 +830,135 @@ describe('Fusion confidence uses transformed scores', () => {
     // confidence = probability * (0.5 + 0.5 * agreement), agreement <= 1
     // so confidence <= probability
     expect(result.confidence).toBeLessThanOrEqual(result.feedbackProbability)
+  })
+})
+
+// ── AgreementPersistenceTracker (14.8) ───────────────────────────────────────
+
+describe('AgreementPersistenceTracker', () => {
+  it('returns zero bonus with only 1 frame', () => {
+    const tracker = new AgreementPersistenceTracker()
+    tracker.update(0.9)
+    expect(tracker.persistenceBonus).toBe(0)
+  })
+
+  it('returns zero bonus with 3 frames (below threshold of 4)', () => {
+    const tracker = new AgreementPersistenceTracker()
+    tracker.update(0.9)
+    tracker.update(0.9)
+    tracker.update(0.9)
+    expect(tracker.persistenceBonus).toBe(0)
+    expect(tracker.frames).toBe(3)
+  })
+
+  it('returns positive bonus after 6 frames of high agreement', () => {
+    const tracker = new AgreementPersistenceTracker()
+    for (let i = 0; i < 6; i++) tracker.update(0.9)
+    expect(tracker.frames).toBe(6)
+    expect(tracker.ewma).toBeGreaterThan(0.6)
+    expect(tracker.persistenceBonus).toBeGreaterThan(0)
+    expect(tracker.persistenceBonus).toBeLessThanOrEqual(0.05)
+  })
+
+  it('bonus never exceeds 0.05', () => {
+    const tracker = new AgreementPersistenceTracker()
+    for (let i = 0; i < 100; i++) tracker.update(1.0)
+    expect(tracker.persistenceBonus).toBeLessThanOrEqual(0.05)
+  })
+
+  it('returns zero bonus when ewma <= 0.6', () => {
+    const tracker = new AgreementPersistenceTracker()
+    for (let i = 0; i < 6; i++) tracker.update(0.5)
+    expect(tracker.persistenceBonus).toBe(0)
+  })
+
+  it('reset clears state', () => {
+    const tracker = new AgreementPersistenceTracker()
+    for (let i = 0; i < 6; i++) tracker.update(0.9)
+    expect(tracker.persistenceBonus).toBeGreaterThan(0)
+    tracker.reset()
+    expect(tracker.frames).toBe(0)
+    expect(tracker.ewma).toBe(0)
+    expect(tracker.persistenceBonus).toBe(0)
+  })
+
+  it('adds persistence bonus to confidence in fuseAlgorithmResults', () => {
+    const scores = buildScores({ msd: 0.8, phase: 0.8, spectral: 0.8, ihr: 0.8, ptmr: 0.8 })
+    const tracker = new AgreementPersistenceTracker()
+    for (let i = 0; i < 6; i++) tracker.update(0.9)
+    const withTracker = fuseAlgorithmResults(scores, 'unknown', DEFAULT_FUSION_CONFIG, undefined, undefined, tracker)
+    const without = fuseAlgorithmResults(scores, 'unknown', DEFAULT_FUSION_CONFIG)
+    expect(withTracker.confidence).toBeGreaterThan(without.confidence)
+    expect(withTracker.confidence).toBeLessThanOrEqual(1)
+  })
+})
+
+// ── calibrateProbability (14.3) ──────────────────────────────────────────────
+
+describe('calibrateProbability', () => {
+  it('returns raw when no table is provided', () => {
+    expect(calibrateProbability(0.5)).toBe(0.5)
+    expect(calibrateProbability(0.0)).toBe(0.0)
+    expect(calibrateProbability(1.0)).toBe(1.0)
+  })
+
+  it('returns raw with identity (empty breakpoints) table', () => {
+    expect(calibrateProbability(0.5, IDENTITY_CALIBRATION)).toBe(0.5)
+    expect(calibrateProbability(0.75, IDENTITY_CALIBRATION)).toBe(0.75)
+  })
+
+  it('interpolates linearly between two breakpoints', () => {
+    const table: CalibrationTable = {
+      breakpoints: [
+        { raw: 0.0, calibrated: 0.0 },
+        { raw: 1.0, calibrated: 0.5 },
+      ],
+    }
+    expect(calibrateProbability(0.0, table)).toBeCloseTo(0.0)
+    expect(calibrateProbability(0.5, table)).toBeCloseTo(0.25)
+    expect(calibrateProbability(1.0, table)).toBeCloseTo(0.5)
+  })
+
+  it('clamps below first breakpoint', () => {
+    const table: CalibrationTable = {
+      breakpoints: [
+        { raw: 0.2, calibrated: 0.1 },
+        { raw: 0.8, calibrated: 0.9 },
+      ],
+    }
+    expect(calibrateProbability(0.0, table)).toBe(0.1)
+  })
+
+  it('clamps above last breakpoint', () => {
+    const table: CalibrationTable = {
+      breakpoints: [
+        { raw: 0.2, calibrated: 0.1 },
+        { raw: 0.8, calibrated: 0.9 },
+      ],
+    }
+    expect(calibrateProbability(1.0, table)).toBe(0.9)
+  })
+
+  it('preserves monotonicity for monotonic input', () => {
+    const table: CalibrationTable = {
+      breakpoints: [
+        { raw: 0.0, calibrated: 0.0 },
+        { raw: 0.3, calibrated: 0.2 },
+        { raw: 0.6, calibrated: 0.5 },
+        { raw: 1.0, calibrated: 1.0 },
+      ],
+    }
+    const values = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    const calibrated = values.map(v => calibrateProbability(v, table))
+    for (let i = 1; i < calibrated.length; i++) {
+      expect(calibrated[i]).toBeGreaterThanOrEqual(calibrated[i - 1])
+    }
+  })
+
+  it('does not change fuseAlgorithmResults with identity table', () => {
+    const scores = buildScores({ msd: 0.7, phase: 0.6, spectral: 0.5, ihr: 0.4, ptmr: 0.5 })
+    const without = fuseAlgorithmResults(scores)
+    const withIdentity = fuseAlgorithmResults(scores, 'unknown', DEFAULT_FUSION_CONFIG, undefined, undefined, undefined, IDENTITY_CALIBRATION)
+    expect(withIdentity.feedbackProbability).toBeCloseTo(without.feedbackProbability, 10)
   })
 })

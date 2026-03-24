@@ -380,12 +380,33 @@ export function analyzeSpectralTrends(
   const harshAvg = harshHighBin > harshLowBin ? harshSum / (harshHighBin - harshLowBin) : avgDb
 
   if (harshAvg > avgDb + SPECTRAL_TRENDS.HARSH_EXCESS_DB) {
-    shelves.push({
-      type: 'highShelf',
-      hz: 8000,
-      gainDb: -3,
-      reason: `High-frequency harshness detected (${(harshAvg - avgDb).toFixed(1)} dB excess in 6-10kHz)`,
-    })
+    // Spectral flatness guard: compute geometric/arithmetic mean ratio of
+    // linear power in the harsh region. Flatness > 0.4 indicates broad
+    // spectral elevation (e.g. vocal presence) rather than a narrow peak,
+    // so skip the highShelf to avoid cutting beneficial brightness.
+    const harshBinCount = Math.min(harshHighBin, n) - harshLowBin
+    if (harshBinCount > 0) {
+      let logSum = 0
+      let linearSum = 0
+      for (let i = harshLowBin; i < Math.min(harshHighBin, n); i++) {
+        // Convert dB to linear power (spectrum values are in dB)
+        const linear = Math.pow(10, spectrum[i] / 10)
+        logSum += Math.log(linear)
+        linearSum += linear
+      }
+      const geometricMean = Math.exp(logSum / harshBinCount)
+      const arithmeticMean = linearSum / harshBinCount
+      const flatness = arithmeticMean > 0 ? geometricMean / arithmeticMean : 0
+
+      if (flatness <= 0.4) {
+        shelves.push({
+          type: 'highShelf',
+          hz: 8000,
+          gainDb: -3,
+          reason: `High-frequency harshness detected (${(harshAvg - avgDb).toFixed(1)} dB excess in 6-10kHz)`,
+        })
+      }
+    }
   }
 
   return validateShelves(shelves)

@@ -254,9 +254,57 @@ describe('TrackManager', () => {
       tmTiny.pruneInactiveTracks(2000)
 
       expect(tmTiny.getAllTracks()).toHaveLength(3)
-      // The surviving tracks should be the 3 most recently updated
-      const remaining = tmTiny.getAllTracks().map(t => t.trueFrequencyHz).sort((a, b) => a - b)
-      expect(remaining).toEqual([1500, 2000, 2500])
+    })
+
+    it('evicts low-quality tracks before high-quality tracks (recency-weighted)', () => {
+      const tmSmall = new TrackManager({ maxTracks: 3, trackTimeoutMs: 100_000, historySize: 32 })
+
+      // Create 2 high-quality tracks: high prominence, high Q, stable pitch
+      // These are created earlier (more stale) but should survive due to clarity
+      for (let idx = 0; idx < 2; idx++) {
+        const bin = idx * 10
+        const freq = 1000 + idx * 500
+        // First update
+        tmSmall.processPeak({
+          ...makePeak({ binIndex: bin, trueFrequencyHz: freq, prominenceDb: 25, timestamp: 1000 + idx }),
+          qEstimate: 40,
+        })
+        // Second update to populate features (stabilityCentsStd near 0)
+        tmSmall.processPeak({
+          ...makePeak({ binIndex: bin, trueFrequencyHz: freq, prominenceDb: 25, timestamp: 1100 + idx }),
+          qEstimate: 40,
+        })
+      }
+
+      // Create 3 low-quality tracks: low prominence, low Q, created more recently
+      for (let idx = 0; idx < 3; idx++) {
+        const bin = 50 + idx * 10
+        const freq = 3000 + idx * 500
+        tmSmall.processPeak({
+          ...makePeak({ binIndex: bin, trueFrequencyHz: freq, prominenceDb: 2, timestamp: 1200 + idx }),
+          qEstimate: 3,
+        })
+        // Second update with frequency jitter for high stabilityCentsStd
+        tmSmall.processPeak({
+          ...makePeak({ binIndex: bin, trueFrequencyHz: freq * 1.05, prominenceDb: 2, timestamp: 1300 + idx }),
+          qEstimate: 3,
+        })
+      }
+
+      expect(tmSmall.getAllTracks()).toHaveLength(5)
+
+      // Prune at a time where all tracks are relatively recent
+      tmSmall.pruneInactiveTracks(1400)
+      expect(tmSmall.getAllTracks()).toHaveLength(3)
+
+      // The 2 high-quality tracks should survive despite being older
+      const remaining = tmSmall.getAllTracks()
+      const highQualitySurvived = remaining.filter(t => t.prominenceDb === 25)
+      expect(highQualitySurvived).toHaveLength(2)
+
+      // Only 1 of the 3 low-quality tracks should remain
+      const lowQualitySurvived = remaining.filter(t => t.prominenceDb === 2)
+      expect(lowQualitySurvived).toHaveLength(1)
     })
   })
 

@@ -606,3 +606,74 @@ describe('classifyTrack posterior consistency (F5)', () => {
     )
   })
 })
+
+// ── Room-physics delta cap (14.6) ────────────────────────────────────────────
+
+describe('room-physics delta cap', () => {
+  it('clamps cumulative room delta to MAX_ROOM_DELTA (0.30)', () => {
+    // Create a low-frequency peak in a configured room with extreme room conditions
+    // that would produce large negative room deltas (RT60, modal density, Schroeder, mode proximity)
+    const track = makeTrack({
+      trueFrequencyHz: 80,       // Low freq — below Schroeder, near room modes
+      trueAmplitudeDb: -20,
+      prominenceDb: 15,
+      features: {
+        stabilityCentsStd: 5,
+        meanQ: 5,
+        minQ: 5,                 // Low Q — room-mode-like
+        meanVelocityDbPerSec: 1,
+        maxVelocityDbPerSec: 3,
+        persistenceMs: 1000,
+        harmonicityScore: 0.2,
+        modulationScore: 0.1,
+        noiseSidebandScore: 0.05,
+      },
+      qEstimate: 5,
+      bandwidthHz: 16,
+    })
+
+    // Settings with configured room — high RT60 + dimensions to trigger all room adjustments
+    const roomSettings: DetectorSettings = {
+      ...DEFAULT_SETTINGS,
+      roomPreset: 'large',
+      roomRT60: 3.5,             // Very reverberant
+      roomVolume: 2000,
+      roomLengthM: 20,
+      roomWidthM: 10,
+      roomHeightM: 10,
+    }
+
+    // Get result without room config as baseline
+    const noRoomSettings: DetectorSettings = {
+      ...DEFAULT_SETTINGS,
+      roomPreset: 'none',
+    }
+    const baselineResult = classifyTrack(track, noRoomSettings)
+
+    // Get result with room config
+    const roomResult = classifyTrack(track, roomSettings)
+
+    // The room delta should be capped at 0.30
+    // Pre-normalization pFeedback change should not exceed 0.30 in magnitude
+    // We can verify indirectly: the room result should not diverge excessively
+    // from the baseline. With cap, |pFeedback_room - pFeedback_noroom| <= 0.30 (pre-normalization)
+    // After normalization both are valid probabilities
+    expect(roomResult.pFeedback).toBeGreaterThanOrEqual(0)
+    expect(roomResult.pFeedback).toBeLessThanOrEqual(1)
+    // Should have the clamping reason if room deltas stacked beyond 0.30
+    const hasClamped = roomResult.reasons.some(r => r.includes('Room delta clamped'))
+    // In this extreme scenario, room deltas should stack and get clamped
+    expect(hasClamped).toBe(true)
+  })
+
+  it('does not clamp when room is not configured', () => {
+    const track = makeTrack({ trueFrequencyHz: 80 })
+    const settings: DetectorSettings = {
+      ...DEFAULT_SETTINGS,
+      roomPreset: 'none',
+    }
+    const result = classifyTrack(track, settings)
+    const hasClamped = result.reasons.some(r => r.includes('Room delta clamped'))
+    expect(hasClamped).toBe(false)
+  })
+})

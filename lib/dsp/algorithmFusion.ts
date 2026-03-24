@@ -323,6 +323,45 @@ export class CombStabilityTracker {
   }
 }
 
+// 14.8: Agreement persistence tracker (EWMA of single-frame agreement)
+export class AgreementPersistenceTracker {
+  private _ewma = 0
+  private _alpha: number
+  private _frames = 0
+  constructor(alpha = 0.15) { this._alpha = alpha }
+  update(agreement: number): void {
+    this._frames++
+    this._ewma = this._frames === 1 ? agreement : this._alpha * agreement + (1 - this._alpha) * this._ewma
+  }
+  get persistenceBonus(): number {
+    return this._frames >= 4 && this._ewma > 0.6 ? Math.min((this._ewma - 0.6) * 0.15, 0.05) : 0
+  }
+  get ewma(): number { return this._ewma }
+  get frames(): number { return this._frames }
+  reset(): void { this._ewma = 0; this._frames = 0 }
+}
+
+// 14.3: Post-gate probability calibration types and function
+export interface CalibrationBreakpoint { raw: number; calibrated: number }
+export interface CalibrationTable { breakpoints: CalibrationBreakpoint[] }
+export const IDENTITY_CALIBRATION: CalibrationTable = { breakpoints: [] }
+
+export function calibrateProbability(raw: number, table?: CalibrationTable): number {
+  if (!table || table.breakpoints.length === 0) return raw
+  const bp = table.breakpoints
+  if (raw <= bp[0].raw) return bp[0].calibrated
+  if (raw >= bp[bp.length - 1].raw) return bp[bp.length - 1].calibrated
+  for (let i = 0; i < bp.length - 1; i++) {
+    if (raw >= bp[i].raw && raw <= bp[i + 1].raw) {
+      const span = bp[i + 1].raw - bp[i].raw
+      if (span === 0) return bp[i].calibrated
+      const t = (raw - bp[i].raw) / span
+      return bp[i].calibrated + t * (bp[i + 1].calibrated - bp[i].calibrated)
+    }
+  }
+  return raw
+}
+
 /** Module-level fallback — only used when no per-track tracker is provided. */
 const combStabilityTracker = new CombStabilityTracker()
 
@@ -645,6 +684,10 @@ export function fuseAlgorithmResults(
   peakFrequencyHz?: number,
   /** Per-track comb stability tracker. Falls back to module-level singleton if not provided. */
   trackCombTracker?: CombStabilityTracker,
+  /** Per-track agreement persistence tracker for confidence bonus. */
+  agreementTracker?: AgreementPersistenceTracker,
+  /** Optional calibration table for post-gate probability mapping. Default is identity. */
+  calibrationTable?: CalibrationTable,
 ): FusedDetectionResult {
   const reasons: string[] = []
   const contributingAlgorithms: string[] = []
@@ -832,6 +875,9 @@ export function fuseAlgorithmResults(
     feedbackProbability *= 0.80
   }
 
+  // 14.3: Apply post-gate calibration (identity by default — zero behavior change)
+  feedbackProbability = calibrateProbability(feedbackProbability, calibrationTable)
+
   // Agreement and confidence use effectiveScores (collected above) so that
   // active algorithm filtering, phase suppression, and comb sweep penalties
   // are reflected in both probability and confidence.
@@ -842,7 +888,12 @@ export function fuseAlgorithmResults(
     ? effectiveScores.reduce((sum, s) => sum + Math.pow(s - mean, 2), 0) / effectiveScores.length
     : 0
   const agreement = 1 - Math.sqrt(variance)
-  const confidence = feedbackProbability * (0.5 + 0.5 * agreement)
+  // 14.8: Update agreement tracker and add persistence bonus to confidence
+  agreementTracker?.update(agreement)
+  const confidence = Math.min(
+    feedbackProbability * (0.5 + 0.5 * agreement) + (agreementTracker?.persistenceBonus ?? 0),
+    1,
+  )
 
   let verdict: FusedDetectionResult['verdict']
   if (feedbackProbability >= config.feedbackThreshold && confidence >= 0.6) {
