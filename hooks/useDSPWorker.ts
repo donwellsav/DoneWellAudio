@@ -37,6 +37,8 @@ export interface DSPWorkerCallbacks {
   onAdvisory?: (advisory: Advisory) => void
   onAdvisoryCleared?: (advisoryId: string) => void
   onTracksUpdate?: (tracks: TrackedPeak[], status?: { contentType?: ContentType; algorithmMode?: AlgorithmMode; isCompressed?: boolean; compressionRatio?: number }) => void
+  /** Called when the worker updates the authoritative content-type classification */
+  onContentTypeUpdate?: (contentType: ContentType, isCompressed: boolean, compressionRatio: number) => void
   onReady?: () => void
   onError?: (message: string) => void
   /** Called when a snapshot batch is ready for upload (free tier only) */
@@ -59,7 +61,9 @@ export interface DSPWorkerHandle {
   /** Push updated settings to the worker */
   updateSettings: (settings: Partial<DetectorSettings>) => void
   /** Send a detected peak + current spectrum + time-domain waveform for classification */
-  processPeak: (peak: DetectedPeak, spectrum: Float32Array, sampleRate: number, fftSize: number, timeDomain?: Float32Array, contentType?: string) => void
+  processPeak: (peak: DetectedPeak, spectrum: Float32Array, sampleRate: number, fftSize: number, timeDomain?: Float32Array) => void
+  /** Send periodic spectrum snapshot for content-type detection (bypasses backpressure) */
+  sendSpectrumUpdate: (spectrum: Float32Array, crestFactor: number, sampleRate: number, fftSize: number) => void
   /** Notify the worker a peak has been cleared */
   clearPeak: (binIndex: number, frequencyHz: number, timestamp: number) => void
   /** Clear all worker state (tracks, advisories) */
@@ -145,8 +149,12 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
             compressionRatio: msg.compressionRatio,
           })
           break
+        case 'contentTypeUpdate':
+          callbacksRef.current.onContentTypeUpdate?.(msg.contentType, msg.isCompressed, msg.compressionRatio)
+          break
         case 'returnBuffers':
           busyRef.current = false  // Also clears backpressure (fixes stall on early-break paths)
+          // Return buffers to the appropriate pool based on source
           if (msg.spectrum.buffer.byteLength > 0) specPoolRef.current.push(msg.spectrum)
           if (msg.timeDomain && msg.timeDomain.buffer.byteLength > 0) tdPoolRef.current.push(msg.timeDomain)
           break
@@ -274,7 +282,7 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
   )
 
   const processPeak = useCallback(
-    (peak: DetectedPeak, spectrum: Float32Array, sampleRate: number, fftSize: number, timeDomain?: Float32Array, contentType?: string) => {
+    (peak: DetectedPeak, spectrum: Float32Array, sampleRate: number, fftSize: number, timeDomain?: Float32Array) => {
       // Backpressure: skip if worker hasn't finished the previous batch
       totalFramesRef.current++
       if (busyRef.current || crashedRef.current || !isReadyRef.current) {
@@ -312,8 +320,27 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
 
       busyRef.current = true
       workerRef.current?.postMessage(
-        { type: 'processPeak', peak, spectrum: specBuf, sampleRate, fftSize, timeDomain: tdBuf, contentType: contentType as ContentType | undefined } as WorkerInboundMessage,
+        { type: 'processPeak', peak, spectrum: specBuf, sampleRate, fftSize, timeDomain: tdBuf } as WorkerInboundMessage,
         transferList
+      )
+    },
+    []
+  )
+
+  // Separate pool for spectrumUpdate buffers (not subject to peak backpressure)
+  const specUpdatePoolRef = useRef<Float32Array[]>([])
+
+  const sendSpectrumUpdate = useCallback(
+    (spectrum: Float32Array, crestFactor: number, sr: number, fft: number) => {
+      if (crashedRef.current || !isReadyRef.current) return
+      let buf = specUpdatePoolRef.current.pop()
+      if (!buf || buf.length !== spectrum.length) {
+        buf = new Float32Array(spectrum.length)
+      }
+      buf.set(spectrum)
+      workerRef.current?.postMessage(
+        { type: 'spectrumUpdate', spectrum: buf, crestFactor, sampleRate: sr, fftSize: fft } as WorkerInboundMessage,
+        [buf.buffer as ArrayBuffer]
       )
     },
     []
@@ -384,6 +411,7 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
     init,
     updateSettings,
     processPeak,
+    sendSpectrumUpdate,
     clearPeak,
     reset,
     terminate,
@@ -392,5 +420,5 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
     sendUserFeedback,
     startRoomMeasurement,
     stopRoomMeasurement,
-  }), [init, updateSettings, processPeak, clearPeak, reset, terminate, enableCollection, disableCollection, sendUserFeedback, startRoomMeasurement, stopRoomMeasurement])
+  }), [init, updateSettings, processPeak, sendSpectrumUpdate, clearPeak, reset, terminate, enableCollection, disableCollection, sendUserFeedback, startRoomMeasurement, stopRoomMeasurement])
 }

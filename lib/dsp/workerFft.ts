@@ -18,6 +18,7 @@ import {
   detectContentType,
   MSD_CONSTANTS,
 } from './advancedDetection'
+import { TEMPORAL_ENVELOPE } from './constants'
 import type { MSDResult } from './advancedDetection'
 import type { AlgorithmScores } from './advancedDetection'
 import { MSDPool } from './msdPool'
@@ -240,6 +241,103 @@ export class AlgorithmEngine {
   /** Previous frame's fused confidence — fed into ML feature vector (1-frame lag) */
   private _lastFusedConf = 0.5
 
+  // ── Content-type authority (moved from main-thread feedbackDetector.ts) ─────
+  private _ctEnergyBuffer = new Float32Array(TEMPORAL_ENVELOPE.BUFFER_SIZE)
+  private _ctEnergyPos = 0
+  private _ctEnergyFilled = false
+  private _ctHistory: ContentType[] = []
+  private static readonly CT_WINDOW = 10
+  private _contentType: ContentType = 'unknown'
+  private _ctSilenceThresholdDb = -65
+  private _ctIsCompressed = false
+  private _ctCompressionRatio = 1
+
+  /**
+   * Update content-type classification from a periodic spectrum snapshot.
+   * Includes temporal envelope analysis and majority-vote smoothing,
+   * previously done on the main thread in feedbackDetector.ts.
+   *
+   * @returns The smoothed content type, or null if unchanged.
+   */
+  updateContentType(
+    spectrum: Float32Array,
+    crestFactor: number,
+    sampleRateParam: number,
+    fftSizeParam: number,
+  ): ContentType | null {
+    const startBin = Math.max(1, Math.floor(150 * fftSizeParam / sampleRateParam))
+    const endBin = Math.min(spectrum.length - 1, Math.ceil(10000 * fftSizeParam / sampleRateParam))
+    let specMax = -Infinity
+    let sumLinear = 0
+    let validBins = 0
+    for (let i = startBin; i <= endBin; i++) {
+      const v = spectrum[i]
+      if (Number.isFinite(v)) {
+        if (v > specMax) specMax = v
+        sumLinear += dbToLinear(v)
+        validBins++
+      }
+    }
+    if (validBins === 0 || specMax <= this._ctSilenceThresholdDb) return null
+
+    // Write energy to temporal ring buffer
+    this._ctEnergyBuffer[this._ctEnergyPos % TEMPORAL_ENVELOPE.BUFFER_SIZE] = specMax
+    this._ctEnergyPos++
+    if (this._ctEnergyPos >= TEMPORAL_ENVELOPE.BUFFER_SIZE) this._ctEnergyFilled = true
+
+    // Compute temporal metrics when buffer has enough frames
+    let temporalMetrics: { energyVariance: number; silenceGapRatio: number } | undefined
+    const count = this._ctEnergyFilled ? TEMPORAL_ENVELOPE.BUFFER_SIZE : this._ctEnergyPos
+    if (count >= TEMPORAL_ENVELOPE.MIN_FRAMES) {
+      const buf = this._ctEnergyBuffer
+      let sum = 0
+      let silentFrames = 0
+      for (let i = 0; i < count; i++) {
+        sum += buf[i]
+        if (buf[i] < this._ctSilenceThresholdDb) silentFrames++
+      }
+      const mean = sum / count
+      let varianceSum = 0
+      for (let i = 0; i < count; i++) {
+        const d = buf[i] - mean
+        varianceSum += d * d
+      }
+      temporalMetrics = {
+        energyVariance: varianceSum / count,
+        silenceGapRatio: silentFrames / count,
+      }
+    }
+
+    const instantType = detectContentType(spectrum, crestFactor, temporalMetrics)
+
+    // Majority-vote smoothing (same logic as former feedbackDetector.ts lines 997-1008)
+    this._ctHistory.push(instantType)
+    if (this._ctHistory.length > AlgorithmEngine.CT_WINDOW) {
+      this._ctHistory.shift()
+    }
+    const ctCounts: Record<string, number> = {}
+    for (const t of this._ctHistory) {
+      if (t !== 'unknown') ctCounts[t] = (ctCounts[t] ?? 0) + 1
+    }
+    const best = Object.entries(ctCounts).sort((a, b) => b[1] - a[1])[0]
+    const prev = this._contentType
+    this._contentType = best && best[1] >= 3 ? best[0] as ContentType : (this._contentType ?? 'unknown')
+
+    // Update compression status
+    const compressionResult = this.ampBuffer.detectCompression()
+    this._ctIsCompressed = compressionResult?.isCompressed ?? false
+    this._ctCompressionRatio = compressionResult?.estimatedRatio ?? 1
+
+    return this._contentType !== prev ? this._contentType : null
+  }
+
+  /** Get the worker's authoritative content type. */
+  getContentType(): ContentType { return this._contentType }
+  /** Whether compressed audio is detected. */
+  getIsCompressed(): boolean { return this._ctIsCompressed }
+  /** Estimated compression ratio. */
+  getCompressionRatio(): number { return this._ctCompressionRatio }
+
   /** Allocate buffers for the given FFT size. */
   init(fftSize: number): void {
     const numBins = Math.floor(fftSize / 2)
@@ -413,5 +511,12 @@ export class AlgorithmEngine {
     this._mlEngine.dispose()
     this._mlEngine = new MLInferenceEngine()
     this._mlEngine.warmup()
+    this._ctEnergyBuffer.fill(-100)
+    this._ctEnergyPos = 0
+    this._ctEnergyFilled = false
+    this._ctHistory = []
+    this._contentType = 'unknown'
+    this._ctIsCompressed = false
+    this._ctCompressionRatio = 1
   }
 }

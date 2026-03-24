@@ -37,9 +37,8 @@ const MAX_CUSTOM_PRESETS = 5
  */
 const PRESET_KEYS = [
   'feedbackThresholdDb', 'ringThresholdDb', 'growthRateThreshold',
-  'sustainMs', 'clearMs', 'holdTimeMs', 'confidenceThreshold',
+  'sustainMs', 'clearMs', 'confidenceThreshold',
   'minFrequency', 'maxFrequency', 'eqPreset', 'aWeightingEnabled',
-  'harmonicFilterEnabled', 'musicAware', 'autoMusicAware',
   'algorithmMode', 'enabledAlgorithms', 'prominenceDb',
 ] as const satisfies readonly (keyof DetectorSettings)[]
 
@@ -118,7 +117,7 @@ export const SettingsPanel = memo(function SettingsPanel({
       if (!defaults.roomTreatment) defaults.roomTreatment = 'typical'
       if (!defaults.roomPreset) defaults.roomPreset = 'none'
       if (defaults.algorithmMode && defaults.algorithmMode !== 'auto' && defaults.algorithmMode !== 'custom') {
-        const allAlgos = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr'] as const
+        const allAlgos = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml'] as const
         const modeMap: Record<string, typeof allAlgos[number][]> = {
           msd: ['msd'], phase: ['phase'], combined: [...allAlgos], all: [...allAlgos],
         }

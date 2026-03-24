@@ -55,9 +55,8 @@ const LOG_MAX = Math.log10(20000)
  */
 const PRESET_KEYS = [
   'feedbackThresholdDb', 'ringThresholdDb', 'growthRateThreshold',
-  'sustainMs', 'clearMs', 'holdTimeMs', 'confidenceThreshold',
+  'sustainMs', 'clearMs', 'confidenceThreshold',
   'minFrequency', 'maxFrequency', 'eqPreset', 'aWeightingEnabled',
-  'harmonicFilterEnabled', 'musicAware', 'autoMusicAware',
   'algorithmMode', 'enabledAlgorithms', 'prominenceDb',
 ] as const satisfies readonly (keyof DetectorSettings)[]
 
@@ -193,7 +192,7 @@ export const UnifiedControls = memo(function UnifiedControls({
       if (!defaults.roomTreatment) defaults.roomTreatment = 'typical'
       if (!defaults.roomPreset) defaults.roomPreset = 'none'
       if (defaults.algorithmMode && defaults.algorithmMode !== 'auto' && defaults.algorithmMode !== 'custom') {
-        const allAlgos: Algorithm[] = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr']
+        const allAlgos: Algorithm[] = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml']
         const modeMap: Record<string, Algorithm[]> = {
           msd: ['msd'], phase: ['phase'], combined: allAlgos, all: allAlgos,
         }
@@ -453,34 +452,6 @@ const DetectContent = memo(function DetectContent({
               Detection
             </AccordionTrigger>
             <AccordionContent className="pb-2 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm text-muted-foreground">Music-Aware</span>
-                  {settings.showTooltips && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className="w-3 h-3 text-muted-foreground/70 hover:text-muted-foreground cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent side="right" className="max-w-[260px] text-sm">
-                        Auto-activates when signal rises {settings.autoMusicAwareHysteresisDb}dB above noise floor.
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-                  {settings.autoMusicAware && (
-                    <span className={`px-1 py-px rounded text-sm font-medium border leading-4 ${settings.musicAware ? 'bg-primary/10 border-primary/40 text-primary' : 'bg-muted border-border text-muted-foreground'}`}>
-                      {settings.musicAware ? 'ON' : 'OFF'}
-                    </span>
-                  )}
-                </div>
-                <PillToggle checked={settings.autoMusicAware} onChange={(checked) => onSettingsChange({ autoMusicAware: checked })} />
-              </div>
-
-              {settings.autoMusicAware && (
-                <SliderRow label="MA Trigger" value={`${settings.autoMusicAwareHysteresisDb}dB`}
-                  tooltip={settings.showTooltips ? 'Signal level above noise floor that triggers music-aware mode. Lower = more sensitive.' : undefined}
-                  min={5} max={30} step={1} sliderValue={settings.autoMusicAwareHysteresisDb} onChange={(v) => onSettingsChange({ autoMusicAwareHysteresisDb: v })} />
-              )}
-
               <SliderRow label="Ring" value={`${settings.ringThresholdDb}dB`}
                 tooltip={settings.showTooltips ? 'Resonance detection. 2-3 dB ring out/monitors, 4-5 dB normal, 6+ dB live music/outdoor.' : undefined}
                 min={1} max={12} step={0.5} sliderValue={settings.ringThresholdDb} onChange={(v) => onSettingsChange({ ringThresholdDb: v })} />
@@ -519,14 +490,14 @@ const DetectContent = memo(function DetectContent({
                   }`}
                 >Auto</button>
                 <div className={`grid grid-cols-3 gap-1 ${settings.algorithmMode === 'auto' ? 'pointer-events-none' : ''}`}>
-                  {([['msd', 'MSD'], ['phase', 'Phase'], ['spectral', 'Spectral'], ['comb', 'Comb'], ['ihr', 'IHR'], ['ptmr', 'PTMR']] as const).map(([key, label]) => {
+                  {([['msd', 'MSD'], ['phase', 'Phase'], ['spectral', 'Spectral'], ['comb', 'Comb'], ['ihr', 'IHR'], ['ptmr', 'PTMR'], ['ml', 'ML']] as const).map(([key, label]) => {
                     const isAuto = settings.algorithmMode === 'auto'
                     const enabled = isAuto || (settings.enabledAlgorithms?.includes(key) ?? true)
                     return (
                       <button key={key}
                         onClick={() => {
                           if (isAuto) return
-                          const current = settings.enabledAlgorithms ?? ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr']
+                          const current = settings.enabledAlgorithms ?? ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml']
                           let next: Algorithm[]
                           if (enabled) { next = current.filter(a => a !== key); if (next.length === 0) { onSettingsChange({ algorithmMode: 'auto' as AlgorithmMode }); return } }
                           else { next = [...current, key] }
@@ -557,19 +528,6 @@ const DetectContent = memo(function DetectContent({
               </div>
 
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm text-muted-foreground">Harmonics</span>
-                  {settings.showTooltips && (
-                    <Tooltip>
-                      <TooltipTrigger asChild><HelpCircle className="w-3 h-3 text-muted-foreground/70 hover:text-muted-foreground cursor-help" /></TooltipTrigger>
-                      <TooltipContent side="right" className="max-w-[260px] text-sm">Filter harmonic series to reduce FP from instruments.</TooltipContent>
-                    </Tooltip>
-                  )}
-                </div>
-                <PillToggle checked={settings.harmonicFilterEnabled} onChange={(checked) => onSettingsChange({ harmonicFilterEnabled: checked })} />
-              </div>
-
-              <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Ignore whistle</span>
                 <PillToggle checked={settings.ignoreWhistle} onChange={(checked) => onSettingsChange({ ignoreWhistle: checked })}
                   tooltip={settings.showTooltips ? 'Suppress alerts from deliberate whistling or single-tone test signals.' : undefined} />
@@ -589,10 +547,6 @@ const DetectContent = memo(function DetectContent({
               Timing &amp; Limits
             </AccordionTrigger>
             <AccordionContent className="pb-2 space-y-2">
-              <SliderRow label="Hold" value={`${(settings.holdTimeMs / 1000).toFixed(1)}s`}
-                tooltip={settings.showTooltips ? 'How long feedback stays flagged. 0.5-1s fast, 2-3s relaxed.' : undefined}
-                min={500} max={5000} step={100} sliderValue={settings.holdTimeMs} onChange={(v) => onSettingsChange({ holdTimeMs: v })} />
-
               <SliderRow label="Clear" value={`${settings.clearMs}ms`}
                 tooltip={settings.showTooltips ? 'How fast resolved issues disappear.' : undefined}
                 min={100} max={2000} step={50} sliderValue={settings.clearMs} onChange={(v) => onSettingsChange({ clearMs: v })} />

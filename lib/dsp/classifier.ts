@@ -29,7 +29,7 @@ import {
 
 // ── Classifier Tuning Constants ─────────────────────────────────────────────
 /**
- * Bayesian prior probabilities per class.
+ * Heuristic prior weights per class (Bayesian-style classification).
  * Feedback prior is elevated (0.45 vs uniform 0.33) because the user has
  * explicitly opened a feedback-detection tool — the base rate of feedback
  * in this context is higher than uniform.  Whistle and instrument share
@@ -254,7 +254,7 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     features.persistenceMs
   )
 
-  // Initialize probabilities with context-aware priors
+  // Initialize confidence scores with context-aware priors
   let pFeedback = PRIOR_FEEDBACK
   let pWhistle = PRIOR_WHISTLE
   let pInstrument = PRIOR_INSTRUMENT
@@ -479,7 +479,7 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
 
   // ==================== Normalization ====================
 
-  // Clamp probabilities to valid range before normalization
+  // Clamp scores to valid range before normalization
   pFeedback = Math.max(0, Math.min(1, pFeedback))
   pWhistle = Math.max(0, Math.min(1, pWhistle))
   pInstrument = Math.max(0, Math.min(1, pInstrument))
@@ -500,7 +500,7 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     cumulativeGrowth.severity
   )
 
-  // F5 fix: apply adjustedPFeedback and renormalize so the posterior
+  // F5 fix: apply adjustedPFeedback and renormalize so the scores
   // and confidence describe the same model state.
   pFeedback = calibratedResult.adjustedPFeedback
   const postCalibTotal = pFeedback + pWhistle + pInstrument
@@ -511,7 +511,7 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
   }
 
   const confidence = calibratedResult.confidence
-  // pUnknown is computed after severity overrides (below) to maintain posterior consistency
+  // pUnknown is computed after severity overrides (below) to maintain score consistency
 
   // ==================== Classification ====================
 
@@ -556,7 +556,7 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     severity = 'RESONANCE'
   }
 
-  // F5: Renormalize after severity overrides so the posterior sums to 1.
+  // F5: Renormalize after severity overrides so the scores sum to 1.
   // Severity overrides (e.g. RUNAWAY Math.max(pFeedback, 0.85)) can push
   // the class sum above 1.0 — renormalize to maintain a valid distribution.
   const postSeverityTotal = pFeedback + pWhistle + pInstrument
@@ -746,11 +746,11 @@ export function classifyTrackWithAlgorithms(
 
   // ==================== Fusion Result (algorithm evidence counted once) ====================
   //
-  // Fusion owns the algorithm-level posterior (MSD, phase, spectral, comb,
+  // Fusion owns the algorithm-level scoring (MSD, phase, spectral, comb,
   // IHR, PTMR, ML). Classifier adds only track/acoustic context.
   // Per-algorithm scores are NOT re-added here to avoid double-counting.
 
-  // Blend track-level base probability toward fusion's algorithm posterior.
+  // Blend track-level base score toward fusion's algorithm-level score.
   const FUSION_BLEND = 0.6
   pFeedback = pFeedback * (1 - FUSION_BLEND) + fusionResult.feedbackProbability * FUSION_BLEND
   reasons.push(`Fusion: ${(fusionResult.feedbackProbability * 100).toFixed(0)}% (${fusionResult.contributingAlgorithms.join('+')})`)
@@ -810,17 +810,30 @@ export function classifyTrackWithAlgorithms(
     pFeedback = Math.max(pFeedback, 0.7)
   }
 
-  // Recalculate confidence
+  // Renormalize after severity overrides to maintain valid distribution.
+  // Matches the base classifyTrack() contract at lines 559-568.
+  // Without this, the wrapper path returns class scores that don't sum
+  // consistently with pUnknown, creating a score contract divergence.
+  const postOverrideTotal = pFeedback + pWhistle + pInstrument
+  if (postOverrideTotal > 1) {
+    pFeedback /= postOverrideTotal
+    pWhistle /= postOverrideTotal
+    pInstrument /= postOverrideTotal
+  }
+
+  // Confidence from fusion and base classifier
   const maxProb = Math.max(pFeedback, pWhistle, pInstrument)
   const confidence = fusionResult
     ? Math.max(fusionResult.confidence, baseResult.confidence, maxProb)
     : Math.max(baseResult.confidence, maxProb)
-  const pUnknown = 1 - confidence
+
+  // pUnknown as residual mass — matches base path contract
+  const pUnknown = Math.max(0, 1 - (pFeedback + pWhistle + pInstrument))
   
   // Determine updated label and severity
   let { label, severity } = baseResult
   
-  // Override based on new probabilities
+  // Override based on updated scores
   if (pFeedback >= 0.6 && fusionResult?.verdict === 'FEEDBACK') {
     label = 'ACOUSTIC_FEEDBACK'
     if (severity !== 'RUNAWAY' && severity !== 'GROWING') {
