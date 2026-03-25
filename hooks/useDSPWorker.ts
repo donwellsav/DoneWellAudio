@@ -154,9 +154,19 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
           break
         case 'returnBuffers':
           busyRef.current = false  // Also clears backpressure (fixes stall on early-break paths)
-          // Return buffers to the appropriate pool based on source
-          if (msg.spectrum.buffer.byteLength > 0) specPoolRef.current.push(msg.spectrum)
-          if (msg.timeDomain && msg.timeDomain.buffer.byteLength > 0) tdPoolRef.current.push(msg.timeDomain)
+          // Route buffers to correct pool by source tag (Fight Club Fix #3)
+          if (msg.source === 'spectrumUpdate') {
+            if (msg.spectrum.buffer.byteLength > 0) specUpdatePoolRef.current.push(msg.spectrum)
+          } else {
+            // Size guard: drop wrong-size buffers from FFT change race (Fight Club Fix #14)
+            const expectedBinCount = poolFftSizeRef.current ? poolFftSizeRef.current / 2 : 0
+            if (msg.spectrum.buffer.byteLength > 0 && msg.spectrum.length === expectedBinCount) {
+              specPoolRef.current.push(msg.spectrum)
+            }
+            if (msg.timeDomain && msg.timeDomain.buffer.byteLength > 0 && msg.timeDomain.length > 0) {
+              tdPoolRef.current.push(msg.timeDomain)
+            }
+          }
           break
         case 'snapshotBatch':
           if (msg.batch) callbacksRef.current.onSnapshotBatch?.(msg.batch)
@@ -240,7 +250,8 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
 
     return () => {
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current)
-      worker.terminate()
+      // Terminate the CURRENT worker (may differ from original after crash recovery) (Fight Club Fix #2)
+      workerRef.current?.terminate()
       workerRef.current = null
       isReadyRef.current = false
     }
@@ -276,6 +287,13 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
 
   const updateSettings = useCallback(
     (settings: Partial<DetectorSettings>) => {
+      // Keep lastInitRef in sync so crash recovery uses latest settings (Fight Club Fix #1)
+      if (lastInitRef.current) {
+        lastInitRef.current = {
+          ...lastInitRef.current,
+          settings: { ...lastInitRef.current.settings, ...settings },
+        }
+      }
       postMessage({ type: 'updateSettings', settings })
     },
     [postMessage]

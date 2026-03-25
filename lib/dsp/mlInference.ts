@@ -151,6 +151,8 @@ export class MLInferenceEngine {
     )
 
     void this._session.run({ input: tensor }).then(output => {
+      // Guard: dispose() may have run while inference was in-flight (Fight Club Fix #7)
+      if (this._disposed) return
       const score = output.output?.data[0] ?? 0.5
       this._lastPrediction = {
         feedbackScore: Math.max(0, Math.min(1, score)),

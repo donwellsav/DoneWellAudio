@@ -99,6 +99,8 @@ export interface FusionConfig {
   phaseThreshold: number
   enableCompressionDetection: boolean
   feedbackThreshold: number
+  /** When true, room physics are active — dampen comb bonus to reduce room-mode FP (Fight Club Fix #4) */
+  roomPhysicsActive?: boolean
 }
 
 export interface MINDSResult {
@@ -801,7 +803,9 @@ export function fuseAlgorithmResults(
       ? scores.comb.confidence * COMB_SWEEP_PENALTY
       : scores.comb.confidence
 
-    const combWeight = weights.comb * 2
+    // Dampen comb doubling when room physics active — room modes produce stable comb-like patterns (Fight Club Fix #4)
+    const combMultiplier = config.roomPhysicsActive ? 1.5 : 2
+    const combWeight = weights.comb * combMultiplier
     weightedSum += combConfidence * combWeight
     totalWeight += weights.comb
     effectiveScores.push(combConfidence)

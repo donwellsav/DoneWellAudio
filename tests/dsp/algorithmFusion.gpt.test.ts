@@ -82,6 +82,9 @@ describe('GPT-5.4 Scenarios — DEFAULT Profile', () => {
     // Note: comb=0.8 activates the weight doubling, which should help
     // GPT calculated 0.548 without factoring the comb doubling correctly
     // The actual score may differ due to comb weight normalization
+    // Fight Club Fix #5: add bounded assertion (was log-only)
+    expect(result.feedbackProbability).toBeGreaterThan(0.3)
+    expect(result.feedbackProbability).toBeLessThan(0.85)
   })
 })
 

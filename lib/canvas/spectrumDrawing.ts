@@ -212,7 +212,8 @@ export function drawFreqZones(
     ctx.fillStyle = `rgba(${zone.rgb}, ${alphas[z]})`
     ctx.fillRect(x1, 0, x2 - x1, plotHeight)
 
-    // Separator line at zone boundary
+    // Separator line at zone boundary (save/restore guards alpha — Fight Club Fix #12)
+    ctx.save()
     ctx.strokeStyle = theme.zoneLabel
     ctx.globalAlpha = 0.25
     ctx.lineWidth = 0.5
@@ -220,7 +221,7 @@ export function drawFreqZones(
     ctx.moveTo(x1, 0)
     ctx.lineTo(x1, plotHeight)
     ctx.stroke()
-    ctx.globalAlpha = 1
+    ctx.restore()
 
     // Label at top center of zone
     const centerX = (x1 + x2) / 2
@@ -602,15 +603,15 @@ export function drawNotchOverlays(
     }
   }
 
-  // Draw merged bars as single solid blocks
+  // Draw merged bars as single solid blocks (save/restore guards alpha — Fight Club Fix #12)
+  ctx.save()
   for (const bar of merged) {
     ctx.fillStyle = bar.color
     ctx.globalAlpha = 0.42
     ctx.fillRect(bar.x1, 0, bar.x2 - bar.x1, plotHeight)
     for (const id of bar.ids) notchedIds.add(id)
   }
-
-  ctx.globalAlpha = 1
+  ctx.restore()
   return notchedIds
 }
 

@@ -10,9 +10,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { PillToggle } from '@/components/ui/pill-toggle'
-import { Database, Shield } from 'lucide-react'
+import { Brain, Database, Shield } from 'lucide-react'
 import { Section, SettingsGrid, type TabSettingsProps } from './SettingsShared'
-import type { ThresholdMode } from '@/types/advisory'
+import type { Algorithm, ThresholdMode } from '@/types/advisory'
 import type { ConsentStatus } from '@/types/data'
 
 export interface AdvancedTabProps extends TabSettingsProps {
@@ -163,6 +163,33 @@ export const AdvancedTab = memo(function AdvancedTab({
               <span>Sensitive</span><span>Only strong peaks</span>
             </div>
           </div>
+        </div>
+      </Section>
+
+      {/* ── ML Toggle ── */}
+      <Section
+        title="ML Model"
+        showTooltip={settings.showTooltips}
+        tooltip="Toggle the ml algorithm on or off. When off, only the other enabled algorithms contribute to fusion scoring."
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Brain className="w-4 h-4 text-primary" />
+            <span className="text-sm text-muted-foreground font-mono tracking-wide">
+              Enable ML scoring
+            </span>
+          </div>
+          <PillToggle
+            checked={settings.enabledAlgorithms?.includes('ml') ?? true}
+            onChange={(checked) => {
+              const all: Algorithm[] = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml']
+              const current = settings.enabledAlgorithms ?? all
+              const next: Algorithm[] = checked
+                ? [...current.filter(a => a !== 'ml'), 'ml']
+                : current.filter((a): a is Algorithm => a !== 'ml')
+              onSettingsChange({ enabledAlgorithms: next })
+            }}
+          />
         </div>
       </Section>
 

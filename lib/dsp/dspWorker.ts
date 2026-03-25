@@ -89,7 +89,7 @@ export type WorkerOutboundMessage =
   | { type: 'advisory'; advisory: Advisory }
   | { type: 'advisoryCleared'; advisoryId: string }
   | { type: 'tracksUpdate'; tracks: TrackedPeak[]; contentType?: ContentType; algorithmMode?: AlgorithmMode; isCompressed?: boolean; compressionRatio?: number }
-  | { type: 'returnBuffers'; spectrum: Float32Array; timeDomain?: Float32Array }
+  | { type: 'returnBuffers'; spectrum: Float32Array; timeDomain?: Float32Array; source?: 'peak' | 'spectrumUpdate' }
   | { type: 'contentTypeUpdate'; contentType: ContentType; isCompressed: boolean; compressionRatio: number }
   | { type: 'ready' }
   | { type: 'error'; message: string }
@@ -369,7 +369,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       } finally {
         if (suSpectrum.buffer.byteLength > 0) {
           self.postMessage(
-            { type: 'returnBuffers', spectrum: suSpectrum } satisfies WorkerOutboundMessage,
+            { type: 'returnBuffers', spectrum: suSpectrum, source: 'spectrumUpdate' } satisfies WorkerOutboundMessage,
             [suSpectrum.buffer as ArrayBuffer]
           )
         }
@@ -520,10 +520,18 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         mode: settings?.algorithmMode ?? 'auto',
         enabledAlgorithms: settings?.enabledAlgorithms,
         msdMinFrames: getMsdMinFramesForMode(settings?.mode),
+        roomPhysicsActive: settings?.roomPreset != null && settings.roomPreset !== 'none',
       }
       // Get or create per-track comb stability tracker
       let trackCst = combTrackers.get(track.id)
       if (!trackCst) {
+        // Cap combTrackers to prevent unbounded growth during broadband transients (Fight Club Fix #13)
+        if (combTrackers.size >= 256) {
+          const activeIds = new Set(trackManager.getActiveTracks().map(t => t.id))
+          for (const id of combTrackers.keys()) {
+            if (!activeIds.has(id)) combTrackers.delete(id)
+          }
+        }
         trackCst = new CombStabilityTracker()
         combTrackers.set(track.id, trackCst)
       }
@@ -687,8 +695,9 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
   }
   } catch (err) {
     // Include peak context in error messages for better diagnostics
+    // Fix: DetectedPeak uses trueFrequencyHz, not frequency (Fight Club Fix #6)
     const peakCtx = msg.type === 'processPeak' && 'peak' in msg
-      ? ` @ ${(msg as { peak?: { frequency?: number; binIndex?: number } }).peak?.frequency?.toFixed(1)}Hz bin=${(msg as { peak?: { frequency?: number; binIndex?: number } }).peak?.binIndex}`
+      ? ` @ ${(msg as { peak?: DetectedPeak }).peak?.trueFrequencyHz?.toFixed(1)}Hz bin=${(msg as { peak?: DetectedPeak }).peak?.binIndex}`
       : ''
     self.postMessage({ type: 'error', message: `[${msg.type}${peakCtx}] ${err instanceof Error ? err.message : String(err)}` } satisfies WorkerOutboundMessage)
   }

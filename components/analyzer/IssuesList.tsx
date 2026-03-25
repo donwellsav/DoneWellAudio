@@ -128,6 +128,12 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
     // Throttle to 1 announcement every 3 seconds
     if (now - lastAnnounceTime.current < 3000) return
 
+    // Prune announcedIds to prevent unbounded growth in long sessions (Fight Club Fix #11)
+    if (announcedIds.current.size > 200) {
+      const entries = [...announcedIds.current]
+      announcedIds.current = new Set(entries.slice(-100))
+    }
+
     for (const { advisory: a } of sorted) {
       if (!announcedIds.current.has(a.id) && !a.resolved) {
         announcedIds.current.add(a.id)
@@ -269,7 +275,7 @@ const SwipeHint = memo(function SwipeHint({ onDismiss }: { onDismiss: () => void
     <div
       className="flex items-center justify-center gap-4 px-3 py-2 rounded-md bg-primary/10 border border-primary/20 text-xs font-mono text-muted-foreground animate-issue-enter"
       role="status"
-      onTouchStart={onDismiss}
+      onClick={onDismiss}
     >
       <span className="flex items-center gap-1">
         <ArrowLeft className="w-3 h-3 text-muted-foreground" />

@@ -357,9 +357,8 @@ describe('Three-Model Final Consensus', () => {
    *    - Either as higher weight, penalty multiplier, or veto gate
    *    - All models agree it's the best music-vs-feedback discriminator
    */
-  it('documents the consensus', () => {
-    // This test exists purely for documentation.
-    // The actual validation is in all the tests above.
-    expect(true).toBe(true)
+  // Fight Club Fix #5: replaced expect(true).toBe(true) placeholder with skip marker
+  it.skip('documents the consensus — see tests above for validation', () => {
+    // This test exists purely for documentation. No assertions needed.
   })
 })
