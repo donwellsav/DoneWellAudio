@@ -15,8 +15,8 @@ import type {
   DetectorSettings,
 } from '@/types/advisory'
 import type { RoomDimensionEstimate } from '@/types/calibration'
-import { DEFAULT_SETTINGS, ROOM_ESTIMATION } from '@/lib/dsp/constants'
-import { customDefaultsStorage } from '@/lib/storage/dwaStorage'
+import { ROOM_ESTIMATION } from '@/lib/dsp/constants'
+import { useLayeredSettings } from '@/hooks/useLayeredSettings'
 
 /** Early warning for predicted feedback frequencies based on comb pattern detection */
 export interface EarlyWarning {
@@ -93,6 +93,13 @@ export interface UseAudioAnalyzerReturn extends UseAudioAnalyzerState {
   stopRoomMeasurement: () => void
   /** Clear the current room estimate */
   clearRoomEstimate: () => void
+  // ── Layered settings (Phase 3+) ────────────────────────────────────────
+  /** Direct access to layered session state — for new UI surfaces */
+  layeredSession: import('@/types/settings').DwaSessionState
+  /** Direct access to layered display prefs — for new UI surfaces */
+  layeredDisplay: import('@/types/settings').DisplayPrefs
+  /** Full layered settings API — semantic actions for Phase 5+ UI rewire */
+  layered: import('@/hooks/useLayeredSettings').UseLayeredSettingsReturn
 }
 
 /** Internal state — advisories owned by useAdvisoryMap */
@@ -102,23 +109,14 @@ export function useAudioAnalyzer(
   initialSettings: Partial<DetectorSettings> = {},
   externalCallbacks?: { onSnapshotBatch?: (batch: import('@/types/data').SnapshotBatch) => void }
 ): UseAudioAnalyzerReturn {
-  const [settings, setSettings] = useState<DetectorSettings>(() => {
-    const saved = customDefaultsStorage.load()
-    return {
-      ...DEFAULT_SETTINGS,
-      ...(saved ?? {}),
-      ...initialSettings,
-    }
-  })
+  // Layered settings — derivation + auto-persist handled internally by the hook.
+  // derivedSettings is a standard DetectorSettings object compatible with the entire pipeline.
+  const layered = useLayeredSettings()
+  const settings = layered.derivedSettings
 
   const settingsRef = useRef(settings)
 
-  // Auto-persist settings to localStorage on every change
-  useEffect(() => {
-    customDefaultsStorage.save(settings)
-  }, [settings])
-
-  // Keep settings ref in sync
+  // Keep settings ref in sync (layered hook handles persistence)
   useEffect(() => {
     settingsRef.current = settings
   }, [settings])
@@ -380,12 +378,12 @@ export function useAudioAnalyzer(
   }, [])
 
   const updateSettings = useCallback((newSettings: Partial<DetectorSettings>) => {
-    setSettings(prev => ({ ...prev, ...newSettings }))
-  }, [])
+    layered.applyLegacyPartial(newSettings)
+  }, [layered.applyLegacyPartial])
 
   const resetSettings = useCallback(() => {
-    setSettings(DEFAULT_SETTINGS)
-  }, [])
+    layered.resetAll()
+  }, [layered.resetAll])
 
   // ── Room estimation controls ──────────────────────────────────────────────
   const startRoomMeasurement = useCallback(() => {
@@ -432,5 +430,9 @@ export function useAudioAnalyzer(
     startRoomMeasurement,
     stopRoomMeasurement,
     clearRoomEstimate,
+    // Layered settings (Phase 3+)
+    layeredSession: layered.session,
+    layeredDisplay: layered.display,
+    layered,
   }
 }

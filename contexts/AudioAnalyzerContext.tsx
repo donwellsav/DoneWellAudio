@@ -10,7 +10,6 @@ import { useAudioAnalyzer } from '@/hooks/useAudioAnalyzer'
 import { useAudioDevices } from '@/hooks/useAudioDevices'
 import type { OperationMode } from '@/types/advisory'
 import type { SnapshotBatch } from '@/types/data'
-import { OPERATION_MODES } from '@/lib/dsp/constants'
 
 // ── Sub-contexts ────────────────────────────────────────────────────────────
 
@@ -78,6 +77,9 @@ export function AudioAnalyzerProvider({
     startRoomMeasurement,
     stopRoomMeasurement,
     clearRoomEstimate,
+    layeredSession,
+    layeredDisplay,
+    layered,
   } = useAudioAnalyzer({}, {
     onSnapshotBatch: (batch: SnapshotBatch) => onSnapshotBatchRef.current?.(batch),
   })
@@ -101,26 +103,10 @@ export function AudioAnalyzerProvider({
 
   // ── Pure convenience callbacks ────────────────────────────────────────
 
+  // Mode change: legacy shim detects 'mode' key and calls setMode() internally,
+  // which applies the full baseline and resets live overrides (except gain).
   const handleModeChange = useCallback((mode: OperationMode) => {
-    const preset = OPERATION_MODES[mode]
-    if (!preset) return
-    updateSettings({
-      mode,
-      feedbackThresholdDb: preset.feedbackThresholdDb,
-      ringThresholdDb: preset.ringThresholdDb,
-      growthRateThreshold: preset.growthRateThreshold,
-      fftSize: preset.fftSize,
-      minFrequency: preset.minFrequency,
-      maxFrequency: preset.maxFrequency,
-      sustainMs: preset.sustainMs,
-      clearMs: preset.clearMs,
-      confidenceThreshold: preset.confidenceThreshold,
-      prominenceDb: preset.prominenceDb,
-      eqPreset: preset.eqPreset,
-      aWeightingEnabled: preset.aWeightingEnabled,
-      inputGainDb: preset.inputGainDb,
-      ignoreWhistle: preset.ignoreWhistle,
-    })
+    updateSettings({ mode })
   }, [updateSettings])
 
   const handleFreqRangeChange = useCallback((min: number, max: number) => {
@@ -178,12 +164,39 @@ export function AudioAnalyzerProvider({
     resetSettings,
     handleModeChange,
     handleFreqRangeChange,
+    session: layeredSession,
+    displayPrefs: layeredDisplay,
+    // Semantic actions (Phase 5+)
+    setMode: layered.setMode,
+    setEnvironment: layered.setEnvironment,
+    setSensitivityOffset: layered.setSensitivityOffset,
+    setInputGain: layered.setInputGain,
+    setAutoGain: layered.setAutoGain,
+    setFocusRange: layered.setFocusRange,
+    setEqStyle: layered.setEqStyle,
+    setMicProfile: layered.setMicProfile,
+    updateDisplay: layered.updateDisplay,
+    updateDiagnostics: layered.updateDiagnostics,
+    updateLiveOverrides: layered.updateLiveOverrides,
   }), [
     settings,
     updateSettings,
     resetSettings,
     handleModeChange,
     handleFreqRangeChange,
+    layeredSession,
+    layeredDisplay,
+    layered.setMode,
+    layered.setEnvironment,
+    layered.setSensitivityOffset,
+    layered.setInputGain,
+    layered.setAutoGain,
+    layered.setFocusRange,
+    layered.setEqStyle,
+    layered.setMicProfile,
+    layered.updateDisplay,
+    layered.updateDiagnostics,
+    layered.updateLiveOverrides,
   ])
 
   const meteringValue = useMemo<MeteringContextValue>(() => ({

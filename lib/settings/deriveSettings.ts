@@ -1,0 +1,189 @@
+/**
+ * Derivation Function — computes DetectorSettings from layered state.
+ *
+ * This is the architectural seam between the new layered ownership model
+ * and the existing DSP pipeline. The output is a standard DetectorSettings
+ * object that feedbackDetector, dspWorker, classifier, and algorithmFusion
+ * consume unchanged.
+ *
+ * Composition order:
+ *   1. Mode baseline (frozen detector policy)
+ *   2. Environment offsets (relative threshold adjustments)
+ *   3. Live operator overrides (sensitivity, gain, focus range)
+ *   4. Diagnostics overrides (expert-only field replacements)
+ *   5. Display preferences (UI-only, no DSP impact)
+ *   6. Calibration (mic profile)
+ *
+ * @see docs/CONTROLS_SETTINGS_REBUILD_SPEC_2026-03-25.md for design rationale
+ */
+
+import type { DetectorSettings, MicCalibrationProfile } from '@/types/advisory'
+import type {
+  DiagnosticsProfile,
+  DisplayPrefs,
+  EnvironmentSelection,
+  LiveOverrides,
+  ModeBaseline,
+} from '@/types/settings'
+
+/** Default auto-gain target when mode baseline doesn't specify one */
+const DEFAULT_AUTO_GAIN_TARGET_DB = -18
+
+/** Minimum allowed threshold to prevent nonsensical negative values */
+const MIN_THRESHOLD_DB = 1
+
+/**
+ * Derives a flat DetectorSettings object from the layered state contract.
+ *
+ * This function is pure — no side effects, no state reads.
+ * It can be called in React render (via useMemo) or in tests.
+ */
+export function deriveDetectorSettings(
+  baseline: ModeBaseline,
+  environment: EnvironmentSelection,
+  live: LiveOverrides,
+  display: DisplayPrefs,
+  diagnostics: DiagnosticsProfile,
+  micCalibrationProfile: MicCalibrationProfile,
+): DetectorSettings {
+  // ── Threshold composition ─────────────────────────────────────────────
+  // effectiveThreshold = baseline + room offset + live sensitivity offset
+  const feedbackThresholdDb = Math.max(
+    MIN_THRESHOLD_DB,
+    baseline.feedbackThresholdDb + environment.feedbackOffsetDb + live.sensitivityOffsetDb,
+  )
+
+  const ringThresholdDb = Math.max(
+    MIN_THRESHOLD_DB,
+    baseline.ringThresholdDb + environment.ringOffsetDb,
+  )
+
+  // ── Focus range ───────────────────────────────────────────────────────
+  let minFrequency: number
+  let maxFrequency: number
+  switch (live.focusRange.kind) {
+    case 'mode-default':
+      minFrequency = baseline.minFrequency
+      maxFrequency = baseline.maxFrequency
+      break
+    case 'preset':
+      ({ minFrequency, maxFrequency } = resolveFocusRangePreset(live.focusRange.id))
+      break
+    case 'custom':
+      minFrequency = live.focusRange.minHz
+      maxFrequency = live.focusRange.maxHz
+      break
+  }
+
+  // ── EQ style ──────────────────────────────────────────────────────────
+  const eqPreset = live.eqStyle === 'mode-default' ? baseline.eqPreset : live.eqStyle
+
+  // ── Auto-gain target ──────────────────────────────────────────────────
+  const autoGainTargetDb = live.autoGainTargetDb !== DEFAULT_AUTO_GAIN_TARGET_DB
+    ? live.autoGainTargetDb
+    : (baseline.defaultAutoGainTargetDb ?? DEFAULT_AUTO_GAIN_TARGET_DB)
+
+  // ── Diagnostics overrides ─────────────────────────────────────────────
+  const confidenceThreshold = diagnostics.confidenceThresholdOverride ?? baseline.confidenceThreshold
+  const growthRateThreshold = diagnostics.growthRateThresholdOverride ?? baseline.growthRateThreshold
+  const smoothingTimeConstant = diagnostics.smoothingTimeConstantOverride ?? 0.5
+
+  // ── Compose the flat DetectorSettings ─────────────────────────────────
+  return {
+    // Mode identity
+    mode: baseline.modeId,
+
+    // FFT (baseline, overridable by diagnostics in future)
+    fftSize: baseline.fftSize,
+    smoothingTimeConstant,
+
+    // Frequency range (from focus range resolution)
+    minFrequency,
+    maxFrequency,
+
+    // Thresholds (composed from baseline + environment + live)
+    feedbackThresholdDb,
+    ringThresholdDb,
+    growthRateThreshold,
+
+    // Timing (from baseline)
+    sustainMs: baseline.sustainMs,
+    clearMs: baseline.clearMs,
+
+    // Report gate
+    confidenceThreshold,
+    prominenceDb: baseline.prominenceDb,
+
+    // EQ
+    eqPreset,
+
+    // Input
+    inputGainDb: live.inputGainDb,
+    autoGainEnabled: live.autoGainEnabled,
+    autoGainTargetDb,
+
+    // A-weighting and calibration
+    aWeightingEnabled: baseline.aWeightingEnabled,
+    micCalibrationProfile,
+
+    // Harmonic
+    harmonicToleranceCents: diagnostics.harmonicToleranceCents,
+    ignoreWhistle: baseline.ignoreWhistle,
+
+    // Room (pass through for classifier/worker consumption)
+    roomPreset: environment.templateId as DetectorSettings['roomPreset'],
+    roomRT60: environment.roomRT60,
+    roomVolume: environment.roomVolume,
+    roomTreatment: environment.treatment,
+    roomLengthM: environment.dimensionsM?.length ?? 15,
+    roomWidthM: environment.dimensionsM?.width ?? 12,
+    roomHeightM: environment.dimensionsM?.height ?? 5,
+    roomDimensionsUnit: environment.displayUnit,
+
+    // Algorithm / diagnostics
+    algorithmMode: diagnostics.algorithmMode,
+    enabledAlgorithms: diagnostics.enabledAlgorithms,
+    mlEnabled: diagnostics.mlEnabled,
+
+    // Threshold mode
+    thresholdMode: diagnostics.thresholdMode,
+
+    // Noise floor timing
+    noiseFloorAttackMs: diagnostics.noiseFloorAttackMs,
+    noiseFloorReleaseMs: diagnostics.noiseFloorReleaseMs,
+
+    // Track management
+    maxTracks: diagnostics.maxTracks,
+    trackTimeoutMs: diagnostics.trackTimeoutMs,
+    peakMergeCents: diagnostics.peakMergeCents,
+
+    // Display (from DisplayPrefs — never flows to worker, but part of DetectorSettings)
+    maxDisplayedIssues: display.maxDisplayedIssues,
+    graphFontSize: display.graphFontSize,
+    showTooltips: display.showTooltips,
+    showAlgorithmScores: display.showAlgorithmScores,
+    showPeqDetails: display.showPeqDetails,
+    showFreqZones: display.showFreqZones,
+    spectrumWarmMode: display.spectrumWarmMode,
+    rtaDbMin: display.rtaDbMin,
+    rtaDbMax: display.rtaDbMax,
+    spectrumLineWidth: display.spectrumLineWidth,
+    showThresholdLine: display.showThresholdLine,
+    canvasTargetFps: display.canvasTargetFps,
+    faderMode: display.faderMode,
+    swipeLabeling: display.swipeLabeling,
+  }
+}
+
+// ─── Focus Range Presets ──────────────────────────────────────────────────────
+
+const FOCUS_RANGE_PRESETS: Record<string, { minFrequency: number; maxFrequency: number }> = {
+  vocal: { minFrequency: 150, maxFrequency: 10000 },
+  monitor: { minFrequency: 200, maxFrequency: 6000 },
+  full: { minFrequency: 60, maxFrequency: 16000 },
+  sub: { minFrequency: 20, maxFrequency: 300 },
+}
+
+function resolveFocusRangePreset(id: string): { minFrequency: number; maxFrequency: number } {
+  return FOCUS_RANGE_PRESETS[id] ?? FOCUS_RANGE_PRESETS.vocal
+}

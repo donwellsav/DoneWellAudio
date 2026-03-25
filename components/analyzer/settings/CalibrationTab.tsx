@@ -67,6 +67,7 @@ const MIC_OPTIONS: { value: MicType; label: string; fullName: string }[] = [
 export interface CalibrationTabProps {
   settings: DetectorSettings
   onSettingsChange: (changes: Partial<DetectorSettings>) => void
+  setMicProfile?: (profile: import('@/types/advisory').MicCalibrationProfile) => void
   room: RoomProfile
   updateRoom: (partial: Partial<RoomProfile>) => void
   clearRoom: () => void
@@ -86,6 +87,7 @@ export interface CalibrationTabProps {
 export const CalibrationTab = memo(function CalibrationTab({
   settings,
   onSettingsChange,
+  setMicProfile: setMicProfileAction,
   room,
   updateRoom,
   clearRoom,
@@ -313,7 +315,11 @@ export const CalibrationTab = memo(function CalibrationTab({
             <Label className="text-sm font-mono">Measurement Mic</Label>
             <Select
               value={settings.micCalibrationProfile}
-              onValueChange={(value) => onSettingsChange({ micCalibrationProfile: value as 'none' | 'ecm8000' | 'rta-m' | 'smartphone' })}
+              onValueChange={(value) => {
+                const profile = value as 'none' | 'ecm8000' | 'rta-m' | 'smartphone'
+                if (setMicProfileAction) setMicProfileAction(profile)
+                else onSettingsChange({ micCalibrationProfile: profile })
+              }}
             >
               <SelectTrigger className="h-8 text-sm font-mono">
                 <SelectValue />

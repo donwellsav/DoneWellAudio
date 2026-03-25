@@ -7,10 +7,12 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { ResetConfirmDialog } from '../ResetConfirmDialog'
 import { SoundTab } from './SoundTab'
 import { DisplayTab } from './DisplayTab'
+import { useSettings } from '@/contexts/SettingsContext'
+import { useRigPresets } from '@/hooks/useRigPresets'
 import type { DetectorSettings, OperationMode } from '@/types/advisory'
 import type { CalibrationTabProps } from './CalibrationTab'
 import type { AdvancedTabProps } from './AdvancedTab'
-import { presetStorage, customDefaultsStorage } from '@/lib/storage/dwaStorage'
+import { customDefaultsStorage } from '@/lib/storage/dwaStorage'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,18 +32,6 @@ export interface SettingsPanelProps {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const MAX_CUSTOM_PRESETS = 5
-
-/**
- * Keys captured by custom presets — excludes display/graph/room/canvas settings.
- */
-const PRESET_KEYS = [
-  'feedbackThresholdDb', 'ringThresholdDb', 'growthRateThreshold',
-  'sustainMs', 'clearMs', 'confidenceThreshold',
-  'minFrequency', 'maxFrequency', 'eqPreset', 'aWeightingEnabled',
-  'algorithmMode', 'enabledAlgorithms', 'prominenceDb',
-] as const satisfies readonly (keyof DetectorSettings)[]
-
 const TABS: { id: SettingsTab; label: string; Icon: typeof BarChart3 }[] = [
   { id: 'sound', label: 'Sound', Icon: BarChart3 },
   { id: 'display', label: 'Display', Icon: Monitor },
@@ -57,37 +47,54 @@ export const SettingsPanel = memo(function SettingsPanel({
   calibration,
   dataCollection,
 }: SettingsPanelProps) {
+  // Pull semantic actions from context
+  const ctx = useSettings()
+
   const [activeTab, setActiveTab] = useState<SettingsTab>('sound')
 
-  // ── Custom preset state ──────────────────────────────────────────────
-  const [customPresets, setCustomPresets] = useState(() => {
-    try { return presetStorage.load() } catch { return [] }
-  })
+  // ── Rig preset state (structured, semantic recall) ─────────────────
+  const rigPresets = useRigPresets(
+    ctx.session ?? { modeId: 'speech', environment: {} as never, liveOverrides: {} as never, diagnostics: {} as never, micCalibrationProfile: 'none' },
+    {
+      setMode: ctx.setMode ?? (() => {}),
+      setEnvironment: ctx.setEnvironment ?? (() => {}),
+      updateLiveOverrides: ctx.updateLiveOverrides ?? (() => {}),
+      updateDiagnostics: ctx.updateDiagnostics ?? (() => {}),
+    },
+  )
+
+  // Adapter: SoundTab expects old-format { name, settings } array
+  const customPresets = rigPresets.presets.map(p => ({
+    name: p.name,
+    settings: {} as Partial<DetectorSettings>, // Placeholder — load uses semantic recall
+    _rigId: p.id,
+  }))
+
   const [presetName, setPresetName] = useState('')
   const [showSaveInput, setShowSaveInput] = useState(false)
 
   const handleSavePreset = useCallback(() => {
     const name = presetName.trim()
     if (!name) return
-    const snap = Object.fromEntries(
-      PRESET_KEYS.map(key => [key, settings[key]])
-    ) as Partial<DetectorSettings>
-    const updated = [...customPresets.filter(p => p.name !== name), { name, settings: snap }].slice(-MAX_CUSTOM_PRESETS)
-    setCustomPresets(updated)
-    try { presetStorage.save(updated) } catch { /* quota exceeded */ }
+    rigPresets.savePreset(name)
     setPresetName('')
     setShowSaveInput(false)
-  }, [presetName, settings, customPresets])
+  }, [presetName, rigPresets])
 
   const handleDeletePreset = useCallback((name: string) => {
-    const updated = customPresets.filter(p => p.name !== name)
-    setCustomPresets(updated)
-    try { presetStorage.save(updated) } catch { /* quota exceeded */ }
-  }, [customPresets])
+    const match = rigPresets.presets.find(p => p.name === name)
+    if (match) rigPresets.deletePreset(match.id)
+  }, [rigPresets])
 
-  const handleLoadPreset = useCallback((preset: { name: string; settings: Partial<DetectorSettings> }) => {
-    onSettingsChange(preset.settings)
-  }, [onSettingsChange])
+  const handleLoadPreset = useCallback((preset: { name: string; settings: Partial<DetectorSettings>; _rigId?: string }) => {
+    if (preset._rigId) {
+      // Semantic recall — calls setMode → setEnvironment → updateLiveOverrides
+      rigPresets.loadPreset(preset._rigId)
+    } else {
+      // Legacy fallback for any old-format presets
+      onSettingsChange(preset.settings)
+    }
+  }, [rigPresets, onSettingsChange])
 
   // ── Save/Load defaults ────────────────────────────────────────────────
   const [hasSavedDefaults, setHasSavedDefaults] = useState(false)
@@ -172,7 +179,7 @@ export const SettingsPanel = memo(function SettingsPanel({
         )}
 
         {activeTab === 'display' && (
-          <DisplayTab settings={settings} onSettingsChange={onSettingsChange} />
+          <DisplayTab settings={settings} onSettingsChange={onSettingsChange} updateDisplay={ctx.updateDisplay} />
         )}
 
         {/* ── Footer: Reset / Save / Load ─────────────────────────── */}

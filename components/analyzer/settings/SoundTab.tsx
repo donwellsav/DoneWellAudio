@@ -19,6 +19,7 @@ import { RoomTab } from './RoomTab'
 import { CalibrationTab } from './CalibrationTab'
 import { AdvancedTab, type AdvancedTabProps } from './AdvancedTab'
 import { Section } from './SettingsShared'
+import { useSettings } from '@/contexts/SettingsContext'
 import type { DetectorSettings, OperationMode, AlgorithmMode, Algorithm } from '@/types/advisory'
 import type { CalibrationTabProps } from './CalibrationTab'
 import { FREQ_RANGE_PRESETS } from '@/lib/dsp/constants'
@@ -70,6 +71,8 @@ export const SoundTab = memo(function SoundTab({
   customPresets, showSaveInput, setShowSaveInput,
   presetName, setPresetName, handleSavePreset, handleDeletePreset, handleLoadPreset,
 }: SoundTabProps) {
+  // Pull semantic actions from context for child component wiring
+  const ctx = useSettings()
 
   const handleFreqSliderChange = useCallback(([logMin, logMax]: number[]) => {
     const newMin = roundFreqToNice(Math.pow(10, logMin))
@@ -231,13 +234,13 @@ export const SoundTab = memo(function SoundTab({
 
       {/* ═══ SECTION: Room (absorbs old RoomTab) ═══ */}
       <ChannelSection title="Room">
-        <RoomTab settings={settings} onSettingsChange={onSettingsChange} />
+        <RoomTab settings={settings} onSettingsChange={onSettingsChange} setEnvironment={ctx.setEnvironment} />
       </ChannelSection>
 
       {/* ═══ SECTION: Calibration (conditional) ═══ */}
       {calibration && (
         <ChannelSection title="Calibration">
-          <CalibrationTab settings={settings} onSettingsChange={onSettingsChange} {...calibration} />
+          <CalibrationTab settings={settings} onSettingsChange={onSettingsChange} setMicProfile={ctx.setMicProfile} {...calibration} />
         </ChannelSection>
       )}
 

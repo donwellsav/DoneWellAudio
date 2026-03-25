@@ -7,6 +7,7 @@ import { getRoomParametersFromDimensions, feetToMeters, calculateSchroederFreque
 import { ROOM_PRESETS, ROOM_ESTIMATION } from '@/lib/dsp/constants'
 import type { RoomPresetKey } from '@/lib/dsp/constants'
 import type { DetectorSettings } from '@/types/advisory'
+import type { EnvironmentSelection, RoomTemplateId } from '@/types/settings'
 // RoomDimensionEstimate flows through EngineContext — no direct import needed
 import { useEngine } from '@/contexts/EngineContext'
 import { Section, type TabSettingsProps } from './SettingsShared'
@@ -239,26 +240,49 @@ function AutoDetectRoom({
 
 // ── Room Tab ────────────────────────────────────────────────────────────────────
 
+interface RoomTabProps extends TabSettingsProps {
+  setEnvironment?: (env: Partial<EnvironmentSelection> & { templateId?: RoomTemplateId | string }) => void
+}
+
 export const RoomTab = memo(function RoomTab({
   settings,
   onSettingsChange,
-}: TabSettingsProps) {
+  setEnvironment: setEnvAction,
+}: RoomTabProps) {
+  // Wrapper: use semantic action when available, legacy shim as fallback
+  const applyEnv = setEnvAction ?? ((env: Partial<EnvironmentSelection> & { templateId?: RoomTemplateId | string }) => {
+    // Legacy fallback: route through onSettingsChange which hits applyLegacyPartial
+    const updates: Partial<DetectorSettings> = {}
+    if (env.templateId) updates.roomPreset = env.templateId as RoomPresetKey
+    if (env.dimensionsM) {
+      updates.roomLengthM = env.dimensionsM.length
+      updates.roomWidthM = env.dimensionsM.width
+      updates.roomHeightM = env.dimensionsM.height
+    }
+    if (env.treatment) updates.roomTreatment = env.treatment
+    if (env.displayUnit) updates.roomDimensionsUnit = env.displayUnit
+    onSettingsChange(updates)
+  })
+
   // Auto-derive RT60 and Volume from dimensions + treatment whenever they change
   useEffect(() => {
-    if (settings.roomPreset === 'none') return // No auto-derivation for 'none'
+    if (settings.roomPreset === 'none') return
     const l = settings.roomLengthM
     const w = settings.roomWidthM
     const h = settings.roomHeightM
     if (l <= 0 || w <= 0 || h <= 0) return
-    // Convert from display unit to meters for calculation
     const lM = settings.roomDimensionsUnit === 'feet' ? feetToMeters(l) : l
     const wM = settings.roomDimensionsUnit === 'feet' ? feetToMeters(w) : w
     const hM = settings.roomDimensionsUnit === 'feet' ? feetToMeters(h) : h
     const params = getRoomParametersFromDimensions(lM, wM, hM, settings.roomTreatment)
-    onSettingsChange({
-      roomRT60: Math.round(params.rt60 * 10) / 10,
-      roomVolume: Math.round(params.volume),
-    })
+    // When semantic action is available, RT60/volume are computed in derivation.
+    // For legacy path, push through onSettingsChange.
+    if (!setEnvAction) {
+      onSettingsChange({
+        roomRT60: Math.round(params.rt60 * 10) / 10,
+        roomVolume: Math.round(params.volume),
+      })
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.roomLengthM, settings.roomWidthM, settings.roomHeightM, settings.roomTreatment, settings.roomDimensionsUnit, settings.roomPreset])
 
@@ -282,18 +306,9 @@ export const RoomTab = memo(function RoomTab({
                   <button
                     key={key}
                     onClick={() => {
-                      const updates: Partial<DetectorSettings> = {
-                        roomPreset: key,
-                        feedbackThresholdDb: preset.feedbackThresholdDb,
-                        ringThresholdDb: preset.ringThresholdDb,
-                      }
-                      if (key !== 'none') {
-                        updates.roomLengthM = preset.lengthM
-                        updates.roomWidthM = preset.widthM
-                        updates.roomHeightM = preset.heightM
-                        updates.roomTreatment = preset.treatment
-                      }
-                      onSettingsChange(updates)
+                      // Semantic: setEnvironment applies offsets, not absolute thresholds.
+                      // This fixes the architectural bug flagged in the deep audit.
+                      applyEnv({ templateId: key })
                     }}
                     className={`flex flex-col items-start px-2 py-1.5 rounded text-left transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                       isSelected
@@ -320,7 +335,7 @@ export const RoomTab = memo(function RoomTab({
                   {(['meters', 'feet'] as const).map((unit) => (
                     <button
                       key={unit}
-                      onClick={() => onSettingsChange({ roomDimensionsUnit: unit })}
+                      onClick={() => applyEnv({ displayUnit: unit })}
                       className={`px-2 py-0.5 text-sm rounded cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                         settings.roomDimensionsUnit === unit
                           ? 'bg-primary/20 text-primary'
@@ -336,23 +351,28 @@ export const RoomTab = memo(function RoomTab({
               {/* Shared dimension inputs */}
               <div className="grid grid-cols-3 gap-2">
                 {([
-                  ['Length', 'roomLengthM', 100] as const,
-                  ['Width', 'roomWidthM', 100] as const,
-                  ['Height', 'roomHeightM', 30] as const,
-                ]).map(([label, field, max]) => (
-                  <div key={field} className="space-y-1">
+                  ['Length', 'length', 100] as const,
+                  ['Width', 'width', 100] as const,
+                  ['Height', 'height', 30] as const,
+                ]).map(([label, dimKey, max]) => (
+                  <div key={dimKey} className="space-y-1">
                     <label className="text-sm text-muted-foreground font-mono">{label}</label>
                     <input
                       type="number"
-                      value={settings[field]}
+                      value={dimKey === 'length' ? settings.roomLengthM : dimKey === 'width' ? settings.roomWidthM : settings.roomHeightM}
                       onChange={(e) => {
                         const val = parseFloat(e.target.value) || 1
-                        const update: Partial<DetectorSettings> = { [field]: val }
-                        // Auto-switch to 'custom' if editing dimensions on a named preset
-                        if (settings.roomPreset !== 'custom') {
-                          update.roomPreset = 'custom'
+                        const currentDims = {
+                          length: settings.roomLengthM,
+                          width: settings.roomWidthM,
+                          height: settings.roomHeightM,
                         }
-                        onSettingsChange(update)
+                        currentDims[dimKey] = val
+                        applyEnv({
+                          templateId: 'custom',
+                          provenance: 'manual',
+                          dimensionsM: currentDims,
+                        })
                       }}
                       className="w-full h-7 px-2 text-sm rounded border border-border/40 bg-input font-mono focus:outline-none focus:border-primary"
                       min={1} max={max} step={0.5}
@@ -373,11 +393,7 @@ export const RoomTab = memo(function RoomTab({
                     <button
                       key={val}
                       title={desc}
-                      onClick={() => {
-                        const update: Partial<DetectorSettings> = { roomTreatment: val }
-                        if (settings.roomPreset !== 'custom') update.roomPreset = 'custom'
-                        onSettingsChange(update)
-                      }}
+                      onClick={() => applyEnv({ treatment: val, templateId: 'custom', provenance: 'manual' })}
                       className={`flex-1 px-2 py-1 text-sm rounded cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                         settings.roomTreatment === val
                           ? 'bg-primary/20 text-primary'
@@ -428,11 +444,14 @@ export const RoomTab = memo(function RoomTab({
         <AutoDetectRoom
           unit={settings.roomDimensionsUnit ?? 'feet'}
           onApplyDimensions={(l, w, h) => {
-            onSettingsChange({
-              roomPreset: 'custom',
-              roomLengthM: Math.round(l * 10) / 10,
-              roomWidthM: Math.round(w * 10) / 10,
-              roomHeightM: Math.round(h * 10) / 10,
+            applyEnv({
+              templateId: 'custom',
+              provenance: 'measured',
+              dimensionsM: {
+                length: Math.round(l * 10) / 10,
+                width: Math.round(w * 10) / 10,
+                height: Math.round(h * 10) / 10,
+              },
             })
           }}
         />

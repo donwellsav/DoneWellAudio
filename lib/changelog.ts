@@ -14,6 +14,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.19.0',
+    date: '2026-03-25',
+    highlights: 'Layered settings architecture — mode, environment, live, display, and diagnostics ownership model',
+    changes: [
+      { type: 'refactor', description: 'Replace flat DetectorSettings editing model with 6-layer ownership contract (mode baseline, environment, live overrides, display, diagnostics, calibration)' },
+      { type: 'feat', description: 'Structured rig presets (RigPresetV1) — save/load captures operator intent, not raw field bags' },
+      { type: 'feat', description: 'Semantic actions API: setMode, setEnvironment, setSensitivityOffset, setInputGain, setAutoGain, setFocusRange, setEqStyle, setMicProfile, updateDisplay, updateDiagnostics' },
+      { type: 'fix', description: 'Room presets now apply threshold offsets relative to mode baseline instead of writing absolute values' },
+      { type: 'refactor', description: 'DisplayTab writes directly to display layer instead of routing through DSP settings shim' },
+      { type: 'refactor', description: 'CalibrationTab mic profile selection routes through setMicProfile semantic action' },
+      { type: 'refactor', description: 'SettingsPanel preset logic replaced with useRigPresets hook (structured save/load/delete/rename/duplicate)' },
+      { type: 'refactor', description: 'Deprecated legacy presetStorage and customDefaultsStorage — replaced by v2 layered persistence' },
+    ],
+  },
+  {
     version: '0.18.0',
     date: '2026-03-25',
     changes: [

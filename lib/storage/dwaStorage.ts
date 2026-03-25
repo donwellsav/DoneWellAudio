@@ -147,12 +147,18 @@ import type { DetectorSettings } from '@/types/advisory'
 import type { RoomProfile } from '@/types/calibration'
 import { EMPTY_ROOM_PROFILE } from '@/types/calibration'
 
-/** Detection custom presets */
+/**
+ * @deprecated Legacy flat preset storage. Replaced by structured rig presets
+ * in `lib/storage/settingsStorageV2.ts` (key: dwa-v2-presets). Old data is
+ * not migrated — intent cannot be reverse-engineered from partial field bags.
+ * Will be removed in Phase 6.
+ */
 interface CustomPreset {
   name: string
   settings: Partial<DetectorSettings>
 }
 
+/** @deprecated Use `presetsStorageV2` from settingsStorageV2.ts instead. */
 export const presetStorage = typedStorage<CustomPreset[]>('dwa-custom-presets', [])
 
 /** Selected audio input device ID */
@@ -164,7 +170,12 @@ export const roomStorage = typedStorage<RoomProfile>('dwa-calibration-room', { .
 /** First-run onboarding flag */
 export const onboardingStorage = flagStorage('dwa-onboarding-seen')
 
-/** User's saved custom defaults (full DetectorSettings snapshot) */
+/**
+ * @deprecated Legacy full-snapshot defaults. Session state is now managed by
+ * `useLayeredSettings` via `sessionStorageV2` (key: dwa-v2-session). The old
+ * auto-persist-everything model is replaced by layered ownership.
+ * Will be removed in Phase 6.
+ */
 export const customDefaultsStorage = typedStorage<DetectorSettings | null>('dwa-custom-defaults', null)
 
 /** First-drag hint dismissed — once user drags the RTA threshold, hide the "Drag to adjust" label forever */

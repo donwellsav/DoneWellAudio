@@ -1,7 +1,7 @@
 # CLAUDE.md — DoneWell Audio Project Intelligence
 
-> **Last updated March 2026. 174 TypeScript/TSX files, 799 tests (795 pass, 4 skip), 39 suites. Version 0.18.0.**
-> Notch overlay opacity set to 42%.
+> **Last updated March 2026. 185 TypeScript/TSX files, 935 tests (931 pass, 4 skip), 43 suites. Version 0.19.0.**
+> Layered settings architecture: mode, environment, live, display, diagnostics ownership. Notch overlay opacity 42%.
 
 ## CRITICAL RULES
 
