@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.21.1',
+    date: '2026-03-26',
+    changes: [
+      { type: 'feat', description: 'feat: P3 export discoverability + P4 session history persistence' },
+    ],
+  },
+  {
     version: '0.21.0',
     date: '2026-03-26',
     changes: [
