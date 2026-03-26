@@ -14,6 +14,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.20.0',
+    date: '2026-03-26',
+    changes: [
+      { type: 'feat', description: 'Room mode reference lines on live RTA — faint dashed axial modes below min(Schroeder, 300Hz), multiplicity-aware stroke weight' },
+      { type: 'feat', description: 'Storage backfill — existing users get new display/session fields from defaults instead of undefined (flat + nested merge)' },
+      { type: 'feat', description: '4-tab control surface: Live, Setup, Display, Advanced' },
+      { type: 'feat', description: 'Mains hum enable/disable + 50/60Hz selector (environment-layer, preset-aware)' },
+      { type: 'feat', description: 'Gate multiplier overrides in DiagnosticsProfile (expert-only, persisted)' },
+      { type: 'feat', description: 'Per-mode persistence thresholds and track timeouts' },
+      { type: 'feat', description: 'Deploy guard hook for mechanical enforcement' },
+      { type: 'feat', description: '7 rounds of GPT adversarial cross-review' },
+      { type: 'feat', description: '[x] tsc clean, 940/944 tests pass' },
+      { type: 'feat', description: '[x] Visual: Medium Room preset shows ~5 faint dashed axial mode lines below 119Hz' },
+      { type: 'feat', description: '[x] Visual: Room preset none = no lines' },
+      { type: 'feat', description: '[x] All 3 mobile + 1 desktop SpectrumCanvas instances wired' },
+      { type: 'feat', description: '[x] Backfill tests pass for flat and nested storage' },
+      { type: 'feat', description: '[x] Unit conversion verified (feet dimensions → meters before mode calc)' },
+    ],
+  },
+  {
     version: '0.21.0',
     date: '2026-03-26',
     highlights: 'Room mode lines on live RTA, 4-tab control surface, DSP tuning, storage backfill',
