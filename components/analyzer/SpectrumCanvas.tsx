@@ -9,9 +9,10 @@ import { formatFrequency } from '@/lib/utils/pitchUtils'
 import { CANVAS_SETTINGS } from '@/lib/dsp/constants'
 import { thresholdDraggedStorage } from '@/lib/storage/dwaStorage'
 import type { SpectrumData, Advisory } from '@/types/advisory'
+import type { RoomMode } from '@/lib/dsp/acousticUtils'
 import type { EarlyWarning } from '@/hooks/useAudioAnalyzer'
 import {
-  type DbRange, type CanvasTheme, calcPadding, drawGrid, drawFreqZones, drawIndicatorLines, drawSpectrum,
+  type DbRange, type CanvasTheme, calcPadding, drawGrid, drawFreqZones, drawRoomModeLines, drawIndicatorLines, drawSpectrum,
   drawFreqRangeOverlay, drawNotchOverlays, drawMarkers, drawAxisLabels, drawPlaceholder,
   DARK_CANVAS_THEME, LIGHT_CANVAS_THEME,
 } from '@/lib/canvas/spectrumDrawing'
@@ -40,13 +41,15 @@ interface SpectrumCanvasProps {
   isFrozen?: boolean
   canvasTargetFps?: number
   showFreqZones?: boolean
+  showRoomModeLines?: boolean
+  roomModes?: RoomMode[] | null
   spectrumWarmMode?: boolean
   onThresholdChange?: (db: number) => void
 }
 
 const GRAB_THRESHOLD_PX = 22 // 44px total touch target per line
 
-export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, advisories, isRunning, isStarting = false, error, graphFontSize = 11, onStart, earlyWarning, rtaDbMin: rtaDbMinProp, rtaDbMax: rtaDbMaxProp, spectrumLineWidth: spectrumLineWidthProp, clearedIds, minFrequency = 20, maxFrequency = 20000, onFreqRangeChange, showThresholdLine = false, feedbackThresholdDb, isFrozen = false, canvasTargetFps, showFreqZones = false, spectrumWarmMode = false, onThresholdChange }: SpectrumCanvasProps) {
+export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, advisories, isRunning, isStarting = false, error, graphFontSize = 11, onStart, earlyWarning, rtaDbMin: rtaDbMinProp, rtaDbMax: rtaDbMaxProp, spectrumLineWidth: spectrumLineWidthProp, clearedIds, minFrequency = 20, maxFrequency = 20000, onFreqRangeChange, showThresholdLine = false, feedbackThresholdDb, isFrozen = false, canvasTargetFps, showFreqZones = false, showRoomModeLines = false, roomModes, spectrumWarmMode = false, onThresholdChange }: SpectrumCanvasProps) {
   const { resolvedTheme } = useTheme()
   const canvasThemeRef = useRef<CanvasTheme>(DARK_CANVAS_THEME)
   canvasThemeRef.current = resolvedTheme === 'dark' ? DARK_CANVAS_THEME : LIGHT_CANVAS_THEME
@@ -236,6 +239,7 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
 
     drawGrid(ctx, plotWidth, plotHeight, range, canvasThemeRef.current)
     drawFreqZones(ctx, plotWidth, plotHeight, range, showFreqZones, canvasThemeRef.current)
+    drawRoomModeLines(ctx, plotWidth, plotHeight, range, roomModes ?? null, showRoomModeLines, canvasThemeRef.current)
     drawIndicatorLines(ctx, plotWidth, plotHeight, range, spectrum, showThresholdLine, feedbackThresholdDb, fontSize, showDragHintRef.current)
 
     // Track threshold line Y for drag detection (in canvas coords relative to plot area)
@@ -328,12 +332,12 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
 
     drawAxisLabels(ctx, padding, plotWidth, plotHeight, range, fontSize, width, height, canvasThemeRef.current)
 
-  }, [spectrumRef, graphFontSize, earlyWarning, rtaDbMinProp, rtaDbMaxProp, spectrumLineWidthProp, showThresholdLine, feedbackThresholdDb, showFreqZones, spectrumWarmMode])
+  }, [spectrumRef, graphFontSize, earlyWarning, rtaDbMinProp, rtaDbMaxProp, spectrumLineWidthProp, showThresholdLine, feedbackThresholdDb, showFreqZones, showRoomModeLines, roomModes, spectrumWarmMode])
 
   useAnimationFrame(render, isRunning || hasEverStarted, canvasTargetFps)
 
   // Mark dirty when display props change (triggers redraw on next rAF tick)
-  useEffect(() => { dirtyRef.current = true }, [graphFontSize, earlyWarning, rtaDbMinProp, rtaDbMaxProp, spectrumLineWidthProp, showThresholdLine, feedbackThresholdDb, showFreqZones, spectrumWarmMode])
+  useEffect(() => { dirtyRef.current = true }, [graphFontSize, earlyWarning, rtaDbMinProp, rtaDbMaxProp, spectrumLineWidthProp, showThresholdLine, feedbackThresholdDb, showFreqZones, showRoomModeLines, roomModes, spectrumWarmMode])
   useEffect(() => { dirtyRef.current = true }, [advisories, clearedIds])
 
   // Pointer event handlers for dragging frequency range lines + threshold line

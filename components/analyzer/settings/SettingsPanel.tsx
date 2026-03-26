@@ -1,25 +1,26 @@
 'use client'
 
 import React, { memo, useCallback, useState } from 'react'
-import { BarChart3, Monitor, RotateCcw } from 'lucide-react'
+import { Zap, Wrench, Monitor, FlaskConical, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { ResetConfirmDialog } from '../ResetConfirmDialog'
-import { SoundTab } from './SoundTab'
+import { LiveTab } from './LiveTab'
+import { SetupTab } from './SetupTab'
 import { DisplayTab } from './DisplayTab'
+import { AdvancedTab } from './AdvancedTab'
 import { useSettings } from '@/contexts/SettingsContext'
 import { useRigPresets } from '@/hooks/useRigPresets'
 import type { DetectorSettings, OperationMode } from '@/types/advisory'
 import type { CalibrationTabProps } from './CalibrationTab'
 import type { AdvancedTabProps } from './AdvancedTab'
-// customDefaultsStorage removed in Phase 6c — v2 auto-persistence replaces it
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-/** Data collection props forwarded to SoundTab > Advanced section */
+/** Data collection props forwarded to Advanced tab */
 export type DataCollectionTabProps = Pick<AdvancedTabProps, 'consentStatus' | 'isCollecting' | 'onEnableCollection' | 'onDisableCollection'>
 
-type SettingsTab = 'sound' | 'display'
+type SettingsTab = 'live' | 'setup' | 'display' | 'advanced'
 
 export interface SettingsPanelProps {
   settings: DetectorSettings
@@ -31,9 +32,11 @@ export interface SettingsPanelProps {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const TABS: { id: SettingsTab; label: string; Icon: typeof BarChart3 }[] = [
-  { id: 'sound', label: 'Sound', Icon: BarChart3 },
+const TABS: { id: SettingsTab; label: string; shortLabel?: string; Icon: typeof Zap }[] = [
+  { id: 'live', label: 'Live', Icon: Zap },
+  { id: 'setup', label: 'Setup', Icon: Wrench },
   { id: 'display', label: 'Display', Icon: Monitor },
+  { id: 'advanced', label: 'Advanced', shortLabel: 'Adv', Icon: FlaskConical },
 ]
 
 // ── SettingsPanel ────────────────────────────────────────────────────────────
@@ -48,7 +51,7 @@ export const SettingsPanel = memo(function SettingsPanel({
   // Pull semantic actions from context
   const ctx = useSettings()
 
-  const [activeTab, setActiveTab] = useState<SettingsTab>('sound')
+  const [activeTab, setActiveTab] = useState<SettingsTab>('live')
 
   // ── Rig preset state (structured, semantic recall) ─────────────────
   const rigPresets = useRigPresets(
@@ -61,7 +64,7 @@ export const SettingsPanel = memo(function SettingsPanel({
     },
   )
 
-  // Adapter: SoundTab expects old-format { name, settings } array
+  // Adapter: SetupTab expects old-format { name, settings } array for preset display
   const customPresets = rigPresets.presets.map(p => ({
     name: p.name,
     settings: {} as Partial<DetectorSettings>, // Placeholder — load uses semantic recall
@@ -99,34 +102,54 @@ export const SettingsPanel = memo(function SettingsPanel({
     <TooltipProvider delayDuration={400}>
       <div className="@container space-y-1.5">
 
-        {/* ── 2-tab strip ────────────────────────────────────────── */}
-        <div className="flex justify-center gap-0 border-b border-border -mx-1">
-          {TABS.map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              onClick={() => setActiveTab(id)}
-              aria-label={label}
-              className={`flex-1 min-h-12 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-[0.08em] transition-all duration-200 border-b-2 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
-                activeTab === id
-                  ? 'text-[var(--console-amber)] border-[var(--console-amber)] bg-[var(--console-amber)]/5'
-                  : 'text-muted-foreground border-transparent hover:text-foreground hover:bg-muted/30'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {label}
-            </button>
-          ))}
-        </div>
+        {/* ── 4-tab strip: Live / Setup / Display / Advanced ──── */}
+        {(() => {
+          // Detect non-default gate overrides for badge indicator
+          const d = ctx.session?.diagnostics
+          const hasCustomGates = d && (
+            d.formantGateOverride !== undefined ||
+            d.chromaticGateOverride !== undefined ||
+            d.combSweepOverride !== undefined ||
+            d.ihrGateOverride !== undefined ||
+            d.ptmrGateOverride !== undefined ||
+            d.mainsHumGateOverride !== undefined
+          )
+          return (
+            <div className="flex justify-center gap-0 border-b border-border -mx-1">
+              {TABS.map(({ id, label, shortLabel, Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => setActiveTab(id)}
+                  aria-label={label}
+                  className={`relative flex-1 min-h-12 flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.08em] transition-all duration-200 border-b-2 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+                    activeTab === id
+                      ? 'text-[var(--console-amber)] border-[var(--console-amber)] bg-[var(--console-amber)]/5'
+                      : 'text-muted-foreground border-transparent hover:text-foreground hover:bg-muted/30'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span className="hidden @[280px]:inline">{shortLabel ?? label}</span>
+                  {id === 'advanced' && hasCustomGates && (
+                    <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500" title="Custom gate overrides active" />
+                  )}
+                </button>
+              ))}
+            </div>
+          )
+        })()}
 
         {/* ── Content ─────────────────────────────────────────────── */}
 
-        {activeTab === 'sound' && (
-          <SoundTab
+        {activeTab === 'live' && (
+          <LiveTab settings={settings} />
+        )}
+
+        {activeTab === 'setup' && (
+          <SetupTab
             settings={settings}
-            onSettingsChange={() => {}} // legacy prop — all controls use semantic actions via context
+            onSettingsChange={() => {}} // legacy prop for RoomTab/CalibrationTab
             onModeChange={onModeChange}
             calibration={calibration}
-            dataCollection={dataCollection}
             customPresets={customPresets}
             showSaveInput={showSaveInput}
             setShowSaveInput={setShowSaveInput}
@@ -140,6 +163,14 @@ export const SettingsPanel = memo(function SettingsPanel({
 
         {activeTab === 'display' && (
           <DisplayTab settings={settings} updateDisplay={ctx.updateDisplay} />
+        )}
+
+        {activeTab === 'advanced' && (
+          <AdvancedTab
+            settings={settings}
+            onSettingsChange={() => {}} // legacy prop — all controls use semantic actions
+            {...(dataCollection ?? {})}
+          />
         )}
 
         {/* ── Footer: Reset ─────────────────────────── */}

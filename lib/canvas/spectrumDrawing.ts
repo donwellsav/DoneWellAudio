@@ -11,6 +11,7 @@ import { getSeverityUrgency } from '@/lib/dsp/severityUtils'
 import { formatFrequency } from '@/lib/utils/pitchUtils'
 import { CANVAS_SETTINGS, VIZ_COLORS } from '@/lib/dsp/constants'
 import type { SpectrumData, Advisory } from '@/types/advisory'
+import type { RoomMode } from '@/lib/dsp/acousticUtils'
 import type { EarlyWarning } from '@/hooks/useAudioAnalyzer'
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
@@ -238,6 +239,47 @@ export function drawFreqZones(
   // Reset text state to avoid leaking font/alignment to subsequent draw calls
   ctx.textAlign = 'left'
   ctx.textBaseline = 'alphabetic'
+}
+
+
+/** Draw predicted axial room mode lines as faint dashed verticals on the RTA. */
+export function drawRoomModeLines(
+  ctx: CanvasRenderingContext2D,
+  plotWidth: number,
+  plotHeight: number,
+  range: DbRange,
+  modes: RoomMode[] | null,
+  show: boolean,
+  theme: CanvasTheme = DARK_CANVAS_THEME,
+) {
+  if (!show || !modes || modes.length === 0) return
+  const sorted = [...modes].sort((a, b) => a.frequency - b.frequency)
+  const deduped: { frequency: number; label: string; count: number }[] = []
+  for (const mode of sorted) {
+    const centsHz = mode.frequency * (Math.pow(2, 50 / 1200) - 1)
+    const thresh = Math.min(Math.max(1.5, centsHz), 5)
+    const existing = deduped.find(d => Math.abs(d.frequency - mode.frequency) <= thresh)
+    if (existing) { existing.count++; existing.frequency = (existing.frequency + mode.frequency) / 2 }
+    else deduped.push({ frequency: mode.frequency, label: mode.label, count: 1 })
+  }
+  const isDark = theme === DARK_CANVAS_THEME
+  const lineColor = isDark ? 'rgba(147,197,253,0.25)' : 'rgba(59,130,246,0.20)'
+  const labelColor = isDark ? 'rgba(147,197,253,0.45)' : 'rgba(59,130,246,0.40)'
+  ctx.save()
+  ctx.setLineDash([2, 4])
+  for (const g of deduped) {
+    const x = freqToLogPosition(g.frequency, range.freqMin, range.freqMax) * plotWidth
+    if (x < 0 || x > plotWidth) continue
+    ctx.lineWidth = g.count >= 3 ? 2 : g.count === 2 ? 1.5 : 1
+    ctx.strokeStyle = lineColor
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, plotHeight); ctx.stroke()
+    ctx.font = '9px var(--font-sans, sans-serif)'
+    ctx.fillStyle = labelColor
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'
+    ctx.fillText(String(Math.round(g.frequency)), x, plotHeight - 2)
+  }
+  ctx.setLineDash([])
+  ctx.restore()
 }
 
 export function drawIndicatorLines(

@@ -179,7 +179,8 @@ function isChromaticallyQuantized(frequencyHz: number): boolean {
 function detectMainsHum(
   frequencyHz: number,
   activeFrequencies: number[],
-  phaseCoherence: number
+  phaseCoherence: number,
+  fundamentalSetting: 'auto' | 50 | 60 = 'auto'
 ): { isHum: boolean; fundamental: number; matchCount: number } {
   const noMatch = { isHum: false, fundamental: 0, matchCount: 0 }
 
@@ -190,7 +191,13 @@ function detectMainsHum(
   let bestFundamental = 0
   let bestCount = 0
 
-  for (const fund of MAINS_HUM_GATE.FUNDAMENTALS) {
+  // When user specifies 50 or 60 Hz, only check that fundamental.
+  // 'auto' checks both and picks the one with more corroboration.
+  const fundamentals = fundamentalSetting === 'auto'
+    ? MAINS_HUM_GATE.FUNDAMENTALS
+    : [fundamentalSetting]
+
+  for (const fund of fundamentals) {
     // Check if the current peak is on this mains series
     let onSeries = false
     for (let n = 1; n <= MAINS_HUM_GATE.MAX_HARMONIC; n++) {
@@ -472,7 +479,7 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
   ) {
     const bandsHit = countFormantBands(activeFrequencies)
     if (bandsHit >= FORMANT_MIN_MATCHES) {
-      pFeedback *= FORMANT_GATE_MULTIPLIER
+      pFeedback *= (settings?.formantGateOverride ?? FORMANT_GATE_MULTIPLIER)
       reasons.push(`Formant gate: ${bandsHit} vocal formant bands active, Q=${features.minQ.toFixed(0)} (speech-like)`)
     }
   }
@@ -761,7 +768,7 @@ export function classifyTrackWithAlgorithms(
       algorithmScores.phase.coherence > CHROMATIC_PHASE_THRESHOLD &&
       isChromaticallyQuantized(trackFreqHz)
     if (chromaticGated) {
-      pFeedback *= CHROMATIC_PHASE_REDUCTION
+      pFeedback *= (settings?.chromaticGateOverride ?? CHROMATIC_PHASE_REDUCTION)
       reasons.push(`Chromatic quantization gate: phase reduced`)
     }
   }
@@ -778,14 +785,18 @@ export function classifyTrackWithAlgorithms(
   // phase coherence (AC-locked). When the current peak sits on a mains
   // harmonic AND 2+ other active peaks corroborate the same series,
   // reduce feedback probability. Auto-detects 50 vs 60 Hz.
-  if (activeFrequencies && algorithmScores.phase) {
+  // Mains hum gate — respects settings.mainsHumEnabled (default true) and
+  // settings.mainsHumFundamental ('auto' | 50 | 60)
+  const humEnabled = settings?.mainsHumEnabled ?? true
+  if (humEnabled && activeFrequencies && algorithmScores.phase) {
     const hum = detectMainsHum(
       trackFreqHz,
       activeFrequencies,
-      algorithmScores.phase.coherence
+      algorithmScores.phase.coherence,
+      settings?.mainsHumFundamental ?? 'auto'
     )
     if (hum.isHum) {
-      pFeedback *= MAINS_HUM_GATE.GATE_MULTIPLIER
+      pFeedback *= (settings?.mainsHumGateOverride ?? MAINS_HUM_GATE.GATE_MULTIPLIER)
       reasons.push(`Mains hum gate: ${hum.matchCount} peaks match ${hum.fundamental}Hz series`)
     }
   }

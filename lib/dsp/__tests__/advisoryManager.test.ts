@@ -143,6 +143,7 @@ function makeSettings(overrides: Partial<DetectorSettings> = {}): DetectorSettin
     showAlgorithmScores: false,
     showPeqDetails: true,
     showFreqZones: false,
+    showRoomModeLines: true,
     spectrumWarmMode: false,
     sustainMs: 300,
     clearMs: 400,
@@ -160,6 +161,8 @@ function makeSettings(overrides: Partial<DetectorSettings> = {}): DetectorSettin
     canvasTargetFps: 30,
     faderMode: 'sensitivity',
     swipeLabeling: false,
+    mainsHumEnabled: true,
+    mainsHumFundamental: 'auto' as const,
     ...overrides,
   }
 }

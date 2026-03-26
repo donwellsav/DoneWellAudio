@@ -1,7 +1,7 @@
 // DoneWell Audio Feedback Detector - Core DSP engine for peak detection
 // Adapted from FeedbackDetector.js with TypeScript and enhancements
 
-import { A_WEIGHTING, MIC_CALIBRATION_PROFILES, EXP_LUT, HARMONIC_SETTINGS, MSD_SETTINGS, PERSISTENCE_SCORING, SIGNAL_GATE, HYSTERESIS, PHPR_SETTINGS } from './constants'
+import { A_WEIGHTING, MIC_CALIBRATION_PROFILES, EXP_LUT, HARMONIC_SETTINGS, MSD_SETTINGS, PERSISTENCE_SCORING, MODE_PERSISTENCE_HIGH_MS, SIGNAL_GATE, HYSTERESIS, PHPR_SETTINGS } from './constants'
 import { 
   medianInPlace, 
   buildPrefixSum, 
@@ -1669,9 +1669,16 @@ export class FeedbackDetector {
    * Called when analysisIntervalMs changes (initAudioContext, updateConfig).
    */
   private _recomputePersistenceFrames(intervalMs: number): void {
+    // Per-mode HIGH_PERSISTENCE threshold — music modes use 500ms to avoid
+    // false-boosting sustained instrument notes; monitors/ringOut use 150ms
+    // for fastest detection. Falls back to global 300ms for unknown modes.
+    const mode = this.config?.mode ?? 'speech'
+    const highMs = MODE_PERSISTENCE_HIGH_MS[mode] ?? PERSISTENCE_SCORING.HIGH_PERSISTENCE_MS
+    const veryHighMs = highMs * 2 // Maintain 2:1 ratio with high threshold
+
     this._persistMinFrames = Math.ceil(PERSISTENCE_SCORING.MIN_PERSISTENCE_MS / intervalMs)
-    this._persistHighFrames = Math.ceil(PERSISTENCE_SCORING.HIGH_PERSISTENCE_MS / intervalMs)
-    this._persistVeryHighFrames = Math.ceil(PERSISTENCE_SCORING.VERY_HIGH_PERSISTENCE_MS / intervalMs)
+    this._persistHighFrames = Math.ceil(highMs / intervalMs)
+    this._persistVeryHighFrames = Math.ceil(veryHighMs / intervalMs)
     this._persistLowFrames = Math.ceil(PERSISTENCE_SCORING.LOW_PERSISTENCE_MS / intervalMs)
     this._persistHistoryFrames = Math.ceil(PERSISTENCE_SCORING.HISTORY_MS / intervalMs)
   }

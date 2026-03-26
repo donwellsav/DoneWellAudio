@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { GraduationCap } from 'lucide-react'
 import { ConsoleSlider } from '@/components/ui/console-slider'
 import { LEDToggle } from '@/components/ui/led-toggle'
+import { PillToggle } from '@/components/ui/pill-toggle'
 import { ChannelSection } from '@/components/ui/channel-section'
 
 import type { DisplayPrefs } from '@/types/settings'
@@ -49,6 +50,12 @@ export const DisplayTab = memo(function DisplayTab({
           tooltip={settings.showTooltips ? 'Overlay colored bands (Sub, Low Mid, Mid, Presence, Air) on the RTA spectrum.' : undefined}
         />
         <LEDToggle
+          checked={settings.showRoomModeLines}
+          onChange={(checked) => setDisplay({ showRoomModeLines: checked })}
+          label="Room Mode Lines"
+          tooltip={settings.showTooltips ? 'Show predicted axial room mode frequencies as faint dashed lines on the RTA. Requires room dimensions in Setup > Room.' : undefined}
+        />
+        <LEDToggle
           checked={settings.spectrumWarmMode}
           onChange={(checked) => setDisplay({ spectrumWarmMode: checked })}
           label="Warm Spectrum"
@@ -61,6 +68,33 @@ export const DisplayTab = memo(function DisplayTab({
           label="Swipe to Label (Desktop)"
           tooltip={settings.showTooltips ? 'Enable swipe gestures on desktop issue cards: left = dismiss, right = confirm, long-press = false positive. Mobile always uses swipe for space.' : undefined}
         />
+        <LEDToggle
+          checked={settings.showThresholdLine}
+          onChange={(checked) => setDisplay({ showThresholdLine: checked })}
+          label="Show Threshold on RTA"
+          tooltip={settings.showTooltips ? 'Display the detection threshold line on the spectrum. Drag the line to adjust sensitivity.' : undefined}
+        />
+      </div>
+
+      {/* Fader mode + max issues — display-owned controls */}
+      <div className="space-y-1 pt-1">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground font-mono uppercase tracking-wide">Fader:</span>
+          <PillToggle
+            checked={settings.faderMode === 'sensitivity'}
+            onChange={(isSensitivity) => setDisplay({ faderMode: isSensitivity ? 'sensitivity' : 'gain' } as Partial<DisplayPrefs>)}
+            labelOn="Sensitivity"
+            labelOff="Input Gain"
+            tooltip={settings.showTooltips ? 'Sensitivity adjusts detection threshold. Input Gain adjusts mic input level.' : undefined}
+          />
+        </div>
+        {/* Max Issues — desktop only; mobile hard-caps to MOBILE_MAX_DISPLAYED_ISSUES */}
+        <div className="hidden lg:block">
+          <ConsoleSlider label="Max Issues" value={`${settings.maxDisplayedIssues}`}
+            tooltip={settings.showTooltips ? 'How many feedback issues display at once (desktop only).' : undefined}
+            min={3} max={12} step={1} sliderValue={settings.maxDisplayedIssues}
+            onChange={(v) => setDisplay({ maxDisplayedIssues: v })} />
+        </div>
       </div>
 
       {/* ═══ SECTION: Graph ═══ */}
@@ -91,7 +125,7 @@ export const DisplayTab = memo(function DisplayTab({
             min={8} max={26} step={1} sliderValue={settings.graphFontSize}
             onChange={(v) => setDisplay({ graphFontSize: v })} />
 
-          {/* showThresholdLine and faderMode controls live in SoundTab (Sensitivity & Range) — removed duplicate here */}
+          {/* showThresholdLine and faderMode are now in the quick toggles section above */}
         </div>
       </ChannelSection>
 

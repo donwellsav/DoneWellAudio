@@ -76,9 +76,23 @@ export interface UseLayeredSettingsReturn {
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
 export function useLayeredSettings(): UseLayeredSettingsReturn {
-  // Load initial state from v2 storage (or defaults)
-  const [session, setSession] = useState<DwaSessionState>(() => sessionStorageV2.load())
-  const [display, setDisplay] = useState<DisplayPrefs>(() => displayStorageV2.load())
+  // Load initial state from v2 storage, backfilling new fields from defaults.
+  // Flat spread works for DisplayPrefs; nested merge needed for DwaSessionState
+  // because environment/liveOverrides/diagnostics are objects that gain fields over time.
+  const [session, setSession] = useState<DwaSessionState>(() => {
+    const stored = sessionStorageV2.load()
+    return {
+      ...DEFAULT_SESSION_STATE,
+      ...stored,
+      environment: { ...DEFAULT_ENVIRONMENT, ...stored.environment },
+      liveOverrides: { ...DEFAULT_LIVE_OVERRIDES, ...stored.liveOverrides },
+      diagnostics: { ...DEFAULT_DIAGNOSTICS, ...stored.diagnostics },
+    }
+  })
+  const [display, setDisplay] = useState<DisplayPrefs>(() => ({
+    ...DEFAULT_DISPLAY_PREFS,
+    ...displayStorageV2.load(),
+  }))
 
   // Refs for stable callbacks
   const sessionRef = useRef(session)
@@ -139,6 +153,8 @@ export function useLayeredSettings(): UseLayeredSettingsReturn {
           displayUnit: partial.displayUnit ?? prev.environment.displayUnit,
           feedbackOffsetDb: partial.feedbackOffsetDb ?? template.feedbackOffsetDb,
           ringOffsetDb: partial.ringOffsetDb ?? template.ringOffsetDb,
+          mainsHumEnabled: partial.mainsHumEnabled ?? prev.environment.mainsHumEnabled ?? true,
+          mainsHumFundamental: partial.mainsHumFundamental ?? prev.environment.mainsHumFundamental ?? 'auto',
         }
         return { ...prev, environment: merged }
       }

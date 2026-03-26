@@ -139,6 +139,8 @@ export function deriveDetectorSettings(
     roomWidthM: environment.dimensionsM?.width ?? 12,
     roomHeightM: environment.dimensionsM?.height ?? 5,
     roomDimensionsUnit: environment.displayUnit,
+    mainsHumEnabled: environment.mainsHumEnabled ?? true,
+    mainsHumFundamental: environment.mainsHumFundamental ?? 'auto',
 
     // Algorithm / diagnostics
     algorithmMode: diagnostics.algorithmMode,
@@ -157,6 +159,14 @@ export function deriveDetectorSettings(
     trackTimeoutMs: diagnostics.trackTimeoutMs,
     peakMergeCents: diagnostics.peakMergeCents,
 
+    // Gate multiplier overrides (expert-only, from DiagnosticsProfile)
+    formantGateOverride: diagnostics.formantGateOverride,
+    chromaticGateOverride: diagnostics.chromaticGateOverride,
+    combSweepOverride: diagnostics.combSweepOverride,
+    ihrGateOverride: diagnostics.ihrGateOverride,
+    ptmrGateOverride: diagnostics.ptmrGateOverride,
+    mainsHumGateOverride: diagnostics.mainsHumGateOverride,
+
     // Display (from DisplayPrefs — never flows to worker, but part of DetectorSettings)
     maxDisplayedIssues: display.maxDisplayedIssues,
     graphFontSize: display.graphFontSize,
@@ -164,6 +174,7 @@ export function deriveDetectorSettings(
     showAlgorithmScores: display.showAlgorithmScores,
     showPeqDetails: display.showPeqDetails,
     showFreqZones: display.showFreqZones,
+    showRoomModeLines: display.showRoomModeLines,
     spectrumWarmMode: display.spectrumWarmMode,
     rtaDbMin: display.rtaDbMin,
     rtaDbMax: display.rtaDbMax,
