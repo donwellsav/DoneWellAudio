@@ -14,6 +14,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.21.0',
+    date: '2026-03-26',
+    highlights: 'Room mode lines on live RTA, 4-tab control surface, DSP tuning, storage backfill',
+    changes: [
+      { type: 'feat', description: 'Room mode reference lines on live RTA — faint dashed verticals show predicted axial modes below Schroeder frequency. Multiplicity-aware stroke weight.' },
+      { type: 'feat', description: 'Display toggle for room mode lines in Display tab' },
+      { type: 'feat', description: '4-tab control surface: Live (sensitivity, gain, freq range), Setup (mode, room, calibration, presets), Display, Advanced' },
+      { type: 'feat', description: 'Mains hum enable/disable + 50/60Hz selector in Setup > Room (environment-layer, preset-aware)' },
+      { type: 'feat', description: 'Gate multiplier overrides in DiagnosticsProfile — expert-only, persisted, flows through to classifier/fusion' },
+      { type: 'fix', description: 'Storage backfill — existing users get new display/session fields from defaults instead of undefined (nested merge for DwaSessionState)' },
+      { type: 'fix', description: 'Unit conversion for room mode calculation — feet values converted to meters before calculateRoomModes()' },
+      { type: 'fix', description: 'Clutter cap: Math.min(schroederHz, 300) prevents overdrawing in high-Schroeder rooms' },
+      { type: 'refactor', description: 'Remove standalone RoomAnalysisView from SetupTab — replaced by RTA-integrated room mode overlay' },
+      { type: 'refactor', description: 'Remove legacy applyLegacyPartial shim — all controls route through semantic actions (Phase 6 complete)' },
+      { type: 'perf', description: 'Per-mode persistence thresholds and track timeouts — liveMusic gets 500ms persistence, monitors 150ms' },
+    ],
+  },
+  {
     version: '0.20.1',
     date: '2026-03-26',
     changes: [

@@ -103,6 +103,10 @@ export interface EnvironmentSelection {
   /** Room volume in m³ — derived from dimensions, or manual entry */
   roomVolume: number
   displayUnit: 'meters' | 'feet'
+  /** Whether mains hum detection gate is active. Disable in hum-free venues. */
+  mainsHumEnabled: boolean
+  /** Mains frequency: 'auto' detects 50/60 Hz; explicit overrides auto-detection. */
+  mainsHumFundamental: 'auto' | 50 | 60
 }
 
 // ─── Live Operator Overrides ──────────────────────────────────────────────────
@@ -144,6 +148,7 @@ export interface DisplayPrefs {
   showAlgorithmScores: boolean
   showPeqDetails: boolean
   showFreqZones: boolean
+  showRoomModeLines: boolean
   spectrumWarmMode: boolean
   rtaDbMin: number
   rtaDbMax: number
@@ -182,6 +187,14 @@ export interface DiagnosticsProfile {
   ignoreWhistleOverride?: boolean
   fftSizeOverride?: 4096 | 8192 | 16384
   ringThresholdDbOverride?: number
+  // Gate multiplier overrides — expert-only, no UI. When set, override the
+  // hardcoded gate constants in fusion/classifier. Values are multipliers (0–1).
+  formantGateOverride?: number    // default 0.65 (classifier.ts formant gate)
+  chromaticGateOverride?: number  // default 0.60 (classifier.ts chromatic quantization gate)
+  combSweepOverride?: number      // default 0.25 (algorithmFusion.ts comb stability gate)
+  ihrGateOverride?: number        // default 0.65 (algorithmFusion.ts IHR gate)
+  ptmrGateOverride?: number       // default 0.80 (algorithmFusion.ts PTMR gate)
+  mainsHumGateOverride?: number   // default 0.40 (classifier.ts mains hum gate)
 }
 
 // ─── Rig Preset ───────────────────────────────────────────────────────────────

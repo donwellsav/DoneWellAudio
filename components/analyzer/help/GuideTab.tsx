@@ -34,7 +34,7 @@ export const GuideTab = memo(function GuideTab() {
               <li><strong>Desktop — Resizable Split:</strong> RTA spectrum (60%) and GEQ bar view (40%) side by side. Drag the divider to resize.</li>
               <li><strong>Mobile — Tabbed:</strong> Two tabs — Issues (with inline resizable graph) and Settings. Swipe the graph area to switch between RTA and GEQ. Drag the handle below the graph to resize.</li>
               <li><strong>Issues Panel:</strong> Active detected issues sorted by frequency. RUNAWAY issues pulse red. Copy EQ settings to clipboard.</li>
-              <li><strong>Controls Panel:</strong> Accordion sections (Sensitivity &amp; Range open by default), sub-tab icons for Display, Room, Advanced, and Calibrate settings.</li>
+              <li><strong>Controls Panel:</strong> Four tabs — Live (sensitivity + frequency range), Setup (mode, room, calibration, presets), Display (graph settings, tooltips, themes), Advanced (algorithms, DSP, diagnostics).</li>
               <li><strong>Algorithm Status Bar:</strong> Shows algorithm mode, active algorithms (Auto mode), FPS counter, content type (speech/music/compressed via temporal envelope + spectral analysis), and compression status.</li>
               <li><strong>Early Warning Panel:</strong> Comb filter predictions with elapsed timer and urgency progress bar.</li>
               <li><strong>Theme Toggle:</strong> Sun/Moon icon in header (between Help and Reset Layout) switches dark/light mode. Persists across sessions.</li>
@@ -55,7 +55,7 @@ export const GuideTab = memo(function GuideTab() {
               <li><strong>Layout (L):</strong> Toggle between desktop layouts. Fullscreen (F) for dedicated spectrum view.</li>
               <li><strong>Freeze (P):</strong> Pause the spectrum display for closer inspection without stopping analysis. Active state shows blue pill.</li>
               <li><strong>Clear All:</strong> Red notification dot appears when there are clearable items. Clears all advisories, GEQ bars, and RTA markers.</li>
-              <li><strong>Draggable Threshold:</strong> Enable &quot;Show on RTA&quot; in Sensitivity &amp; Range, then drag the threshold line handle up/down to adjust detection sensitivity directly on the spectrum.</li>
+              <li><strong>Draggable Threshold:</strong> Enable &quot;Show Threshold on RTA&quot; in the Display tab, then drag the threshold line handle up/down to adjust detection sensitivity directly on the spectrum.</li>
               <li><strong>Settings / Help / History:</strong> Access configuration, documentation, and feedback history.</li>
               <li><strong>Missed Feedback (⊕):</strong> Mark a false negative during calibration — flags the current frequency band as missed by the detector.</li>
             </ul>
@@ -72,11 +72,11 @@ export const GuideTab = memo(function GuideTab() {
 
           <HelpSection title="Detection Controls">
             <ul className="space-y-2">
-              <li><strong>Accordion Sections:</strong> All settings organized in collapsible sections — Sensitivity &amp; Range, Detection, Algorithms, Timing &amp; Limits, Presets &amp; Mode. All closed by default.</li>
+              <li><strong>Live Tab:</strong> Sensitivity slider and frequency range presets — the controls you use during a show.</li>
+              <li><strong>Setup Tab:</strong> Mode selector, EQ style, auto-gain target, room/environment, calibration, and rig presets — for soundcheck and pre-show.</li>
+              <li><strong>Advanced Tab:</strong> Detection policy (ring, growth, confidence), timing, algorithms, noise floor, FFT, track management — expert diagnostics only.</li>
               <li><strong>Freq Range Presets:</strong> Vocal (200–8 kHz), Monitor (300–3 kHz), Full (20–20 kHz), Sub (20–250 Hz).</li>
-              <li><strong>Sensitivity:</strong> Detection sensitivity — slide right for more sensitive. Lower dB values catch earlier feedback.</li>
-              <li><strong>Mode Selector:</strong> Operation mode presets plus any saved custom presets.</li>
-              <li><strong>Save as Preset:</strong> Save current settings as a named custom preset (up to 5). Load from mode dropdown.</li>
+              <li><strong>Save as Preset:</strong> Save current rig as a named preset (up to 10). Load from Setup tab.</li>
             </ul>
           </HelpSection>
         </div>
@@ -86,13 +86,12 @@ export const GuideTab = memo(function GuideTab() {
       <div>
         <div className="py-1.5 px-2 section-label panel-groove bg-card/60">Configuration</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-3">
-          <HelpSection title="Settings Sidebar (5 Icon Tabs)">
+          <HelpSection title="Settings Panel (4 Tabs)">
             <ul className="space-y-2">
-              <li><strong>Detect:</strong> Sensitivity, algorithm mode, FFT size, smoothing, thresholds, A-weighting, harmonic filter, noise floor, peak detection, max tracks, track timeout, whistle suppression. Uses accordion sections for progressive disclosure.</li>
-              <li><strong>Display:</strong> Tooltips, graph font size, max issues, EQ style, RTA dB range, spectrum line width, swipe-to-label, frequency zone overlay (Sub/Low Mid/Mid/Presence/Air — also shown at idle), warm amber spectrum mode, algorithm scores debug toggle, PEQ details toggle (show recommended parametric EQ on each card).</li>
-              <li><strong>Room:</strong> Room acoustics presets, RT60, volume, Schroeder frequency, modal overlap.</li>
-              <li><strong>Advanced:</strong> Save/load defaults, reset to factory settings.</li>
-              <li><strong>Calibrate:</strong> Room profile (dimensions, materials, mics), ambient noise capture, measurement mic compensation (Behringer ECM8000, dbx RTA-M, or Smartphone MEMS), calibration session recording with live stats and JSON export.</li>
+              <li><strong>Live:</strong> Sensitivity and frequency range — the only controls you need during a show.</li>
+              <li><strong>Setup:</strong> Mode selector, EQ style, auto-gain target, room environment (presets, dimensions, treatment), calibration (mic profile, ambient capture, venue metadata, session recording), and rig presets (save/load).</li>
+              <li><strong>Display:</strong> Threshold line visibility, fader mode, max issues (desktop), tooltips, graph settings (RTA range, line width, FPS, font size), swipe-to-label, frequency zone overlay, warm spectrum, algorithm scores, PEQ details.</li>
+              <li><strong>Advanced:</strong> Detection policy (ring, growth, confidence, A-weighting, whistle), timing (sustain, clear), algorithms (ML toggle, custom grid), noise floor, peak detection, DSP (FFT, smoothing), track management, data collection.</li>
             </ul>
           </HelpSection>
 

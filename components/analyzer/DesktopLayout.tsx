@@ -1,6 +1,6 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, useMemo } from 'react'
 import { IssuesList } from './IssuesList'
 import { RingOutWizard } from './RingOutWizard'
 import { EarlyWarningPanel } from './EarlyWarningPanel'
@@ -22,6 +22,7 @@ import type { ImperativePanelHandle } from 'react-resizable-panels'
 import type { DetectorSettings } from '@/types/advisory'
 import type { CalibrationTabProps } from './settings/CalibrationTab'
 import { MODE_BASELINES } from '@/lib/settings/modeBaselines'
+import { calculateRoomModes, calculateSchroederFrequency } from '@/lib/dsp/acousticUtils'
 
 interface DesktopLayoutProps {
   issuesPanelOpen: boolean
@@ -54,6 +55,18 @@ export const DesktopLayout = memo(function DesktopLayout({
   const { spectrumRef, spectrumStatus, noiseFloorDb, inputLevel, isAutoGain, autoGainDb, autoGainLocked } = useMetering()
 
   const { isFrozen, toggleFreeze, layoutKey, rtaContainerRef, isRtaFullscreen, toggleRtaFullscreen } = useUI()
+
+  // Compute axial room modes for RTA overlay (memoized — only recomputes when dimensions/unit change)
+  const roomModes = useMemo(() => {
+    if (settings.roomPreset === 'none' || !settings.roomLengthM || !settings.roomWidthM || !settings.roomHeightM) return null
+    const toM = settings.roomDimensionsUnit === 'feet' ? 0.3048 : 1
+    const lM = settings.roomLengthM * toM
+    const wM = settings.roomWidthM * toM
+    const hM = settings.roomHeightM * toM
+    const schroeder = calculateSchroederFrequency(settings.roomRT60, lM * wM * hM)
+    const maxHz = Math.min(schroeder, 300)
+    return calculateRoomModes(lM, wM, hM, maxHz).axial
+  }, [settings.roomPreset, settings.roomLengthM, settings.roomWidthM, settings.roomHeightM, settings.roomDimensionsUnit, settings.roomRT60])
 
   const {
     advisories, activeAdvisoryCount, earlyWarning,
@@ -291,7 +304,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                     </div>
                   </div>
                   <div className="flex-1 min-h-0">
-                    <SpectrumCanvas spectrumRef={spectrumRef} advisories={advisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} onStart={!isRunning && !isStarting ? start : undefined} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} showFreqZones={settings.showFreqZones} spectrumWarmMode={settings.spectrumWarmMode} onThresholdChange={(db) => { const bl = MODE_BASELINES[session.modeId]; const eo = session.environment.feedbackOffsetDb; const ce = bl.feedbackThresholdDb + eo + session.liveOverrides.sensitivityOffsetDb; const d = db - ce; if (d !== 0) setSensitivityOffset(session.liveOverrides.sensitivityOffsetDb + d) }} />
+                    <SpectrumCanvas spectrumRef={spectrumRef} advisories={advisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} onStart={!isRunning && !isStarting ? start : undefined} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} showFreqZones={settings.showFreqZones} showRoomModeLines={settings.showRoomModeLines} roomModes={roomModes} spectrumWarmMode={settings.spectrumWarmMode} onThresholdChange={(db) => { const bl = MODE_BASELINES[session.modeId]; const eo = session.environment.feedbackOffsetDb; const ce = bl.feedbackThresholdDb + eo + session.liveOverrides.sensitivityOffsetDb; const d = db - ce; if (d !== 0) setSensitivityOffset(session.liveOverrides.sensitivityOffsetDb + d) }} />
                   </div>
                 </div>
               </div>

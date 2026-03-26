@@ -6,7 +6,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash -c \"echo $TOOL_INPUT | grep -qi 'git push' && echo 'BLOCKED: git push is not allowed without explicit user permission. Ask the user first.' && exit 1 || exit 0\""
+            "command": "node .claude/hooks/deploy-guard.js",
+            "timeout": 5,
+            "statusMessage": "Checking deploy permissions..."
           },
           {
             "type": "command",

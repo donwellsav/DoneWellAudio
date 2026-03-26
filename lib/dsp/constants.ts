@@ -675,12 +675,15 @@ export const DEFAULT_SETTINGS: DetectorSettings = {
   showAlgorithmScores: false, // Hide advanced scores by default
   showPeqDetails: false, // Hide PEQ recommendation on cards by default
   showFreqZones: false, // Frequency zone overlay on RTA (Sub/Voice/Presence/Air)
+  showRoomModeLines: true, // Show predicted axial room mode lines on RTA
   spectrumWarmMode: true, // Warm amber spectrum line (default on)
   // Room mode settings
   roomLengthM: 15, // Default room length — large ballroom (~50 ft)
   roomWidthM: 12, // Default room width — large ballroom (~40 ft)
   roomHeightM: 5, // Default ceiling height — ballroom (~16 ft)
   roomDimensionsUnit: 'meters' as const,
+  mainsHumEnabled: true,
+  mainsHumFundamental: 'auto' as const,
   // Peak timing — filters speech plosives while catching sustained feedback
   sustainMs: 300, // 300 ms — filters plosives/transients while still catching real feedback
   clearMs: 400, // Slightly longer decay reduces display flicker
@@ -828,8 +831,7 @@ export const MSD_SETTINGS = {
   MIN_FRAMES_SPEECH: 7,
   /** Minimum frames for classical music (100% accuracy per paper) */
   MIN_FRAMES_MUSIC: 13,
-  /** Minimum frames for rock/pop (22% accuracy - use with compression detection) */
-  MIN_FRAMES_ROCK: 50,
+  // MIN_FRAMES_ROCK removed — defined but never referenced in code paths (dead code, verified by GPT cross-review)
   /** Default minimum frames */
   DEFAULT_MIN_FRAMES: 12, // ~200ms at 60fps — balanced between early detection and statistical confidence
   /** Maximum frames — must match HISTORY_SIZE so both MSD paths use the same depth */
@@ -871,6 +873,23 @@ export const PERSISTENCE_SCORING = {
   LOW_PERSISTENCE_MS: 60,
   /** Confidence penalty for transient peaks */
   LOW_PERSISTENCE_PENALTY: 0.05,
+} as const
+
+/**
+ * Per-mode persistence thresholds. Music modes use higher thresholds because
+ * instruments sustain 1-5s naturally — using 300ms would false-boost sustained notes.
+ * Monitor/ringOut modes use lower thresholds for faster detection.
+ * Falls back to PERSISTENCE_SCORING.HIGH_PERSISTENCE_MS (300ms) for unlisted modes.
+ */
+export const MODE_PERSISTENCE_HIGH_MS: Partial<Record<string, number>> = {
+  speech: 300,     // Current default — plosive/transient safe
+  broadcast: 300,  // Studio — same as speech
+  theater: 300,    // Drama — same as speech
+  worship: 500,    // Reverberant — instruments sustain longer
+  liveMusic: 500,  // Dense harmonics — sustained notes are normal
+  outdoor: 500,    // Festivals — wind/reverb cause sustained energy
+  monitors: 150,   // Stage wedges — fastest detection needed
+  ringOut: 150,    // Calibration — fastest detection needed
 } as const
 
 // Signal presence gate — prevents auto-gain from amplifying silence into phantom peaks
@@ -993,8 +1012,7 @@ export const PHASE_SETTINGS = {
   LOW_COHERENCE: 0.4,
   /** Minimum samples for reliable analysis */
   MIN_SAMPLES: 5,
-  /** Default threshold for detection */
-  DEFAULT_THRESHOLD: 0.75,
+  // DEFAULT_THRESHOLD (0.75) removed — never referenced. Actual gate uses CHROMATIC_PHASE_THRESHOLD (0.80) in classifier.ts
 } as const
 
 // Spectral flatness thresholds

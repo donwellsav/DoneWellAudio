@@ -338,6 +338,8 @@ export interface DetectorSettings {
   roomWidthM: number // Room width
   roomHeightM: number // Room height
   roomDimensionsUnit: 'meters' | 'feet' // Unit for dimension input
+  mainsHumEnabled: boolean // Whether mains hum detection gate is active
+  mainsHumFundamental: 'auto' | 50 | 60 // Mains frequency: auto-detect or explicit 50/60 Hz
   // Algorithm mode and scoring display
   algorithmMode: AlgorithmMode // 'auto' (content-adaptive) or 'custom' (user-selected algorithms)
   enabledAlgorithms: Algorithm[] // Which algorithms are active when algorithmMode === 'custom'
@@ -345,6 +347,7 @@ export interface DetectorSettings {
   showAlgorithmScores: boolean // Show the algorithm status bar with live scoring metrics
   showPeqDetails: boolean // Show PEQ recommendation (type, Q, gain) on each issue card
   showFreqZones: boolean // Show frequency zone overlay (Sub/Voice/Presence/Air) on RTA
+  showRoomModeLines: boolean // Show predicted axial room mode lines on RTA (below Schroeder, faint dashed)
   spectrumWarmMode: boolean // Use warm amber spectrum line instead of blue
   // Peak timing
   sustainMs: number // Peak sustain before confirmation (100-2000, default 250)
@@ -367,6 +370,13 @@ export interface DetectorSettings {
   canvasTargetFps: number // Target FPS for canvas rendering (15-60, default 30)
   faderMode: 'gain' | 'sensitivity' // Vertical fader strip mode: input gain (white) or sensitivity (blue)
   swipeLabeling: boolean // Enable swipe-to-label on issue cards (left=false+, right=confirm). Hides buttons when on.
+  // Gate multiplier overrides — expert-only, undefined = use hardcoded default
+  formantGateOverride?: number    // 0.65 default
+  chromaticGateOverride?: number  // 0.60 default
+  combSweepOverride?: number      // 0.25 default
+  ihrGateOverride?: number        // 0.65 default
+  ptmrGateOverride?: number       // 0.80 default
+  mainsHumGateOverride?: number   // 0.40 default
 }
 
 // Default configuration - optimized for Corporate/Conference PA (Speech mode)

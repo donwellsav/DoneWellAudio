@@ -690,6 +690,8 @@ export function fuseAlgorithmResults(
   agreementTracker?: AgreementPersistenceTracker,
   /** Optional calibration table for post-gate probability mapping. Default is identity. */
   calibrationTable?: CalibrationTable,
+  /** Optional gate overrides from DiagnosticsProfile (expert-only). */
+  gateOverrides?: { combSweepOverride?: number; ihrGateOverride?: number; ptmrGateOverride?: number },
 ): FusedDetectionResult {
   const reasons: string[] = []
   const contributingAlgorithms: string[] = []
@@ -805,7 +807,7 @@ export function fuseAlgorithmResults(
     // Apply sweep penalty: if spacing is drifting, this is likely an effect
     const sweeping = cst.isSweeping
     const combConfidence = sweeping
-      ? scores.comb.confidence * COMB_SWEEP_PENALTY
+      ? scores.comb.confidence * (gateOverrides?.combSweepOverride ?? COMB_SWEEP_PENALTY)
       : scores.comb.confidence
 
     const combWeight = weights.comb * 2
@@ -873,13 +875,13 @@ export function fuseAlgorithmResults(
   // veto. Source: ChatGPT multiplicative gate proposal + Gemini deep-think.
   // Musical instruments have rich harmonic series; feedback is a singular tone.
   if (scores.ihr?.isMusicLike === true && (scores.ihr?.harmonicsFound ?? 0) >= 3) {
-    feedbackProbability *= 0.65
+    feedbackProbability *= (gateOverrides?.ihrGateOverride ?? 0.65)
   }
 
   // PTMR breadth gate: very broad spectral peak (PTMR < 0.2) is unlikely to be
   // feedback. Reduces probability by 20% to penalize wide-spectrum energy.
   if ((scores.ptmr?.feedbackScore ?? 1) < 0.2) {
-    feedbackProbability *= 0.80
+    feedbackProbability *= (gateOverrides?.ptmrGateOverride ?? 0.80)
   }
 
   // 14.3: Apply post-gate calibration (identity by default — zero behavior change)

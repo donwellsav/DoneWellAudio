@@ -537,7 +537,9 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         combTrackers.set(track.id, trackCst)
       }
       const fusionResult = fuseAlgorithmResults(
-        algorithmScores, contentType, fusionConfig, track.trueFrequencyHz, trackCst
+        algorithmScores, contentType, fusionConfig, track.trueFrequencyHz, trackCst,
+        undefined, undefined, // agreementTracker, calibrationTable
+        { combSweepOverride: settings.combSweepOverride, ihrGateOverride: settings.ihrGateOverride, ptmrGateOverride: settings.ptmrGateOverride }
       )
 
       // Feed fusion result back to AlgorithmEngine for ML's next-frame input

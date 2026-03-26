@@ -29,6 +29,8 @@ export const DEFAULT_ENVIRONMENT: EnvironmentSelection = {
   roomRT60: 1.0,
   roomVolume: 1000,
   displayUnit: 'meters',
+  mainsHumEnabled: true,
+  mainsHumFundamental: 'auto' as const,
 }
 
 /** Default live overrides: no adjustments from baseline */
@@ -49,6 +51,7 @@ export const DEFAULT_DISPLAY_PREFS: DisplayPrefs = {
   showAlgorithmScores: false,
   showPeqDetails: false,
   showFreqZones: false,
+  showRoomModeLines: true,
   spectrumWarmMode: true,
   rtaDbMin: -100,
   rtaDbMax: 0,

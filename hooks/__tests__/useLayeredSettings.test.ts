@@ -212,3 +212,92 @@ describe('useLayeredSettings — persistence', () => {
     expect(result2.current.display.graphFontSize).toBe(25)
   })
 })
+
+// ─── Storage backfill ─────────────────────────────────────────────────────────
+
+describe('useLayeredSettings — storage backfill', () => {
+  it('backfills missing display pref fields from defaults', () => {
+    // Simulate an existing user who saved display prefs before showRoomModeLines existed
+    const oldDisplayPrefs = {
+      maxDisplayedIssues: 12,
+      graphFontSize: 18,
+      showTooltips: false,
+      showAlgorithmScores: true,
+      showPeqDetails: false,
+      showFreqZones: true,
+      spectrumWarmMode: false,
+      rtaDbMin: -90,
+      rtaDbMax: -5,
+      spectrumLineWidth: 2,
+      showThresholdLine: true,
+      canvasTargetFps: 30,
+      faderMode: 'gain',
+      swipeLabeling: false,
+      // NOTE: showRoomModeLines is intentionally missing
+    }
+    localStorage.setItem('dwa-v2-display', JSON.stringify(oldDisplayPrefs))
+
+    const { result } = renderHook(() => useLayeredSettings())
+
+    // Stored values should survive
+    expect(result.current.display.maxDisplayedIssues).toBe(12)
+    expect(result.current.display.graphFontSize).toBe(18)
+    expect(result.current.display.showTooltips).toBe(false)
+    expect(result.current.display.showFreqZones).toBe(true)
+
+    // New field should backfill from DEFAULT_DISPLAY_PREFS
+    expect(result.current.display.showRoomModeLines).toBe(DEFAULT_DISPLAY_PREFS.showRoomModeLines)
+  })
+
+  it('backfills missing nested session fields from defaults', () => {
+    // Simulate a session saved before environment gained mainsHumEnabled
+    const oldSession = {
+      modeId: 'worship',
+      environment: {
+        templateId: 'medium',
+        treatment: 'typical',
+        feedbackOffsetDb: 5,
+        ringOffsetDb: 3,
+        provenance: 'template',
+        roomRT60: 1.5,
+        roomVolume: 300,
+        displayUnit: 'meters',
+        // NOTE: mainsHumEnabled and mainsHumFundamental intentionally missing
+      },
+      liveOverrides: {
+        sensitivityOffsetDb: 2,
+        inputGainDb: 0,
+        autoGainEnabled: false,
+        autoGainTargetDb: -18,
+        focusRange: { kind: 'mode-default' },
+        eqStyle: 'mode-default',
+      },
+      diagnostics: {
+        mlEnabled: true,
+        algorithmMode: 'auto',
+        enabledAlgorithms: ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml'],
+        thresholdMode: 'hybrid',
+        noiseFloorAttackMs: 200,
+        noiseFloorReleaseMs: 1000,
+        maxTracks: 64,
+        trackTimeoutMs: 1000,
+        harmonicToleranceCents: 200,
+        peakMergeCents: 100,
+      },
+      micCalibrationProfile: 'none',
+    }
+    localStorage.setItem('dwa-v2-session', JSON.stringify(oldSession))
+
+    const { result } = renderHook(() => useLayeredSettings())
+
+    // Stored values should survive
+    expect(result.current.session.modeId).toBe('worship')
+    expect(result.current.session.environment.templateId).toBe('medium')
+    expect(result.current.session.environment.feedbackOffsetDb).toBe(5)
+    expect(result.current.session.liveOverrides.sensitivityOffsetDb).toBe(2)
+
+    // New nested fields should backfill from defaults
+    expect(result.current.session.environment.mainsHumEnabled).toBe(true)
+    expect(result.current.session.environment.mainsHumFundamental).toBe('auto')
+  })
+})
