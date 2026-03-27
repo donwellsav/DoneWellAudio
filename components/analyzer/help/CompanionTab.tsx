@@ -30,12 +30,12 @@ export const CompanionTab = memo(function CompanionTab() {
             <div className="mt-3 space-y-2">
               <p className="font-medium text-foreground text-sm">Install steps:</p>
               <ol className="list-decimal list-inside space-y-1">
-                <li>Click the download button above</li>
+                <li>Click the download button above (pre-built, ready to use)</li>
                 <li>Unzip the downloaded file</li>
-                <li>In Companion, go to <strong>Connections</strong> &rarr; <strong>Add module</strong></li>
-                <li>Click <strong>Developer modules path</strong> at the bottom</li>
-                <li>Point it to the unzipped folder</li>
-                <li>Restart Companion — the module appears in the module list</li>
+                <li>Run <code className="font-mono text-xs bg-muted px-1 rounded">npm install</code> inside the unzipped folder (installs the Companion base library)</li>
+                <li>In Companion, go to <strong>Connections</strong> &rarr; <strong>Add connection</strong></li>
+                <li>Click <strong>Developer modules path</strong> at the bottom and point it to the unzipped folder</li>
+                <li>Restart Companion — search for <strong>&ldquo;DoneWell Audio&rdquo;</strong> in Add Connection</li>
               </ol>
             </div>
             <p className="mt-2 text-xs text-muted-foreground/70">
