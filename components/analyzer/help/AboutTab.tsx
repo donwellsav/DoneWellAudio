@@ -56,8 +56,8 @@ export const AboutTab = memo(function AboutTab() {
       <div>
         <div className="py-1.5 px-2 section-label panel-groove bg-card/60">Changelog</div>
         <div className="space-y-1.5 pt-3">
-          {CHANGELOG.map((entry) => (
-            <div key={entry.version} className="bg-card/80 rounded border p-2.5">
+          {CHANGELOG.map((entry, i) => (
+            <div key={`${entry.version}-${i}`} className="bg-card/80 rounded border p-2.5">
               <div className="flex items-center gap-2 mb-1.5">
                 <span className="font-mono text-sm font-bold text-foreground">v{entry.version}</span>
                 <span className="text-xs text-muted-foreground font-mono">{entry.date}</span>

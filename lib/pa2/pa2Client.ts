@@ -43,14 +43,6 @@ interface FetchOptions {
   signal?: AbortSignal
 }
 
-function buildHeaders(apiKey?: string): Record<string, string> {
-  // Use text/plain to prevent Companion from auto-parsing the JSON body
-  // into an object (which breaks JSON.parse in the module's HTTP handler)
-  const headers: Record<string, string> = { 'Content-Type': 'text/plain' }
-  if (apiKey) headers['X-Api-Key'] = apiKey
-  return headers
-}
-
 // ═══ Client Interface ═══
 
 export interface PA2Client {
@@ -118,7 +110,6 @@ export interface PA2Client {
  */
 export function createPA2Client(config: PA2ConnectionConfig): PA2Client {
   const { baseUrl, apiKey, timeoutMs = 2000 } = config
-  const headers = buildHeaders(apiKey)
 
   async function request<T>(path: string, options?: FetchOptions): Promise<T> {
     const controller = new AbortController()
@@ -129,6 +120,10 @@ export function createPA2Client(config: PA2ConnectionConfig): PA2Client {
 
     // Strip trailing slash from baseUrl to avoid double-slash
     const cleanBase = baseUrl.replace(/\/+$/, '')
+
+    // Use text/plain to prevent Companion from auto-parsing JSON body
+    const headers: Record<string, string> = { 'Content-Type': 'text/plain' }
+    if (apiKey) headers['X-Api-Key'] = apiKey
 
     try {
       const response = await fetch(`${cleanBase}/${path}`, {
