@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.24.6',
+    date: '2026-03-27',
+    changes: [
+      { type: 'fix', description: 'Inline headers per-request in PA2 client, fix changelog duplicate keys' },
+    ],
+  },
+  {
     version: '0.24.5',
     date: '2026-03-27',
     changes: [
