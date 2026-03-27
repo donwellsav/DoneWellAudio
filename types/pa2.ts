@@ -195,7 +195,7 @@ export interface PA2BridgeState {
 
 // ═══ PA2 Settings ═══
 
-export type PA2AutoSendMode = 'off' | 'geq' | 'peq' | 'hybrid'
+export type PA2AutoSendMode = 'off' | 'geq' | 'peq' | 'hybrid' | 'both'
 
 export interface PA2Settings {
   /** Whether the PA2 bridge is enabled */
@@ -237,7 +237,7 @@ export const DEFAULT_PA2_SETTINGS: PA2Settings = {
   companionPort: 8000,
   instanceLabel: 'PA2',
   apiKey: '',
-  autoSend: 'hybrid',
+  autoSend: 'both',
   autoSendMinConfidence: 0.7,
   pollIntervalMs: 200,
   ringOutAutoSend: false,

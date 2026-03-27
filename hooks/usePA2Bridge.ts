@@ -53,13 +53,14 @@ export interface UsePA2BridgeConfig extends PA2ConnectionConfig {
   /**
    * Auto-send mode:
    * - 'off' — Manual only. Call sendCorrections() yourself.
-   * - 'geq' — Auto-forward advisories as GEQ corrections.
-   * - 'peq' — Auto-forward advisories as PEQ detect payloads.
-   * - 'hybrid' — Use GEQ for broad issues, PEQ for narrow feedback.
+   * - 'both' — GEQ for broad curve + PEQ for surgical notches (recommended).
+   * - 'geq' — Auto-forward advisories as GEQ corrections only.
+   * - 'peq' — Auto-forward advisories as PEQ detect payloads only.
+   * - 'hybrid' — Use GEQ for broad issues, PEQ for narrow feedback (per advisory).
    *
    * Default: 'off'
    */
-  readonly autoSend?: 'off' | 'geq' | 'peq' | 'hybrid'
+  readonly autoSend?: 'off' | 'geq' | 'peq' | 'hybrid' | 'both'
 
   /** Minimum confidence to auto-send (default: 0.7) */
   readonly autoSendMinConfidence?: number
@@ -281,6 +282,30 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
       }
       if (peqPayload.length > 0) {
         client.detect({ frequencies: peqPayload, source: 'donewellaudio' }).catch(console.error)
+      }
+    } else if (autoSend === 'both') {
+      // GEQ for the broad room curve
+      if (state.geq) {
+        const corrections = advisoriesToGEQCorrections(advisories, autoSendMinConfidence)
+        if (Object.keys(corrections).length > 0) {
+          const merged = mergeGEQCorrections(state.geq.bands, corrections)
+          client.setGEQBands(merged).catch(console.error)
+        }
+      }
+      // PEQ for surgical feedback notches
+      const payload = advisoriesToDetectPayload(advisories, autoSendMinConfidence)
+      if (payload.length > 0) {
+        client.detect({ frequencies: payload, source: 'donewellaudio' })
+          .then((res) => {
+            if (mountedRef.current) {
+              setState((s) => ({
+                ...s,
+                notchSlotsUsed: res.slots_used,
+                notchSlotsAvailable: res.slots_available,
+              }))
+            }
+          })
+          .catch(console.error)
       }
     }
   }, [advisories, autoSend, autoSendMinConfidence, autoSendIntervalMs, state.status, state.geq])

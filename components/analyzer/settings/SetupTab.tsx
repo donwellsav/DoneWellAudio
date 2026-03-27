@@ -183,7 +183,7 @@ export const SetupTab = memo(function SetupTab({
                 const update: Partial<typeof pa2.settings> = { enabled: enabling }
                 // Auto-set hybrid mode when enabling for the first time
                 if (enabling && pa2.settings.autoSend === 'off') {
-                  update.autoSend = 'hybrid'
+                  update.autoSend = 'both'
                 }
                 pa2.updateSettings(update)
               }}
@@ -317,9 +317,10 @@ export const SetupTab = memo(function SetupTab({
               className="mt-1 block w-full rounded border border-border bg-background px-2 py-1 text-xs"
             >
               <option value="off">Off (manual)</option>
-              <option value="peq">PEQ notches (surgical)</option>
-              <option value="geq">GEQ corrections (broad)</option>
-              <option value="hybrid">Hybrid (auto-pick)</option>
+              <option value="both">Both PEQ + GEQ (recommended)</option>
+              <option value="peq">PEQ only (surgical notches)</option>
+              <option value="geq">GEQ only (broad corrections)</option>
+              <option value="hybrid">Hybrid (auto-pick per advisory)</option>
             </select>
           </label>
 
