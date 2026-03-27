@@ -48,6 +48,7 @@
     "node_modules",
     "public/sw.js",
     "supabase/functions",
-    "companion/extracted"
+    "companion/extracted",
+    "companion-module"
   ]
 }

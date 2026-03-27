@@ -20,4 +20,5 @@ public/swe-worker*
 
 nul
 .vercel
-companion/
+# Cloned Bitfocus Companion repo (not our module or bridge code)
+/companion/

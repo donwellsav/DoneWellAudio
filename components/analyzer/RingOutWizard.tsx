@@ -6,6 +6,7 @@ import { getSeverityColor } from '@/lib/dsp/eqAdvisor'
 import { AlertTriangle, Check, ChevronRight, Download, SkipForward, X } from 'lucide-react'
 import type { Advisory } from '@/types/advisory'
 import type { RoomMode } from '@/lib/dsp/acousticUtils'
+import { useCompanion } from '@/hooks/useCompanion'
 
 interface NotchedFreq {
   frequencyHz: number
@@ -47,6 +48,7 @@ export const RingOutWizard = memo(function RingOutWizard({
   const [notched, setNotched] = useState<NotchedFreq[]>([])
   const [currentAdvisory, setCurrentAdvisory] = useState<Advisory | null>(null)
   const prevAdvisoryCountRef = useRef(0)
+  const companion = useCompanion()
 
   // Watch for new advisories during listening phase
   useEffect(() => {
@@ -92,9 +94,13 @@ export const RingOutWizard = memo(function RingOutWizard({
       timestamp: Date.now(),
       modeAdjacent: adjacent?.label,
     }])
+    // Auto-send to Companion during ring-out when enabled
+    if (companion.settings.enabled && companion.settings.ringOutAutoSend) {
+      companion.sendAdvisory(currentAdvisory)
+    }
     setCurrentAdvisory(null)
     setPhase('listening')
-  }, [currentAdvisory, roomModes])
+  }, [currentAdvisory, roomModes, companion])
 
   const handleSkip = useCallback(() => {
     setCurrentAdvisory(null)
@@ -337,6 +343,18 @@ export const RingOutWizard = memo(function RingOutWizard({
           >
             <Download className="w-3.5 h-3.5" />
             Export
+          </button>
+        )}
+        {companion.settings.enabled && notched.length > 0 && (
+          <button
+            onClick={() => {
+              for (const a of advisories) {
+                companion.sendAdvisory(a)
+              }
+            }}
+            className="flex-1 py-2 rounded font-mono text-xs font-bold tracking-[0.15em] uppercase border border-blue-500/40 text-blue-400 hover:bg-blue-500/10 transition-colors cursor-pointer flex items-center justify-center gap-1"
+          >
+            Send All
           </button>
         )}
         <button
