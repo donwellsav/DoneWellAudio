@@ -169,7 +169,7 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
 
         const rtaArray = loopRTAToArray(loop)
 
-        setState({
+        setState((s) => ({
           status: 'connected',
           pa2Connected: loop.connected,
           lastPollTimestamp: loop.timestamp,
@@ -178,9 +178,9 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
           meters: loopMetersToFull(loop),
           mutes: loop.mutes,
           error: null,
-          notchSlotsUsed: state.notchSlotsUsed,
-          notchSlotsAvailable: state.notchSlotsAvailable,
-        })
+          notchSlotsUsed: s.notchSlotsUsed,
+          notchSlotsAvailable: s.notchSlotsAvailable,
+        }))
       } catch (err) {
         if (!mountedRef.current) return
         // Only ignore aborts from component unmount, not from timeouts
@@ -209,7 +209,7 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current)
       if (abortController) abortController.abort()
     }
-  }, [enabled, pollIntervalMs])
+  }, [enabled, pollIntervalMs, baseUrl, apiKey, timeoutMs])
 
   // ── Auto-send advisory forwarding ──
 
