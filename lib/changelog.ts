@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.22.8',
+    date: '2026-03-27',
+    changes: [
+      { type: 'fix', description: 'fix: resolve changelog merge conflict (keep proper descriptions)' },
+    ],
+  },
+  {
     version: '0.22.7',
     date: '2026-03-27',
     highlights: 'CORS proxy fix for Companion bridge',
