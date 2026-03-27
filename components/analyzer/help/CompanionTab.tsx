@@ -14,20 +14,47 @@ export const CompanionTab = memo(function CompanionTab() {
         </p>
       </HelpSection>
 
-      {/* Group: Setup */}
+      {/* Group: Download & Setup */}
       <div>
-        <div className="py-1.5 px-2 section-label panel-groove bg-card/60">Setup</div>
+        <div className="py-1.5 px-2 section-label panel-groove bg-card/60">Download &amp; Setup</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-3">
-          <HelpSection title="Prerequisites">
-            <ol className="list-decimal list-inside space-y-2">
-              <li>Install <strong>Bitfocus Companion</strong> on the same computer or network as DoneWell Audio</li>
-              <li>In Companion, add the <strong>DoneWell Audio</strong> module (from the <code className="font-mono text-xs bg-muted px-1 rounded">companion-module/</code> folder)</li>
-              <li>Install your mixer module in Companion (e.g., Behringer X32, Yamaha CL/QL)</li>
-              <li>In DoneWell Audio, go to <strong>Advanced &rarr; Companion</strong> and enable the bridge</li>
-            </ol>
+          <HelpSection title="Get the Module">
+            <p className="mb-2">The Companion module is a standalone package you install on whatever machine runs Companion — it does not need to be this machine.</p>
+            <div className="mt-3 space-y-2">
+              <p className="font-medium text-foreground text-sm">Install steps:</p>
+              <ol className="list-decimal list-inside space-y-1">
+                <li>Download the module from the project&apos;s GitHub releases page (look for <code className="font-mono text-xs bg-muted px-1 rounded">companion-module-donewell-audio.zip</code>)</li>
+                <li>Unzip the downloaded file</li>
+                <li>In Companion, go to <strong>Connections</strong> &rarr; <strong>Add module</strong></li>
+                <li>Click <strong>Developer modules path</strong> at the bottom</li>
+                <li>Point it to the unzipped folder</li>
+                <li>Restart Companion — the module appears in the module list</li>
+              </ol>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground/70">
+              Source code is in the <code className="font-mono text-xs bg-muted px-1 rounded">companion-module/</code> folder of this project&apos;s repository.
+            </p>
           </HelpSection>
 
-          <HelpSection title="DoneWell Settings">
+          <HelpSection title="Quick Start">
+            <ol className="list-decimal list-inside space-y-2">
+              <li>Install <strong>Bitfocus Companion</strong> on any computer on your network</li>
+              <li>Download and install the module (see left)</li>
+              <li>Add the module in Companion and note the instance name (default: <code className="font-mono text-xs bg-muted px-1 rounded">donewell-audio</code>)</li>
+              <li>Add your mixer module in Companion (e.g., Behringer X32)</li>
+              <li>In this app, go to <strong>Advanced &rarr; Companion</strong> and enable the bridge</li>
+              <li>Set the <strong>Companion URL</strong> to the machine running Companion (e.g., <code className="font-mono text-xs bg-muted px-1 rounded">http://&lt;companion-ip&gt;:8000</code>)</li>
+              <li>Click <strong>Test</strong> to verify the connection (green dot = connected)</li>
+            </ol>
+          </HelpSection>
+        </div>
+      </div>
+
+      {/* Group: App Settings */}
+      <div>
+        <div className="py-1.5 px-2 section-label panel-groove bg-card/60">App Settings</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-3">
+          <HelpSection title="Companion Bridge Settings (Advanced Tab)">
             <ul className="space-y-2">
               <li><strong>Enable Companion Bridge:</strong> Master on/off toggle. When off, no data is sent and the SEND button is hidden.</li>
               <li><strong>Companion URL:</strong> Where Companion is running. Default: <code className="font-mono text-xs bg-muted px-1 rounded">http://localhost:8000</code></li>
