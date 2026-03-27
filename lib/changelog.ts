@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.24.3',
+    date: '2026-03-27',
+    changes: [
+      { type: 'fix', description: 'Companion body parsing — use text/plain to prevent auto-parse' },
+    ],
+  },
+  {
     version: '0.24.2',
     date: '2026-03-27',
     changes: [
