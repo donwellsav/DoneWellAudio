@@ -25,5 +25,13 @@ export function UpdateActions(self: ModuleInstance): void {
         self.clearAll()
       },
     },
+
+    apply_latest: {
+      name: 'Apply Latest EQ to Mixer',
+      options: [],
+      callback: async () => {
+        self.applyLatest()
+      },
+    },
   })
 }

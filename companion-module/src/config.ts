@@ -1,14 +1,31 @@
 import type { SomeCompanionConfigField } from '@companion-module/base'
 
 export interface ModuleConfig {
+  // Input: relay connection
   siteUrl: string
   pairingCode: string
   pollIntervalMs: number
+
+  // Output: mixer connection
+  outputProtocol: 'none' | 'osc' | 'tcp'
+  mixerHost: string
+  mixerPort: number
+  oscPrefix: string
+  oscEqBandParam: number
+  autoApply: boolean
   maxCutDb: number
 }
 
 export function GetConfigFields(): SomeCompanionConfigField[] {
   return [
+    // ── Input ──
+    {
+      type: 'static-text',
+      id: 'input_header',
+      label: '',
+      value: '── Input: Relay Connection ──',
+      width: 12,
+    },
     {
       type: 'textinput',
       id: 'pairingCode',
@@ -31,6 +48,66 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
       min: 200,
       max: 5000,
       step: 100,
+      width: 6,
+    },
+
+    // ── Output ──
+    {
+      type: 'static-text',
+      id: 'output_header',
+      label: '',
+      value: '── Output: Mixer Connection ──',
+      width: 12,
+    },
+    {
+      type: 'dropdown',
+      id: 'outputProtocol',
+      label: 'Protocol',
+      default: 'none',
+      choices: [
+        { id: 'none', label: 'None (variables only)' },
+        { id: 'osc', label: 'OSC (X32, Yamaha, Allen & Heath)' },
+        { id: 'tcp', label: 'TCP (dbx, generic)' },
+      ],
+      width: 6,
+    },
+    {
+      type: 'textinput',
+      id: 'mixerHost',
+      label: 'Mixer IP Address',
+      default: '',
+      width: 6,
+    },
+    {
+      type: 'number',
+      id: 'mixerPort',
+      label: 'Mixer Port',
+      default: 10023,
+      min: 1,
+      max: 65535,
+      width: 6,
+    },
+    {
+      type: 'textinput',
+      id: 'oscPrefix',
+      label: 'OSC Channel Prefix (e.g. /ch/01/eq or /bus/01/eq)',
+      default: '/ch/01/eq',
+      width: 6,
+    },
+    {
+      type: 'number',
+      id: 'oscEqBandParam',
+      label: 'PEQ Band Number (1-6)',
+      default: 1,
+      min: 1,
+      max: 6,
+      width: 6,
+    },
+    {
+      type: 'checkbox',
+      id: 'autoApply',
+      label: 'Auto-Apply EQ on advisory receive',
+      default: false,
       width: 6,
     },
     {

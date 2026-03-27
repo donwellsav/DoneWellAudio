@@ -123,58 +123,52 @@ export const CompanionTab = memo(function CompanionTab() {
         </div>
       </div>
 
-      {/* Group: Wiring to Your Mixer (THE KEY STEP) */}
+      {/* Group: Connecting to Your Mixer */}
       <div>
-        <div className="py-1.5 px-2 section-label panel-groove bg-card/60">Wiring to Your Mixer (Required)</div>
+        <div className="py-1.5 px-2 section-label panel-groove bg-card/60">Connecting to Your Mixer</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-3">
-          <HelpSection title="Why This Step Matters">
-            <p className="mb-2">
-              The module is an <strong>input source</strong> — it tells Companion <em>what</em> to cut.
-              Your mixer module is the <strong>output</strong> — it <em>does</em> the cutting.
-              You connect them with a <strong>trigger</strong> inside Companion.
-            </p>
-            <p>
-              Without this step, advisories arrive in Companion but nothing reaches your mixer.
-              This is by design — you choose which mixer, which channel, and which EQ band receives the commands.
-            </p>
-          </HelpSection>
-
-          <HelpSection title="Create a Trigger">
+          <HelpSection title="Built-in Mixer Output (Recommended)">
+            <p className="mb-2">The module can send EQ commands directly to your mixer — no separate mixer module or triggers needed.</p>
             <ol className="list-decimal list-inside space-y-2">
-              <li>In Companion, go to <strong>Triggers</strong> (left sidebar)</li>
-              <li>Click <strong>Add Trigger</strong></li>
-              <li>Set condition: <strong>Variable changed</strong> &rarr; <code className="font-mono text-xs bg-muted px-1 rounded">donewell:peq_frequency</code></li>
-              <li>Add an action from your mixer module (e.g., set PEQ band)</li>
-              <li>In the action fields, use the variables:
-                <ul className="list-disc list-inside ml-4 mt-1 space-y-0.5">
-                  <li>Frequency &rarr; <code className="font-mono text-xs bg-muted px-1 rounded">$(donewell:peq_frequency)</code></li>
-                  <li>Q &rarr; <code className="font-mono text-xs bg-muted px-1 rounded">$(donewell:peq_q)</code></li>
-                  <li>Gain &rarr; <code className="font-mono text-xs bg-muted px-1 rounded">$(donewell:peq_gain)</code></li>
-                </ul>
-              </li>
-              <li>Save — every new advisory now automatically applies to your mixer</li>
-            </ol>
-          </HelpSection>
-
-          <HelpSection title="For Generic OSC / TCP Devices">
-            <p className="mb-2">For mixers without a dedicated Companion module, use a generic module:</p>
-            <ol className="list-decimal list-inside space-y-1">
-              <li>Add <strong>Generic OSC</strong> or <strong>Generic TCP/UDP</strong> module</li>
-              <li>Configure your device&apos;s IP and port</li>
-              <li>Create a trigger on <code className="font-mono text-xs bg-muted px-1 rounded">donewell:peq_frequency</code></li>
-              <li>Send a raw command using your device&apos;s protocol, embedding the variables in the command string</li>
+              <li>In the module settings, set <strong>Protocol</strong> to OSC or TCP</li>
+              <li>Enter your mixer&apos;s <strong>IP address</strong> and <strong>port</strong></li>
+              <li>Set the <strong>OSC Channel Prefix</strong> (e.g., <code className="font-mono text-xs bg-muted px-1 rounded">/ch/01/eq</code> for X32 channel 1)</li>
+              <li>Choose the <strong>PEQ Band</strong> number to write to (1-6)</li>
+              <li>Enable <strong>Auto-Apply</strong> — each advisory now goes straight to your mixer</li>
             </ol>
             <p className="mt-2 text-xs text-muted-foreground/70">
-              This requires knowing your device&apos;s control protocol. Check the manufacturer&apos;s documentation.
+              Or leave Auto-Apply off and use the <strong>Apply Latest EQ</strong> action on a Stream Deck button for manual control.
+            </p>
+          </HelpSection>
+
+          <HelpSection title="Supported Protocols">
+            <ul className="space-y-2">
+              <li><strong>OSC (recommended):</strong> Works with Behringer X32/M32, Yamaha CL/QL/TF, Allen &amp; Heath dLive/SQ, Midas M32, and any OSC-compatible mixer. Default port: 10023. Sends frequency, gain, and Q as normalized float values.</li>
+              <li><strong>TCP:</strong> Sends JSON commands over TCP for custom integrations. Works with any device that accepts TCP connections. Useful for dbx, QSC, and devices with proprietary protocols (adapter script may be needed).</li>
+              <li><strong>None:</strong> Variables-only mode. Use Companion triggers to wire variables to other modules manually. Best when you need advanced routing or multiple destinations.</li>
+            </ul>
+          </HelpSection>
+
+          <HelpSection title="OSC Channel Prefixes">
+            <p className="mb-2">Common OSC paths for popular mixers:</p>
+            <ul className="space-y-1">
+              <li><code className="font-mono text-xs bg-muted px-1 rounded">/ch/01/eq</code> — X32/M32 channel 1</li>
+              <li><code className="font-mono text-xs bg-muted px-1 rounded">/bus/01/eq</code> — X32/M32 bus 1</li>
+              <li><code className="font-mono text-xs bg-muted px-1 rounded">/main/st/eq</code> — X32/M32 main stereo</li>
+              <li><code className="font-mono text-xs bg-muted px-1 rounded">/mtx/01/eq</code> — X32/M32 matrix 1</li>
+            </ul>
+            <p className="mt-2 text-xs text-muted-foreground/70">
+              Check your mixer&apos;s OSC documentation for the exact prefix. The module appends <code className="font-mono text-xs bg-muted px-1 rounded">/&lt;band&gt;/f</code>, <code className="font-mono text-xs bg-muted px-1 rounded">/g</code>, <code className="font-mono text-xs bg-muted px-1 rounded">/q</code> automatically.
             </p>
           </HelpSection>
 
           <HelpSection title="Stream Deck Buttons">
             <ul className="space-y-2">
-              <li><strong>Latest Advisory:</strong> Shows frequency, gain, and Q of the latest detection. Press to acknowledge. Turns yellow when pending, red for RUNAWAY severity.</li>
-              <li><strong>Clear All:</strong> Clears all pending advisories from the queue.</li>
-              <li><strong>Status:</strong> Shows pending count and current severity at a glance.</li>
-              <li><strong>Custom buttons:</strong> Use variables like <code className="font-mono text-xs bg-muted px-1 rounded">$(donewell:note)</code> in any button text to show live detection data.</li>
+              <li><strong>Apply Latest EQ:</strong> Press to send the current advisory to your mixer on demand (when Auto-Apply is off).</li>
+              <li><strong>Latest Advisory:</strong> Shows frequency, gain, and Q. Turns yellow when pending, red for RUNAWAY.</li>
+              <li><strong>Clear All:</strong> Clears all pending advisories.</li>
+              <li><strong>Status:</strong> Shows pending count and severity at a glance.</li>
+              <li><strong>Custom buttons:</strong> Use variables like <code className="font-mono text-xs bg-muted px-1 rounded">$(donewell:note)</code> in any button text.</li>
             </ul>
           </HelpSection>
         </div>
@@ -188,8 +182,13 @@ export const CompanionTab = memo(function CompanionTab() {
             <ul className="space-y-2">
               <li><strong>Pairing Code:</strong> Must match the code shown in this app.</li>
               <li><strong>Site URL:</strong> The address of this app (copy from your browser bar).</li>
-              <li><strong>Poll Interval (ms):</strong> How often to check for new advisories. Default: 500ms. Lower = faster response, more traffic.</li>
-              <li><strong>Max Cut Depth (dB):</strong> Safety clamp — all cuts are limited to this maximum. Default: -12 dB.</li>
+              <li><strong>Poll Interval (ms):</strong> How often to check for advisories. Default: 500ms.</li>
+              <li><strong>Protocol:</strong> None (variables only), OSC (X32/Yamaha/A&amp;H), or TCP (dbx/generic).</li>
+              <li><strong>Mixer IP / Port:</strong> Your mixer&apos;s network address. Default port 10023 (X32 OSC).</li>
+              <li><strong>OSC Channel Prefix:</strong> Which channel/bus EQ to target (e.g., /ch/01/eq).</li>
+              <li><strong>PEQ Band:</strong> Which EQ band to write to (1-6).</li>
+              <li><strong>Auto-Apply:</strong> Send EQ to mixer automatically on every advisory.</li>
+              <li><strong>Max Cut Depth (dB):</strong> Safety clamp. Default: -12 dB.</li>
             </ul>
           </HelpSection>
 

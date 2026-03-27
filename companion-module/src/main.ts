@@ -11,6 +11,7 @@ import { UpdateFeedbacks } from './feedbacks.js'
 import { UpdateVariableDefinitions } from './variables.js'
 import { UpdatePresets } from './presets.js'
 import { UpgradeScripts } from './upgrades.js'
+import { MixerOutput } from './mixerOutput.js'
 
 /** Advisory payload received from the cloud relay */
 interface DwaAdvisory {
@@ -28,11 +29,18 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
     siteUrl: '',
     pairingCode: '',
     pollIntervalMs: 500,
+    outputProtocol: 'none',
+    mixerHost: '',
+    mixerPort: 10023,
+    oscPrefix: '/ch/01/eq',
+    oscEqBandParam: 1,
+    autoApply: false,
     maxCutDb: -12,
   }
 
   pendingAdvisories: DwaAdvisory[] = []
   private pollTimer: ReturnType<typeof setInterval> | null = null
+  private mixerOutput: MixerOutput | null = null
 
   async init(config: ModuleConfig): Promise<void> {
     this.config = config
@@ -43,17 +51,20 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
     UpdatePresets(this)
 
     this.resetVariables()
+    this.mixerOutput = new MixerOutput(config, (level, msg) => this.log(level as 'info' | 'error', msg))
     this.startPolling()
     this.log('info', 'Module initialized — polling for advisories')
   }
 
   async configUpdated(config: ModuleConfig): Promise<void> {
     this.config = config
+    this.mixerOutput?.updateConfig(config)
     this.startPolling()
   }
 
   async destroy(): Promise<void> {
     this.stopPolling()
+    this.mixerOutput?.disconnect()
     this.pendingAdvisories = []
   }
 
@@ -140,6 +151,14 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
     this.checkFeedbacks('advisory_pending', 'severity_runaway', 'severity_growing')
 
     this.log('info', `Advisory: ${Math.round(advisory.peq.hz)}Hz ${advisory.severity} (${advisory.peq.gainDb}dB)`)
+
+    // Auto-apply EQ to mixer if configured
+    if (this.config.autoApply && this.config.outputProtocol !== 'none' && this.mixerOutput) {
+      this.mixerOutput.applyAdvisory(advisory).catch((err) => {
+        const msg = err instanceof Error ? err.message : 'Apply failed'
+        this.log('error', `Auto-apply failed: ${msg}`)
+      })
+    }
   }
 
   // ── Public methods (called by actions) ───────────────────────
@@ -156,6 +175,22 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
     this.pendingAdvisories = []
     this.log('info', `Acknowledged all (${count} advisories)`)
     this.refreshState()
+  }
+
+  applyLatest(): void {
+    const latest = this.pendingAdvisories[this.pendingAdvisories.length - 1]
+    if (!latest) {
+      this.log('info', 'No advisory to apply')
+      return
+    }
+    if (this.config.outputProtocol === 'none' || !this.mixerOutput) {
+      this.log('warn', 'No mixer output configured — set Protocol in module settings')
+      return
+    }
+    this.mixerOutput.applyAdvisory(latest).catch((err) => {
+      const msg = err instanceof Error ? err.message : 'Apply failed'
+      this.log('error', `Apply failed: ${msg}`)
+    })
   }
 
   clearAll(): void {
