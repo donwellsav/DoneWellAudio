@@ -44,7 +44,9 @@ interface FetchOptions {
 }
 
 function buildHeaders(apiKey?: string): Record<string, string> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  // Use text/plain to prevent Companion from auto-parsing the JSON body
+  // into an object (which breaks JSON.parse in the module's HTTP handler)
+  const headers: Record<string, string> = { 'Content-Type': 'text/plain' }
   if (apiKey) headers['X-Api-Key'] = apiKey
   return headers
 }
