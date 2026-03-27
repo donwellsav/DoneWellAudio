@@ -46,11 +46,11 @@ export const CompanionTab = memo(function CompanionTab() {
             <ol className="list-decimal list-inside space-y-2">
               <li>Install <strong>Bitfocus Companion</strong> on any computer on your network</li>
               <li>Download and install the module (see left)</li>
-              <li>Add the module in Companion and note the instance name (default: <code className="font-mono text-xs bg-muted px-1 rounded">donewell-audio</code>)</li>
               <li>Add your mixer module in Companion (e.g., Behringer X32)</li>
               <li>In this app, go to <strong>Advanced &rarr; Companion</strong> and enable the bridge</li>
-              <li>Set the <strong>Companion URL</strong> to the machine running Companion (e.g., <code className="font-mono text-xs bg-muted px-1 rounded">http://&lt;companion-ip&gt;:8000</code>)</li>
-              <li>Click <strong>Test</strong> to verify the connection (green dot = connected)</li>
+              <li>Copy the <strong>Pairing Code</strong> (e.g., <code className="font-mono text-xs bg-muted px-1 rounded">DWA-A1B2</code>)</li>
+              <li>In the Companion module settings, paste the pairing code and enter this site&apos;s URL</li>
+              <li>The module starts polling — &ldquo;Relay active&rdquo; confirms the connection</li>
             </ol>
           </HelpSection>
         </div>
@@ -63,8 +63,7 @@ export const CompanionTab = memo(function CompanionTab() {
           <HelpSection title="Companion Bridge Settings (Advanced Tab)">
             <ul className="space-y-2">
               <li><strong>Enable Companion Bridge:</strong> Master on/off toggle. When off, no data is sent and the SEND button is hidden.</li>
-              <li><strong>Companion URL:</strong> Where Companion is running. Default: <code className="font-mono text-xs bg-muted px-1 rounded">http://localhost:8000</code></li>
-              <li><strong>Module Instance Name:</strong> Must match the instance name in Companion. Default: <code className="font-mono text-xs bg-muted px-1 rounded">donewell-audio</code></li>
+              <li><strong>Pairing Code:</strong> A unique code (e.g., DWA-A1B2) that links this app to your Companion module. Enter it in the module settings. Click &ldquo;New Code&rdquo; to regenerate.</li>
               <li><strong>Min Confidence:</strong> Only send advisories above this confidence threshold (default 70%).</li>
               <li><strong>Auto-Send:</strong> Automatically send every advisory. When off, use the SEND button on each card.</li>
               <li><strong>Ring-Out Auto-Send:</strong> Auto-send each ring-out step to the mixer as you notch frequencies.</li>
