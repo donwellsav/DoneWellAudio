@@ -1,0 +1,12 @@
+{
+  "id": "donewell-audio",
+  "name": "DoneWell Audio",
+  "shortname": "DoneWell",
+  "description": "Receives real-time feedback detection and EQ recommendations from DoneWell Audio PWA. Exposes frequency, Q, gain, and filter type as variables for use with any Companion mixer module.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": "git+https://github.com/donwellsav/donewellaudio.git",
+  "manufacturer": "DoneWell Audio",
+  "products": ["DoneWell Audio PWA"],
+  "keywords": ["feedback", "eq", "audio", "analysis", "detection"]
+}

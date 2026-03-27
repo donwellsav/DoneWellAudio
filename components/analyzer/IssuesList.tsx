@@ -11,6 +11,7 @@ import { DwaLogo } from './DwaLogo'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { swipeHintStorage } from '@/lib/storage/dwaStorage'
 import type { Advisory } from '@/types/advisory'
+import { useCompanion } from '@/hooks/useCompanion'
 
 // Velocity thresholds for runaway prediction
 const RUNAWAY_VELOCITY_THRESHOLD = 15 // dB/s
@@ -41,6 +42,20 @@ interface IssuesListProps {
 }
 
 export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10, dismissedIds, onClearAll, onClearResolved, touchFriendly, isRunning, onStart, onFalsePositive, falsePositiveIds, onConfirmFeedback, confirmedIds, isLowSignal, swipeLabeling, showAlgorithmScores, showPeqDetails, onStartRingOut, onDismiss }: IssuesListProps) {
+  const companion = useCompanion()
+
+  // Auto-send new advisories to Companion when enabled
+  const sentIdsRef = useRef(new Set<string>())
+  useEffect(() => {
+    if (!companion.settings.enabled || !companion.settings.autoSend) return
+    for (const a of advisories) {
+      if (!sentIdsRef.current.has(a.id) && !a.resolved) {
+        sentIdsRef.current.add(a.id)
+        companion.sendAdvisory(a)
+      }
+    }
+  }, [advisories, companion])
+
   // Filter dismissed, sort repeat offenders to top by hit count, then slice to max.
   // We attach occurrenceCount here so IssueCard doesn't need to re-query feedbackHistory.
   const latestSorted = useMemo(() => {
@@ -254,6 +269,7 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
               showAlgorithmScores={showAlgorithmScores}
               showPeqDetails={showPeqDetails}
               onDismiss={onDismiss}
+              onSendToMixer={companion.settings.enabled ? companion.sendAdvisory : undefined}
             />
           ))}
         </>
@@ -310,9 +326,10 @@ interface IssueCardProps {
   showAlgorithmScores?: boolean
   showPeqDetails?: boolean
   onDismiss?: (advisoryId: string) => void
+  onSendToMixer?: (advisory: Advisory) => void
 }
 
-const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFriendly, onFalsePositive, isFalsePositive, onConfirmFeedback, isConfirmed, swipeLabeling, showAlgorithmScores, showPeqDetails, onDismiss }: IssueCardProps) {
+const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFriendly, onFalsePositive, isFalsePositive, onConfirmFeedback, isConfirmed, swipeLabeling, showAlgorithmScores, showPeqDetails, onDismiss, onSendToMixer }: IssueCardProps) {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme !== 'light'
 
@@ -677,6 +694,18 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
                   {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 </button>
               </div>
+              {/* Row 3: Send to Mixer (Companion) */}
+              {onSendToMixer && (
+                <div className="flex items-center">
+                  <button
+                    onClick={() => onSendToMixer(advisory)}
+                    aria-label={`Send ${exactFreqStr} EQ recommendation to mixer via Companion`}
+                    className="rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1.5 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-8 min-w-[44px] text-blue-400/60 hover:text-blue-400 hover:bg-blue-500/10 border border-transparent"
+                  >
+                    SEND
+                  </button>
+                </div>
+              )}
               {copied && <span className="sr-only" role="status">Frequency info copied</span>}
             </div>
           )}

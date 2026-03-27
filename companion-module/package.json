@@ -1,0 +1,20 @@
+{
+  "name": "companion-module-donewell-audio",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/main.js",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch"
+  },
+  "engines": {
+    "node": ">=22.20"
+  },
+  "dependencies": {
+    "@companion-module/base": "~1.14.1"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  }
+}

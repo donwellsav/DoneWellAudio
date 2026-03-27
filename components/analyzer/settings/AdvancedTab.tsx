@@ -17,6 +17,7 @@ import { Section, SettingsGrid, type TabSettingsProps } from './SettingsShared'
 import { useSettings } from '@/contexts/SettingsContext'
 import type { AlgorithmMode, Algorithm } from '@/types/advisory'
 import type { ConsentStatus } from '@/types/data'
+import { useCompanion } from '@/hooks/useCompanion'
 
 export interface AdvancedTabProps extends TabSettingsProps {
   consentStatus?: ConsentStatus
@@ -263,8 +264,72 @@ export const AdvancedTab = memo(function AdvancedTab({
         </Section>
       )}
 
+      {/* Companion — Bitfocus Companion integration */}
+      <CompanionSection showTooltips={settings.showTooltips} />
+
       </SettingsGrid>
     </div>
+  )
+})
+
+// ── Companion Section (extracted for clarity) ──────────────────────────────
+
+const CompanionSection = memo(function CompanionSection({ showTooltips }: { showTooltips: boolean }) {
+  const { settings: cs, updateSettings, connected, lastError, checkConnection } = useCompanion()
+
+  return (
+    <Section title="Companion" fullWidth showTooltip={showTooltips}
+      tooltip="Send EQ recommendations to Bitfocus Companion for hardware mixer control. Companion routes commands to your mixer module (X32, Yamaha, dbx, etc).">
+      <div className="space-y-1.5">
+        <LEDToggle checked={cs.enabled} onChange={(checked) => updateSettings({ enabled: checked })}
+          label="Enable Companion Bridge"
+          tooltip={showTooltips ? 'Send detected feedback EQ recommendations to Bitfocus Companion.' : undefined} />
+
+        {cs.enabled && (
+          <>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground font-mono">Companion URL</label>
+              <input type="text" value={cs.url}
+                onChange={(e) => updateSettings({ url: e.target.value })}
+                className="w-full rounded bg-background border border-border px-2 py-1 text-xs font-mono focus:outline-none focus:ring-[3px] focus:ring-ring/50"
+                placeholder="http://localhost:8000" />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground font-mono">Module Instance Name</label>
+              <input type="text" value={cs.instanceName}
+                onChange={(e) => updateSettings({ instanceName: e.target.value })}
+                className="w-full rounded bg-background border border-border px-2 py-1 text-xs font-mono focus:outline-none focus:ring-[3px] focus:ring-ring/50"
+                placeholder="donewell-audio" />
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <div className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-500' : 'bg-red-500'}`} />
+              <span className={`text-xs font-mono ${connected ? 'text-emerald-500' : 'text-red-500'}`}>
+                {connected ? 'Connected' : lastError ?? 'Disconnected'}
+              </span>
+              <button type="button" onClick={() => checkConnection()}
+                className="ml-auto text-xs font-mono text-muted-foreground hover:text-foreground cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 rounded px-1.5 py-0.5 border border-border">
+                Test
+              </button>
+            </div>
+
+            <ConsoleSlider label="Min Confidence" value={`${Math.round(cs.minConfidence * 100)}%`}
+              tooltip={showTooltips ? 'Only send advisories above this confidence threshold to Companion.' : undefined}
+              min={0.3} max={0.95} step={0.05} sliderValue={cs.minConfidence}
+              onChange={(v) => updateSettings({ minConfidence: v })} />
+
+            <LEDToggle checked={cs.autoSend} onChange={(checked) => updateSettings({ autoSend: checked })}
+              label="Auto-Send Advisories"
+              tooltip={showTooltips ? 'Automatically send every advisory to Companion. When off, use the Send to Mixer button on each card.' : undefined} />
+
+            <LEDToggle checked={cs.ringOutAutoSend} onChange={(checked) => updateSettings({ ringOutAutoSend: checked })}
+              label="Ring-Out Auto-Send"
+              tooltip={showTooltips ? 'Automatically send each ring-out step to Companion when in ring-out mode.' : undefined} />
+          </>
+        )}
+      </div>
+    </Section>
   )
 })
 
