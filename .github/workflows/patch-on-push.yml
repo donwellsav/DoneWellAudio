@@ -6,10 +6,14 @@ on:
 
 jobs:
   patch-version:
-    # Skip: auto-version bot commits ([skip ci]) and PR merge commits
+    # Skip: auto-version bot commits, merge commits, and non-user-facing changes
     if: |
       !contains(github.event.head_commit.message, '[skip ci]') &&
-      !startsWith(github.event.head_commit.message, 'Merge pull request')
+      !startsWith(github.event.head_commit.message, 'Merge pull request') &&
+      !startsWith(github.event.head_commit.message, 'Merge branch') &&
+      !startsWith(github.event.head_commit.message, 'chore:') &&
+      !startsWith(github.event.head_commit.message, 'chore(') &&
+      !startsWith(github.event.head_commit.message, 'docs:')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -60,12 +64,22 @@ jobs:
             else if (/^refactor[:(]/.test(firstLine)) changeType = 'refactor';
             else if (/^ui[:(]/.test(firstLine)) changeType = 'ui';
 
+            // Strip conventional commit prefix for cleaner user-facing text
+            // "feat: add foo" → "Add foo", "fix(bar): baz" → "Baz"
+            let description = firstLine
+              .replace(/^(feat|fix|perf|refactor|ui|chore|docs)(\([^)]*\))?:\s*/i, '')
+              .trim();
+            // Capitalize first letter
+            if (description.length > 0) {
+              description = description.charAt(0).toUpperCase() + description.slice(1);
+            }
+
             const newEntry = [
               '  {',
               `    version: '${version}',`,
               `    date: '${today}',`,
               `    changes: [`,
-              `      { type: '${changeType}', description: '${escapeTs(firstLine)}' },`,
+              `      { type: '${changeType}', description: '${escapeTs(description)}' },`,
               '    ],',
               '  },',
             ].join('\n');

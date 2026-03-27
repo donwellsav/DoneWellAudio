@@ -14,13 +14,6 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '0.22.15',
-    date: '2026-03-27',
-    changes: [
-      { type: 'fix', description: 'chore: remove auto-generated changelog entry with merge commit message' },
-    ],
-  },
-  {
     version: '0.23.0',
     date: '2026-03-27',
     highlights: 'Bitfocus Companion integration with cloud relay and built-in mixer output',
