@@ -1,13 +1,9 @@
 /**
  * CompanionBridge — HTTP client for sending EQ advisories to Bitfocus Companion.
  *
- * DoneWell Audio detects feedback and calculates EQ recommendations.
- * This bridge sends those recommendations to a Companion module instance,
- * which exposes them as variables for wiring to any mixer module.
- *
- * All requests go through /api/companion/proxy to avoid CORS issues —
- * Companion's HTTP server doesn't return CORS headers, so direct browser
- * fetch() fails. The proxy runs server-side where CORS doesn't apply.
+ * Tries direct browser fetch first (works when Companion returns CORS headers).
+ * Falls back to server-side proxy at /api/companion/proxy (works when running
+ * the app locally but not from cloud deployments like Vercel).
  *
  * @see companion-module/src/main.ts for the receiving end
  * @see app/api/companion/proxy/route.ts for the server-side proxy
@@ -65,14 +61,32 @@ function toPayload(advisory: Advisory): CompanionAdvisoryPayload {
 }
 
 /**
- * Send a request through our server-side proxy to avoid CORS.
- * The proxy at /api/companion/proxy fetches Companion server-side.
+ * Try direct fetch first, fall back to server-side proxy.
+ * Direct works when Companion passes through CORS headers from our module.
+ * Proxy works when running the app locally (same network as Companion).
  */
-async function proxyFetch(
+async function fetchWithFallback(
   targetUrl: string,
-  method: string,
-  body?: unknown,
+  options: RequestInit,
 ): Promise<Response> {
+  // Try direct fetch first
+  try {
+    const response = await fetch(targetUrl, {
+      ...options,
+      signal: AbortSignal.timeout(3000),
+    })
+    return response
+  } catch {
+    // Direct fetch failed (likely CORS) — try proxy
+  }
+
+  // Fall back to server-side proxy
+  const method = options.method ?? 'GET'
+  let body: unknown = undefined
+  if (options.body && typeof options.body === 'string') {
+    try { body = JSON.parse(options.body) } catch { body = undefined }
+  }
+
   return fetch('/api/companion/proxy', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -118,11 +132,11 @@ export class CompanionBridge {
     const payload = toPayload(advisory)
 
     try {
-      const response = await proxyFetch(
-        this.endpoint('/advisory'),
-        'POST',
-        payload,
-      )
+      const response = await fetchWithFallback(this.endpoint('/advisory'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}))
@@ -145,7 +159,9 @@ export class CompanionBridge {
   /** Check if Companion module is reachable */
   async checkStatus(): Promise<CompanionStatusResponse | null> {
     try {
-      const response = await proxyFetch(this.endpoint('/status'), 'GET')
+      const response = await fetchWithFallback(this.endpoint('/status'), {
+        method: 'GET',
+      })
 
       if (!response.ok) {
         this._connected = false
