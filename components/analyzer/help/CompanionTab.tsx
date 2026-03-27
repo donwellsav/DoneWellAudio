@@ -32,7 +32,6 @@ export const CompanionTab = memo(function CompanionTab() {
               <ol className="list-decimal list-inside space-y-1">
                 <li>Click the download button above (pre-built, ready to use)</li>
                 <li>Unzip the downloaded file</li>
-                <li>Run <code className="font-mono text-xs bg-muted px-1 rounded">npm install</code> inside the unzipped folder (installs the Companion base library)</li>
                 <li>In Companion, go to <strong>Connections</strong> &rarr; <strong>Add connection</strong></li>
                 <li>Click <strong>Developer modules path</strong> at the bottom and point it to the unzipped folder</li>
                 <li>Restart Companion — search for <strong>&ldquo;DoneWell Audio&rdquo;</strong> in Add Connection</li>
