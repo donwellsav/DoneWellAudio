@@ -202,6 +202,12 @@ export interface PA2Settings {
   enabled: boolean
   /** Companion HTTP base URL (e.g. "http://localhost:8000/instance/pa2") */
   baseUrl: string
+  /** Companion/mixer IP address */
+  companionIp: string
+  /** Companion HTTP port (default 8000) */
+  companionPort: number
+  /** Companion instance label (default "PA2") */
+  instanceLabel: string
   /** Optional API key for authenticated Companion access */
   apiKey: string
   /** Auto-send mode: off (manual), geq, peq, or hybrid */
@@ -218,9 +224,18 @@ export interface PA2Settings {
   modeSyncEnabled: boolean
 }
 
+/** Build the full Companion URL from individual fields */
+export function buildCompanionUrl(ip: string, port: number, label: string): string {
+  if (!ip) return ''
+  return `http://${ip}:${port}/instance/${label}`
+}
+
 export const DEFAULT_PA2_SETTINGS: PA2Settings = {
   enabled: false,
   baseUrl: '',
+  companionIp: '',
+  companionPort: 8000,
+  instanceLabel: 'PA2',
   apiKey: '',
   autoSend: 'off',
   autoSendMinConfidence: 0.7,

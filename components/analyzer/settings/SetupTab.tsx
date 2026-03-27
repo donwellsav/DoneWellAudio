@@ -16,7 +16,7 @@ import { CalibrationTab } from './CalibrationTab'
 import { useSettings } from '@/contexts/SettingsContext'
 import { useEngine } from '@/contexts/EngineContext'
 import { usePA2 } from '@/contexts/PA2Context'
-import type { PA2AutoSendMode } from '@/types/pa2'
+import { buildCompanionUrl, type PA2AutoSendMode } from '@/types/pa2'
 import { getFeedbackHistory } from '@/lib/dsp/feedbackHistory'
 import { downloadFile } from '@/lib/export/downloadFile'
 import { generateTxtReport } from '@/lib/export/exportTxt'
@@ -183,34 +183,90 @@ export const SetupTab = memo(function SetupTab({
             />
           </label>
 
-          {/* Base URL */}
+          {/* Companion IP */}
           <label className="block text-xs">
-            <span className="text-muted-foreground">Companion URL</span>
+            <span className="text-muted-foreground">Companion IP Address</span>
             <input
               type="text"
-              value={pa2.settings.baseUrl}
-              onChange={(e) => pa2.updateSettings({ baseUrl: e.target.value })}
-              placeholder="http://localhost:8000/instance/pa2"
+              value={pa2.settings.companionIp}
+              onChange={(e) => {
+                const ip = e.target.value
+                pa2.updateSettings({
+                  companionIp: ip,
+                  baseUrl: buildCompanionUrl(ip, pa2.settings.companionPort, pa2.settings.instanceLabel),
+                })
+              }}
+              placeholder="192.168.0.100"
               className="mt-1 block w-full rounded border border-border bg-background px-2 py-1 text-xs font-mono"
             />
           </label>
+
+          {/* Port + Instance label — side by side */}
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block text-xs">
+              <span className="text-muted-foreground">Port</span>
+              <input
+                type="number"
+                value={pa2.settings.companionPort}
+                onChange={(e) => {
+                  const port = parseInt(e.target.value) || 8000
+                  pa2.updateSettings({
+                    companionPort: port,
+                    baseUrl: buildCompanionUrl(pa2.settings.companionIp, port, pa2.settings.instanceLabel),
+                  })
+                }}
+                min={1} max={65535}
+                className="mt-1 block w-full rounded border border-border bg-background px-2 py-1 text-xs font-mono"
+              />
+            </label>
+            <label className="block text-xs">
+              <span className="text-muted-foreground">Instance Label</span>
+              <input
+                type="text"
+                value={pa2.settings.instanceLabel}
+                onChange={(e) => {
+                  const label = e.target.value
+                  pa2.updateSettings({
+                    instanceLabel: label,
+                    baseUrl: buildCompanionUrl(pa2.settings.companionIp, pa2.settings.companionPort, label),
+                  })
+                }}
+                placeholder="PA2"
+                className="mt-1 block w-full rounded border border-border bg-background px-2 py-1 text-xs font-mono"
+              />
+            </label>
+          </div>
+
+          {/* Constructed URL (read-only) */}
+          {pa2.settings.companionIp && (
+            <div className="text-[10px] text-muted-foreground/60 font-mono bg-muted/50 rounded px-2 py-1 break-all">
+              {pa2.settings.baseUrl || 'Enter IP above'}
+            </div>
+          )}
+
+          {/* Quick-fill buttons */}
           <div className="text-[10px] text-muted-foreground/60 space-y-1">
-            <p>Format: <code className="bg-muted px-1 rounded">http://&lt;ip&gt;:&lt;port&gt;/instance/&lt;label&gt;</code></p>
-            <p>Find in Companion: Settings &rarr; HTTP API (must be enabled). Port default: 8000. Label = your connection label (lowercase).</p>
+            <p>Find port in Companion: Settings &rarr; HTTP API (must be enabled). Default: 8000.</p>
             <div className="flex gap-1.5 pt-0.5 flex-wrap">
               <button
                 type="button"
-                onClick={() => pa2.updateSettings({ baseUrl: 'http://192.168.0.108:8000/instance/PA2' })}
+                onClick={() => pa2.updateSettings({
+                  companionIp: '192.168.0.108', companionPort: 8000, instanceLabel: 'PA2',
+                  baseUrl: 'http://192.168.0.108:8000/instance/PA2',
+                })}
                 className="px-1.5 py-0.5 rounded bg-muted hover:bg-muted/80 text-[10px] font-mono cursor-pointer"
               >
-                192.168.0.108:8000 / PA2
+                192.168.0.108
               </button>
               <button
                 type="button"
-                onClick={() => pa2.updateSettings({ baseUrl: 'http://localhost:8000/instance/PA2' })}
+                onClick={() => pa2.updateSettings({
+                  companionIp: 'localhost', companionPort: 8000, instanceLabel: 'PA2',
+                  baseUrl: 'http://localhost:8000/instance/PA2',
+                })}
                 className="px-1.5 py-0.5 rounded bg-muted hover:bg-muted/80 text-[10px] font-mono cursor-pointer"
               >
-                localhost:8000 / PA2
+                localhost
               </button>
             </div>
           </div>
