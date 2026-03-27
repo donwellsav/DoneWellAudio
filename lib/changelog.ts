@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.22.1',
+    date: '2026-03-27',
+    changes: [
+      { type: 'fix', description: 'docs: add Companion tab to help menu with full integration manual' },
+    ],
+  },
+  {
     version: '0.22.0',
     date: '2026-03-27',
     changes: [
