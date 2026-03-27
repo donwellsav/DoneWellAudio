@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.24.5',
+    date: '2026-03-27',
+    changes: [
+      { type: 'feat', description: 'Both PEQ + GEQ auto-send mode for PA2 Bridge' },
+    ],
+  },
+  {
     version: '0.24.4',
     date: '2026-03-27',
     changes: [
