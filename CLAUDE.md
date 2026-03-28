@@ -1,7 +1,7 @@
 # CLAUDE.md — DoneWell Audio Project Intelligence
 
 > **Last updated March 2026. 169 TypeScript/TSX files, 944 tests (940 pass, 4 skip), 43 suites. Version 0.22.0.**
-> Ring-out room mode hints. Per-mode track timeouts. Deploy guard hook. Notch overlay opacity 42%.
+> Ring-out room mode hints. Per-mode track timeouts. Deploy guard hook. Notch overlay opacity 15%.
 
 ## CRITICAL RULES
 
