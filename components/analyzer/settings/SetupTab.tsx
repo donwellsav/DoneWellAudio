@@ -116,13 +116,13 @@ export const SetupTab = memo(function SetupTab({
           <button
             key={mode}
             onClick={() => onModeChange(mode)}
-            className={`min-h-11 flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 px-1 rounded text-xs font-mono font-bold tracking-wide transition-all ${
+            className={`min-h-11 flex items-center justify-center overflow-hidden cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 px-1 rounded text-xs font-mono font-bold tracking-wide transition-all ${
               settings.mode === mode
                 ? 'bg-[var(--console-amber)]/10 text-[var(--console-amber)] border border-[var(--console-amber)]/40 btn-glow'
                 : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'
             }`}
           >
-            {label}
+            <span className="truncate">{label}</span>
           </button>
         ))}
       </div>
