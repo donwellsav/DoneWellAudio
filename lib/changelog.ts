@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.31.1',
+    date: '2026-03-28',
+    changes: [
+      { type: 'fix', description: 'Make standby glow rings visible on idle start button' },
+    ],
+  },
+  {
     version: '0.31.0',
     date: '2026-03-28',
     changes: [
