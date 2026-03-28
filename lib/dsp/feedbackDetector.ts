@@ -1183,7 +1183,12 @@ export class FeedbackDetector {
         hold[i] += dt
         dead[i] = 0
 
-        if (hold[i] >= this.config.sustainMs && active[i] === 0) {
+        // Adaptive sustain: low frequencies need longer confirmation (room modes),
+        // high frequencies confirm faster (almost always feedback, not resonance).
+        // Scale: <200Hz = 1.5x sustain, 200-4000Hz = 1.0x, >4000Hz = 0.6x
+        const freqHz = i * (this.getSampleRate() / this.config.fftSize)
+        const sustainScale = freqHz < 200 ? 1.5 : freqHz > 4000 ? 0.6 : 1.0
+        if (hold[i] >= this.config.sustainMs * sustainScale && active[i] === 0) {
           this._registerPeak(i, now, prominence, effectiveThresholdDb)
         }
       } else {

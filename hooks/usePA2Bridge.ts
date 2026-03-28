@@ -351,6 +351,15 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
       }
     }
 
+    // Content-aware gating: suppress auto-send during silence/very low input.
+    // Prevents notching room noise or HVAC when no one is performing.
+    if (state.meters) {
+      const inputL = state.meters.input?.l ?? -120
+      const inputR = state.meters.input?.r ?? -120
+      const maxInput = Math.max(inputL, inputR)
+      if (maxInput < -60) return // below -60dBFS = silence, don't auto-notch noise
+    }
+
     // Dual-RTA cross-validation: adjust advisory confidence using PA2 RTA
     const xvAdvisories = advisories.map(adv => {
       if (adv.resolved) return adv
@@ -529,6 +538,98 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
       }
     }
   }, [advisories, autoSend, state.status])
+
+  // ── PEQ notch effectiveness monitor ──
+  // Check placed notches against PA2 RTA. If peak didn't drop after 3s, re-send with deeper cut.
+
+  const notchVerifyTimersRef = useRef<Record<string, number>>({})
+
+  useEffect(() => {
+    if (autoSend === 'off' || !clientRef.current || state.status !== 'connected') return
+    if (!state.rta || state.rta.length < 31) return
+
+    const now = Date.now()
+    for (const [clientId, placedAt] of Object.entries(notchVerifyTimersRef.current)) {
+      if (now - placedAt < 3000) continue // wait 3s before verifying
+      // Find the advisory for this clientId
+      const adv = advisories.find(a => a.id === clientId && !a.resolved)
+      if (!adv) { delete notchVerifyTimersRef.current[clientId]; continue }
+      // Check PA2 RTA at this frequency
+      const validated = crossValidateWithPA2RTA(adv.trueFrequencyHz, 1.0, state.rta)
+      if (validated > 0.85) {
+        // PA2 RTA still shows a peak — notch wasn't effective enough, re-send with boosted confidence
+        const deeperPayload = [{
+          hz: Math.round(adv.trueFrequencyHz),
+          confidence: Math.min(1.0, adv.confidence + 0.2),
+          type: 'feedback' as const,
+          q: Math.min(16, Math.max(4, adv.qEstimate)),
+          clientId: adv.id,
+        }]
+        clientRef.current?.detect({ frequencies: deeperPayload, source: 'donewellaudio-verify' }).catch(() => {})
+      }
+      delete notchVerifyTimersRef.current[clientId]
+    }
+  }, [advisories, autoSend, state.status, state.rta, state.lastPollTimestamp])
+
+  // Track when notches are placed for verification timing
+  useEffect(() => {
+    if (state.lastAutoSendResult && state.lastAutoSendResult.type !== 'geq') {
+      // After a PEQ send, mark all active advisory IDs for verification in 3s
+      const now = Date.now()
+      for (const adv of advisories) {
+        if (!adv.resolved && adv.id && !notchVerifyTimersRef.current[adv.id] && adv.confidence >= autoSendMinConfidence) {
+          notchVerifyTimersRef.current[adv.id] = now
+        }
+      }
+    }
+  }, [state.lastAutoSendResult, advisories, autoSendMinConfidence])
+
+  // ── Predictive pre-notching: detect rising RTA bands before they become feedback ──
+
+  const rtaHistoryRef = useRef<number[][]>([])
+  const lastPreNotchRef = useRef<number>(0)
+
+  useEffect(() => {
+    if (autoSend === 'off' || !clientRef.current || state.status !== 'connected' || !state.pa2Connected) return
+    if (!state.rta || state.rta.length < 31) return
+
+    // Accumulate RTA snapshots (keep last 50 = ~10 seconds at 200ms polling)
+    rtaHistoryRef.current.push([...state.rta])
+    if (rtaHistoryRef.current.length > 50) rtaHistoryRef.current.shift()
+    if (rtaHistoryRef.current.length < 10) return // need at least 2 seconds of data
+
+    const now = Date.now()
+    if (now - lastPreNotchRef.current < 5000) return // max one pre-notch every 5s
+
+    // Check each band for rising trend (>2dB/10s = heading toward feedback)
+    const history = rtaHistoryRef.current
+    const oldest = history[0]
+    const newest = history[history.length - 1]
+    const GEQ_FREQS = [20,25,31.5,40,50,63,80,100,125,160,200,250,315,400,500,630,800,1000,1250,1600,2000,2500,3150,4000,5000,6300,8000,10000,12500,16000,20000]
+
+    for (let i = 0; i < 31; i++) {
+      const rise = newest[i] - oldest[i]
+      if (rise > 2 && newest[i] > -50) { // rising >2dB and above noise floor
+        // Check this isn't already being handled by an active advisory
+        const freqHz = GEQ_FREQS[i]
+        const alreadyDetected = advisories.some(a =>
+          !a.resolved && Math.abs(1200 * Math.log2(a.trueFrequencyHz / freqHz)) < 200
+        )
+        if (alreadyDetected) continue
+
+        // Send preemptive shallow GEQ cut (-2dB) before it becomes real feedback
+        if (state.geq) {
+          const bandNum = String(i + 1)
+          const current = state.geq.bands[bandNum] ?? 0
+          if (current > -6) { // don't pre-notch if already cut
+            clientRef.current.setGEQBands({ [bandNum]: Math.max(-12, current - 2) }).catch(() => {})
+            lastPreNotchRef.current = now
+            break // one pre-notch at a time
+          }
+        }
+      }
+    }
+  }, [autoSend, state.status, state.pa2Connected, state.rta, state.geq, state.lastPollTimestamp, advisories])
 
   // ── Imperative methods ──
 

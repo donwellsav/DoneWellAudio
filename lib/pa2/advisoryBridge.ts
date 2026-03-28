@@ -205,6 +205,42 @@ export function advisoriesToDetectPayload(
     })
   }
 
+  // Cluster consolidation: if 3+ detections fall within 1 octave,
+  // merge into one wider cut at the cluster center. Saves PEQ slots.
+  if (payload.length >= 3) {
+    payload.sort((a, b) => a.hz - b.hz)
+    const consolidated: PA2DetectFrequency[] = []
+    let i = 0
+    while (i < payload.length) {
+      // Find cluster: all within 1 octave of payload[i]
+      const clusterStart = payload[i].hz
+      let j = i + 1
+      while (j < payload.length && payload[j].hz <= clusterStart * 2) j++
+      const clusterSize = j - i
+      if (clusterSize >= 3) {
+        // Merge: center frequency, widened Q, max confidence, deepest severity
+        const cluster = payload.slice(i, j)
+        const centerHz = Math.round(Math.sqrt(cluster[0].hz * cluster[cluster.length - 1].hz)) // geometric mean
+        const maxConf = Math.max(...cluster.map(d => d.confidence))
+        const spreadHz = cluster[cluster.length - 1].hz - cluster[0].hz
+        const wideQ = Math.max(4, Math.min(8, Math.round(centerHz / spreadHz)))
+        consolidated.push({
+          hz: centerHz,
+          confidence: maxConf,
+          type: 'feedback',
+          q: wideQ,
+          clientId: cluster[0].clientId, // use first advisory's ID
+        })
+        i = j
+      } else {
+        consolidated.push(payload[i])
+        i++
+      }
+    }
+    consolidated.sort((a, b) => b.confidence - a.confidence)
+    return consolidated
+  }
+
   // Sort by confidence descending — most certain issues first
   payload.sort((a, b) => b.confidence - a.confidence)
 
