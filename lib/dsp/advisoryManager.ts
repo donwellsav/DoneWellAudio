@@ -168,6 +168,9 @@ export class AdvisoryManager {
           )
           const updatedAdvisory: Advisory = {
             ...dup,
+            // Escalate confidence and severity if new detection is stronger
+            confidence: Math.max(dup.confidence, classification.confidence),
+            severity: newUrgency > existingUrgency ? classification.severity : dup.severity,
             clusterCount: (dup.clusterCount ?? 1) + 1,
             clusterMinHz,
             clusterMaxHz,

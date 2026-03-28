@@ -59,8 +59,10 @@ export function erbDepthScale(frequencyHz: number): number {
   if (frequencyHz >= ERB_SETTINGS.HIGH_FREQ_HZ) {
     return ERB_SETTINGS.HIGH_FREQ_SCALE
   }
-  // Linear interpolation between low and high boundaries
-  const t = (frequencyHz - ERB_SETTINGS.LOW_FREQ_HZ) / (ERB_SETTINGS.HIGH_FREQ_HZ - ERB_SETTINGS.LOW_FREQ_HZ)
+  // Logarithmic interpolation (octave-based) for psychoacoustic accuracy
+  const logLow = Math.log2(ERB_SETTINGS.LOW_FREQ_HZ)
+  const logHigh = Math.log2(ERB_SETTINGS.HIGH_FREQ_HZ)
+  const t = (Math.log2(frequencyHz) - logLow) / (logHigh - logLow)
   return ERB_SETTINGS.LOW_FREQ_SCALE + t * (ERB_SETTINGS.HIGH_FREQ_SCALE - ERB_SETTINGS.LOW_FREQ_SCALE)
 }
 
@@ -163,7 +165,7 @@ export function calculateMINDSCutDepth(
 /**
  * Calculate recommended Q for PEQ based on severity and preset
  */
-export function calculateQ(severity: SeverityLevel, preset: Preset, trackQ: number): number {
+export function calculateQ(severity: SeverityLevel, preset: Preset, trackQ: number, snrDb?: number): number {
   const presetConfig = EQ_PRESETS[preset]
 
   // Use higher Q for more severe issues
@@ -179,10 +181,12 @@ export function calculateQ(severity: SeverityLevel, preset: Preset, trackQ: numb
       baseQ = presetConfig.defaultQ * 0.75
   }
 
-  // Consider the actual measured Q of the feedback
-  // Use a blend of preset Q and measured Q
+  // SNR-adaptive blend: trust measured Q when signal is clean, favor preset when noisy.
+  // α = SNR / (SNR + 20): high SNR (50dB) → α≈0.71, low SNR (10dB) → α≈0.33
   const measuredQ = clamp(trackQ, 2, 120)
-  const blendedQ = (baseQ + measuredQ) / 2
+  const snr = snrDb !== undefined ? Math.max(0, snrDb) : 20 // default 20dB if unknown
+  const alpha = snr / (snr + 20)
+  const blendedQ = baseQ * (1 - alpha) + measuredQ * alpha
 
   return clamp(blendedQ, 2, 120)
 }
@@ -243,7 +247,10 @@ export function generatePEQRecommendation(
   const freqHz = getTrackFrequency(track)
   const baseCut = calculateCutDepth(severity, preset)
   const suggestedDb = Math.round(baseCut * erbDepthScale(freqHz))
-  const baseQ = calculateQ(severity, preset, getTrackQ(track))
+  // Estimate SNR from peak amplitude (higher peak = better SNR for Q measurement)
+  const peakDb = 'trueAmplitudeDb' in track ? track.trueAmplitudeDb : -30
+  const estimatedSnr = Math.max(0, peakDb + 90) // -90dB floor → 0dB SNR, -30dB peak → 60dB SNR
+  const baseQ = calculateQ(severity, preset, getTrackQ(track), estimatedSnr)
   // Widen Q if this advisory covers a cluster of merged peaks
   const q = clusterAwareQ(baseQ, freqHz, clusterMinHz, clusterMaxHz)
   // Pass through measured bandwidth from detector (if available)

@@ -152,12 +152,13 @@ describe('erbDepthScale', () => {
     expect(erbDepthScale(20000)).toBe(ERB_SETTINGS.HIGH_FREQ_SCALE)
   })
 
-  it('interpolates linearly between 500 Hz and 2000 Hz', () => {
-    const mid = erbDepthScale(1250) // Midpoint
+  it('interpolates logarithmically between 500 Hz and 2000 Hz', () => {
+    const mid = erbDepthScale(1250)
     expect(mid).toBeGreaterThan(ERB_SETTINGS.LOW_FREQ_SCALE)
     expect(mid).toBeLessThan(ERB_SETTINGS.HIGH_FREQ_SCALE)
-    // Exact midpoint: 0.7 + 0.5 * (1.2 - 0.7) = 0.95
-    expect(mid).toBeCloseTo(0.95, 2)
+    // Log2 interpolation: t = (log2(1250)-log2(500))/(log2(2000)-log2(500)) ≈ 0.66
+    // scale = 0.7 + 0.66 * 0.5 ≈ 1.03
+    expect(mid).toBeCloseTo(1.03, 1)
   })
 
   it('is monotonically non-decreasing', () => {
