@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.24.7',
+    date: '2026-03-28',
+    changes: [
+      { type: 'fix', description: 'PA2 auto-send diagnostics, Companion defaults, pipeline documentation' },
+    ],
+  },
+  {
     version: '0.24.6',
     date: '2026-03-27',
     changes: [
