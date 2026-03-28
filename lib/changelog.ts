@@ -14,6 +14,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.27.0',
+    date: '2026-03-28',
+    changes: [
+      { type: 'feat', description: 'Harmonic peaks no longer suppressed — flagged at 0.35 confidence, get shallow cuts via soft floor' },
+      { type: 'feat', description: 'Each advisory carries a spectral profile (32-sample snapshot around detection) with isHarmonic flag' },
+      { type: 'feat', description: 'Partial updates — only send the parameter that changed (freq-only for drift, gain-only for deepening)' },
+      { type: 'feat', description: 'Smooth gain fades: 500ms ramp on placement, deepening, and release. No audible jumps.' },
+      { type: 'feat', description: 'Send tracking — skip re-sending unless confidence rose 10%+' },
+      { type: 'feat', description: 'Drift tolerance widened to ~4 semitones, re-centers existing notch on >5Hz drift' },
+      { type: 'feat', description: '/detect response includes active_notches[] for DWA-side deduplication' },
+      { type: 'feat', description: '11 action types (placed/deepened/recentered/released/replaced/cleared/verify)' },
+      { type: 'feat', description: 'Summary: hotspot frequencies, avg notch life, max simultaneous, verify rate' },
+      { type: 'feat', description: '[x] `npx tsc --noEmit` — zero errors' },
+      { type: 'feat', description: '[x] `pnpm test` — 981 pass, 4 skip' },
+      { type: 'feat', description: '[x] `node test/test-protocol.js` — 91 pass' },
+      { type: 'feat', description: '[ ] Live test with PA2 hardware' },
+    ],
+  },
+  {
     version: '0.26.0',
     date: '2026-03-28',
     changes: [
