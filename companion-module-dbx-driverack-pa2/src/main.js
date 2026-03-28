@@ -1376,6 +1376,20 @@ class PA2Instance extends InstanceBase {
 				for (let i = 0; i < 31; i++) rta[GEQ_FREQS[i]] = Math.round(m.rta[i] * 100) / 100
 			}
 			const t = this.topology || {}
+			// Compute RTA peak suggestions: bands significantly above average
+			const rtaSuggestions = []
+			if (m.rta && m.rta.length >= 31) {
+				const valid = m.rta.filter((v) => v > -89) // exclude silent bands
+				if (valid.length > 3) {
+					const mean = valid.reduce((s, v) => s + v, 0) / valid.length
+					for (let i = 0; i < 31; i++) {
+						const above = m.rta[i] - mean
+						if (above > 10) { // >10dB above average = potential problem
+							rtaSuggestions.push({ band: i + 1, freq: GEQ_FREQS[i], db: Math.round(m.rta[i] * 10) / 10, aboveMean: Math.round(above * 10) / 10 })
+						}
+					}
+				}
+			}
 			return json({
 				connected: this.connState === 'READY',
 				topology: t.stereoGeq ? 'stereo' : (t.leftGeq || t.rightGeq) ? 'dual-mono' : 'unknown',
@@ -1385,6 +1399,7 @@ class PA2Instance extends InstanceBase {
 				notchSlotsUsed: this.pa2State.autoNotch.slotsUsed.length,
 				notchSlotsAvailable: 8 - this.pa2State.autoNotch.slotsUsed.length,
 				rta,
+				rtaSuggestions,
 				geq: { enabled: this.pa2State.geq.enabled, mode: this.pa2State.geq.mode, bands: this.pa2State.geq.bands },
 				meters: {
 					input: { l: m.inputL, r: m.inputR },

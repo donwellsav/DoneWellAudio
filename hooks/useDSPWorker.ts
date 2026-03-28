@@ -95,6 +95,8 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
   const workerRef = useRef<Worker | null>(null)
   const isReadyRef = useRef(false)
   const busyRef = useRef(false)     // Backpressure: true while worker processes a peak batch
+  /** One-frame buffer: holds the most recent peak when worker is busy, processed when worker frees up */
+  const pendingPeakRef = useRef<{ peak: DetectedPeak; spectrum: Float32Array; sampleRate: number; fftSize: number; timeDomain?: Float32Array } | null>(null)
   const crashedRef = useRef(false)  // Set on unrecoverable worker error
   const droppedFramesRef = useRef(0) // Frames skipped due to backpressure
   const totalFramesRef = useRef(0)   // Total frames attempted
@@ -148,6 +150,18 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
             isCompressed: msg.isCompressed,
             compressionRatio: msg.compressionRatio,
           })
+          // Process buffered peak if one was saved during backpressure
+          if (pendingPeakRef.current && !busyRef.current && workerRef.current) {
+            const buffered = pendingPeakRef.current
+            pendingPeakRef.current = null
+            const transferList: ArrayBuffer[] = [buffered.spectrum.buffer as ArrayBuffer]
+            if (buffered.timeDomain) transferList.push(buffered.timeDomain.buffer as ArrayBuffer)
+            busyRef.current = true
+            workerRef.current.postMessage(
+              { type: 'processPeak', peak: buffered.peak, spectrum: buffered.spectrum, sampleRate: buffered.sampleRate, fftSize: buffered.fftSize, timeDomain: buffered.timeDomain } as WorkerInboundMessage,
+              transferList
+            )
+          }
           break
         case 'contentTypeUpdate':
           callbacksRef.current.onContentTypeUpdate?.(msg.contentType, msg.isCompressed, msg.compressionRatio)
@@ -307,9 +321,14 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
 
   const processPeak = useCallback(
     (peak: DetectedPeak, spectrum: Float32Array, sampleRate: number, fftSize: number, timeDomain?: Float32Array) => {
-      // Backpressure: skip if worker hasn't finished the previous batch
+      // Backpressure: if worker is busy, buffer ONE frame (most recent wins).
+      // When worker finishes, the buffered frame will be processed via onmessage.
       totalFramesRef.current++
       if (busyRef.current || crashedRef.current || !isReadyRef.current) {
+        if (!crashedRef.current && isReadyRef.current) {
+          // Buffer this peak — overwrites previous buffered if any
+          pendingPeakRef.current = { peak, spectrum: new Float32Array(spectrum), sampleRate, fftSize, timeDomain: timeDomain ? new Float32Array(timeDomain) : undefined }
+        }
         droppedFramesRef.current++
         return
       }

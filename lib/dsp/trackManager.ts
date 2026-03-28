@@ -15,6 +15,17 @@ const HARMONIC_ROOT_TOLERANCE_CENTS = 20
 // Minimum delta-time (seconds) for velocity calculation to avoid division by near-zero
 const MIN_VELOCITY_DT_SEC = 0.05
 
+/** Snapshot of an evicted track for fast restoration */
+interface EvictedTrackSnapshot {
+  frequencyHz: number
+  cumulativeGrowthDb: number
+  peakAmplitudeDb: number
+  evictedAt: number
+}
+
+const EVICTION_CACHE_SIZE = 16
+const EVICTION_CACHE_TTL_MS = 5000
+
 export class TrackManager {
   private tracks: Map<string, Track> = new Map()
   private binToTrackId: Map<number, string> = new Map()
@@ -23,6 +34,8 @@ export class TrackManager {
   private associationToleranceCents: number
   private trackTimeoutMs: number
   private _activeTracksCache: Track[] = []
+  /** Recently evicted tracks — restore history on re-detection instead of starting cold */
+  private _evictedCache: EvictedTrackSnapshot[] = []
 
   constructor(options: Partial<{
     maxTracks: number
@@ -165,8 +178,21 @@ export class TrackManager {
     }
 
     for (const id of toDelete) {
+      const evicted = this.tracks.get(id)
+      if (evicted && evicted.trueFrequencyHz > 0) {
+        // Save to eviction cache for fast restoration
+        this._evictedCache.push({
+          frequencyHz: evicted.trueFrequencyHz,
+          cumulativeGrowthDb: evicted.trueAmplitudeDb - evicted.onsetDb,
+          peakAmplitudeDb: evicted.trueAmplitudeDb,
+          evictedAt: currentTime,
+        })
+        if (this._evictedCache.length > EVICTION_CACHE_SIZE) this._evictedCache.shift()
+      }
       this.tracks.delete(id)
     }
+    // Prune stale eviction cache entries
+    this._evictedCache = this._evictedCache.filter(e => currentTime - e.evictedAt < EVICTION_CACHE_TTL_MS)
 
     // Also limit total tracks — evict by quality-weighted staleness score.
     // High-confidence tracks (high prominence, high Q, stable pitch) survive longer.
@@ -265,6 +291,17 @@ export class TrackManager {
       persistenceBoost: peak.persistenceBoost,
       isPersistent: peak.isPersistent,
       isHighlyPersistent: peak.isHighlyPersistent,
+    }
+
+    // Check eviction cache — restore cumulative growth if this peak matches a recently evicted track
+    const evictedIdx = this._evictedCache.findIndex(e =>
+      Math.abs(1200 * Math.log2(peak.trueFrequencyHz / e.frequencyHz)) < 50 // within 50 cents
+    )
+    if (evictedIdx !== -1) {
+      const restored = this._evictedCache[evictedIdx]
+      // Restore growth by adjusting onsetDb so (currentDb - onsetDb) reflects prior growth
+      track.onsetDb = track.trueAmplitudeDb - restored.cumulativeGrowthDb
+      this._evictedCache.splice(evictedIdx, 1)
     }
 
     this.tracks.set(id, track)
