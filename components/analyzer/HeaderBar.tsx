@@ -51,8 +51,8 @@ export const HeaderBar = memo(function HeaderBar() {
         </div>
 
         <div className="flex flex-col justify-center min-w-0" style={{ gap: '2px' }}>
-          <span className="font-mono text-[8px] font-bold tracking-[0.25em] text-foreground/80 uppercase leading-none">Donewell</span>
-          <span className="font-mono text-[10px] font-normal tracking-[0.2em] text-muted-foreground/35 leading-none">
+          <span className="font-mono text-[12px] font-bold tracking-[0.25em] text-foreground/90 uppercase leading-none">Donewell</span>
+          <span className="font-mono text-[11px] font-normal tracking-[0.2em] text-muted-foreground/60 leading-none">
             V{(process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0').toUpperCase()}
           </span>
         </div>
