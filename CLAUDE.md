@@ -66,10 +66,34 @@ The pre-commit hook also checks a `build-gate-marker` (tsc + tests must have pas
 
 ## Git Workflow
 
-- **Never push without explicit permission.** Always ask before running `git push` or creating PRs. The words "push", "PR", "send to GitHub", or "merge" must come from the user first.
+- **Push + PR: allowed.** Claude can push feature branches and open PRs. Don merges on GitHub — Claude never merges on GitHub.
+- **Never merge on GitHub.** Only Don merges PRs via the GitHub UI.
 - **Always `git fetch origin`** before reporting version numbers, branch status, or sync state. Stale local refs cause wrong version info.
 - **Never amend published commits** or force-push unless explicitly asked.
 - **`git commit` routes through `pre-commit-gate.js`** — build gate + CIA Phase 2 required. Hook returns `ask` so you approve each commit explicitly.
+
+### Multi-machine sync (pulling from GitHub)
+
+Use this on any machine to get the latest merged work from GitHub:
+
+```bash
+git pull origin main        # Download everything merged on GitHub → update local
+```
+
+**Routine:** Run `git pull origin main` first thing whenever starting work on any machine.
+
+**First time on a new machine:**
+```bash
+git clone https://github.com/donwellsav/donewellaudio.git
+cd donewellaudio
+pnpm install
+```
+Then `git pull origin main` going forward.
+
+**Typical multi-machine flow:**
+1. Merge PR on GitHub
+2. On every other machine: `git pull origin main` → all machines in sync
+3. Start new work on whichever machine, push branch, open PR, repeat
 
 ## Version Release Checklist
 
