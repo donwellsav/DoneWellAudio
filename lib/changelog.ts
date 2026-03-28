@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.31.2',
+    date: '2026-03-28',
+    changes: [
+      { type: 'fix', description: 'Increase header brand name and version text size' },
+    ],
+  },
+  {
     version: '0.31.1',
     date: '2026-03-28',
     changes: [
