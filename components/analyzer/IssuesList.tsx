@@ -178,17 +178,25 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
         !isRunning && onStart ? (
           <div className="flex flex-col items-center justify-center flex-1 min-h-[120px] py-6 gap-3">
             {/* Standby status indicator */}
-            <span className="font-mono text-[9px] font-bold tracking-[0.2em] uppercase text-[var(--console-amber)]/60 mb-1">Standby</span>
+            <span className="flex items-center gap-1.5 font-mono text-[10px] font-bold tracking-[0.3em] uppercase text-[var(--console-amber)]/70 mb-1">
+              <span className="inline-block w-1 h-1 rounded-full bg-[var(--console-amber)]/70 animate-led-pulse-amber flex-shrink-0" aria-hidden />
+              Standby
+            </span>
             <button
               onClick={onStart}
               aria-label="Start analysis"
-              className="group relative flex flex-col items-center justify-center gap-3 w-full max-w-[220px] py-5 px-5 rounded-xl border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-all duration-300 cursor-pointer animate-start-glow focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary"
-              style={{ background: 'radial-gradient(circle at 50% 40%, rgba(75, 146, 255, 0.08) 0%, transparent 70%)' }}
+              className="group relative flex flex-col items-center justify-center gap-3 w-full max-w-[220px] py-5 px-5 rounded-xl border border-primary/20 hover:border-primary/40 bg-primary/5 hover:bg-primary/10 transition-all duration-300 cursor-pointer animate-start-glow focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary"
+              style={{ background: 'radial-gradient(ellipse 100% 80% at 50% 60%, rgba(75, 146, 255, 0.10) 0%, rgba(75, 146, 255, 0.03) 55%, transparent 100%)' }}
             >
-              <div className="relative flex items-center justify-center" style={{ width: 80, height: 80 }}>
+              {/* Atmospheric radial pool behind logo */}
+              <div className="absolute inset-0 rounded-xl overflow-hidden pointer-events-none" aria-hidden>
+                <div className="absolute inset-0 rounded-xl" style={{ background: 'radial-gradient(ellipse 70% 60% at 50% 50%, rgba(75,146,255,0.07) 0%, transparent 70%)' }} />
+              </div>
+              <div className="relative flex items-center justify-center overflow-hidden rounded-full" style={{ width: 80, height: 80 }}>
                 <div className="standby-glow-ring" />
                 <div className="standby-glow-ring" style={{ animationDelay: '1.75s' }} />
-                <DwaLogo className="w-20 h-20 text-foreground drop-shadow-[0_0_12px_rgba(37,99,235,0.3)] dark:drop-shadow-[0_0_14px_rgba(75,146,255,0.45)]" />
+                <div className="standby-sweep" aria-hidden />
+                <DwaLogo className="relative z-10 w-20 h-20 text-foreground drop-shadow-[0_0_12px_rgba(37,99,235,0.3)] dark:drop-shadow-[0_0_14px_rgba(75,146,255,0.45)]" />
               </div>
               <div className="flex flex-col items-center gap-0.5">
                 <span className="font-mono text-xs font-bold tracking-[0.15em] uppercase text-muted-foreground group-hover:text-foreground transition-colors">
@@ -578,7 +586,7 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
             <TooltipProvider delayDuration={300}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className={`font-mono text-lg font-bold leading-none tracking-wide cursor-default ${
+                  <span className={`font-mono text-2xl font-bold leading-none tracking-wide cursor-default ${
                     isFalsePositive ? 'text-red-400/60 line-through' : 'text-foreground'
                   }`}>
                     {exactFreqStr}

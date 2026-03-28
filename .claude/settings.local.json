@@ -60,7 +60,7 @@
       "Bash(findstr /i \"node\")",
       "Bash(node -e \":*)",
       "Bash(node .claude/hooks/ship-guard.js)",
-      "Bash(node -e \"const fs=require\\(''fs''\\),os=require\\(''os''\\),path=require\\(''path''\\);fs.rmSync\\(path.join\\(os.tmpdir\\(\\),''claude-session-maintenance'',''maintenance-mode''\\),{force:true}\\);console.log\\(''cleared''\\)\")"
+      "Bash(git cherry-pick:*)"
     ]
   }
 }
