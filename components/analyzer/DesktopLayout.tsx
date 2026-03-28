@@ -283,7 +283,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                   <div className="flex-shrink-0 flex items-center justify-between panel-header">
                     <div className="flex items-center gap-2">
                       <div className={isRunning ? 'power-led' : 'power-led-off'} />
-                      <span className="text-[11px] font-mono font-bold tracking-[0.2em] uppercase text-primary/90"><span className="hidden lg:inline">Real-Time Analyzer</span><span className="lg:hidden">RTA</span></span>
+                      <span className="text-[11px] font-mono font-bold tracking-[0.2em] uppercase text-primary/90 whitespace-nowrap"><span className="hidden lg:inline">Real-Time Analyzer</span><span className="lg:hidden">RTA</span></span>
                       {isRunning && (
                         <button onClick={toggleFreeze} className={`px-1.5 py-0.5 rounded text-sm font-medium transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${isFrozen ? 'text-blue-400' : 'text-muted-foreground hover:text-foreground'}`}>
                           {isFrozen ? 'Live' : 'Freeze'}

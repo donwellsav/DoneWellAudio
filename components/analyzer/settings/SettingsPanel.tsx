@@ -129,7 +129,7 @@ export const SettingsPanel = memo(function SettingsPanel({
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5" />
-                  <span className="hidden @[280px]:inline">{shortLabel ?? label}</span>
+                  <span className="hidden @[280px]:inline truncate">{shortLabel ?? label}</span>
                   {id === 'advanced' && hasCustomGates && (
                     <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-amber-500" title="Custom gate overrides active" />
                   )}
