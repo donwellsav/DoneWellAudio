@@ -14,6 +14,34 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.24.0',
+    date: '2026-03-28',
+    changes: [
+      { type: 'feat', description: '**Design quality uplift** — Instrument-grade visual polish across all major UI surfaces. CSS/className-only changes, zero DSP/pipeline impact.' },
+      { type: 'feat', description: '**3-ring inner ring hooks** — Full hook infrastructure committed: bash-protection, CIA gate, claim-contract, evidence-ledger, fabrication-verifier, file-protection, prose-fact-gate' },
+      { type: 'feat', description: '**settings.local.json hardened** — Removed 4 dangerous auto-allow entries (deploy_to_vercel, npx vercel, git merge, git commit). These now require explicit approval.' },
+      { type: 'feat', description: '**CLAUDE.md updated** — 3-ring model and two-phase CIA documented' },
+      { type: 'feat', description: '**GitHub outer ring instructions** — `docs/3-ring-github-setup.docx` with 4 steps for branch rulesets, CODEOWNERS, environment protection, Actions restrictions' },
+      { type: 'feat', description: 'Glass cards: gradient surface + layered shadows with inner highlight' },
+      { type: 'feat', description: 'Settings tabs: segmented control with recessed track + amber active pill' },
+      { type: 'feat', description: 'Header bar: glow accent line, deeper shadow' },
+      { type: 'feat', description: 'Advisory cards: severity strip glow with color bleed' },
+      { type: 'feat', description: 'Start/idle state: "STANDBY" label, radial gradient' },
+      { type: 'feat', description: 'Inputs: console-input treatment with amber focus ring' },
+      { type: 'feat', description: 'Tooltips: glass-card frosted backdrop' },
+      { type: 'feat', description: 'Accordion triggers: left amber accent bar' },
+      { type: 'feat', description: 'LED toggles: off-state shows 15% of LED color' },
+      { type: 'feat', description: '8 hook files now tracked in git (inner ring enforced every session)' },
+      { type: 'feat', description: '`git commit` routes through pre-commit-gate (ask, not auto)' },
+      { type: 'feat', description: 'Deploy operations blocked without approved marker' },
+      { type: 'feat', description: 'Hard reset / force push / direct push to main blocked mechanically' },
+      { type: 'feat', description: '[ ] tsc clean ✅' },
+      { type: 'feat', description: '[ ] 940/944 tests pass ✅' },
+      { type: 'feat', description: '[ ] Visual check: dark mode cards have depth, tabs feel segmented, inputs match console' },
+      { type: 'feat', description: '[ ] Verify hooks load: open new Claude Code session, attempt `git commit` without build gate' },
+    ],
+  },
+  {
     version: '0.24.7',
     date: '2026-03-28',
     changes: [
