@@ -14,6 +14,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.31.0',
+    date: '2026-03-28',
+    changes: [
+      { type: 'feat', description: '**Console eye-candy phases 1–3** — richer card depth, segmented tab strip, standby glow rings, input console treatment, advisory card severity strips, header refinement, accordion polish, tooltip upgrade, LEDToggle off-state glow, frosted panel borders' },
+      { type: 'feat', description: '**Amber accent consistency** — all interactive indicators (Select checkmark, DropdownMenu checkmark, PillToggle active state, CONFIRM button, swipe reveals, copy-confirmed state, PA2 Bridge checkboxes) unified to `--console-amber`' },
+      { type: 'feat', description: '**Text wrap fixes** — 6 AdvancedTab slider end-label rows tightened (`text-xs` + `flex-shrink-0`, two labels shortened); 3 CalibrationTab section titles and 1 label shortened to fit 165px grid columns — no more blending/concatenation' },
+      { type: 'feat', description: '**Notch overlay opacity** — reduced fill alpha `0.42 → 0.15` in `drawNotchOverlays`; the 42% full-height fill was visually blocking spectrum data behind merged frequency clusters' },
+      { type: 'feat', description: '[ ] All 981 tests pass, 0 regressions' },
+      { type: 'feat', description: '[ ] TSC clean' },
+      { type: 'feat', description: '[ ] Dark mode: cards have depth, tabs segmented, amber accents consistent across all menus' },
+      { type: 'feat', description: '[ ] Light mode: glass cards visible, borders legible, accents correct' },
+      { type: 'feat', description: '[ ] Settings sidebar: all slider labels single-line with visible gaps, CalibrationTab section titles fit in columns' },
+      { type: 'feat', description: '[ ] RTA canvas: notch overlays visible as tinted columns without blocking spectrum data' },
+      { type: 'feat', description: '[ ] Mobile: no layout regressions on portrait/landscape' },
+    ],
+  },
+  {
     version: '0.30.0',
     date: '2026-03-28',
     changes: [
