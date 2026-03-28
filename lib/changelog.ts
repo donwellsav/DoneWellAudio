@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.33.0',
+    date: '2026-03-28',
+    changes: [
+      { type: 'feat', description: 'chore: rebuild companion module zips v0.3' },
+    ],
+  },
+  {
     version: '0.32.0',
     date: '2026-03-28',
     changes: [
