@@ -1,9 +1,21 @@
-// Post-Bash hook: writes a marker file when tsc + test pass successfully.
-// The pre-commit gate (pre-commit-gate.js) checks for this marker.
-// Enforces the CLAUDE.md build gate: "npx tsc --noEmit && pnpm test"
+#!/usr/bin/env node
+/**
+ * Build Gate Marker — PostToolUse on Bash
+ *
+ * Writes a structured marker when `npx tsc --noEmit && pnpm test` succeeds.
+ * The marker includes:
+ * - timestamp (for staleness check — pre-commit-gate rejects >5min)
+ * - command summary (for audit trail)
+ * - treeHash from `git write-tree` (staged tree fingerprint — pre-commit-gate
+ *   recomputes and compares to detect edits after tests)
+ *
+ * Fail-open: marker failure should not block work.
+ */
+
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { execFileSync } = require('child_process');
 
 const MARKER = path.join(os.tmpdir(), 'claude-build-gate-passed');
 
@@ -24,15 +36,31 @@ process.stdin.on('end', () => {
     const hasPass = /\d+ passed/.test(resp);
 
     if (hasTsc && hasTest && !hasError && hasPass) {
-      fs.writeFileSync(MARKER, Date.now().toString());
+      // Compute staged tree hash for fingerprint
+      let treeHash = null;
+      try {
+        treeHash = execFileSync('git', ['write-tree'], { encoding: 'utf8' }).trim();
+      } catch {
+        // Can't compute tree hash — write marker without it
+      }
+
+      const marker = {
+        timestamp: Date.now(),
+        cmd: cmd.substring(0, 200),
+        treeHash: treeHash,
+      };
+
+      fs.writeFileSync(MARKER, JSON.stringify(marker));
+
       console.log(JSON.stringify({
         hookSpecificOutput: {
           hookEventName: 'PostToolUse',
-          additionalContext: 'BUILD GATE PASSED. You may now produce the Change Impact Audit and commit.'
+          additionalContext: 'BUILD GATE PASSED. Tree fingerprint: ' + (treeHash ? treeHash.substring(0, 8) : 'unavailable') + '. You may now produce the Change Impact Audit and commit.'
         }
       }));
     }
   } catch (e) {
+    // Fail-open: marker failure should not block work
     process.exit(0);
   }
 });

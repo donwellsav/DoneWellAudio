@@ -4,14 +4,18 @@ const require = createRequire(import.meta.url)
 
 const coreWebVitals = require('eslint-config-next/core-web-vitals')
 const typescript = require('eslint-config-next/typescript')
+const reactHooks = require('eslint-plugin-react-hooks')
 
 const eslintConfig = [
   ...coreWebVitals,
   ...typescript,
   {
-    ignores: ['.claude/**', 'public/**', 'docs/**', 'autoresearch/**'],
+    ignores: ['.claude/**', 'public/**', 'docs/**', 'autoresearch/**', 'companion/**', 'companion-module-dbx-driverack-pa2/**', 'companion-module/**', 'scripts/**', 'tmp/**', 'supabase/**'],
   },
   {
+    plugins: {
+      'react-hooks': reactHooks,
+    },
     rules: {
       'no-console': 'warn',
       'prefer-const': 'error',

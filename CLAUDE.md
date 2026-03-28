@@ -34,11 +34,42 @@ This scope declaration becomes the baseline for scope drift detection during imp
 
 For trivial changes (typo, comment, single-value tweak), say "TRIVIAL — skipping risk assessment" and proceed.
 
+## 3-Ring Safety Architecture
+
+Three concentric trust rings enforce correctness and prevent accidental or coerced harm:
+
+- **Outer ring (GitHub):** Branch rulesets on `main` (no direct push, required CI), CODEOWNERS, production environment with required reviewer, pinned Actions versions. Repo-owner managed — not Claude's concern.
+- **Middle ring (Managed Claude Policy):** Anthropic policy layer. Claude never bypasses `--no-verify`, force-pushes `main`, or takes destructive actions without explicit user direction.
+- **Inner ring (Repo-local hooks):** `.claude/hooks/` — mechanically enforced in every session:
+
+| Hook | Event | What it enforces |
+|------|-------|-----------------|
+| `claim-contract.js` | UserPromptSubmit | Every response must have a verifiable factual basis |
+| `bash-protection.js` | PreToolUse/Bash | Blocks rm hooks, write to markers, force push, hard reset, direct push to main |
+| `deploy-guard.js` | PreToolUse/Bash | Blocks `vercel deploy` / `npx vercel` without approved deploy marker |
+| `pre-commit-gate.js` | PreToolUse/Bash | Blocks `git commit` unless build gate passed + CIA Phase 2 audit present |
+| `cia-planning-gate.js` | PreToolUse/Edit\|Write | Enforces Phase 1 CIA (risk assessment) before non-trivial edits |
+| `prose-fact-gate.js` | PreToolUse/Edit\|Write | Blocks hard factual claims in prose without evidence |
+| `file-protection.js` | PreToolUse/Edit\|Write | Protects hooks/, settings files, CI workflows, control-plane files |
+| `evidence-ledger.js` | PostToolUse/all | Appends every tool result as evidence to `%TEMP%/claude-evidence-ledger.jsonl` |
+| `build-gate-marker.js` | PostToolUse/Bash | Writes build-gate marker (with tree hash) only when tsc + tests both pass |
+| `session-cleanup.js` | SessionEnd | Cleans per-session temp directories |
+| `fabrication-verifier.md` | Stop+SubagentStop | Agent hook: compares response claims against ledger; blocks unsupported hard claims |
+
+### Two-Phase Change Impact Audit (CIA)
+
+**Phase 1 — Planning gate** (before writing code): Identify affected systems from the 16-system table, 2-3 failure modes, blast radius, ordering dependencies. Required for non-trivial changes.
+
+**Phase 2 — Pre-commit gate** (before `git commit`): Impact table + verdict. Must cover all systems touched. Written to `%TEMP%/claude-cia-audit.md`. `pre-commit-gate.js` reads and validates before allowing the commit.
+
+The pre-commit hook also checks a `build-gate-marker` (tsc + tests must have passed on the current tree hash) and runs as `ask` (not auto-allow) so every commit requires explicit user approval.
+
 ## Git Workflow
 
 - **Never push without explicit permission.** Always ask before running `git push` or creating PRs. The words "push", "PR", "send to GitHub", or "merge" must come from the user first.
 - **Always `git fetch origin`** before reporting version numbers, branch status, or sync state. Stale local refs cause wrong version info.
 - **Never amend published commits** or force-push unless explicitly asked.
+- **`git commit` routes through `pre-commit-gate.js`** — build gate + CIA Phase 2 required. Hook returns `ask` so you approve each commit explicitly.
 
 ## Version Release Checklist
 

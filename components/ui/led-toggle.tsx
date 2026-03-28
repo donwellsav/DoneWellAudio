@@ -51,12 +51,14 @@ export const LEDToggle = memo(function LEDToggle({
         <span
           className={cn(
             'w-2 h-2 rounded-full flex-shrink-0 transition-all duration-200',
-            checked ? 'animate-led-blink' : 'bg-muted',
+            checked ? 'animate-led-blink' : '',
           )}
           style={checked ? {
             backgroundColor: `var(--console-${color})`,
             boxShadow: `0 0 6px var(--console-${color}-glow), 0 0 2px var(--console-${color}-glow)`,
-          } : undefined}
+          } : {
+            backgroundColor: `color-mix(in srgb, var(--console-${color}) 15%, var(--muted))`,
+          }}
         />
         {/* Label */}
         <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">

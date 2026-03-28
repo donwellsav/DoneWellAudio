@@ -115,22 +115,23 @@ export const SettingsPanel = memo(function SettingsPanel({
             d.mainsHumGateOverride !== undefined
           )
           return (
-            <div className="flex justify-center gap-0 border-b border-border -mx-1">
+            <div className="tab-track -mx-1 flex gap-0.5">
               {TABS.map(({ id, label, shortLabel, Icon }) => (
                 <button
                   key={id}
                   onClick={() => setActiveTab(id)}
                   aria-label={label}
-                  className={`relative flex-1 min-h-12 flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.08em] transition-all duration-200 border-b-2 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+                  data-active={activeTab === id}
+                  className={`tab-track-item relative flex-1 min-h-10 flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.08em] cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                     activeTab === id
-                      ? 'text-[var(--console-amber)] border-[var(--console-amber)] bg-[var(--console-amber)]/5'
-                      : 'text-muted-foreground border-transparent hover:text-foreground hover:bg-muted/30'
+                      ? 'text-[var(--console-amber)]'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5" />
                   <span className="hidden @[280px]:inline">{shortLabel ?? label}</span>
                   {id === 'advanced' && hasCustomGates && (
-                    <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500" title="Custom gate overrides active" />
+                    <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-amber-500" title="Custom gate overrides active" />
                   )}
                 </button>
               ))}

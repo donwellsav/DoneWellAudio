@@ -346,18 +346,47 @@ html {
   .btn-glow:active {
     transform: scale(0.95);
   }
+  /* Severity-aware button glow variants */
+  .btn-glow-amber {
+    transition: box-shadow 120ms ease, transform 80ms ease, color 120ms ease, background-color 120ms ease;
+  }
+  .btn-glow-amber:hover {
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.25), 0 0 4px rgba(245, 158, 11, 0.12);
+  }
+  .btn-glow-amber:active { transform: scale(0.95); }
+  .btn-glow-green {
+    transition: box-shadow 120ms ease, transform 80ms ease, color 120ms ease, background-color 120ms ease;
+  }
+  .btn-glow-green:hover {
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.25), 0 0 4px rgba(34, 197, 94, 0.12);
+  }
+  .btn-glow-green:active { transform: scale(0.95); }
+  .btn-glow-red {
+    transition: box-shadow 120ms ease, transform 80ms ease, color 120ms ease, background-color 120ms ease;
+  }
+  .btn-glow-red:hover {
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.25), 0 0 4px rgba(239, 68, 68, 0.12);
+  }
+  .btn-glow-red:active { transform: scale(0.95); }
 
   /* ── Frosted glass card effect ─────────────────────────────────────────── */
   .glass-card {
-    background: rgba(24, 26, 30, 0.55);
+    background: linear-gradient(180deg, rgba(30, 33, 38, 0.62) 0%, rgba(20, 22, 26, 0.55) 100%);
     backdrop-filter: blur(10px) saturate(1.3);
     -webkit-backdrop-filter: blur(10px) saturate(1.3);
     border: 1px solid rgba(75, 146, 255, 0.08);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.04),
+      0 4px 12px rgba(0, 0, 0, 0.3),
+      0 1px 3px rgba(0, 0, 0, 0.2);
   }
   .light .glass-card {
-    background: rgba(255, 255, 255, 0.75);
-    border: 1px solid rgba(37, 99, 235, 0.15);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.82) 0%, rgba(248, 249, 252, 0.75) 100%);
+    border: 1px solid rgba(37, 99, 235, 0.12);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.8),
+      0 2px 8px rgba(0, 0, 0, 0.06),
+      0 1px 2px rgba(0, 0, 0, 0.04);
   }
 
   /* ── Console slider — pro-audio recessed track + amber fill ─────────── */
@@ -415,6 +444,107 @@ html {
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--muted-foreground);
+  }
+
+  /* ── Subtle gradient divider — refined section separator ───────────────── */
+  .panel-groove-subtle {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(75, 146, 255, 0.1) 50%, transparent 100%);
+    border: none;
+  }
+  .light .panel-groove-subtle {
+    background: linear-gradient(90deg, transparent 0%, rgba(37, 99, 235, 0.12) 50%, transparent 100%);
+  }
+
+  /* ── Segmented tab track — recessed container for tab strips ──────────── */
+  .tab-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 3px;
+    box-shadow:
+      inset 0 1px 2px rgba(0, 0, 0, 0.3),
+      inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+  }
+  .light .tab-track {
+    background: rgba(0, 0, 0, 0.04);
+    box-shadow:
+      inset 0 1px 2px rgba(0, 0, 0, 0.06),
+      inset 0 0 0 1px rgba(0, 0, 0, 0.04);
+  }
+  .tab-track-item {
+    border-radius: 6px;
+    transition: all 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .tab-track-item[data-active="true"] {
+    background: rgba(245, 158, 11, 0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(245, 158, 11, 0.08);
+  }
+  .light .tab-track-item[data-active="true"] {
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  }
+
+  /* ── Console-styled input fields ─────────────────────────────────────── */
+  .console-input {
+    background: #0e1012;
+    border: 1px solid rgba(30, 37, 48, 0.6);
+    box-shadow:
+      inset 0 1px 2px rgba(0, 0, 0, 0.3),
+      inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+    transition: box-shadow 150ms ease, border-color 150ms ease;
+  }
+  .console-input:focus,
+  .console-input:focus-visible {
+    border-color: rgba(245, 158, 11, 0.3);
+    box-shadow:
+      inset 0 1px 2px rgba(0, 0, 0, 0.3),
+      0 0 0 1px rgba(245, 158, 11, 0.15),
+      0 0 6px rgba(245, 158, 11, 0.12);
+  }
+  .light .console-input {
+    background: #f5f6f8;
+    border: 1px solid rgba(208, 213, 221, 0.8);
+    box-shadow:
+      inset 0 1px 2px rgba(0, 0, 0, 0.04),
+      inset 0 0 0 1px rgba(0, 0, 0, 0.02);
+  }
+  .light .console-input:focus,
+  .light .console-input:focus-visible {
+    border-color: rgba(37, 99, 235, 0.3);
+    box-shadow:
+      inset 0 1px 2px rgba(0, 0, 0, 0.04),
+      0 0 0 1px rgba(37, 99, 235, 0.15),
+      0 0 6px rgba(37, 99, 235, 0.08);
+  }
+
+  /* ── Gradient border — machined aluminum panel edge ──────────────────── */
+  .border-gradient {
+    border: 1px solid transparent;
+    border-image: linear-gradient(180deg, rgba(75, 146, 255, 0.12) 0%, rgba(75, 146, 255, 0.04) 50%, rgba(75, 146, 255, 0.08) 100%) 1;
+  }
+  .light .border-gradient {
+    border-image: linear-gradient(180deg, rgba(37, 99, 235, 0.1) 0%, rgba(37, 99, 235, 0.03) 50%, rgba(37, 99, 235, 0.06) 100%) 1;
+  }
+
+  /* ── Header glow line — subtle accent below header bar ───────────────── */
+  .header-glow::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 10%;
+    right: 10%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(75, 146, 255, 0.3) 50%, transparent 100%);
+    pointer-events: none;
+  }
+  .light .header-glow::after {
+    background: linear-gradient(90deg, transparent 0%, rgba(37, 99, 235, 0.2) 50%, transparent 100%);
+  }
+
+  /* ── Severity severity-accent-strip — glowing left edge for issue cards ── */
+  .severity-accent-strip {
+    width: 3px;
+    border-radius: 0 2px 2px 0;
   }
 
   /* ── Severity pill badges ──────────────────────────────────────────────── */

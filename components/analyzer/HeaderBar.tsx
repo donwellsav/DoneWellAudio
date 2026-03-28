@@ -33,7 +33,7 @@ export const HeaderBar = memo(function HeaderBar() {
   const hasClearableContent = advisories.some(a => !dismissedIds.has(a.id)) || hasActiveGEQBars || hasActiveRTAMarkers
 
   return (
-    <header className="relative flex flex-row items-center justify-between gap-2 sm:gap-4 px-3 py-1 border-b border-border bg-card/90 backdrop-blur-sm shadow-[0_1px_12px_rgba(0,0,0,0.12),0_1px_0_rgba(37,99,235,0.08)] dark:shadow-[0_1px_12px_rgba(0,0,0,0.5),0_1px_0_rgba(75,146,255,0.08)] sm:px-4 sm:py-1">
+    <header className="header-glow relative flex flex-row items-center justify-between gap-2 sm:gap-4 px-3 py-1 border-b-0 bg-card/90 backdrop-blur-sm shadow-[0_1px_16px_rgba(0,0,0,0.15),0_2px_4px_rgba(0,0,0,0.1),0_1px_0_rgba(37,99,235,0.06)] dark:shadow-[0_1px_16px_rgba(0,0,0,0.55),0_2px_4px_rgba(0,0,0,0.3),0_1px_0_rgba(75,146,255,0.08)] sm:px-4 sm:py-1">
 
       {/* ── Logo + start button (responsive single block) ─────────── */}
       <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">

@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "dev",
-      "runtimeExecutable": "C:/Users/dwell/AppData/Roaming/npm/pnpm.cmd",
+      "runtimeExecutable": "C:/Users/dwell/AppData/Local/pnpm/pnpm.cmd",
       "runtimeArgs": ["dev"],
       "port": 3000,
       "autoPort": true,

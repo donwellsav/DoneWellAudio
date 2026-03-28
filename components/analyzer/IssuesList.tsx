@@ -176,18 +176,21 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
 
       {sorted.length === 0 ? (
         !isRunning && onStart ? (
-          <div className="flex flex-col items-center justify-center flex-1 min-h-[120px] py-4 gap-2">
+          <div className="flex flex-col items-center justify-center flex-1 min-h-[120px] py-6 gap-3">
+            {/* Standby status indicator */}
+            <span className="font-mono text-[9px] font-bold tracking-[0.2em] uppercase text-[var(--console-amber)]/60 mb-1">Standby</span>
             <button
               onClick={onStart}
               aria-label="Start analysis"
-              className="group relative flex flex-col items-center justify-center gap-2 w-full max-w-[200px] py-4 px-4 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all duration-300 cursor-pointer animate-start-glow focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary"
+              className="group relative flex flex-col items-center justify-center gap-3 w-full max-w-[220px] py-5 px-5 rounded-xl border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-all duration-300 cursor-pointer animate-start-glow focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary"
+              style={{ background: 'radial-gradient(circle at 50% 40%, rgba(75, 146, 255, 0.08) 0%, transparent 70%)' }}
             >
-              <DwaLogo className="w-20 h-20 text-foreground drop-shadow-[0_0_10px_rgba(37,99,235,0.3)] dark:drop-shadow-[0_0_10px_rgba(75,146,255,0.4)]" />
-              <div className="flex flex-col items-center">
+              <DwaLogo className="w-20 h-20 text-foreground drop-shadow-[0_0_12px_rgba(37,99,235,0.3)] dark:drop-shadow-[0_0_14px_rgba(75,146,255,0.45)]" />
+              <div className="flex flex-col items-center gap-0.5">
                 <span className="font-mono text-xs font-bold tracking-[0.15em] uppercase text-muted-foreground group-hover:text-foreground transition-colors">
                   Press to Start
                 </span>
-                <span className="font-mono text-xs font-bold tracking-[0.15em] uppercase text-muted-foreground group-hover:text-foreground transition-colors">
+                <span className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-muted-foreground/60 group-hover:text-muted-foreground transition-colors">
                   Analysis
                 </span>
               </div>
@@ -195,16 +198,16 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
 
             {onStartRingOut && (
               <>
-                <div className="flex items-center gap-2 w-full max-w-[200px]">
-                  <div className="flex-1 h-px bg-border" />
+                <div className="flex items-center gap-2 w-full max-w-[220px]">
+                  <div className="flex-1 h-px panel-groove-subtle" />
                   <span className="font-mono text-[9px] text-muted-foreground/50 uppercase tracking-widest">or</span>
-                  <div className="flex-1 h-px bg-border" />
+                  <div className="flex-1 h-px panel-groove-subtle" />
                 </div>
 
                 <button
                   onClick={onStartRingOut}
                   aria-label="Start ring-out wizard"
-                  className="group relative flex flex-col items-center justify-center gap-1 w-full max-w-[200px] py-3 px-4 rounded-lg border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 transition-all duration-300 cursor-pointer focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-amber-500"
+                  className="group relative flex flex-col items-center justify-center gap-1 w-full max-w-[220px] py-3 px-4 rounded-xl border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-all duration-300 cursor-pointer btn-glow-amber focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-amber-500"
                 >
                   <span className="font-mono text-sm font-black tracking-[0.15em] text-amber-500 dark:text-amber-400">
                     RING OUT ROOM
@@ -543,10 +546,13 @@ const IssueCard = memo(function IssueCard({ advisory, occurrenceCount, touchFrie
         </div>
       )}
 
-      {/* Left severity accent */}
+      {/* Left severity accent — glowing strip */}
       <div
-        className="absolute left-0 top-0 bottom-0 w-1.5 rounded-r-sm"
-        style={{ backgroundColor: isResolved ? 'hsl(var(--muted))' : severityColor }}
+        className="absolute left-0 top-0 bottom-0 severity-accent-strip"
+        style={{
+          backgroundColor: isResolved ? 'hsl(var(--muted))' : severityColor,
+          boxShadow: isResolved ? 'none' : `2px 0 8px -2px ${severityColor}50, 0 0 4px -1px ${severityColor}30`,
+        }}
       />
 
       <div
