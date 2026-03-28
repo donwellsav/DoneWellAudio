@@ -145,6 +145,9 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
   const appliedGEQRef = useRef<Record<string, number>>({})
   /** Companion's notch confidence threshold from /loop — used as floor for detect sends */
   const companionThresholdRef = useRef<number>(0)
+  /** Track PEQ detections already sent — maps advisory ID to last-sent confidence.
+   *  Re-send only if confidence increased by 10%+ (feedback worsening, needs deeper cut). */
+  const sentPEQRef = useRef<Record<string, number>>({})
 
   // ── Client lifecycle ──
 
@@ -244,6 +247,26 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
     }
   }, [enabled, pollIntervalMs, baseUrl, apiKey, timeoutMs])
 
+  // ── PEQ dedup: skip already-notched advisories, re-send if confidence rose 10%+ ──
+
+  const CONFIDENCE_RESEND_DELTA = 0.10
+
+  function filterNewOrWorsened<T extends { hz: number; confidence: number; clientId?: string }>(payload: T[]): T[] {
+    return payload.filter(det => {
+      const id = det.clientId
+      if (!id) return true // no ID — always send
+      const prev = sentPEQRef.current[id]
+      if (prev === undefined) return true // never sent
+      return det.confidence >= prev + CONFIDENCE_RESEND_DELTA // only if confidence rose 10%+
+    })
+  }
+
+  function markPEQSent(payload: { confidence: number; clientId?: string }[]) {
+    for (const det of payload) {
+      if (det.clientId) sentPEQRef.current[det.clientId] = det.confidence
+    }
+  }
+
   // ── Auto-send advisory forwarding ──
 
   // Helpers to track auto-send results in state
@@ -330,11 +353,13 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
       }
     } else if (autoSend === 'peq') {
       const effectiveThreshold = Math.max(autoSendMinConfidence, companionThresholdRef.current)
-      const payload = advisoriesToDetectPayload(advisories, effectiveThreshold)
+      const allPayload = advisoriesToDetectPayload(advisories, effectiveThreshold)
+      const payload = filterNewOrWorsened(allPayload)
       if (payload.length > 0) {
         client.detect({ frequencies: payload, source: 'donewellaudio' })
           .then((res) => {
             if (mountedRef.current) {
+              markPEQSent(payload)
               setState((s) => ({
                 ...s,
                 notchSlotsUsed: res.slots_used,
@@ -349,7 +374,7 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
     } else if (autoSend === 'hybrid') {
       const actions = advisoriesToHybridActions(advisories, Math.max(autoSendMinConfidence, companionThresholdRef.current))
       const geqCorrections: Record<string, number> = {}
-      const peqPayload: { hz: number; confidence: number; type: 'feedback' | 'resonance'; q?: number }[] = []
+      const peqPayloadRaw: { hz: number; confidence: number; type: 'feedback' | 'resonance'; q?: number; clientId?: string }[] = []
 
       for (const action of actions) {
         if (action.type === 'geq') {
@@ -359,14 +384,16 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
             geqCorrections[band] = action.gain
           }
         } else {
-          peqPayload.push({
+          peqPayloadRaw.push({
             hz: action.bandOrFreq,
             confidence: action.confidence ?? 0.9,
             type: 'feedback',
             q: action.q,
+            clientId: action.clientId,
           })
         }
       }
+      const peqPayload = filterNewOrWorsened(peqPayloadRaw)
 
       const totalCount = Object.keys(geqCorrections).length + peqPayload.length
       if (Object.keys(geqCorrections).length > 0 && state.geq && geqFresh) {
@@ -377,6 +404,7 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
       }
       if (peqPayload.length > 0) {
         client.detect({ frequencies: peqPayload, source: 'donewellaudio' })
+          .then(() => markPEQSent(peqPayload))
           .catch(recordAutoSendError)
       }
     } else if (autoSend === 'both') {
@@ -384,7 +412,7 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
       // This prevents double-cutting the same advisory via both paths.
       const actions = advisoriesToHybridActions(advisories, Math.max(autoSendMinConfidence, companionThresholdRef.current))
       const geqCorrections: Record<string, number> = {}
-      const peqPayload: { hz: number; confidence: number; type: 'feedback' | 'resonance'; q?: number }[] = []
+      const peqPayloadRaw: { hz: number; confidence: number; type: 'feedback' | 'resonance'; q?: number; clientId?: string }[] = []
 
       for (const action of actions) {
         if (action.type === 'geq') {
@@ -394,14 +422,16 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
             geqCorrections[band] = action.gain
           }
         } else {
-          peqPayload.push({
+          peqPayloadRaw.push({
             hz: action.bandOrFreq,
             confidence: action.confidence ?? 0.9,
             type: 'feedback',
             q: action.q,
+            clientId: action.clientId,
           })
         }
       }
+      const peqPayload = filterNewOrWorsened(peqPayloadRaw)
 
       // Send GEQ corrections for broad advisories
       let geqCount = 0
@@ -415,6 +445,7 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
         client.detect({ frequencies: peqPayload, source: 'donewellaudio' })
           .then((res) => {
             if (!mountedRef.current) return
+            markPEQSent(peqPayload)
             const placed = res.actions?.filter((a: { type: string }) => a.type === 'notch_placed').length ?? 0
             const skipped = res.actions?.filter((a: { type: string }) => a.type.startsWith('skipped')).length ?? 0
             if (placed > 0) {

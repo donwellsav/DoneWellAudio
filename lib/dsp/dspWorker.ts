@@ -607,8 +607,12 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         break
       }
 
-      // Skip harmonics of existing advisories
-      if (advisoryManager.isHarmonicOfExisting(track.trueFrequencyHz, settings)) break
+      // Flag harmonics of existing advisories — reduce confidence instead of suppressing.
+      // This lets the soft floor system send them as shallow cuts if slots are available.
+      const isHarmonic = advisoryManager.isHarmonicOfExisting(track.trueFrequencyHz, settings)
+      if (isHarmonic) {
+        classification.confidence = Math.min(classification.confidence, 0.35)
+      }
 
       // Compute shelves once per analysis frame (cross-advisory dedup)
       if (cachedShelvesFrameId !== peakProcessCount) {
@@ -627,7 +631,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         track, peak, classification, eqAdvisory, settings
       )
 
-      // Attach algorithm scores to advisory actions for debug display
+      // Attach algorithm scores and spectral profile to advisory actions
       for (const action of actions) {
         if (action.type === 'advisory') {
           action.advisory.algorithmScores = {
@@ -639,6 +643,25 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
             ptmr: algorithmScores.ptmr?.feedbackScore ?? null,
             ml: algorithmScores.ml?.feedbackScore ?? null,
             fusedProbability: fusionResult.feedbackProbability,
+          }
+          // Attach ±1 octave spectral profile around detection for smarter notch decisions
+          if (spectrum && spectrum.length > 0) {
+            const binHz = sampleRate / fftSize
+            const centerBin = Math.round(track.trueFrequencyHz / binHz)
+            const lowBin = Math.max(0, Math.round(track.trueFrequencyHz / 2 / binHz))
+            const highBin = Math.min(spectrum.length - 1, Math.round(track.trueFrequencyHz * 2 / binHz))
+            const profile: number[] = []
+            const step = Math.max(1, Math.round((highBin - lowBin) / 32)) // max 32 samples
+            for (let i = lowBin; i <= highBin; i += step) {
+              profile.push(Math.round(spectrum[i] * 10) / 10)
+            }
+            action.advisory.spectralProfile = {
+              lowHz: Math.round(lowBin * binHz),
+              highHz: Math.round(highBin * binHz),
+              peakHz: Math.round(centerBin * binHz),
+              samples: profile,
+              isHarmonic: isHarmonic || false,
+            }
           }
         }
         self.postMessage(action satisfies WorkerOutboundMessage)

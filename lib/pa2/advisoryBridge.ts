@@ -197,6 +197,7 @@ export interface HybridAction {
   readonly gain: number
   readonly q?: number
   readonly confidence?: number
+  readonly clientId?: string
   readonly reason: string
 }
 
@@ -234,6 +235,7 @@ export function advisoriesToHybridActions(
         gain: severityToGEQCut(adv.severity, adv.qEstimate),
         q: Math.min(16, Math.max(4, adv.qEstimate)),
         confidence: adv.confidence,
+        clientId: adv.id,
         reason: `${adv.severity} at ${Math.round(adv.trueFrequencyHz)}Hz (Q=${adv.qEstimate.toFixed(1)}, conf=${(adv.confidence * 100).toFixed(0)}%)`,
       })
     } else {

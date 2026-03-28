@@ -31,17 +31,10 @@
       "Bash(where pnpm:*)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
       "Bash(node -e \"const os = require\\(''os''\\); const path = require\\(''path''\\); console.log\\(path.join\\(os.tmpdir\\(\\), ''claude-cia-audit.md''\\)\\)\")",
-      "Bash(git commit:*)",
-      "Bash(node -e \"require\\(''''docx''''\\)\")",
-      "Bash(node tmp/gen-3ring-instructions.js)",
-      "Bash(git push:*)",
-      "Bash(gh pr:*)",
-      "Bash(git merge:*)",
-      "Bash(PYTHONIOENCODING=utf-8 python3 \"C:/Users/dwell/.claude/skills/ui-ux-pro-max/scripts/search.py\" \"pro audio console dark dashboard real-time monitoring professional\" --design-system -p \"DoneWell Audio\" -f markdown)",
-      "Bash(PYTHONIOENCODING=utf-8 python3 \"C:/Users/dwell/.claude/skills/ui-ux-pro-max/scripts/search.py\" \"dark console instrument panel hardware analog\" --domain style -n 5)",
-      "Bash(PYTHONIOENCODING=utf-8 python3 \"C:/Users/dwell/.claude/skills/ui-ux-pro-max/scripts/search.py\" \"dashboard real-time data monitoring\" --domain ux -n 5)",
-      "Bash(PYTHONIOENCODING=utf-8 python3 \"C:/Users/dwell/.claude/skills/ui-ux-pro-max/scripts/search.py\" \"micro-interaction animation feedback\" --domain ux -n 6)",
-      "Bash(\"C:\\\\Users\\\\dwell\\\\AppData\\\\Local\\\\Temp\\\\claude-cia-audit.md\")"
+      "Bash(node test/test-protocol.js)",
+      "mcp__Desktop_Commander__read_file",
+      "mcp__Desktop_Commander__get_file_info",
+      "mcp__Desktop_Commander__list_directory"
     ]
   }
 }

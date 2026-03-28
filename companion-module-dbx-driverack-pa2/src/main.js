@@ -1103,6 +1103,38 @@ class PA2Instance extends InstanceBase {
 		}
 	}
 
+	// ═══ Smooth PEQ Gain Fade Engine ═══
+	// Ramps gain over multiple steps to avoid audible jumps.
+	// 500ms fade, ~50ms steps = 10 steps per fade.
+
+	_startGainFade(output, filter, fromGain, toGain, durationMs = 500) {
+		const key = `${output}_${filter}`
+		// Cancel any existing fade on this slot
+		if (this._activeFades && this._activeFades[key]) {
+			clearInterval(this._activeFades[key].timer)
+		}
+		if (!this._activeFades) this._activeFades = {}
+
+		const stepMs = 50
+		const steps = Math.max(2, Math.round(durationMs / stepMs))
+		const gainDelta = (toGain - fromGain) / steps
+		let currentStep = 0
+
+		const timer = setInterval(() => {
+			currentStep++
+			const gain = currentStep >= steps ? toGain : fromGain + gainDelta * currentStep
+			const cmd = buildCommand('peq_filter', { output, filter, gain: Math.round(gain * 10) / 10 }, this.topology)
+			if (cmd.length > 0) this.sendCommand(cmd[0])
+
+			if (currentStep >= steps) {
+				clearInterval(timer)
+				delete this._activeFades[key]
+			}
+		}, stepMs)
+
+		this._activeFades[key] = { timer, target: toGain }
+	}
+
 	// Conservative GEQ write-through: mark stale + trigger re-read, no direct band mutation
 	_scanGEQWriteThrough(cmds) {
 		let geqTouched = false
@@ -1463,19 +1495,27 @@ class PA2Instance extends InstanceBase {
 						const slots = this.pa2State.autoNotch.slotsUsed
 						const nearbyIdx = slots.findIndex((s) => {
 							const ratio = Math.max(s.freq, det.hz) / Math.min(s.freq, det.hz)
-							return ratio <= 1.26 && s.output === output // within 1/3 octave
+							return ratio <= 1.33 && s.output === output // within ~4 semitones (handles thermal drift)
 						})
 						if (nearbyIdx !== -1) {
-							// Update existing notch if new detection is deeper
 							const existing = slots[nearbyIdx]
-							if (depth < existing.gain) {
-								const cmds = buildCommand('peq_filter', {
-									output, filter: existing.filter,
-									type: 'Notch', freq: det.hz, gain: depth, q,
-								}, this.topology)
-								this.sendCommands(cmds)
-								slots[nearbyIdx] = { ...existing, freq: det.hz, gain: depth, q, clientId, placedAt: new Date().toISOString() }
-								actions.push({ type: 'notch_placed', freq: det.hz, output, filter: existing.filter, gain: depth, q, clientId, note: 'updated_nearby' })
+							const needsDeeper = depth < existing.gain
+							const freqDrifted = Math.abs(det.hz - existing.freq) > 5
+							const qChanged = Math.abs(q - (existing.q || 10)) > 1
+							if (needsDeeper || freqDrifted) {
+								const newGain = Math.min(existing.gain, depth)
+								// Send freq/Q instantly (must track feedback), fade gain smoothly
+								const instant = { output, filter: existing.filter }
+								if (freqDrifted) instant.freq = det.hz
+								if (qChanged) instant.q = q
+								const cmds = buildCommand('peq_filter', instant, this.topology)
+								if (cmds.length > 0) this.sendCommands(cmds)
+								// Smooth fade for gain changes (avoids audible jump)
+								if (needsDeeper) {
+									this._startGainFade(output, existing.filter, existing.gain, newGain)
+								}
+								slots[nearbyIdx] = { ...existing, freq: det.hz, gain: newGain, q, clientId, confidence: det.confidence, placedAt: new Date().toISOString() }
+								actions.push({ type: 'notch_placed', freq: det.hz, output, filter: existing.filter, gain: newGain, q, clientId, note: freqDrifted ? 'recentered_drift' : 'deepened' })
 							} else {
 								actions.push({ type: 'skipped_nearby', freq: det.hz, clientId, existingFreq: existing.freq })
 							}
@@ -1507,11 +1547,13 @@ class PA2Instance extends InstanceBase {
 							actions.push({ type: 'skipped_no_slots', freq: det.hz, clientId })
 							continue
 						}
+						// Set filter shape instantly at 0dB, then fade to target gain
 						const cmds = buildCommand('peq_filter', {
 							output, filter: slot,
-							type: 'Notch', freq: det.hz, gain: depth, q,
+							type: 'Notch', freq: det.hz, gain: 0, q,
 						}, this.topology)
 						this.sendCommands(cmds)
+						this._startGainFade(output, slot, 0, depth)
 						slots.push({ output, filter: slot, freq: det.hz, gain: depth, q, clientId, confidence: det.confidence, placedAt: new Date().toISOString() })
 						actions.push({ type: 'notch_placed', freq: det.hz, output, filter: slot, gain: depth, q, clientId, afsActive })
 					}
@@ -1524,7 +1566,15 @@ class PA2Instance extends InstanceBase {
 					detect_slots_used: `${this.pa2State.autoNotch.slotsUsed.length}/8`,
 					detect_active: 'ON',
 				})
-				return json({ actions, slots_used: this.pa2State.autoNotch.slotsUsed.length, slots_available: 8 - this.pa2State.autoNotch.slotsUsed.length })
+				return json({
+					actions,
+					slots_used: this.pa2State.autoNotch.slotsUsed.length,
+					slots_available: 8 - this.pa2State.autoNotch.slotsUsed.length,
+					// Include active notch state so DWA can deduplicate and visualize
+					active_notches: this.pa2State.autoNotch.slotsUsed.map((s) => ({
+						freq: s.freq, gain: s.gain, q: s.q, output: s.output, filter: s.filter, clientId: s.clientId,
+					})),
+				})
 			} catch (e) {
 				return { status: 400, headers: { ...cors, 'Content-Type': 'application/json' }, body: JSON.stringify({ ok: false, error: e.message }) }
 			}
@@ -1576,7 +1626,7 @@ class PA2Instance extends InstanceBase {
 						// H-7: 1/3-octave dedup — same as auto mode
 						const nearbyIdx = slots.findIndex((s) => {
 							const ratio = Math.max(s.freq, p.freq) / Math.min(s.freq, p.freq)
-							return ratio <= 1.26 && s.output === approveOutput
+							return ratio <= 1.33 && s.output === approveOutput
 						})
 						if (nearbyIdx !== -1) {
 							actions.push({ type: 'skipped_nearby', freq: p.freq, existingFreq: slots[nearbyIdx].freq })
@@ -1615,13 +1665,17 @@ class PA2Instance extends InstanceBase {
 				if (idx === -1) return json({ ok: false, error: 'clientId not found' })
 
 				const slot = slots[idx]
-				// Reset the hardware filter to flat — Bell at 0dB with wide Q effectively bypasses
-				const cmds = buildCommand('peq_filter', {
-					output: slot.output, filter: slot.filter,
-					type: 'Bell', freq: 1000, gain: 0, q: 1,
-				}, this.topology)
-				this.sendCommands(cmds)
-				// Remove from tracking
+				// Fade out to 0dB smoothly, then reset to flat Bell
+				this._startGainFade(slot.output, slot.filter, slot.gain || -6, 0, 300)
+				// After fade completes, reset filter type to Bell (bypassed)
+				setTimeout(() => {
+					const cmds = buildCommand('peq_filter', {
+						output: slot.output, filter: slot.filter,
+						type: 'Bell', freq: 1000, gain: 0, q: 1,
+					}, this.topology)
+					this.sendCommands(cmds)
+				}, 350) // slightly after fade ends
+				// Remove from tracking immediately (slot is being released)
 				slots.splice(idx, 1)
 				this.setVariableValues({ detect_slots_used: `${slots.length}/8` })
 				return json({ ok: true, clientId, freedFilter: slot.filter, slotsUsed: slots.length, slotsAvailable: 8 - slots.length })

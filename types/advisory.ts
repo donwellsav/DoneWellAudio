@@ -238,6 +238,14 @@ export interface Advisory {
     ml: number | null
     fusedProbability: number
   }
+  /** Spectral profile ±1 octave around detection — for smarter notch decisions */
+  spectralProfile?: {
+    lowHz: number
+    highHz: number
+    peakHz: number
+    samples: number[]
+    isHarmonic: boolean
+  }
   // UI-only: resolved state (worker never produces these)
   resolved?: boolean // True when worker cleared but user hasn't dismissed yet
   resolvedAt?: number // Timestamp when marked resolved
