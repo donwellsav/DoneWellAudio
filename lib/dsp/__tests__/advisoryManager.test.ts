@@ -479,12 +479,12 @@ describe('AdvisoryManager', () => {
   // ── 6. Rate limiting ─────────────────────────────────────────────────────
 
   describe('rate limiting', () => {
-    it('blocks new advisory within 500ms of last creation', () => {
+    it('blocks new advisory within 200ms of last creation', () => {
       const track1 = makeTrack({ id: 'track-rl1', trueFrequencyHz: 1000 })
       const track2 = makeTrack({ id: 'track-rl2', trueFrequencyHz: 3000 })
 
       const peak1 = makePeak({ timestamp: 10000 })
-      const peak2 = makePeak({ timestamp: 10300 }) // Only 300ms later
+      const peak2 = makePeak({ timestamp: 10100 }) // Only 100ms later
 
       mgr.createOrUpdate(track1, peak1, makeClassification(), makeEQAdvisory({ geq: { bandHz: 1000, bandIndex: 15, suggestedDb: -6 } }), settings)
       const actions2 = mgr.createOrUpdate(
@@ -563,7 +563,7 @@ describe('AdvisoryManager', () => {
       mgr.setBandCooldown(15, 10000)
 
       const track = makeTrack({ id: 'track-cd1', trueFrequencyHz: 1000 })
-      const peak = makePeak({ timestamp: 10500 }) // Only 500ms after cooldown (within 1500ms)
+      const peak = makePeak({ timestamp: 10200 }) // Only 200ms after cooldown (within 500ms)
 
       const actions = mgr.createOrUpdate(
         track, peak,
@@ -596,8 +596,8 @@ describe('AdvisoryManager', () => {
       mgr.setBandCooldown(15, 10000)
       mgr.setBandCooldown(20, 10000)
 
-      // 3001ms after cooldown set — greater than BAND_COOLDOWN_MS * 2 = 3000ms
-      mgr.pruneBandCooldowns(13001)
+      // 1001ms after cooldown set — greater than BAND_COOLDOWN_MS * 2 = 1000ms
+      mgr.pruneBandCooldowns(11001)
 
       // Now creating an advisory in band 15 should work even if timestamp would be in cooldown
       const track = makeTrack({ id: 'track-cd3', trueFrequencyHz: 1000 })
@@ -616,11 +616,11 @@ describe('AdvisoryManager', () => {
     it('pruneBandCooldowns keeps recent cooldowns', () => {
       mgr.setBandCooldown(15, 10000)
 
-      // Only 1000ms after — still within BAND_COOLDOWN_MS * 2
-      mgr.pruneBandCooldowns(11000)
+      // Only 300ms after — still within BAND_COOLDOWN_MS * 2 = 1000ms
+      mgr.pruneBandCooldowns(10300)
 
       const track = makeTrack({ id: 'track-cd4', trueFrequencyHz: 1000 })
-      const peak = makePeak({ timestamp: 11000 })
+      const peak = makePeak({ timestamp: 10300 })
 
       const actions = mgr.createOrUpdate(
         track, peak,
@@ -669,7 +669,7 @@ describe('AdvisoryManager', () => {
 
       // Now trying to create in same band should be blocked by cooldown
       const track2 = makeTrack({ id: 'track-cf4', trueFrequencyHz: 1010 })
-      const peak2 = makePeak({ timestamp: 20500 }) // 500ms after clear — within 1500ms cooldown
+      const peak2 = makePeak({ timestamp: 20200 }) // 200ms after clear — within 500ms cooldown
 
       const actions = mgr.createOrUpdate(
         track2, peak2,

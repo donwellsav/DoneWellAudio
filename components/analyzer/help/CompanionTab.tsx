@@ -19,26 +19,38 @@ export const CompanionTab = memo(function CompanionTab() {
         <div className="py-1.5 px-2 section-label panel-groove bg-card/60">Download &amp; Setup</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-3">
           <HelpSection title="Get the Module">
-            <p className="mb-2">The Companion module is a standalone package you install on whatever machine runs Companion — it does not need to be this machine.</p>
-            <a
-              href="/downloads/companion-module-donewell-audio.zip"
-              download
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary text-primary-foreground text-xs font-mono font-bold tracking-wider uppercase hover:bg-primary/90 transition-colors"
-            >
-              Download Companion Module (.zip)
-            </a>
+            <p className="mb-2">Pre-built, ready to use. Unzip into Companion&apos;s dev modules folder — no build step needed.</p>
+            <div className="space-y-2">
+              <a
+                href="/downloads/donewell-companion-modules.zip"
+                download
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary text-primary-foreground text-xs font-mono font-bold tracking-wider uppercase hover:bg-primary/90 transition-colors"
+              >
+                Download Both Modules (.zip)
+              </a>
+              <p className="text-[10px] text-muted-foreground/60">DoneWell Audio + dbx PA2 Bridge. Recommended.</p>
+              <div className="flex gap-2 flex-wrap">
+                <a href="/downloads/companion-module-donewell-audio.zip" download
+                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-muted text-foreground text-xs font-mono hover:bg-muted/80 transition-colors">
+                  DoneWell Audio Only
+                </a>
+                <a href="/downloads/companion-module-dbx-driverack-pa2.zip" download
+                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-muted text-foreground text-xs font-mono hover:bg-muted/80 transition-colors">
+                  PA2 Bridge Only
+                </a>
+              </div>
+            </div>
             <div className="mt-3 space-y-2">
               <p className="font-medium text-foreground text-sm">Install steps:</p>
               <ol className="list-decimal list-inside space-y-1">
-                <li>Click the download button above (pre-built, ready to use)</li>
-                <li>Unzip the downloaded file</li>
-                <li>In Companion, go to <strong>Connections</strong> &rarr; <strong>Add connection</strong></li>
-                <li>Click <strong>Developer modules path</strong> at the bottom and point it to the unzipped folder</li>
-                <li>Restart Companion — search for <strong>&ldquo;DoneWell Audio&rdquo;</strong> in Add Connection</li>
+                <li>Click a download button above</li>
+                <li>Unzip into Companion&apos;s dev modules folder</li>
+                <li>Restart Companion</li>
+                <li>Search for <strong>&ldquo;DoneWell Audio&rdquo;</strong> or <strong>&ldquo;PA2&rdquo;</strong> in Add Connection</li>
               </ol>
             </div>
-            <p className="mt-2 text-xs text-muted-foreground/70">
-              Source code is in the <code className="font-mono text-xs bg-muted px-1 rounded">companion-module/</code> folder of this project&apos;s repository.
+            <p className="mt-2 text-[10px] text-muted-foreground/50">
+              v0.2.20260328 &mdash; pre-packaged with node_modules.
             </p>
           </HelpSection>
 

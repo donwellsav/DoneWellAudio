@@ -1,0 +1,27 @@
+{
+	"$schema": "../node_modules/@companion-module/base/assets/manifest.schema.json",
+	"id": "dbx-driverack-pa2",
+	"name": "dbx DriveRack PA2",
+	"shortname": "PA2",
+	"description": "Control dbx DriveRack PA2 loudspeaker management system via Ethernet",
+	"version": "0.2.20260328",
+	"license": "MIT",
+	"repository": "git+https://github.com/killthering/companion-module-dbx-driverack-pa2.git",
+	"bugs": "https://github.com/killthering/companion-module-dbx-driverack-pa2/issues",
+	"maintainers": [
+		{
+			"name": "killthering",
+			"email": "dev@killthering.com"
+		}
+	],
+	"runtime": {
+		"type": "node22",
+		"api": "nodejs-ipc",
+		"apiVersion": "0.0.0",
+		"entrypoint": "../src/main.js"
+	},
+	"legacyIds": [],
+	"manufacturer": "dbx",
+	"products": ["DriveRack PA2"],
+	"keywords": ["audio", "loudspeaker", "driverack", "live-sound", "feedback", "eq"]
+}

@@ -43,6 +43,7 @@ import {
   mergeGEQCorrections,
   advisoriesToHybridActions,
 } from '@/lib/pa2/advisoryBridge'
+import { runClosedLoopCycle } from '@/lib/pa2/closedLoopEQ'
 
 // ═══ Hook Config ═══
 
@@ -70,6 +71,9 @@ export interface UsePA2BridgeConfig extends PA2ConnectionConfig {
 
   /** Enable bridge (default: true). Set false to disable without unmounting. */
   readonly enabled?: boolean
+
+  /** Trigger panic_mute on PA2 when a RUNAWAY advisory appears (default: false) */
+  readonly panicMuteEnabled?: boolean
 }
 
 // ═══ Hook Return ═══
@@ -113,6 +117,7 @@ const INITIAL_STATE: PA2BridgeState = {
   lastAutoSendResult: null,
   lastAutoSendError: null,
   autoSendDiag: null,
+  effectiveConfidence: 0,
 }
 
 // ═══ Hook ═══
@@ -126,8 +131,9 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
     advisories = [],
     autoSend = 'off',
     autoSendMinConfidence = 0.7,
-    autoSendIntervalMs = 1000,
+    autoSendIntervalMs = 250,
     enabled = true,
+    panicMuteEnabled = false,
   } = config
 
   const [state, setState] = useState<PA2BridgeState>(INITIAL_STATE)
@@ -135,6 +141,10 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const lastAutoSendRef = useRef<number>(0)
   const mountedRef = useRef(true)
+  /** Track GEQ corrections already applied — prevents accumulation on repeated cycles */
+  const appliedGEQRef = useRef<Record<string, number>>({})
+  /** Companion's notch confidence threshold from /loop — used as floor for detect sends */
+  const companionThresholdRef = useRef<number>(0)
 
   // ── Client lifecycle ──
 
@@ -173,6 +183,11 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
 
         const rtaArray = loopRTAToArray(loop)
 
+        // Capture Companion's confidence threshold so auto-send can pre-filter
+        if (loop.notchConfidenceThreshold !== undefined) {
+          companionThresholdRef.current = loop.notchConfidenceThreshold
+        }
+
         setState((s) => ({
           status: 'connected',
           pa2Connected: loop.connected,
@@ -187,6 +202,7 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
           lastAutoSendResult: s.lastAutoSendResult,
           lastAutoSendError: s.lastAutoSendError,
           autoSendDiag: s.autoSendDiag,
+          effectiveConfidence: Math.max(autoSendMinConfidence, companionThresholdRef.current),
         }))
       } catch (err) {
         if (!mountedRef.current) return
@@ -245,10 +261,11 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
     if (autoSend === 'off' || !clientRef.current || state.status !== 'connected') return
     if (!state.pa2Connected) return // Don't send if PA2 hardware isn't connected
 
-    // Compute diagnostics on every run so UI always shows filter status
+    // Compute diagnostics using the effective threshold (max of local + companion)
+    const effectiveThreshold = Math.max(autoSendMinConfidence, companionThresholdRef.current)
     const total = advisories.length
     const active = advisories.filter(a => !a.resolved).length
-    const aboveThreshold = advisories.filter(a => !a.resolved && a.confidence >= autoSendMinConfidence).length
+    const aboveThreshold = advisories.filter(a => !a.resolved && a.confidence >= effectiveThreshold).length
     const diag = { total, aboveThreshold, active }
 
     if (total === 0) {
@@ -269,18 +286,51 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
     if (now - lastAutoSendRef.current < autoSendIntervalMs) return
     lastAutoSendRef.current = now
 
+    // Panic mute: if any advisory is RUNAWAY and panic is enabled, mute immediately
+    if (panicMuteEnabled) {
+      const hasRunaway = advisories.some(a => !a.resolved && a.severity === 'RUNAWAY')
+      if (hasRunaway && clientRef.current) {
+        clientRef.current.sendAction('panic_mute').catch(recordAutoSendError)
+      }
+    }
+
+    // Skip GEQ corrections if poll data is stale (older than 2 poll intervals)
+    const geqFresh = state.lastPollTimestamp > 0 && (now - state.lastPollTimestamp) < pollIntervalMs * 2
+
     const client = clientRef.current
 
-    if (autoSend === 'geq' && state.geq) {
+    if (autoSend === 'geq' && state.geq && geqFresh) {
       const corrections = advisoriesToGEQCorrections(advisories, autoSendMinConfidence)
-      if (Object.keys(corrections).length > 0) {
-        const merged = mergeGEQCorrections(state.geq.bands, corrections)
+      // Skip bands already applied at the same depth (prevents accumulation)
+      const newCorrections: Record<string, number> = {}
+      for (const [band, gain] of Object.entries(corrections)) {
+        if (appliedGEQRef.current[band] !== gain) {
+          newCorrections[band] = gain
+        }
+      }
+      if (Object.keys(newCorrections).length > 0) {
+        const merged = mergeGEQCorrections(state.geq.bands, newCorrections)
         client.setGEQBands(merged)
-          .then(() => recordAutoSendSuccess('geq', Object.keys(corrections).length))
+          .then(async () => {
+            Object.assign(appliedGEQRef.current, newCorrections)
+            recordAutoSendSuccess('geq', Object.keys(newCorrections).length)
+            // Closed-loop verify: check if corrections were effective, deepen if not
+            if (clientRef.current) {
+              try {
+                const { deepened } = await runClosedLoopCycle(clientRef.current, newCorrections, 2000)
+                if (Object.keys(deepened).length > 0 && clientRef.current) {
+                  const deepMerged = mergeGEQCorrections(state.geq?.bands ?? {}, deepened)
+                  await clientRef.current.setGEQBands(deepMerged)
+                  Object.assign(appliedGEQRef.current, deepened)
+                }
+              } catch { /* closed-loop is best-effort */ }
+            }
+          })
           .catch(recordAutoSendError)
       }
     } else if (autoSend === 'peq') {
-      const payload = advisoriesToDetectPayload(advisories, autoSendMinConfidence)
+      const effectiveThreshold = Math.max(autoSendMinConfidence, companionThresholdRef.current)
+      const payload = advisoriesToDetectPayload(advisories, effectiveThreshold)
       if (payload.length > 0) {
         client.detect({ frequencies: payload, source: 'donewellaudio' })
           .then((res) => {
@@ -297,9 +347,9 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
           .catch(recordAutoSendError)
       }
     } else if (autoSend === 'hybrid') {
-      const actions = advisoriesToHybridActions(advisories, autoSendMinConfidence)
+      const actions = advisoriesToHybridActions(advisories, Math.max(autoSendMinConfidence, companionThresholdRef.current))
       const geqCorrections: Record<string, number> = {}
-      const peqPayload: { hz: number; magnitude?: number; confidence: number; type: 'feedback' | 'resonance' }[] = []
+      const peqPayload: { hz: number; confidence: number; type: 'feedback' | 'resonance'; q?: number }[] = []
 
       for (const action of actions) {
         if (action.type === 'geq') {
@@ -311,14 +361,15 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
         } else {
           peqPayload.push({
             hz: action.bandOrFreq,
-            confidence: 0.9,
+            confidence: action.confidence ?? 0.9,
             type: 'feedback',
+            q: action.q,
           })
         }
       }
 
       const totalCount = Object.keys(geqCorrections).length + peqPayload.length
-      if (Object.keys(geqCorrections).length > 0 && state.geq) {
+      if (Object.keys(geqCorrections).length > 0 && state.geq && geqFresh) {
         const merged = mergeGEQCorrections(state.geq.bands, geqCorrections)
         client.setGEQBands(merged)
           .then(() => recordAutoSendSuccess('both', totalCount))
@@ -329,20 +380,39 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
           .catch(recordAutoSendError)
       }
     } else if (autoSend === 'both') {
-      // GEQ for the broad room curve
-      let geqCount = 0
-      if (state.geq) {
-        const corrections = advisoriesToGEQCorrections(advisories, autoSendMinConfidence)
-        geqCount = Object.keys(corrections).length
-        if (geqCount > 0) {
-          const merged = mergeGEQCorrections(state.geq.bands, corrections)
-          client.setGEQBands(merged).catch(recordAutoSendError)
+      // Partition advisories: narrow/urgent → PEQ only, broad → GEQ only.
+      // This prevents double-cutting the same advisory via both paths.
+      const actions = advisoriesToHybridActions(advisories, Math.max(autoSendMinConfidence, companionThresholdRef.current))
+      const geqCorrections: Record<string, number> = {}
+      const peqPayload: { hz: number; confidence: number; type: 'feedback' | 'resonance'; q?: number }[] = []
+
+      for (const action of actions) {
+        if (action.type === 'geq') {
+          const band = String(action.bandOrFreq)
+          const existing = geqCorrections[band]
+          if (existing === undefined || action.gain < existing) {
+            geqCorrections[band] = action.gain
+          }
+        } else {
+          peqPayload.push({
+            hz: action.bandOrFreq,
+            confidence: action.confidence ?? 0.9,
+            type: 'feedback',
+            q: action.q,
+          })
         }
       }
-      // PEQ for surgical feedback notches
-      const payload = advisoriesToDetectPayload(advisories, autoSendMinConfidence)
-      if (payload.length > 0) {
-        client.detect({ frequencies: payload, source: 'donewellaudio' })
+
+      // Send GEQ corrections for broad advisories
+      let geqCount = 0
+      if (Object.keys(geqCorrections).length > 0 && state.geq) {
+        const merged = mergeGEQCorrections(state.geq.bands, geqCorrections)
+        geqCount = Object.keys(geqCorrections).length
+        client.setGEQBands(merged).catch(recordAutoSendError)
+      }
+      // Send PEQ detections for narrow/urgent advisories
+      if (peqPayload.length > 0) {
+        client.detect({ frequencies: peqPayload, source: 'donewellaudio' })
           .then((res) => {
             if (!mountedRef.current) return
             const placed = res.actions?.filter((a: { type: string }) => a.type === 'notch_placed').length ?? 0
@@ -361,7 +431,7 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
                 lastAutoSendError: `Companion skipped ${skipped} detection${skipped !== 1 ? 's' : ''} — lower confidence threshold in Companion module config`,
               }))
             } else {
-              recordAutoSendSuccess('both', geqCount + payload.length)
+              recordAutoSendSuccess('both', geqCount + peqPayload.length)
             }
           })
           .catch(recordAutoSendError)
@@ -369,7 +439,24 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
         recordAutoSendSuccess('geq', geqCount)
       }
     }
-  }, [advisories, autoSend, autoSendMinConfidence, autoSendIntervalMs, state.status, state.geq, state.pa2Connected])
+  }, [advisories, autoSend, autoSendMinConfidence, autoSendIntervalMs, state.status, state.geq, state.pa2Connected, state.lastPollTimestamp])
+
+  // ── Auto-release notches when advisories resolve ──
+
+  const releasedIdsRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (autoSend === 'off' || !clientRef.current || state.status !== 'connected') return
+
+    for (const adv of advisories) {
+      if (adv.resolved && adv.id && !releasedIdsRef.current.has(adv.id)) {
+        releasedIdsRef.current.add(adv.id)
+        clientRef.current.releaseNotch(adv.id).catch(() => {
+          // Best-effort — notch may not have been placed for this advisory
+        })
+      }
+    }
+  }, [advisories, autoSend, state.status])
 
   // ── Imperative methods ──
 
@@ -388,7 +475,7 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
     const client = clientRef.current
     if (!client) return
 
-    const payload = advisoriesToDetectPayload(advisories, autoSendMinConfidence)
+    const payload = advisoriesToDetectPayload(advisories, Math.max(autoSendMinConfidence, companionThresholdRef.current))
     if (payload.length === 0) return
 
     const res = await client.detect({ frequencies: payload, source: 'donewellaudio' })

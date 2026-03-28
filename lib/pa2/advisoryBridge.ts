@@ -55,16 +55,24 @@ export function findNearestGEQBandIndex(frequencyHz: number): number {
  * | WHISTLE | -4 dB |
  * | INSTRUMENT | 0 dB (no action) |
  */
-export function severityToGEQCut(severity: SeverityLevel): number {
+export function severityToGEQCut(severity: SeverityLevel, q?: number): number {
+  let base: number
   switch (severity) {
-    case 'RUNAWAY': return -12
-    case 'GROWING': return -6
-    case 'RESONANCE': return -3
-    case 'POSSIBLE_RING': return -2
-    case 'WHISTLE': return -4
+    case 'RUNAWAY': base = -12; break
+    case 'GROWING': base = -6; break
+    case 'RESONANCE': base = -3; break
+    case 'POSSIBLE_RING': base = -2; break
+    case 'WHISTLE': base = -4; break
     case 'INSTRUMENT': return 0
     default: return 0
   }
+  // Q-scaling: narrow feedback (high Q) needs shallower cuts than broad (low Q).
+  // Q=4 (broad) -> full depth, Q=16 (narrow) -> half depth.
+  if (q !== undefined && q > 0) {
+    const qFactor = Math.max(0.5, Math.min(1.0, 4 / q))
+    return Math.round(base * qFactor)
+  }
+  return base
 }
 
 /**
@@ -81,17 +89,24 @@ export function severityToGEQCut(severity: SeverityLevel): number {
 export function advisoriesToGEQCorrections(
   advisories: readonly Advisory[],
   minConfidence: number = 0.6,
+  softFloor: number = 0.25,
 ): Record<string, number> {
   const corrections: Record<string, number> = {}
 
   for (const adv of advisories) {
-    // Skip low-confidence and instrument classifications
-    if (adv.confidence < minConfidence) continue
     if (adv.severity === 'INSTRUMENT') continue
     if (adv.resolved) continue
+    // Below soft floor — skip entirely
+    if (adv.confidence < softFloor) continue
 
-    const cut = severityToGEQCut(adv.severity)
+    let cut = severityToGEQCut(adv.severity, adv.qEstimate)
     if (cut === 0) continue
+
+    // Between softFloor and minConfidence — apply shallower cut (half depth, min -2dB)
+    if (adv.confidence < minConfidence) {
+      cut = Math.max(-2, Math.round(cut * 0.5))
+      if (cut === 0) cut = -1
+    }
 
     const bandIdx = findNearestGEQBandIndex(adv.trueFrequencyHz)
     const bandNum = String(bandIdx + 1)
@@ -146,11 +161,12 @@ export function mergeGEQCorrections(
 export function advisoriesToDetectPayload(
   advisories: readonly Advisory[],
   minConfidence: number = 0.7,
+  softFloor: number = 0.25,
 ): PA2DetectFrequency[] {
   const payload: PA2DetectFrequency[] = []
 
   for (const adv of advisories) {
-    if (adv.confidence < minConfidence) continue
+    if (adv.confidence < softFloor) continue
     if (adv.resolved) continue
 
     // Map DWA severity to detect type — all actionable severities sent as 'feedback'
@@ -180,6 +196,7 @@ export interface HybridAction {
   readonly bandOrFreq: number
   readonly gain: number
   readonly q?: number
+  readonly confidence?: number
   readonly reason: string
 }
 
@@ -214,8 +231,9 @@ export function advisoriesToHybridActions(
       actions.push({
         type: 'peq',
         bandOrFreq: Math.round(adv.trueFrequencyHz),
-        gain: severityToGEQCut(adv.severity),
+        gain: severityToGEQCut(adv.severity, adv.qEstimate),
         q: Math.min(16, Math.max(4, adv.qEstimate)),
+        confidence: adv.confidence,
         reason: `${adv.severity} at ${Math.round(adv.trueFrequencyHz)}Hz (Q=${adv.qEstimate.toFixed(1)}, conf=${(adv.confidence * 100).toFixed(0)}%)`,
       })
     } else {
@@ -224,7 +242,7 @@ export function advisoriesToHybridActions(
       actions.push({
         type: 'geq',
         bandOrFreq: bandIdx + 1,
-        gain: severityToGEQCut(adv.severity),
+        gain: severityToGEQCut(adv.severity, adv.qEstimate),
         reason: `${adv.severity} near ${PA2_GEQ_FREQUENCIES[bandIdx]}Hz (conf=${(adv.confidence * 100).toFixed(0)}%)`,
       })
     }

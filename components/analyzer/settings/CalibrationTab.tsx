@@ -134,6 +134,7 @@ export const CalibrationTab = memo(function CalibrationTab({
 
       {/* ── Room Profile ─────────────────────────────────────────── */}
       <SectionGroup title="Room Profile">
+        <p className="text-[10px] text-muted-foreground/50 mb-1.5 px-1">Venue details for session logs, room mode calculation, and threshold tuning.</p>
         <Section title="Venue Name">
           <Input
             value={room.name}
@@ -143,7 +144,7 @@ export const CalibrationTab = memo(function CalibrationTab({
           />
         </Section>
 
-        <Section title="Dimensions">
+        <Section title="Dimensions" tooltip="Room dimensions for mode prediction and Schroeder frequency. Used to auto-tune detection thresholds.">
           <div className="flex items-center gap-2">
             <div className="flex-1 space-y-1">
               <Label className="text-xs text-muted-foreground">L</Label>
@@ -193,7 +194,7 @@ export const CalibrationTab = memo(function CalibrationTab({
           </div>
         </Section>
 
-        <Section title="Materials">
+        <Section title="Materials" tooltip="Surface materials affect RT60 and resonance damping estimates.">
           <div className="grid grid-cols-1 @[350px]:grid-cols-3 gap-2">
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">Floor</Label>
@@ -225,7 +226,7 @@ export const CalibrationTab = memo(function CalibrationTab({
           </div>
         </Section>
 
-        <Section title="Microphones">
+        <Section title="Microphones" tooltip="Select mic type for calibration compensation. More open mics = more gain-before-feedback risk.">
           <div className="flex flex-wrap gap-1.5">
             {MIC_OPTIONS.map(mic => (
               <button

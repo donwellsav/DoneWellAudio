@@ -91,6 +91,9 @@ export interface PA2Client {
   /** Approve/reject pending notch recommendations */
   approve(approve: number[], reject: number[]): Promise<PA2CommandResponse>
 
+  /** Release a single auto-placed notch by clientId */
+  releaseNotch(clientId: string): Promise<PA2CommandResponse>
+
   /** Clear all auto-placed notch filters */
   clearNotches(): Promise<PA2CommandResponse>
 }
@@ -189,6 +192,9 @@ export function createPA2Client(config: PA2ConnectionConfig): PA2Client {
     approve: (approve, reject) =>
       post<PA2CommandResponse>('approve', { approve, reject }),
 
+    releaseNotch: (clientId) =>
+      post<PA2CommandResponse>('notches/release', { clientId }),
+
     clearNotches: () => del<PA2CommandResponse>('notches'),
   }
 }
@@ -213,11 +219,18 @@ export class PA2ClientError extends Error {
  * Used to combine the caller's signal (component unmount) with the timeout signal.
  */
 function mergeAbortSignals(a: AbortSignal, b: AbortSignal): AbortSignal {
+  // Use native API when available (Chrome 116+, Firefox 124+, Safari 17.4+)
+  if (typeof AbortSignal.any === 'function') return AbortSignal.any([a, b])
+
   if (a.aborted) return a
   if (b.aborted) return b
 
   const controller = new AbortController()
-  const onAbort = () => controller.abort()
+  const onAbort = () => {
+    controller.abort()
+    a.removeEventListener('abort', onAbort)
+    b.removeEventListener('abort', onAbort)
+  }
 
   a.addEventListener('abort', onAbort, { once: true })
   b.addEventListener('abort', onAbort, { once: true })

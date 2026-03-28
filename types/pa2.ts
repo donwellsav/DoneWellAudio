@@ -88,6 +88,8 @@ export interface PA2LoopResponse {
   readonly afs: { readonly enabled: boolean; readonly mode: string }
   readonly mutes: PA2MuteState
   readonly timestamp: number
+  /** Companion's notch confidence threshold — DWA should not send detections below this */
+  readonly notchConfidenceThreshold?: number
 }
 
 // ═══ Command Types ═══
@@ -203,6 +205,8 @@ export interface PA2BridgeState {
   readonly lastAutoSendError: string | null
   /** Diagnostic: how many advisories exist vs pass filters */
   readonly autoSendDiag: { total: number; aboveThreshold: number; active: number } | null
+  /** Effective confidence threshold (max of local setting and Companion's server-side threshold) */
+  readonly effectiveConfidence: number
 }
 
 // ═══ PA2 Settings ═══
@@ -250,7 +254,7 @@ export const DEFAULT_PA2_SETTINGS: PA2Settings = {
   instanceLabel: 'PA2',
   apiKey: '',
   autoSend: 'both',
-  autoSendMinConfidence: 0.5,
+  autoSendMinConfidence: 0.3,
   pollIntervalMs: 200,
   ringOutAutoSend: false,
   panicMuteEnabled: false,

@@ -31,7 +31,7 @@ export type AdvisoryAction =
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const ADVISORY_RATE_LIMIT_MS = 500
+const ADVISORY_RATE_LIMIT_MS = 200
 const CLEAR_PEAK_TOLERANCE_CENTS = 100
 
 // ── Advisory Manager ──────────────────────────────────────────────────────────

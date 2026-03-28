@@ -20,7 +20,7 @@ export const MODE_BASELINES: Readonly<Record<ModeId, ModeBaseline>> = {
     modeId: 'speech',
     label: 'Speech',
     description: 'Corporate & Conference',
-    feedbackThresholdDb: 27,
+    feedbackThresholdDb: 20,
     ringThresholdDb: 5,
     growthRateThreshold: 1.0,
     fftSize: 8192,

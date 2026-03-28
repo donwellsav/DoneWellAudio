@@ -36,6 +36,7 @@ const NOOP_BRIDGE: PA2ContextValue = {
   lastAutoSendResult: null,
   lastAutoSendError: null,
   autoSendDiag: null,
+  effectiveConfidence: 0,
   sendCorrections: NOOP_ASYNC,
   sendDetections: NOOP_ASYNC,
   flattenGEQ: NOOP_ASYNC,
@@ -80,6 +81,7 @@ export function PA2Provider({ advisories, children }: PA2ProviderProps) {
     autoSend: isActive ? settings.autoSend : 'off',
     autoSendMinConfidence: settings.autoSendMinConfidence,
     enabled: isActive,
+    panicMuteEnabled: settings.panicMuteEnabled,
   })
 
   const value = useMemo<PA2ContextValue>(() => ({

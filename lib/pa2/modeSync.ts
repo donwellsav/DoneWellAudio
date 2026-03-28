@@ -90,7 +90,7 @@ export async function syncModeToPA2(client: PA2Client, mode: OperationMode): Pro
   // Set AFS filter mode
   await client.sendAction('afs_mode', { mode: config.afsMode })
   // Enable/disable compressor
-  await client.sendAction('comp_enable', { value: config.compEnabled ? 'true' : 'false' })
+  await client.sendAction('comp_enable', { value: config.compEnabled })
   // Set compressor threshold (only if enabled)
   if (config.compEnabled) {
     await client.sendAction('comp_threshold', { value: config.compThresholdDb })

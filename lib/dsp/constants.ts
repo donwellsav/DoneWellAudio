@@ -363,7 +363,7 @@ export const HARMONIC_SETTINGS = {
 } as const
 
 // Band cooldown — suppresses re-triggering the same GEQ band after an advisory is explicitly cleared
-export const BAND_COOLDOWN_MS = 1500
+export const BAND_COOLDOWN_MS = 500
 
 // Memory management — bounds for long-running sessions (live gigs run hours)
 export const MEMORY_LIMITS = {
@@ -426,7 +426,7 @@ export const OPERATION_MODES: Record<string, ModePreset> = {
   speech: {
     label: 'Speech',
     description: 'Corporate & Conference',
-    feedbackThresholdDb: 27, // Conservative — reduces HVAC/ambient FP in conference rooms
+    feedbackThresholdDb: 20, // Aggressive — catches more feedback, some HVAC false positives acceptable
     ringThresholdDb: 5,      // Proven value — filters HVAC/ambient without missing genuine resonances
     growthRateThreshold: 1.0,
     fftSize: 8192,           // 5.9 Hz resolution, 170 ms time constant at 48 kHz
@@ -716,7 +716,7 @@ export const ROOM_PRESETS = {
     lengthM: 15, widthM: 12, heightM: 5, // Safe fallbacks (never used — gated by roomPreset !== 'none')
     treatment: 'typical' as const,
     roomRT60: 1.0, roomVolume: 1000, schroederFreq: 63,
-    feedbackThresholdDb: 30, ringThresholdDb: 4, // Neutral — no room physics active (matches Speech)
+    feedbackThresholdDb: 23, ringThresholdDb: 4, // Neutral — no room physics active (matches Speech)
   },
   small: {
     label: 'Small Room',
@@ -724,7 +724,7 @@ export const ROOM_PRESETS = {
     lengthM: 6.1, widthM: 4.6, heightM: 2.9, // ~81 m³
     treatment: 'treated' as const,
     roomRT60: 0.4, roomVolume: 80, schroederFreq: 141,
-    feedbackThresholdDb: 22, ringThresholdDb: 3, // Quiet treated room — sensitive (like Broadcast)
+    feedbackThresholdDb: 15, ringThresholdDb: 3, // Quiet treated room — sensitive
   },
   medium: {
     label: 'Medium Room',
@@ -732,7 +732,7 @@ export const ROOM_PRESETS = {
     lengthM: 10.7, widthM: 8.5, heightM: 3.4, // ~309 m³
     treatment: 'typical' as const,
     roomRT60: 0.7, roomVolume: 300, schroederFreq: 97,
-    feedbackThresholdDb: 30, ringThresholdDb: 4, // Conference room — matches Speech
+    feedbackThresholdDb: 23, ringThresholdDb: 4, // Conference room — matches Speech
   },
   large: {
     label: 'Large Venue',
@@ -740,7 +740,7 @@ export const ROOM_PRESETS = {
     lengthM: 15.2, widthM: 12.2, heightM: 5.5, // ~1019 m³
     treatment: 'typical' as const,
     roomRT60: 1.0, roomVolume: 1000, schroederFreq: 63,
-    feedbackThresholdDb: 32, ringThresholdDb: 5, // Ballroom — slightly conservative
+    feedbackThresholdDb: 25, ringThresholdDb: 5, // Ballroom — slightly conservative
   },
   arena: {
     label: 'Arena / Hall',
@@ -748,7 +748,7 @@ export const ROOM_PRESETS = {
     lengthM: 30, widthM: 25, heightM: 6.7, // ~5025 m³
     treatment: 'untreated' as const,
     roomRT60: 1.8, roomVolume: 5000, schroederFreq: 38,
-    feedbackThresholdDb: 38, ringThresholdDb: 6, // Large venue — conservative (like Outdoor)
+    feedbackThresholdDb: 31, ringThresholdDb: 6, // Large venue — conservative
   },
   worship: {
     label: 'Worship Space',
@@ -756,7 +756,7 @@ export const ROOM_PRESETS = {
     lengthM: 20, widthM: 14, heightM: 7.1, // ~1988 m³
     treatment: 'untreated' as const,
     roomRT60: 2.0, roomVolume: 2000, schroederFreq: 63,
-    feedbackThresholdDb: 35, ringThresholdDb: 5, // Reverberant — matches Worship mode
+    feedbackThresholdDb: 28, ringThresholdDb: 5, // Reverberant — matches Worship mode
   },
   custom: {
     label: 'Custom',
@@ -764,7 +764,7 @@ export const ROOM_PRESETS = {
     lengthM: 15, widthM: 12, heightM: 5,
     treatment: 'typical' as const,
     roomRT60: 1.0, roomVolume: 1000, schroederFreq: 63,
-    feedbackThresholdDb: 30, ringThresholdDb: 4, // Safe default (matches Speech)
+    feedbackThresholdDb: 23, ringThresholdDb: 4, // Safe default (matches Speech)
   },
 } as const
 

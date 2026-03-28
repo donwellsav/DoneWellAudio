@@ -45,6 +45,9 @@ class PA2Instance extends InstanceBase {
 		// Track whether initial state has been loaded from PA2
 		this.stateLoaded = false
 
+		// Serialized command queue tail — PEQ writes chain through this
+		this._cmdQueueTail = Promise.resolve()
+
 		// Topology — populated during DISCOVERING phase
 		this.topology = {}
 
@@ -858,12 +861,14 @@ class PA2Instance extends InstanceBase {
 		const t = this.topology
 		if (!xo || !t) return 'High'
 
-		// If multi-band, check crossover boundaries
-		if (t.hasLow && xo.Band_3 && xo.Band_3.hpFreq) {
+		// Route by crossover LP boundaries (upper edge of each band).
+		// Check Low first (lowest band), then Mid, fallback to High.
+		// Use lpFreq (upper boundary) — hpFreq can be 0 when HPF is bypassed/"Out".
+		if (t.hasLow && xo.Band_3 && xo.Band_3.lpFreq > 0) {
 			if (freqHz < xo.Band_3.lpFreq) return 'Low'
 		}
-		if (t.hasMid && xo.Band_2 && xo.Band_2.hpFreq) {
-			if (freqHz >= xo.Band_2.hpFreq && freqHz < xo.Band_2.lpFreq) return 'Mid'
+		if (t.hasMid && xo.Band_2 && xo.Band_2.lpFreq > 0) {
+			if (freqHz < xo.Band_2.lpFreq) return 'Mid'
 		}
 		return 'High'
 	}
@@ -1058,7 +1063,7 @@ class PA2Instance extends InstanceBase {
 	}
 
 	// ═══════════════════════════════════════════════════════════
-	// SEND COMMAND — with 20ms spacing
+	// SEND COMMAND — serialized queue for PEQ writes, 5ms spacing
 	// ═══════════════════════════════════════════════════════════
 	sendCommand(cmd) {
 		if (this.tcp && this.connState === 'READY') {
@@ -1068,12 +1073,24 @@ class PA2Instance extends InstanceBase {
 		}
 	}
 
+	/**
+	 * Send commands with 5ms spacing, serialized through the command queue.
+	 * Multiple callers wait in line — PEQ writes never interleave.
+	 */
 	async sendCommands(cmds) {
 		this._scanGEQWriteThrough(cmds)
-		for (const cmd of cmds) {
-			this.sendCommand(cmd)
-			await new Promise((r) => setTimeout(r, 5))
-		}
+		// Queue behind any in-flight command batch
+		const prev = this._cmdQueueTail || Promise.resolve()
+		const work = prev.then(async () => {
+			for (const cmd of cmds) {
+				this.sendCommand(cmd)
+				await new Promise((r) => setTimeout(r, 5))
+			}
+		}).catch((err) => {
+			this.log('error', `Queued send failed: ${err.message}`)
+		})
+		this._cmdQueueTail = work
+		return work
 	}
 
 	// Burst send — no spacing, for GEQ sweeps and time-critical operations
@@ -1330,7 +1347,8 @@ class PA2Instance extends InstanceBase {
 			return json({
 				connected: this.connState === 'READY',
 				topology: t.stereoGeq ? 'stereo' : (t.leftGeq || t.rightGeq) ? 'dual-mono' : 'unknown',
-				notchMode: this.config.notchMode || 'suggest',
+				notchMode: this.config.notchMode ?? 'suggest',
+				notchConfidenceThreshold: this.config.notchConfidenceThreshold ?? 0.8,
 				geqStale: this.pa2State.geq._stale || false,
 				notchSlotsUsed: this.pa2State.autoNotch.slotsUsed.length,
 				notchSlotsAvailable: 8 - this.pa2State.autoNotch.slotsUsed.length,
@@ -1374,41 +1392,72 @@ class PA2Instance extends InstanceBase {
 			if (this.connState !== 'READY') {
 				return json({ error: 'PA2 not connected' })
 			}
+			if (!this.stateLoaded) {
+				return json({ error: 'PA2 state not yet loaded — try again in a few seconds' })
+			}
 			try {
 				const body = parseBody(request.body)
-				const frequencies = body.frequencies || []
-				const threshold = this.config.notchConfidenceThreshold || 0.8
-				const maxDepth = this.config.notchMaxDepth || -6
-				const mode = this.config.notchMode || 'suggest'
+				const frequencies = body.frequencies
+				if (!Array.isArray(frequencies) || frequencies.length === 0) {
+					return json({ error: 'frequencies must be a non-empty array' })
+				}
+				const threshold = this.config.notchConfidenceThreshold ?? 0.8
+				const maxDepth = this.config.notchMaxDepth ?? -6
+				const mode = this.config.notchMode ?? 'suggest'
 				const actions = []
 
 				for (const det of frequencies) {
+					// Validate required fields
+					if (typeof det.hz !== 'number' || det.hz < 20 || det.hz > 20000) {
+						actions.push({ type: 'skipped_invalid', freq: det.hz, reason: 'hz must be 20-20000' })
+						continue
+					}
+					if (typeof det.confidence !== 'number' || det.confidence < 0 || det.confidence > 1) {
+						actions.push({ type: 'skipped_invalid', freq: det.hz, reason: 'confidence must be 0-1' })
+						continue
+					}
 					const clientId = det.clientId || null
 
 					if (det.type !== 'feedback') {
 						actions.push({ type: 'skipped_not_feedback', freq: det.hz, clientId, detType: det.type })
 						continue
 					}
-					if (threshold > 0 && det.confidence < threshold) {
-						actions.push({ type: 'skipped_low_confidence', freq: det.hz, clientId, confidence: det.confidence })
-						continue
-					}
+					// No hard rejection — low-confidence detections get shallower cuts via depth scaling above
 
 					// Server-side Q clamp: use provided Q or default to 10
 					const q = Math.max(4, Math.min(16, det.q ?? 10))
+
+					// Scale notch depth by confidence: high confidence = full depth, low = shallower
+					// conf >= threshold: full maxDepth. conf < threshold: half depth (min -2dB).
+					let depth = maxDepth
+					if (det.confidence < threshold) {
+						depth = Math.max(-2, Math.round(maxDepth * 0.5))
+					}
 
 					// Update tracking
 					this.pa2State.autoNotch.lastDetectFreq = det.hz
 					this.pa2State.autoNotch.lastDetectAction = mode === 'suggest' ? 'PENDING' : 'NOTCHED'
 
 					if (mode === 'suggest' || mode === 'approve') {
+						const detectionId = `det_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 						this.pa2State.autoNotch.pending.push({
-							freq: det.hz, suggestedGain: maxDepth, suggestedQ: q, confidence: det.confidence, clientId,
+							detectionId, freq: det.hz, suggestedGain: maxDepth, suggestedQ: q, confidence: det.confidence, clientId,
 						})
-						actions.push({ type: mode === 'suggest' ? 'suggested' : 'pending_approval', freq: det.hz, clientId })
+						actions.push({ type: mode === 'suggest' ? 'suggested' : 'pending_approval', freq: det.hz, clientId, detectionId })
 					} else if (mode === 'auto') {
 						// E1: Topology-aware output routing based on crossover frequencies
 						const output = this._routeToOutput(det.hz)
+
+						// Check PEQ is enabled on target output before placing notch
+						const peqState = this.pa2State.peq[output]
+						if (peqState && peqState.enabled === false) {
+							actions.push({ type: 'skipped_peq_disabled', freq: det.hz, clientId, output })
+							continue
+						}
+
+						// AFS coordination: if AFS is active in Fixed mode with filters,
+						// note it in the response so the client knows AFS may already cover this freq
+						const afsActive = this.pa2State.afs.enabled && this.pa2State.afs.fixedFilters > 0
 
 						// E2: 1/3-octave dedup — check if existing notch is nearby
 						const slots = this.pa2State.autoNotch.slotsUsed
@@ -1419,14 +1468,14 @@ class PA2Instance extends InstanceBase {
 						if (nearbyIdx !== -1) {
 							// Update existing notch if new detection is deeper
 							const existing = slots[nearbyIdx]
-							if (maxDepth < existing.gain) {
+							if (depth < existing.gain) {
 								const cmds = buildCommand('peq_filter', {
 									output, filter: existing.filter,
-									type: 'Bell', freq: det.hz, gain: maxDepth, q,
+									type: 'Notch', freq: det.hz, gain: depth, q,
 								}, this.topology)
 								this.sendCommands(cmds)
-								slots[nearbyIdx] = { ...existing, freq: det.hz, gain: maxDepth, q, clientId, placedAt: new Date().toISOString() }
-								actions.push({ type: 'notch_placed', freq: det.hz, output, filter: existing.filter, gain: maxDepth, q, clientId, note: 'updated_nearby' })
+								slots[nearbyIdx] = { ...existing, freq: det.hz, gain: depth, q, clientId, placedAt: new Date().toISOString() }
+								actions.push({ type: 'notch_placed', freq: det.hz, output, filter: existing.filter, gain: depth, q, clientId, note: 'updated_nearby' })
 							} else {
 								actions.push({ type: 'skipped_nearby', freq: det.hz, clientId, existingFreq: existing.freq })
 							}
@@ -1440,23 +1489,40 @@ class PA2Instance extends InstanceBase {
 							if (!usedFilters.includes(f)) { slot = f; break }
 						}
 						if (!slot) {
+							// Slot prioritization: if all full, replace the lowest-confidence notch on this output
+							const outputSlots = slots.filter((s) => s.output === output)
+							if (outputSlots.length > 0 && det.confidence > Math.min(...outputSlots.map((s) => s.confidence || 0))) {
+								const weakest = outputSlots.reduce((a, b) => ((a.confidence || 0) < (b.confidence || 0) ? a : b))
+								const weakIdx = slots.indexOf(weakest)
+								// Overwrite the weakest slot
+								const cmds = buildCommand('peq_filter', {
+									output, filter: weakest.filter,
+									type: 'Notch', freq: det.hz, gain: depth, q,
+								}, this.topology)
+								this.sendCommands(cmds)
+								slots[weakIdx] = { output, filter: weakest.filter, freq: det.hz, gain: depth, q, clientId, confidence: det.confidence, placedAt: new Date().toISOString() }
+								actions.push({ type: 'notch_placed', freq: det.hz, output, filter: weakest.filter, gain: depth, q, clientId, note: 'replaced_weakest' })
+								continue
+							}
 							actions.push({ type: 'skipped_no_slots', freq: det.hz, clientId })
 							continue
 						}
 						const cmds = buildCommand('peq_filter', {
 							output, filter: slot,
-							type: 'Bell', freq: det.hz, gain: maxDepth, q,
+							type: 'Notch', freq: det.hz, gain: depth, q,
 						}, this.topology)
 						this.sendCommands(cmds)
-						slots.push({ output, filter: slot, freq: det.hz, gain: maxDepth, q, clientId, placedAt: new Date().toISOString() })
-						actions.push({ type: 'notch_placed', freq: det.hz, output, filter: slot, gain: maxDepth, q, clientId })
+						slots.push({ output, filter: slot, freq: det.hz, gain: depth, q, clientId, confidence: det.confidence, placedAt: new Date().toISOString() })
+						actions.push({ type: 'notch_placed', freq: det.hz, output, filter: slot, gain: depth, q, clientId, afsActive })
 					}
 				}
 				// Update variables
+				this.pa2State.autoNotch.active = true
 				this.setVariableValues({
 					detect_last_freq: this.pa2State.autoNotch.lastDetectFreq ? `${this.pa2State.autoNotch.lastDetectFreq}Hz` : '',
 					detect_last_action: this.pa2State.autoNotch.lastDetectAction,
 					detect_slots_used: `${this.pa2State.autoNotch.slotsUsed.length}/8`,
+					detect_active: 'ON',
 				})
 				return json({ actions, slots_used: this.pa2State.autoNotch.slotsUsed.length, slots_available: 8 - this.pa2State.autoNotch.slotsUsed.length })
 			} catch (e) {
@@ -1477,11 +1543,14 @@ class PA2Instance extends InstanceBase {
 			if (this.connState !== 'READY') {
 				return json({ error: 'PA2 not connected' })
 			}
+			if (!this.stateLoaded) {
+				return json({ error: 'PA2 state not yet loaded' })
+			}
 			try {
 				const body = parseBody(request.body)
 				const approve = body.approve || []
 				const reject = body.reject || []
-				const maxDepth = this.config.notchMaxDepth || -6
+				const maxDepth = this.config.notchMaxDepth ?? -6
 				const actions = []
 
 				// Filter pending list
@@ -1491,9 +1560,10 @@ class PA2Instance extends InstanceBase {
 						return false
 					}
 					if (approve.includes(p.freq)) {
-						// Place the notch
+						// Place the notch — per-output slot allocation (matches /detect path)
+						const approveOutput = this._routeToOutput(p.freq)
 						const slots = this.pa2State.autoNotch.slotsUsed
-						const usedFilters = slots.map((s) => s.filter)
+						const usedFilters = slots.filter((s) => s.output === approveOutput).map((s) => s.filter)
 						let slot = null
 						for (let f = 1; f <= 8; f++) {
 							if (!usedFilters.includes(f)) { slot = f; break }
@@ -1502,15 +1572,23 @@ class PA2Instance extends InstanceBase {
 							actions.push({ type: 'skipped_no_slots', freq: p.freq })
 							return false
 						}
-						const approveQ = p.suggestedQ || 10
-						const approveOutput = this._routeToOutput(p.freq)
+						const approveQ = p.suggestedQ ?? 10
+						// H-7: 1/3-octave dedup — same as auto mode
+						const nearbyIdx = slots.findIndex((s) => {
+							const ratio = Math.max(s.freq, p.freq) / Math.min(s.freq, p.freq)
+							return ratio <= 1.26 && s.output === approveOutput
+						})
+						if (nearbyIdx !== -1) {
+							actions.push({ type: 'skipped_nearby', freq: p.freq, existingFreq: slots[nearbyIdx].freq })
+							return false
+						}
 						const cmds = buildCommand('peq_filter', {
 							output: approveOutput, filter: slot,
-							type: 'Bell', freq: p.freq, gain: maxDepth, q: approveQ,
+							type: 'Notch', freq: p.freq, gain: maxDepth, q: approveQ,
 						}, this.topology)
 						this.sendCommands(cmds)
 						slots.push({ output: approveOutput, filter: slot, freq: p.freq, gain: maxDepth, q: approveQ, placedAt: new Date().toISOString() })
-						actions.push({ type: 'notch_placed', freq: p.freq, output: 'High', filter: slot })
+						actions.push({ type: 'notch_placed', freq: p.freq, output: approveOutput, filter: slot, gain: maxDepth, q: approveQ })
 						return false
 					}
 					return true // keep in pending
@@ -1537,10 +1615,10 @@ class PA2Instance extends InstanceBase {
 				if (idx === -1) return json({ ok: false, error: 'clientId not found' })
 
 				const slot = slots[idx]
-				// Zero the hardware filter
+				// Reset the hardware filter to flat — Bell at 0dB with wide Q effectively bypasses
 				const cmds = buildCommand('peq_filter', {
 					output: slot.output, filter: slot.filter,
-					type: 'Bell', freq: slot.freq, gain: 0, q: 4,
+					type: 'Bell', freq: 1000, gain: 0, q: 1,
 				}, this.topology)
 				this.sendCommands(cmds)
 				// Remove from tracking
@@ -1560,7 +1638,7 @@ class PA2Instance extends InstanceBase {
 			for (const slot of this.pa2State.autoNotch.slotsUsed) {
 				const cmds = buildCommand('peq_filter', {
 					output: slot.output, filter: slot.filter,
-					type: 'Bell', freq: slot.freq, gain: 0, q: 4,
+					type: 'Bell', freq: 1000, gain: 0, q: 1,
 				}, this.topology)
 				this.sendCommands(cmds)
 			}
