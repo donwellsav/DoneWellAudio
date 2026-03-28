@@ -267,6 +267,40 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
     }
   }
 
+  // ── Dual-RTA cross-validation ──
+  // Compare DWA detection against PA2's independent RTA measurement mic.
+  // Two mics agreeing = higher confidence. Disagreeing = possible false positive.
+
+  const PA2_RTA_FREQS = [20,25,31.5,40,50,63,80,100,125,160,200,250,315,400,500,630,800,1000,1250,1600,2000,2500,3150,4000,5000,6300,8000,10000,12500,16000,20000]
+
+  function crossValidateWithPA2RTA(advFreqHz: number, advConfidence: number, pa2Rta: readonly number[]): number {
+    if (!pa2Rta || pa2Rta.length < 31) return advConfidence
+
+    // Find nearest PA2 RTA band to the advisory frequency
+    let bestIdx = 0
+    let bestDist = Infinity
+    for (let i = 0; i < PA2_RTA_FREQS.length; i++) {
+      const dist = Math.abs(Math.log2(advFreqHz / PA2_RTA_FREQS[i]))
+      if (dist < bestDist) { bestDist = dist; bestIdx = i }
+    }
+
+    // Check if PA2 RTA shows a peak at this frequency (above neighbors)
+    const bandDb = pa2Rta[bestIdx]
+    const leftDb = bestIdx > 0 ? pa2Rta[bestIdx - 1] : -90
+    const rightDb = bestIdx < 30 ? pa2Rta[bestIdx + 1] : -90
+    const neighborAvg = (leftDb + rightDb) / 2
+    const prominence = bandDb - neighborAvg
+
+    if (prominence > 6) {
+      // PA2 RTA confirms a peak — boost confidence 15%
+      return Math.min(1.0, advConfidence + 0.15)
+    } else if (prominence < 2 && bandDb < -60) {
+      // PA2 RTA shows no peak and low energy — reduce confidence 20%
+      return Math.max(0, advConfidence - 0.20)
+    }
+    return advConfidence
+  }
+
   // ── Auto-send advisory forwarding ──
 
   // Helpers to track auto-send results in state
@@ -317,13 +351,20 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
       }
     }
 
+    // Dual-RTA cross-validation: adjust advisory confidence using PA2 RTA
+    const xvAdvisories = advisories.map(adv => {
+      if (adv.resolved) return adv
+      const xvConf = crossValidateWithPA2RTA(adv.trueFrequencyHz, adv.confidence, state.rta)
+      return xvConf !== adv.confidence ? { ...adv, confidence: xvConf } : adv
+    })
+
     // Skip GEQ corrections if poll data is stale (older than 2 poll intervals)
     const geqFresh = state.lastPollTimestamp > 0 && (now - state.lastPollTimestamp) < pollIntervalMs * 2
 
     const client = clientRef.current
 
     if (autoSend === 'geq' && state.geq && geqFresh) {
-      const corrections = advisoriesToGEQCorrections(advisories, autoSendMinConfidence)
+      const corrections = advisoriesToGEQCorrections(xvAdvisories, autoSendMinConfidence)
       // Skip bands already applied at the same depth (prevents accumulation)
       const newCorrections: Record<string, number> = {}
       for (const [band, gain] of Object.entries(corrections)) {
@@ -353,7 +394,7 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
       }
     } else if (autoSend === 'peq') {
       const effectiveThreshold = Math.max(autoSendMinConfidence, companionThresholdRef.current)
-      const allPayload = advisoriesToDetectPayload(advisories, effectiveThreshold)
+      const allPayload = advisoriesToDetectPayload(xvAdvisories, effectiveThreshold)
       const payload = filterNewOrWorsened(allPayload)
       if (payload.length > 0) {
         client.detect({ frequencies: payload, source: 'donewellaudio' })
@@ -372,7 +413,7 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
           .catch(recordAutoSendError)
       }
     } else if (autoSend === 'hybrid') {
-      const actions = advisoriesToHybridActions(advisories, Math.max(autoSendMinConfidence, companionThresholdRef.current))
+      const actions = advisoriesToHybridActions(xvAdvisories, Math.max(autoSendMinConfidence, companionThresholdRef.current))
       const geqCorrections: Record<string, number> = {}
       const peqPayloadRaw: { hz: number; confidence: number; type: 'feedback' | 'resonance'; q?: number; clientId?: string }[] = []
 
@@ -410,7 +451,7 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
     } else if (autoSend === 'both') {
       // Partition advisories: narrow/urgent → PEQ only, broad → GEQ only.
       // This prevents double-cutting the same advisory via both paths.
-      const actions = advisoriesToHybridActions(advisories, Math.max(autoSendMinConfidence, companionThresholdRef.current))
+      const actions = advisoriesToHybridActions(xvAdvisories, Math.max(autoSendMinConfidence, companionThresholdRef.current))
       const geqCorrections: Record<string, number> = {}
       const peqPayloadRaw: { hz: number; confidence: number; type: 'feedback' | 'resonance'; q?: number; clientId?: string }[] = []
 

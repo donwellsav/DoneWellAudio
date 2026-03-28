@@ -116,6 +116,28 @@ export function advisoriesToGEQCorrections(
     if (existing === undefined || cut < existing) {
       corrections[bandNum] = cut
     }
+
+    // Adjacent band spreading: if feedback is >20% away from band center,
+    // energy bleeds into neighbors. Apply 30% of cut to adjacent bands.
+    const bandCenterHz = PA2_GEQ_FREQUENCIES[bandIdx]
+    const offset = Math.abs(adv.trueFrequencyHz - bandCenterHz) / bandCenterHz
+    if (offset > 0.20 && cut <= -3) {
+      const spreadCut = Math.max(-2, Math.round(cut * 0.3))
+      if (bandIdx > 0) {
+        const leftBand = String(bandIdx)
+        const leftExisting = corrections[leftBand]
+        if (leftExisting === undefined || spreadCut < leftExisting) {
+          corrections[leftBand] = spreadCut
+        }
+      }
+      if (bandIdx < 30) {
+        const rightBand = String(bandIdx + 2)
+        const rightExisting = corrections[rightBand]
+        if (rightExisting === undefined || spreadCut < rightExisting) {
+          corrections[rightBand] = spreadCut
+        }
+      }
+    }
   }
 
   return corrections
