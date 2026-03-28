@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.30.0',
+    date: '2026-03-28',
+    changes: [
+      { type: 'feat', description: '[x] `npx tsc --noEmit` — zero errors' },
+      { type: 'feat', description: '[x] `pnpm test` — 981 pass, 4 skip' },
+      { type: 'feat', description: '[ ] Live test with PA2 + feedback source' },
+    ],
+  },
+  {
     version: '0.29.0',
     date: '2026-03-28',
     changes: [
