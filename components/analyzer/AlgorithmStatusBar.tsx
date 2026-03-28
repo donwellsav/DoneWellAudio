@@ -95,7 +95,7 @@ export const AlgorithmStatusBar = memo(function AlgorithmStatusBar({
           </TooltipContent>
         </Tooltip>
 
-        <span className="text-muted-foreground/25 mx-0.5">|</span>
+        <span className="text-muted-foreground/20 mx-1">·</span>
 
         {/* Content Type */}
         <Tooltip>
@@ -115,7 +115,7 @@ export const AlgorithmStatusBar = memo(function AlgorithmStatusBar({
           </TooltipContent>
         </Tooltip>
 
-        <span className="text-muted-foreground/25 mx-0.5">|</span>
+        <span className="text-muted-foreground/20 mx-1">·</span>
 
         {/* MSD Buffer Status */}
         <Tooltip>
@@ -126,13 +126,13 @@ export const AlgorithmStatusBar = memo(function AlgorithmStatusBar({
               </span>
               {showDetailed && (
                 <div className="w-8 h-1.5 bg-muted rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className={`h-full transition-all duration-300 ${msdReady ? 'bg-green-500' : 'bg-amber-500'}`}
                     style={{ width: `${msdProgress}%` }}
                   />
                 </div>
               )}
-              <span className="text-muted-foreground">{msdFrameCount}</span>
+              <span className="text-muted-foreground/70 tabular-nums">{msdFrameCount}</span>
             </div>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-sm max-w-[280px]">
@@ -152,7 +152,7 @@ export const AlgorithmStatusBar = memo(function AlgorithmStatusBar({
         {/* Compression Indicator */}
         {isCompressed && (
           <>
-            <span className="text-muted-foreground/25 mx-0.5">|</span>
+            <span className="text-muted-foreground/20 mx-1">·</span>
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="text-amber-400 motion-safe:animate-pulse">
@@ -178,8 +178,8 @@ export const AlgorithmStatusBar = memo(function AlgorithmStatusBar({
             <span className="ml-auto" />
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className={`tabular-nums ${
-                  droppedPercent > 20 ? 'text-red-400' : droppedPercent > 5 ? 'text-amber-400' : 'text-muted-foreground'
+                <span className={`tabular-nums text-[10px] tracking-tight ${
+                  droppedPercent > 20 ? 'text-red-400' : droppedPercent > 5 ? 'text-amber-400' : 'text-muted-foreground/50'
                 }`}>
                   {actualFps}fps
                 </span>

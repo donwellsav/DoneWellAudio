@@ -83,7 +83,7 @@ export const DesktopLayout = memo(function DesktopLayout({
       <ResizablePanelGroup key={layoutKey} direction="horizontal" autoSaveId="dwa-layout-main-v4">
         {/* Sidebar panel */}
         <ResizablePanel defaultSize={20} minSize={8} maxSize={30} collapsible>
-          <div className="flex flex-col h-full bg-card/40 channel-strip overflow-hidden">
+          <div className="flex flex-col h-full bg-card/40 channel-strip overflow-hidden border-r-2 border-r-primary/10">
             {/* Algorithm status */}
             <div className="flex-shrink-0 border-b border-border p-2">
               <AlgorithmStatusBar

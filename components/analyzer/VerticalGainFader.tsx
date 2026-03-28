@@ -455,7 +455,7 @@ export const VerticalGainFader = memo(function VerticalGainFader({
         />
       ) : (
         <button
-          className={`font-mono text-center transition-colors cursor-text flex-shrink-0 tabular-nums text-sm leading-tight ${
+          className={`fader-readout font-mono text-center transition-colors cursor-text flex-shrink-0 tabular-nums text-sm leading-tight ${
             isSensitivity
               ? 'text-blue-400 hover:text-blue-300'
               : autoGainEnabled ? 'text-primary hover:text-primary/80' : 'text-foreground hover:text-primary'

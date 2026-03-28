@@ -120,7 +120,7 @@ export const HeaderBar = memo(function HeaderBar() {
         )}
 
         {/* ── Primary actions group ───────────────────── */}
-        <div className="flex items-center gap-0">
+        <div className="flex items-center gap-0 icon-cluster">
 
         {isRunning && (
           <Tooltip>
@@ -175,7 +175,7 @@ export const HeaderBar = memo(function HeaderBar() {
         <div className="hidden tablet:block w-px h-6 bg-border/40 mx-1 sm:mx-1.5 flex-shrink-0" aria-hidden="true" />
 
         {/* ── Utility group (desktop: inline, mobile: overflow menu) ── */}
-        <div className="hidden tablet:flex items-center gap-0">
+        <div className="hidden tablet:flex items-center gap-0 icon-cluster">
           <FeedbackHistoryPanel />
           <Suspense fallback={<div className="h-10 w-10" />}>
             <LazyHelpMenu />

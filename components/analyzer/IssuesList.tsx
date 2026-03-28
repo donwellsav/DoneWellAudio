@@ -223,16 +223,20 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
             </p>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center flex-1 min-h-[80px] text-muted-foreground py-4">
-            {/* Scanning indicator — horizontal sweep line */}
-            <div className="w-full max-w-[180px] h-[2px] bg-primary/10 rounded-full overflow-hidden mb-3">
-              <div className="h-full w-1/3 bg-primary/40 rounded-full animate-[scan_2s_ease-in-out_infinite]" />
+          <div className="flex flex-col items-center justify-center flex-1 min-h-[80px] py-6 gap-2">
+            {/* Radar ping — sonar sweep */}
+            <div className="relative flex items-center justify-center flex-shrink-0" style={{ width: 44, height: 44 }}>
+              <div className={isLowSignal ? 'radar-ring-amber' : 'radar-ring'} />
+              <div className={`radar-ring ${isLowSignal ? 'radar-ring-amber' : ''}`} style={{ animationDelay: '1.4s' }} />
+              <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${isLowSignal ? 'bg-[var(--console-amber)]/50' : 'bg-primary/50'}`} />
             </div>
-            <div className="font-mono text-xs font-bold tracking-[0.15em] uppercase text-muted-foreground/60">Monitoring</div>
+            <div className={`font-mono text-[10px] font-bold tracking-[0.25em] uppercase ${isLowSignal ? 'text-[var(--console-amber)]/60' : 'text-primary/50'}`}>
+              {isLowSignal ? 'Low Signal' : 'Clear'}
+            </div>
             {isLowSignal && (
-              <div className="flex items-center gap-1.5 mt-2 motion-safe:animate-pulse">
-                <span className="text-primary/50 text-sm leading-none">▲</span>
-                <span className="font-mono text-[10px] text-primary/40 tracking-wide">Increase gain</span>
+              <div className="flex items-center gap-1.5 motion-safe:animate-pulse">
+                <span className="text-[var(--console-amber)]/60 text-xs leading-none">▲</span>
+                <span className="font-mono text-[9px] text-[var(--console-amber)]/50 tracking-wider uppercase">Increase gain</span>
               </div>
             )}
           </div>
