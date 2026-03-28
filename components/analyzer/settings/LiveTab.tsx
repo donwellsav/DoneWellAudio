@@ -71,6 +71,9 @@ export const LiveTab = memo(function LiveTab({ settings }: LiveTabProps) {
         onChange={handleSensitivityChange}
       />
 
+      {/* Section divider */}
+      <div className="panel-groove-subtle" />
+
       {/* Frequency range presets + slider */}
       <div className="space-y-1 py-1">
         <div className="flex items-center gap-1 flex-wrap">

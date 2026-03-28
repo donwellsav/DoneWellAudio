@@ -89,14 +89,8 @@ export const ConsoleSlider = memo(function ConsoleSlider({
             />
           </SliderPrimitive.Track>
           <SliderPrimitive.Thumb
-            className="block shrink-0 rounded-full transition-shadow focus-visible:outline-hidden"
-            style={{
-              width: 20,
-              height: 20,
-              background: 'linear-gradient(135deg, #2a2d32, #1a1d22)',
-              border: '2px solid var(--console-amber)',
-              boxShadow: '0 0 8px var(--console-amber-glow), 0 2px 4px rgba(0,0,0,0.5)',
-            }}
+            className="console-thumb block shrink-0 rounded-full transition-[box-shadow,transform] duration-100 focus-visible:outline-hidden cursor-grab active:cursor-grabbing"
+            style={{ width: 20, height: 20 }}
           />
         </SliderPrimitive.Root>
       </div>

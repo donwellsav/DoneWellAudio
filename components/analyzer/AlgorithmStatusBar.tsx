@@ -56,6 +56,7 @@ export const AlgorithmStatusBar = memo(function AlgorithmStatusBar({
   if (!isRunning) {
     return (
       <div className="flex items-center gap-1.5 px-2 py-0.5 text-sm tracking-wide text-muted-foreground">
+        <span className="led-dot led-dot-waiting" />
         <span className="font-mono">ALGO: {ALGORITHM_MODE_LABELS[algorithmMode]}</span>
         <span className="text-muted-foreground/25 mx-0.5">|</span>
         <span className="font-mono">Waiting for audio...</span>
@@ -66,6 +67,7 @@ export const AlgorithmStatusBar = memo(function AlgorithmStatusBar({
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex items-center gap-1.5 px-2 py-0.5 text-sm tracking-wide font-mono">
+        <span className="led-dot led-dot-active" />
         {/* Algorithm Mode + auto-selected indicators */}
         <Tooltip>
           <TooltipTrigger asChild>

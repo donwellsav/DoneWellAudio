@@ -572,6 +572,58 @@ html {
   }
 }
 
+  /* ── Custom scrollbar — thin pro-console style ─────────────────────────── */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(245, 158, 11, 0.18);
+    border-radius: 2px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(245, 158, 11, 0.38); }
+  .light ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.1); }
+  .light ::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.2); }
+
+  /* ── LED status dot — hardware panel indicator ───────────────────────────── */
+  @keyframes led-pulse-amber {
+    0%, 100% { opacity: 0.55; box-shadow: 0 0 3px rgba(245, 158, 11, 0.35); }
+    50%       { opacity: 1;    box-shadow: 0 0 7px rgba(245, 158, 11, 0.65); }
+  }
+  @keyframes led-pulse-green {
+    0%, 100% { opacity: 0.8; box-shadow: 0 0 3px rgba(34, 197, 94, 0.3); }
+    50%      { opacity: 1;   box-shadow: 0 0 6px rgba(34, 197, 94, 0.55); }
+  }
+
+  .led-dot {
+    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; display: inline-block;
+  }
+  .led-dot-waiting {
+    background: var(--console-amber);
+    animation: led-pulse-amber 2s ease-in-out infinite;
+  }
+  .led-dot-active {
+    background: var(--console-green);
+    animation: led-pulse-green 2.5s ease-in-out infinite;
+  }
+  .led-dot-off {
+    background: rgba(100, 110, 120, 0.3);
+  }
+
+  /* ── Console thumb — active drag state ─────────────────────────────────── */
+  .console-thumb:active {
+    box-shadow: 0 0 16px var(--console-amber), 0 0 6px var(--console-amber-glow), 0 2px 4px rgba(0, 0, 0, 0.5) !important;
+    transform: scale(1.14);
+    transition: transform 60ms ease, box-shadow 60ms ease !important;
+  }
+
+  /* ── Tab content fade — smooth panel transitions ─────────────────────── */
+  @keyframes tab-fade-in {
+    0%   { opacity: 0; transform: translateY(4px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  .tab-content-fade {
+    animation: tab-fade-in 160ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
 /* ── Reduced motion: respect user preference (WCAG 2.3.3) ───────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .animate-emergency-glow {
@@ -592,6 +644,13 @@ html {
   .animate-arrow-flash {
     animation: none;
     opacity: 1;
+  }
+  .led-dot-waiting, .led-dot-active {
+    animation: none;
+    opacity: 1;
+  }
+  .tab-content-fade {
+    animation: none;
   }
   /* Blanket: suppress all Tailwind utility transitions for motion-sensitive users */
   *,

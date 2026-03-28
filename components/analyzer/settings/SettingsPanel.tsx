@@ -141,38 +141,40 @@ export const SettingsPanel = memo(function SettingsPanel({
 
         {/* ── Content ─────────────────────────────────────────────── */}
 
-        {activeTab === 'live' && (
-          <LiveTab settings={settings} />
-        )}
+        <div key={activeTab} className="tab-content-fade">
+          {activeTab === 'live' && (
+            <LiveTab settings={settings} />
+          )}
 
-        {activeTab === 'setup' && (
-          <SetupTab
-            settings={settings}
-            onSettingsChange={() => {}} // legacy prop for RoomTab/CalibrationTab
-            onModeChange={onModeChange}
-            calibration={calibration}
-            customPresets={customPresets}
-            showSaveInput={showSaveInput}
-            setShowSaveInput={setShowSaveInput}
-            presetName={presetName}
-            setPresetName={setPresetName}
-            handleSavePreset={handleSavePreset}
-            handleDeletePreset={handleDeletePreset}
-            handleLoadPreset={handleLoadPreset}
-          />
-        )}
+          {activeTab === 'setup' && (
+            <SetupTab
+              settings={settings}
+              onSettingsChange={() => {}} // legacy prop for RoomTab/CalibrationTab
+              onModeChange={onModeChange}
+              calibration={calibration}
+              customPresets={customPresets}
+              showSaveInput={showSaveInput}
+              setShowSaveInput={setShowSaveInput}
+              presetName={presetName}
+              setPresetName={setPresetName}
+              handleSavePreset={handleSavePreset}
+              handleDeletePreset={handleDeletePreset}
+              handleLoadPreset={handleLoadPreset}
+            />
+          )}
 
-        {activeTab === 'display' && (
-          <DisplayTab settings={settings} updateDisplay={ctx.updateDisplay} />
-        )}
+          {activeTab === 'display' && (
+            <DisplayTab settings={settings} updateDisplay={ctx.updateDisplay} />
+          )}
 
-        {activeTab === 'advanced' && (
-          <AdvancedTab
-            settings={settings}
-            onSettingsChange={() => {}} // legacy prop — all controls use semantic actions
-            {...(dataCollection ?? {})}
-          />
-        )}
+          {activeTab === 'advanced' && (
+            <AdvancedTab
+              settings={settings}
+              onSettingsChange={() => {}} // legacy prop — all controls use semantic actions
+              {...(dataCollection ?? {})}
+            />
+          )}
+        </div>
 
         {/* ── Footer: Reset ─────────────────────────── */}
         <div className="border-t border-border/40 pt-2 mt-2">
