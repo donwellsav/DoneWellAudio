@@ -71,7 +71,7 @@ export const AlgorithmStatusBar = memo(function AlgorithmStatusBar({
         {/* Algorithm Mode + auto-selected indicators */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="text-primary font-semibold inline-flex items-center gap-1">
+            <span className="font-semibold inline-flex items-center gap-1" style={{ color: 'var(--console-amber)' }}>
               {ALGORITHM_MODE_LABELS[algorithmMode]}
               {algorithmMode === 'auto' && (
                 <span className="text-muted-foreground font-normal">

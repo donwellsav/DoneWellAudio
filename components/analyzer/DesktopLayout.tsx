@@ -125,7 +125,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                 >
                   Issues
                   {activeAdvisoryCount > 0 && (
-                    <span className="ml-1 font-mono text-primary">{activeAdvisoryCount}</span>
+                    <span className="ml-1 font-mono text-[var(--console-amber)]">{activeAdvisoryCount}</span>
                   )}
                 </button>
               )}
@@ -148,8 +148,8 @@ export const DesktopLayout = memo(function DesktopLayout({
                     onClick={issuesPanelOpen ? closeIssuesPanel : openIssuesPanel}
                     className={`flex-shrink-0 px-2 py-1 rounded transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                       issuesPanelOpen
-                        ? 'text-primary'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-primary/10 ring-1 ring-primary/20'
+                        ? 'text-[var(--console-amber)]'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-[rgba(245,158,11,0.08)] ring-1 ring-[rgba(245,158,11,0.20)]'
                     }`}
                     aria-label={issuesPanelOpen ? 'Show Controls only' : 'Open split view'}
                   >

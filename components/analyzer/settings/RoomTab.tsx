@@ -280,7 +280,7 @@ export const RoomTab = memo(function RoomTab({
                     }}
                     className={`flex flex-col items-start px-2 py-1.5 rounded text-left transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                       isSelected
-                        ? 'bg-primary/20 border border-primary/50 text-primary'
+                        ? 'bg-[rgba(74,222,128,0.12)] border border-[rgba(74,222,128,0.40)] text-[var(--console-green)]'
                         : 'bg-card/40 border border-transparent hover:bg-muted'
                     }`}
                   >
@@ -306,7 +306,7 @@ export const RoomTab = memo(function RoomTab({
                       onClick={() => applyEnv({ displayUnit: unit })}
                       className={`px-2 py-0.5 text-sm rounded cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                         settings.roomDimensionsUnit === unit
-                          ? 'bg-primary/20 text-primary'
+                          ? 'bg-[rgba(74,222,128,0.12)] text-[var(--console-green)]'
                           : 'bg-card/40 text-muted-foreground hover:bg-muted'
                       }`}
                     >
@@ -364,7 +364,7 @@ export const RoomTab = memo(function RoomTab({
                       onClick={() => applyEnv({ treatment: val, templateId: 'custom', provenance: 'manual' })}
                       className={`flex-1 px-2 py-1 text-sm rounded cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                         settings.roomTreatment === val
-                          ? 'bg-primary/20 text-primary'
+                          ? 'bg-[rgba(74,222,128,0.12)] text-[var(--console-green)]'
                           : 'bg-card/40 text-muted-foreground hover:bg-muted'
                       }`}
                     >

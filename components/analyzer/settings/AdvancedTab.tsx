@@ -241,7 +241,7 @@ export const AdvancedTab = memo(function AdvancedTab({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Database className="w-4 h-4 text-primary" />
+                <Database className="w-4 h-4" style={{ color: 'var(--console-green)' }} />
                 <span className="text-sm text-muted-foreground font-mono tracking-wide">Share spectral data</span>
               </div>
               <PillToggle checked={consentStatus === 'accepted'} onChange={(checked) => { if (checked) onEnableCollection?.(); else onDisableCollection?.() }} />

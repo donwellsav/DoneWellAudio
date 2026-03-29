@@ -240,9 +240,9 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
             <div className="relative flex items-center justify-center flex-shrink-0" style={{ width: 44, height: 44 }}>
               <div className={isLowSignal ? 'radar-ring-amber' : 'radar-ring'} />
               <div className={`radar-ring ${isLowSignal ? 'radar-ring-amber' : ''}`} style={{ animationDelay: '1.4s' }} />
-              <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${isLowSignal ? 'bg-[var(--console-amber)]/50' : 'bg-primary/50'}`} />
+              <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${isLowSignal ? 'bg-[var(--console-amber)]/50' : 'bg-[var(--console-amber)]/40'}`} />
             </div>
-            <div className={`font-mono text-[10px] font-bold tracking-[0.25em] uppercase ${isLowSignal ? 'text-[var(--console-amber)]/60' : 'text-primary/50'}`}>
+            <div className={`font-mono text-[10px] font-bold tracking-[0.25em] uppercase ${isLowSignal ? 'text-[var(--console-amber)]/60' : 'text-[var(--console-amber)]/50'}`}>
               {isLowSignal ? 'Low Signal' : 'Clear'}
             </div>
             {isLowSignal && (

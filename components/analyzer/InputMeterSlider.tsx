@@ -352,7 +352,7 @@ export const InputMeterSlider = memo(function InputMeterSlider({
       ) : (
         <button
           className={`font-mono text-right transition-colors cursor-text flex-shrink-0 tabular-nums ${compact ? 'text-xs w-9' : 'text-sm w-12'} ${
-            autoGainEnabled ? 'text-primary hover:text-primary/80' : 'text-foreground hover:text-primary'
+            autoGainEnabled ? 'text-[var(--console-green)] hover:text-[var(--console-green)]/80' : 'text-[var(--console-amber)] hover:text-[var(--console-amber)]/80'
           }`}
           onClick={() => setEditing(true)}
           onWheel={(e) => {

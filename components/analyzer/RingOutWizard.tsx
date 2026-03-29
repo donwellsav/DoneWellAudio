@@ -138,7 +138,7 @@ export const RingOutWizard = memo(function RingOutWizard({
     return (
       <div className="flex flex-col h-full p-3 gap-3">
         <div className="flex items-center justify-between">
-          <h3 className="font-mono text-xs font-bold tracking-[0.15em] uppercase text-primary">
+          <h3 className="font-mono text-xs font-bold tracking-[0.15em] uppercase text-[var(--console-amber)]">
             Step {notched.length + 1}: Raise Gain
           </h3>
           <button
@@ -305,7 +305,7 @@ export const RingOutWizard = memo(function RingOutWizard({
   return (
     <div className="flex flex-col h-full p-3 gap-3">
       <div className="flex items-center justify-between">
-        <h3 className="font-mono text-xs font-bold tracking-[0.15em] uppercase text-primary flex items-center gap-1.5">
+        <h3 className="font-mono text-xs font-bold tracking-[0.15em] uppercase text-[var(--console-amber)] flex items-center gap-1.5">
           <Check className="w-3.5 h-3.5" />
           Ring-Out Complete
         </h3>
