@@ -42,12 +42,14 @@ export const ML_SETTINGS = {
   FEATURE_COUNT: 11,
 } as const
 
-// Precomputed lookup table: dB → linear power for range [-100, 0] at 0.1 dB steps
-// Replaces Math.exp(db * LN10_OVER_10) in the hot loop (4096 calls/frame → 1 array access)
-// 1001 entries × 4 bytes = ~4KB — fits comfortably in L1 cache
+// Precomputed lookup table: dB → linear power for range [-100, +30] at 0.1 dB steps
+// Extended from [-100, 0] to handle A-weighting (+12dB) + mic calibration (+12dB)
+// extremes without clamp-induced quantization error.
+// Index formula: lutIdx = ((db + 100) * 10 + 0.5) | 0
+// 1301 entries × 4 bytes = 5.2KB — fits comfortably in L1 cache
 export const EXP_LUT = /* @__PURE__ */ (() => {
-  const table = new Float32Array(1001)
-  for (let i = 0; i <= 1000; i++) {
+  const table = new Float32Array(1301)
+  for (let i = 0; i <= 1300; i++) {
     table[i] = Math.pow(10, (i / 10 - 100) / 10)
   }
   return table
@@ -703,7 +705,7 @@ export const DEFAULT_SETTINGS: DetectorSettings = {
   rtaDbMax: 0,
   spectrumLineWidth: 0.5,
   showThresholdLine: true,
-  canvasTargetFps: 15, // 15 fps saves CPU/GPU; sufficient for spectrum visualization on average devices
+  canvasTargetFps: 30, // 30 fps — canvas optimizations (grid cache, log-position hoisting) make this affordable
   faderMode: 'sensitivity' as const, // Fader strip: 'gain' (input gain, white) or 'sensitivity' (threshold, blue)
   swipeLabeling: false, // Swipe-to-label on issue cards (off by default — opt-in feature)
 }

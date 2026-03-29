@@ -1,7 +1,7 @@
 # CLAUDE.md — DoneWell Audio Project Intelligence
 
-> **Last updated March 2026. 169 TypeScript/TSX files, 985 tests (981 pass, 4 skip), 46 suites. Version 0.22.0.**
-> Amber sidecar theme. Three-color operator vocabulary. Help accordion system. Fader UI overhaul.
+> **Last updated March 2026. 165 TypeScript/TSX files, 994 tests (990 pass, 4 skip), 47 suites. Version 0.37.0.**
+> Amber sidecar theme. Three-color operator vocabulary. Help accordion system. Fader UI overhaul. Adaptive phase skip. Performance-optimized fusion loop + canvas rendering.
 
 ## CRITICAL RULES
 
@@ -300,9 +300,9 @@ scripts/ml/                     # ML training pipeline
 - **FeedbackDetector.analyze() is the hot path.** Runs every 20ms (50fps). Every optimization matters.
 - **MSD uses pooled sparse allocation:** 256 slots x 64 frames = 64KB (vs 1MB dense). O(1) slot allocation, O(256) LRU eviction.
 - **Prefix sum for O(1) prominence:** Float64Array prefix sum enables neighborhood averaging without per-bin loops.
-- **EXP_LUT:** 1001-entry precomputed dB-to-linear table. Use instead of Math.pow() in hot loops.
+- **EXP_LUT:** 1301-entry precomputed dB-to-linear table [-100, +30] dB. Use instead of Math.pow() in hot loops.
 - **Skip-threshold:** Bins 12dB below threshold skip the LUT entirely.
-- **Canvas at 30fps, not 60fps.** Sufficient for spectrum visualization. Saves 50% GPU.
+- **Canvas at 30fps (default), not 60fps.** Sufficient for spectrum visualization. Grid cached as Path2D, log-scale math hoisted outside loops.
 - **Worker backpressure:** If worker is still processing, next peak is DROPPED (not queued). Real-time > completeness.
 - **Transferable buffers:** spectrum and timeDomain Float32Arrays are transferred (zero-copy) to worker, then returned via `returnBuffers` message. No allocation after init.
 

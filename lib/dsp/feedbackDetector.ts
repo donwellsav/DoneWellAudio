@@ -1078,7 +1078,7 @@ export class FeedbackDetector {
 
       // LUT replaces Math.exp(db * ln10/10) — 0.1dB quantization, ~3x faster
       const lutIdx = ((db + 100) * 10 + 0.5) | 0
-      const p = EXP_LUT[lutIdx < 0 ? 0 : lutIdx > 1000 ? 1000 : lutIdx]
+      const p = EXP_LUT[lutIdx < 0 ? 0 : lutIdx > 1300 ? 1300 : lutIdx]
       power[i] = p
       prefix[i + 1] = prefix[i] + p
     }
@@ -1476,7 +1476,7 @@ export class FeedbackDetector {
 
       // Convert dB → linear power via EXP_LUT (clamped to [-100, 0] dB range)
       const lutIdx = ((maxHarmonicDb + 100) * 10 + 0.5) | 0
-      linearSum += EXP_LUT[lutIdx < 0 ? 0 : lutIdx > 1000 ? 1000 : lutIdx]
+      linearSum += EXP_LUT[lutIdx < 0 ? 0 : lutIdx > 1300 ? 1300 : lutIdx]
       harmonicCount++
     }
 

@@ -1,4 +1,5 @@
 import { defaultCache } from "@serwist/next/worker";
+import { CacheFirst, ExpirationPlugin } from "serwist";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
 import { Serwist } from "serwist";
 
@@ -15,7 +16,18 @@ const serwist = new Serwist({
   skipWaiting: false,
   clientsClaim: true,
   navigationPreload: true,
-  runtimeCaching: defaultCache,
+  runtimeCaching: [
+    ...defaultCache,
+    {
+      matcher: /\.(?:js|css|woff2?)$/i,
+      handler: new CacheFirst({
+        cacheName: "static-assets-v1",
+        plugins: [
+          new ExpirationPlugin({ maxEntries: 80, maxAgeSeconds: 30 * 24 * 60 * 60 }),
+        ],
+      }),
+    },
+  ],
   fallbacks: {
     entries: [
       {

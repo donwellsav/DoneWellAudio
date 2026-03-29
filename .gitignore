@@ -22,3 +22,7 @@ nul
 .vercel
 # Cloned Bitfocus Companion repo (not our module or bridge code)
 /companion/
+
+# Local output and temp directories
+/output/
+/tmp/
