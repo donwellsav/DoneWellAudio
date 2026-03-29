@@ -60,22 +60,28 @@ export function erbDepthScale(frequencyHz: number): number {
     return ERB_SETTINGS.HIGH_FREQ_SCALE
   }
   // Logarithmic interpolation (octave-based) for psychoacoustic accuracy
-  const logLow = Math.log2(ERB_SETTINGS.LOW_FREQ_HZ)
-  const logHigh = Math.log2(ERB_SETTINGS.HIGH_FREQ_HZ)
-  const t = (Math.log2(frequencyHz) - logLow) / (logHigh - logLow)
+  // Constants hoisted to module level — saves 2 Math.log2 + 1 division per call
+  const t = (Math.log2(frequencyHz) - _LOG2_LOW_FREQ) * _INV_LOG2_RANGE
   return ERB_SETTINGS.LOW_FREQ_SCALE + t * (ERB_SETTINGS.HIGH_FREQ_SCALE - ERB_SETTINGS.LOW_FREQ_SCALE)
 }
+
+// Pre-computed ERB log2 constants (used by erbDepthScale)
+const _LOG2_LOW_FREQ = Math.log2(ERB_SETTINGS.LOW_FREQ_HZ)
+const _INV_LOG2_RANGE = 1 / (Math.log2(ERB_SETTINGS.HIGH_FREQ_HZ) - _LOG2_LOW_FREQ)
 
 /**
  * Find nearest ISO 31-band to a given frequency
  */
+// Pre-computed log2 of ISO 31 bands — saves 31 Math.log2 calls per lookup
+const _ISO_31_BANDS_LOG2 = ISO_31_BANDS.map(f => Math.log2(f))
+
 export function findNearestGEQBand(freqHz: number): { bandHz: number; bandIndex: number } {
   let minDist = Infinity
   let nearestIndex = 0
+  const logFreq = Math.log2(freqHz)
 
-  for (let i = 0; i < ISO_31_BANDS.length; i++) {
-    // Use log distance for frequency comparison
-    const dist = Math.abs(Math.log2(freqHz / ISO_31_BANDS[i]))
+  for (let i = 0; i < _ISO_31_BANDS_LOG2.length; i++) {
+    const dist = Math.abs(logFreq - _ISO_31_BANDS_LOG2[i])
     if (dist < minDist) {
       minDist = dist
       nearestIndex = i

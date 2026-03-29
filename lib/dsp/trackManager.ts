@@ -34,6 +34,8 @@ export class TrackManager {
   private associationToleranceCents: number
   private trackTimeoutMs: number
   private _activeTracksCache: Track[] = []
+  /** Reusable array for getActiveTracks() — avoids per-call .map() allocation */
+  private _activePeaksPool: TrackedPeak[] = []
   /** Recently evicted tracks — restore history on re-detection instead of starting cold */
   private _evictedCache: EvictedTrackSnapshot[] = []
 
@@ -110,7 +112,12 @@ export class TrackManager {
    * Get all active tracks as TrackedPeak objects for UI consumption
    */
   getActiveTracks(): TrackedPeak[] {
-    return this._activeTracksCache.map(track => this.trackToTrackedPeak(track))
+    const cache = this._activeTracksCache
+    this._activePeaksPool.length = cache.length
+    for (let i = 0; i < cache.length; i++) {
+      this._activePeaksPool[i] = this.trackToTrackedPeak(cache[i])
+    }
+    return this._activePeaksPool
   }
 
   /**

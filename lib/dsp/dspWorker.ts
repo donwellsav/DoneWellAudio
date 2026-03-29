@@ -181,6 +181,8 @@ interface LabelRingBuffer {
 
 const LABEL_HISTORY_CAPACITY = CLASSIFICATION_SMOOTHING_FRAMES * 3
 const classificationLabelHistory = new Map<string, LabelRingBuffer>()
+/** Reusable Map for majority-vote label smoothing — avoids per-call allocation */
+const _labelVoteMap = new Map<string, number>()
 
 /**
  * Smooth classification label via ring-buffer majority vote.
@@ -211,17 +213,18 @@ function smoothClassificationLabel(
   }
 
   // Majority vote over the most recent window
+  // Reuse module-level Map to avoid per-call allocation (~60 calls/sec)
   const cap = LABEL_HISTORY_CAPACITY
   const windowSize = CLASSIFICATION_SMOOTHING_FRAMES
-  const counts = new Map<string, number>()
+  _labelVoteMap.clear()
   for (let k = 0; k < windowSize; k++) {
     const label = ring.labels[(ring.idx - 1 - k + cap) % cap]
-    counts.set(label, (counts.get(label) ?? 0) + 1)
+    _labelVoteMap.set(label, (_labelVoteMap.get(label) ?? 0) + 1)
   }
 
   let maxLabel = newLabel
   let maxCount = 0
-  for (const [label, count] of counts) {
+  for (const [label, count] of _labelVoteMap) {
     if (count > maxCount) {
       maxCount = count
       maxLabel = label
