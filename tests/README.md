@@ -1,38 +1,16 @@
-# Kill the Ring — Test Suite Setup
-
-## Installation
-
-```bash
-# Install Vitest and coverage provider
-npm install -D vitest @vitest/coverage-v8
-
-# Add scripts to package.json
-npm pkg set scripts.test="vitest run"
-npm pkg set scripts.test:watch="vitest"
-npm pkg set scripts.test:coverage="vitest run --coverage"
-```
-
-## Copy Files
-
-Copy from this directory into your repo:
-
-```
-vitest.config.ts          → /vitest.config.ts
-tests/helpers/            → /tests/helpers/
-tests/dsp/                → /tests/dsp/
-```
+# DoneWell Audio — Test Suite
 
 ## Run
 
 ```bash
-# Run all tests once
-npm test
+# Run all tests once (985 tests, 46 suites)
+pnpm test
 
 # Watch mode (re-runs on file change)
-npm run test:watch
+pnpm test:watch
 
 # With coverage report
-npm run test:coverage
+pnpm test:coverage
 ```
 
 ## Test Structure
@@ -85,11 +63,13 @@ tests/
 - Threshold multiplier validation
 - Edge cases (insufficient data, ring buffer wrap)
 
-## Next Steps
+## Additional Test Locations
 
-After these pass, add tests for:
-1. `feedbackDetector.ts` — requires mocking AnalyserNode
-2. `classifier.ts` — classification logic with algorithm scores
-3. `trackManager.ts` — peak-to-track association
-4. `eqAdvisor.ts` — EQ recommendation generation
-5. `dspWorker.ts` — end-to-end worker message handling (needs worker test env)
+```
+hooks/__tests__/               # Hook unit tests (useAdvisoryMap, useFpsMonitor, etc.)
+contexts/__tests__/            # Context unit tests (AdvisoryContext, UIContext)
+lib/storage/__tests__/         # dwaStorage + settingsStorageV2 tests
+lib/export/__tests__/          # Export module tests (txt, pdf, downloadFile)
+lib/dsp/__tests__/             # mlInference unit tests
+lib/data/__tests__/            # Consent module tests
+```

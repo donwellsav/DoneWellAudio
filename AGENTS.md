@@ -1,6 +1,6 @@
 # AGENTS.md — DoneWell Audio
 
-> **Version 0.7.0 | March 2026 | 156 TypeScript/TSX files | 679 tests (674 pass, 4 skip, 1 todo)**
+> **Version 0.22.0 | March 2026 | 169 TypeScript/TSX files | 985 tests (981 pass, 4 skip) | 46 suites**
 
 ## Critical Rules
 
@@ -15,7 +15,7 @@
 ```bash
 pnpm dev              # Dev server on :3000 (Turbopack)
 pnpm build            # Production build (webpack, generates SW)
-pnpm test             # Vitest (679 tests)
+pnpm test             # Vitest (985 tests, 46 suites)
 pnpm test:watch       # Vitest watch mode
 pnpm test:coverage    # Vitest with V8 coverage
 pnpm lint             # ESLint (flat config)
@@ -97,11 +97,15 @@ Content-adaptive weights vary by mode (speech, worship, liveMusic, theater, moni
 ```
 app/layout.tsx                    # Root layout
 app/page.tsx                      # Entry point
-components/analyzer/              # Domain components (23 files)
-  KillTheRing.tsx                 #   Root orchestrator
-  HeaderBar.tsx                   #   Header bar
+components/analyzer/              # Domain components (28 files)
+  AudioAnalyzer.tsx               #   Root orchestrator
+  HeaderBar.tsx                   #   Header bar (amber sidecar theme)
+  DesktopLayout.tsx               #   Desktop 3-panel layout
+  MobileLayout.tsx                #   Mobile portrait/landscape layouts
   IssuesList.tsx                  #   Advisory cards with swipe gestures
-  UnifiedControls.tsx             #   All settings panels
+  VerticalGainFader.tsx           #   Fader strip (w-20, 80px)
+  settings/SettingsPanel.tsx      #   4-tab settings with controlled tabs
+  help/HelpShared.tsx             #   HelpSection + HelpGroup components
 contexts/                         # 4 context providers + compound wrapper
   AudioAnalyzerContext.tsx        #   Engine/Settings/Metering/Detection
   AdvisoryContext.tsx             #   Advisory state management
@@ -140,7 +144,7 @@ types/advisory.ts                 # All DSP interfaces
 
 ## Testing
 
-- 679 tests across 34 suites (under 11s)
+- 985 tests across 46 suites (under 12s)
 - Coverage thresholds: lines 80%, functions 80%, branches 70%
 - Test patterns: `lib/**/__tests__/**`, `tests/**`, `hooks/__tests__/**`, `contexts/__tests__/**`
 - Run after every change: `npx tsc --noEmit && pnpm test`

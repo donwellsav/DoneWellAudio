@@ -22,7 +22,7 @@ Built by [Don Wells AV](https://donwellsav.com).
 - `lib/calibration/calibrationSession.ts` - Session data collector
 - `hooks/useCalibrationSession.ts` - React hook for calibration state
 
-**Current default values (as of v0.95):**
+**Current default values (as of v0.22.0):**
 - Input Gain: **0 dB**
 - Confidence Threshold: **35%**
 - Algorithm Mode: **Auto** (content-adaptive)
