@@ -1,79 +1,77 @@
 'use client'
 
 import { memo } from 'react'
-import { HelpSection } from './HelpShared'
+import { HelpSection, HelpGroup } from './HelpShared'
 
 export const ModesTab = memo(function ModesTab() {
   return (
     <>
       {/* Mode cards in responsive grid */}
-      <div>
-        <div className="py-1.5 px-2 section-label panel-groove bg-card/60">Operation Modes</div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-1.5 pt-3">
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-primary/40">
-            <div className="text-sm font-medium text-primary">Speech</div>
+      <HelpGroup title="Operation Modes">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-1.5">
+          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(245,158,11,0.40)]">
+            <div className="text-sm font-medium" style={{ color: 'var(--console-amber)' }}>Speech</div>
             <div className="text-xs text-muted-foreground mt-0.5">Default — Corporate conferences, lectures</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
               30dB · Ring 5dB · 1.0dB/s · A-wt · 150–10kHz
             </div>
           </div>
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-primary/40">
-            <div className="text-sm font-medium text-primary">Worship</div>
+          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(245,158,11,0.40)]">
+            <div className="text-sm font-medium" style={{ color: 'var(--console-amber)' }}>Worship</div>
             <div className="text-xs text-muted-foreground mt-0.5">Churches, reverberant spaces</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
               35dB · Ring 5dB · 2.0dB/s · Music · 100–12kHz
             </div>
           </div>
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-primary/40">
-            <div className="text-sm font-medium text-primary">Live Music</div>
+          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(245,158,11,0.40)]">
+            <div className="text-sm font-medium" style={{ color: 'var(--console-amber)' }}>Live Music</div>
             <div className="text-xs text-muted-foreground mt-0.5">Concerts, clubs, festivals</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
               42dB · Ring 8dB · 4.0dB/s · Music · 60–16kHz
             </div>
           </div>
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-primary/40">
-            <div className="text-sm font-medium text-primary">Theater</div>
+          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(245,158,11,0.40)]">
+            <div className="text-sm font-medium" style={{ color: 'var(--console-amber)' }}>Theater</div>
             <div className="text-xs text-muted-foreground mt-0.5">Drama, musicals, body mics</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
               28dB · Ring 4dB · 1.5dB/s · Auto · 150–10kHz
             </div>
           </div>
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-primary/40">
-            <div className="text-sm font-medium text-primary">Monitors</div>
+          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(245,158,11,0.40)]">
+            <div className="text-sm font-medium" style={{ color: 'var(--console-amber)' }}>Monitors</div>
             <div className="text-xs text-muted-foreground mt-0.5">Stage wedges, sidefills</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
               15dB · Ring 3dB · 0.8dB/s · Fast · 200–6kHz
             </div>
           </div>
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-primary/40">
-            <div className="text-sm font-medium text-primary">Ring Out</div>
+          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(245,158,11,0.40)]">
+            <div className="text-sm font-medium" style={{ color: 'var(--console-amber)' }}>Ring Out</div>
             <div className="text-xs text-muted-foreground mt-0.5">System calibration, sound check</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
               12dB · Ring 2dB · 0.5dB/s · Max · 60–16kHz
             </div>
           </div>
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-primary/40">
-            <div className="text-sm font-medium text-primary">Broadcast</div>
+          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(245,158,11,0.40)]">
+            <div className="text-sm font-medium" style={{ color: 'var(--console-amber)' }}>Broadcast</div>
             <div className="text-xs text-muted-foreground mt-0.5">Studio, podcast, radio</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
               22dB · Ring 3dB · 1.0dB/s · A-wt · 80–12kHz
             </div>
           </div>
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-primary/40">
-            <div className="text-sm font-medium text-primary">Outdoor</div>
+          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(245,158,11,0.40)]">
+            <div className="text-sm font-medium" style={{ color: 'var(--console-amber)' }}>Outdoor</div>
             <div className="text-xs text-muted-foreground mt-0.5">Open air, festivals</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
               38dB · Ring 6dB · 2.5dB/s · Wind · 100–12kHz
             </div>
           </div>
         </div>
-      </div>
+      </HelpGroup>
 
       {/* Group: Usage Tips */}
-      <div>
-        <div className="py-1.5 px-2 section-label panel-groove bg-card/60">Usage Tips</div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-3">
-          <HelpSection title="Choosing a Mode">
+      <HelpGroup title="Usage Tips">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          <HelpSection title="Choosing a Mode" color="amber">
             <ul className="space-y-2">
               <li>Corporate conference / lecture → <strong>Speech</strong> (default)</li>
               <li>Initial system ring-out / sound check → <strong>Ring Out</strong></li>
@@ -85,7 +83,7 @@ export const ModesTab = memo(function ModesTab() {
             </ul>
           </HelpSection>
 
-          <HelpSection title="Auto Music-Aware">
+          <HelpSection title="Auto Music-Aware" color="green">
             <p>
               Automatically switches sensitivity based on signal level. When signal rises above the noise floor
               by the configured hysteresis (default 15 dB), enters music-aware mode. Returns to base mode
@@ -93,7 +91,7 @@ export const ModesTab = memo(function ModesTab() {
             </p>
           </HelpSection>
 
-          <HelpSection title="Workflow Best Practices">
+          <HelpSection title="Workflow Best Practices" color="amber">
             <ol className="list-decimal list-inside space-y-2">
               <li>Start with <strong>Ring Out</strong> mode during initial system setup</li>
               <li>Watch the <strong>Algorithm Status Bar</strong> — Auto mode highlights which algorithms are active</li>
@@ -106,7 +104,7 @@ export const ModesTab = memo(function ModesTab() {
             </ol>
           </HelpSection>
 
-          <HelpSection title="Common Feedback Frequency Ranges">
+          <HelpSection title="Common Feedback Frequency Ranges" color="blue">
             <ul className="space-y-2">
               <li><strong>200–500 Hz:</strong> Muddy buildup, boxy vocals, room modes</li>
               <li><strong>500 Hz–1 kHz:</strong> Nasal/honky tones, vocal feedback zone</li>
@@ -116,7 +114,7 @@ export const ModesTab = memo(function ModesTab() {
             </ul>
           </HelpSection>
         </div>
-      </div>
+      </HelpGroup>
     </>
   )
 })
