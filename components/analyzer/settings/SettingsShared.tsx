@@ -33,18 +33,28 @@ export const SettingsGrid = memo(function SettingsGrid({ children, className }: 
 
 // ── Section (flat, uniform) ──────────────────────────────────────────────────
 
-export const Section = memo(function Section({ title, tooltip, showTooltip = true, fullWidth, children }: {
+type SectionColor = 'amber' | 'blue' | 'cyan'
+const COLOR_VAR: Record<SectionColor, string> = {
+  amber: 'var(--console-amber)',
+  blue: 'var(--console-blue)',
+  cyan: 'var(--console-cyan)',
+}
+
+export const Section = memo(function Section({ title, tooltip, showTooltip = true, fullWidth, color, children }: {
   title: string
   tooltip?: string
   showTooltip?: boolean
   fullWidth?: boolean
+  /** Operator color group — overrides amber cascade for this section header */
+  color?: SectionColor
   children: React.ReactNode
 }) {
+  const labelStyle = color ? { color: COLOR_VAR[color] } : undefined
   return (
     <TooltipProvider delayDuration={300}>
       <div className={cn('space-y-2', fullWidth && 'sm:col-span-full')}>
         <div className="flex items-center gap-1.5">
-          <h3 className="section-label">{title}</h3>
+          <h3 className="section-label" style={labelStyle}>{title}</h3>
           {tooltip && showTooltip && (
             <Tooltip>
               <TooltipTrigger asChild>

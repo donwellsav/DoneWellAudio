@@ -1,12 +1,12 @@
 'use client'
 
-import { memo, useMemo } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { IssuesList } from './IssuesList'
 import { RingOutWizard } from './RingOutWizard'
 import { EarlyWarningPanel } from './EarlyWarningPanel'
 import { SpectrumCanvas } from './SpectrumCanvas'
 import { GEQBarView } from './GEQBarView'
-import { SettingsPanel, type DataCollectionTabProps } from './settings/SettingsPanel'
+import { SettingsPanel, SETTINGS_TABS, type DataCollectionTabProps, type SettingsTab } from './settings/SettingsPanel'
 import { AlgorithmStatusBar } from './AlgorithmStatusBar'
 import { VerticalGainFader } from './VerticalGainFader'
 import { useEngine } from '@/contexts/EngineContext'
@@ -53,6 +53,17 @@ export const DesktopLayout = memo(function DesktopLayout({
 }: DesktopLayoutProps) {
   const { isRunning, isStarting, error, start, stop } = useEngine()
   const { settings, handleModeChange, handleFreqRangeChange, resetSettings, setInputGain, setAutoGain, updateDisplay, setSensitivityOffset, session } = useSettings()
+
+  // Controls sub-tab state — owned here so the tab bar can be a flex-shrink-0 header
+  const [controlsTab, setControlsTab] = useState<SettingsTab>('live')
+  const hasCustomGates = !!(session?.diagnostics && (
+    session.diagnostics.formantGateOverride !== undefined ||
+    session.diagnostics.chromaticGateOverride !== undefined ||
+    session.diagnostics.combSweepOverride !== undefined ||
+    session.diagnostics.ihrGateOverride !== undefined ||
+    session.diagnostics.ptmrGateOverride !== undefined ||
+    session.diagnostics.mainsHumGateOverride !== undefined
+  ))
   const { spectrumRef, spectrumStatus, noiseFloorDb, inputLevel, isAutoGain, autoGainDb, autoGainLocked } = useMetering()
 
   const { isFrozen, toggleFreeze, layoutKey, rtaContainerRef, isRtaFullscreen, toggleRtaFullscreen } = useUI()
@@ -150,6 +161,31 @@ export const DesktopLayout = memo(function DesktopLayout({
                 </TooltipContent>
               </Tooltip>
             </div>
+            {/* Settings sub-tab bar — flex-shrink-0 sibling, zero gap, solid background */}
+            {activeSidebarTab === 'controls' && (
+              <div className="flex-shrink-0 flex gap-0 bg-[#070c12] border-b border-[rgba(245,158,11,0.14)]">
+                {SETTINGS_TABS.map(({ id, label, shortLabel, Icon }) => (
+                  <button
+                    key={id}
+                    onClick={() => setControlsTab(id)}
+                    aria-label={label}
+                    data-active={controlsTab === id}
+                    className={`tab-track-item relative flex-1 min-h-[30px] flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-[0.08em] cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+                      controlsTab === id
+                        ? 'bg-[rgba(245,158,11,0.08)] text-[var(--console-amber)]'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-[rgba(245,158,11,0.04)]'
+                    }`}
+                  >
+                    <Icon className="w-3 h-3 flex-shrink-0" />
+                    <span className="truncate">{shortLabel ?? label}</span>
+                    {id === 'advanced' && hasCustomGates && (
+                      <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-amber-500" title="Custom gate overrides active" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               <div className="flex-1 overflow-y-auto p-3">
                 {activeSidebarTab === 'issues' && !issuesPanelOpen && (
@@ -197,7 +233,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                 )}
                 {activeSidebarTab === 'controls' && (
                   <div className="animate-in fade-in-0 duration-150">
-                    <SettingsPanel settings={settings} onModeChange={handleModeChange} onReset={resetSettings} calibration={calibration} dataCollection={dataCollection} />
+                    <SettingsPanel settings={settings} onModeChange={handleModeChange} onReset={resetSettings} calibration={calibration} dataCollection={dataCollection} activeTab={controlsTab} onTabChange={setControlsTab} />
                   </div>
                 )}
               </div>

@@ -83,18 +83,18 @@ export const LiveTab = memo(function LiveTab({ settings }: LiveTabProps) {
               <button key={preset.label} onClick={() => handleFreqPresetClick(preset.minFrequency, preset.maxFrequency)}
                 className={`min-h-11 px-3 py-1.5 rounded-md flex flex-col items-center gap-0.5 text-xs font-mono font-bold tracking-wide transition-all cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                   isActive
-                    ? 'bg-[rgba(245,158,11,0.12)] text-[var(--console-amber)] border border-[rgba(245,158,11,0.38)] shadow-[0_0_10px_rgba(245,158,11,0.16)] btn-glow-amber'
+                    ? 'bg-[rgba(75,146,255,0.12)] text-[var(--console-blue)] border border-[rgba(75,146,255,0.38)] shadow-[0_0_10px_rgba(75,146,255,0.16)]'
                     : 'bg-[rgba(255,255,255,0.03)] text-foreground/50 border border-[rgba(255,255,255,0.08)] hover:text-foreground/80 hover:border-border/50'
                 }`}
               >
                 {preset.label}
-                <span className={`text-[9px] font-normal block ${isActive ? 'text-[rgba(245,158,11,0.65)]' : 'text-muted-foreground/50'}`}>{preset.shortRange}</span>
+                <span className={`text-[9px] font-normal block ${isActive ? 'text-[rgba(75,146,255,0.65)]' : 'text-muted-foreground/50'}`}>{preset.shortRange}</span>
               </button>
             )
           })}
         </div>
         <div className="flex items-center justify-between">
-          <span className="section-label text-muted-foreground">Freq Range</span>
+          <span className="section-label" style={{ color: 'var(--console-blue)' }}>Freq Range</span>
           <span className="font-mono text-[13px] font-semibold tabular-nums text-[#4B92FF] dark:text-[#4B92FF]">{formatFreqLabel(settings.minFrequency)} – {formatFreqLabel(settings.maxFrequency)}</span>
         </div>
         <Slider value={[Math.log10(Math.max(20, settings.minFrequency)), Math.log10(Math.min(20000, settings.maxFrequency))]} onValueChange={handleFreqSliderChange} min={LOG_MIN} max={LOG_MAX} step={0.005} minStepsBetweenThumbs={0.1} />

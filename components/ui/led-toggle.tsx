@@ -34,7 +34,7 @@ export const LEDToggle = memo(function LEDToggle({
   checked,
   onChange,
   label,
-  color = 'green',
+  color = 'amber',
   tooltip,
   className,
 }: LEDToggleProps) {

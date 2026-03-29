@@ -59,6 +59,8 @@
   /* Console accent colors — pro-audio instrument aesthetic */
   --console-amber: #f59e0b;
   --console-amber-glow: rgba(245, 158, 11, 0.35);
+  --console-blue: #4B92FF;
+  --console-blue-glow: rgba(75, 146, 255, 0.28);
   --console-cyan: #06b6d4;
   --console-cyan-glow: rgba(6, 182, 212, 0.25);
   --console-green: #22c55e;
@@ -121,6 +123,8 @@ html {
   /* Console accent colors — muted for light theme (no glow) */
   --console-amber: #d97706;
   --console-amber-glow: rgba(217, 119, 6, 0.15);
+  --console-blue: #2563eb;
+  --console-blue-glow: rgba(37, 99, 235, 0.18);
   --console-cyan: #0891b2;
   --console-cyan-glow: rgba(8, 145, 178, 0.12);
   --console-green: #16a34a;
@@ -341,6 +345,51 @@ html {
     background: linear-gradient(90deg,
       transparent 0%, rgba(217, 119, 6, 0.12) 50%, transparent 100%
     );
+  }
+
+  /* ── Accordion — amber rack-unit style inside amber sidecars ─────────────── */
+  /* Groove separator gets amber shimmer instead of white */
+  .amber-sidecar .panel-groove {
+    box-shadow:
+      inset 0 1px 0 rgba(0, 0, 0, 0.45),
+      0 1px 0 rgba(245, 158, 11, 0.09);
+  }
+  .light .amber-sidecar .panel-groove {
+    box-shadow:
+      inset 0 1px 0 rgba(0, 0, 0, 0.08),
+      0 1px 0 rgba(217, 119, 6, 0.12);
+  }
+  /* Trigger: hover state — subtle amber tint */
+  .amber-sidecar [data-radix-accordion-trigger]:hover {
+    background: rgba(245, 158, 11, 0.035);
+  }
+  /* Trigger: open/active state — amber left accent bar */
+  .amber-sidecar [data-radix-accordion-trigger][data-state="open"] {
+    border-left: 2px solid rgba(245, 158, 11, 0.50);
+    padding-left: calc(0.5rem - 2px);
+    background: rgba(245, 158, 11, 0.05);
+  }
+  .amber-sidecar [data-radix-accordion-trigger][data-state="open"] .section-label {
+    color: rgba(245, 158, 11, 0.80);
+  }
+  /* Content area: left amber line when expanded */
+  .amber-sidecar [data-radix-accordion-content] {
+    border-left: 2px solid rgba(245, 158, 11, 0.18);
+    padding-left: calc(0.5rem - 2px);
+    margin-left: 0;
+  }
+  .light .amber-sidecar [data-radix-accordion-trigger]:hover {
+    background: rgba(217, 119, 6, 0.04);
+  }
+  .light .amber-sidecar [data-radix-accordion-trigger][data-state="open"] {
+    border-left-color: rgba(217, 119, 6, 0.45);
+    background: rgba(217, 119, 6, 0.06);
+  }
+  .light .amber-sidecar [data-radix-accordion-trigger][data-state="open"] .section-label {
+    color: rgba(217, 119, 6, 0.85);
+  }
+  .light .amber-sidecar [data-radix-accordion-content] {
+    border-left-color: rgba(217, 119, 6, 0.20);
   }
 
   /* Channel strip vertical gradient — recessed rack-unit feel */

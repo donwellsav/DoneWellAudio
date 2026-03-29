@@ -11,6 +11,45 @@ import {
 import { HelpCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+// ── Color config ─────────────────────────────────────────────────────────────
+// Maps semantic color names to CSS variable references + rgba fill gradients.
+// Inline styles are necessary here because Radix SliderPrimitive.Range ignores
+// Tailwind class-based fills — the component applies its own style attribute.
+
+type SliderColor = 'amber' | 'blue' | 'cyan'
+
+const COLOR_CONFIG: Record<SliderColor, {
+  rangeGradient: string
+  rangeGlow: string
+  thumbBorder: string
+  thumbGlow: string
+  text: string
+}> = {
+  amber: {
+    rangeGradient: 'linear-gradient(90deg, rgba(245,158,11,0.30), rgba(245,158,11,0.70))',
+    rangeGlow: '0 0 6px var(--console-amber-glow)',
+    thumbBorder: 'var(--console-amber)',
+    thumbGlow: '0 0 8px var(--console-amber-glow), 0 0 2px var(--console-amber-glow)',
+    text: 'var(--console-amber)',
+  },
+  blue: {
+    rangeGradient: 'linear-gradient(90deg, rgba(75,146,255,0.28), rgba(75,146,255,0.65))',
+    rangeGlow: '0 0 6px var(--console-blue-glow)',
+    thumbBorder: 'var(--console-blue)',
+    thumbGlow: '0 0 8px var(--console-blue-glow), 0 0 2px var(--console-blue-glow)',
+    text: 'var(--console-blue)',
+  },
+  cyan: {
+    rangeGradient: 'linear-gradient(90deg, rgba(6,182,212,0.28), rgba(6,182,212,0.65))',
+    rangeGlow: '0 0 6px var(--console-cyan-glow)',
+    thumbBorder: 'var(--console-cyan)',
+    thumbGlow: '0 0 8px var(--console-cyan-glow), 0 0 2px var(--console-cyan-glow)',
+    text: 'var(--console-cyan)',
+  },
+}
+
+// ── Props ────────────────────────────────────────────────────────────────────
+
 interface ConsoleSliderProps {
   label: string
   /** Formatted display value (e.g. "25 dB", "35%") */
@@ -25,14 +64,25 @@ interface ConsoleSliderProps {
   max: number
   step: number
   onChange: (v: number) => void
+  /**
+   * Operator color group.
+   * amber = detection controls (sensitivity, thresholds, algorithms)
+   * blue  = scope controls (frequency range, timing, FFT)
+   * cyan  = system controls (auto-gain, noise floor, track management)
+   * Default: amber
+   */
+  color?: SliderColor
   className?: string
 }
 
 /**
- * Pro-audio console-style slider with recessed track, amber fill,
+ * Pro-audio console-style slider with recessed track, color-coded fill,
  * knob thumb with glow ring, and monospace LED value readout.
  *
- * Drop-in replacement for the SliderRow pattern in UnifiedControls.
+ * Three semantic color groups mirror a real mixing console:
+ *   amber = what triggers detection  (mode, sensitivity, thresholds)
+ *   blue  = analysis scope / range   (freq range, timing windows, FFT)
+ *   cyan  = signal processing system (auto-gain, noise floor, track mgmt)
  */
 export const ConsoleSlider = memo(function ConsoleSlider({
   label,
@@ -44,15 +94,18 @@ export const ConsoleSlider = memo(function ConsoleSlider({
   max,
   step,
   onChange,
+  color = 'amber',
   className,
 }: ConsoleSliderProps) {
+  const c = COLOR_CONFIG[color]
+
   return (
     <TooltipProvider delayDuration={300}>
       <div className={cn('space-y-1', className)}>
         {/* Header: label + value readout */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
-            <span className="section-label text-muted-foreground">{label}</span>
+            <span className="section-label" style={{ color: c.text }}>{label}</span>
             {tooltip && showTooltip && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -64,7 +117,7 @@ export const ConsoleSlider = memo(function ConsoleSlider({
               </Tooltip>
             )}
           </div>
-          <span className="console-readout">{value}</span>
+          <span className="console-readout" style={{ color: c.text, textShadow: `0 0 8px ${c.thumbBorder}40` }}>{value}</span>
         </div>
 
         {/* Slider track */}
@@ -82,15 +135,16 @@ export const ConsoleSlider = memo(function ConsoleSlider({
           >
             <SliderPrimitive.Range
               className="absolute h-full"
-              style={{
-                background: 'linear-gradient(90deg, rgba(var(--console-amber-rgb, 245, 158, 11), 0.3), rgba(var(--console-amber-rgb, 245, 158, 11), 0.7))',
-                boxShadow: '0 0 6px var(--console-amber-glow)',
-              }}
+              style={{ background: c.rangeGradient, boxShadow: c.rangeGlow }}
             />
           </SliderPrimitive.Track>
           <SliderPrimitive.Thumb
             className="console-thumb block shrink-0 rounded-full transition-[box-shadow,transform] duration-100 focus-visible:outline-hidden cursor-grab active:cursor-grabbing"
-            style={{ width: 20, height: 20 }}
+            style={{
+              width: 20, height: 20,
+              borderColor: c.thumbBorder,
+              boxShadow: c.thumbGlow,
+            }}
           />
         </SliderPrimitive.Root>
       </div>

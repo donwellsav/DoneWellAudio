@@ -20,7 +20,7 @@ import type { AdvancedTabProps } from './AdvancedTab'
 /** Data collection props forwarded to Advanced tab */
 export type DataCollectionTabProps = Pick<AdvancedTabProps, 'consentStatus' | 'isCollecting' | 'onEnableCollection' | 'onDisableCollection'>
 
-type SettingsTab = 'live' | 'setup' | 'display' | 'advanced'
+export type SettingsTab = 'live' | 'setup' | 'display' | 'advanced'
 
 export interface SettingsPanelProps {
   settings: DetectorSettings
@@ -28,11 +28,16 @@ export interface SettingsPanelProps {
   onReset: () => void
   calibration?: Omit<CalibrationTabProps, 'settings' | 'onSettingsChange'>
   dataCollection?: DataCollectionTabProps
+  /** Controlled active tab — if provided, SettingsPanel renders content only (no tab bar) */
+  activeTab?: SettingsTab
+  /** Called when the user changes tabs — required when activeTab is provided */
+  onTabChange?: (tab: SettingsTab) => void
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const TABS: { id: SettingsTab; label: string; shortLabel?: string; Icon: typeof Zap }[] = [
+/** Exported so DesktopLayout can render the tab bar as a flex-shrink-0 header */
+export const SETTINGS_TABS: { id: SettingsTab; label: string; shortLabel?: string; Icon: typeof Zap }[] = [
   { id: 'live', label: 'Live', Icon: Zap },
   { id: 'setup', label: 'Setup', Icon: Wrench },
   { id: 'display', label: 'Display', Icon: Monitor },
@@ -47,11 +52,16 @@ export const SettingsPanel = memo(function SettingsPanel({
   onReset,
   calibration,
   dataCollection,
+  activeTab: controlledTab,
+  onTabChange,
 }: SettingsPanelProps) {
   // Pull semantic actions from context
   const ctx = useSettings()
 
-  const [activeTab, setActiveTab] = useState<SettingsTab>('live')
+  // Support both controlled (activeTab prop) and uncontrolled (internal state) modes
+  const [internalTab, setInternalTab] = useState<SettingsTab>('live')
+  const activeTab = controlledTab ?? internalTab
+  const setActiveTab = onTabChange ?? setInternalTab
 
   // ── Rig preset state (structured, semantic recall) ─────────────────
   const rigPresets = useRigPresets(
@@ -98,49 +108,23 @@ export const SettingsPanel = memo(function SettingsPanel({
   // Save/Load Defaults removed in Phase 6c — v2 session auto-persistence replaces this feature.
   // "Reset to Defaults" (onReset) is preserved.
 
+  // Detect non-default gate overrides for badge indicator on ADV tab
+  const d = ctx.session?.diagnostics
+  const hasCustomGates = !!(d && (
+    d.formantGateOverride !== undefined ||
+    d.chromaticGateOverride !== undefined ||
+    d.combSweepOverride !== undefined ||
+    d.ihrGateOverride !== undefined ||
+    d.ptmrGateOverride !== undefined ||
+    d.mainsHumGateOverride !== undefined
+  ))
+
   return (
     <TooltipProvider delayDuration={400}>
       <div className="@container space-y-1.5">
 
-        {/* ── 4-tab strip: Live / Setup / Display / Advanced ──── */}
-        {(() => {
-          // Detect non-default gate overrides for badge indicator
-          const d = ctx.session?.diagnostics
-          const hasCustomGates = d && (
-            d.formantGateOverride !== undefined ||
-            d.chromaticGateOverride !== undefined ||
-            d.combSweepOverride !== undefined ||
-            d.ihrGateOverride !== undefined ||
-            d.ptmrGateOverride !== undefined ||
-            d.mainsHumGateOverride !== undefined
-          )
-          return (
-            <div className="tab-track -mx-1 flex gap-0.5">
-              {TABS.map(({ id, label, shortLabel, Icon }) => (
-                <button
-                  key={id}
-                  onClick={() => setActiveTab(id)}
-                  aria-label={label}
-                  data-active={activeTab === id}
-                  className={`tab-track-item relative flex-1 min-h-10 flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.08em] cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
-                    activeTab === id
-                      ? 'text-[var(--console-amber)]'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  <span className="hidden @[280px]:inline truncate">{shortLabel ?? label}</span>
-                  {id === 'advanced' && hasCustomGates && (
-                    <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-amber-500" title="Custom gate overrides active" />
-                  )}
-                </button>
-              ))}
-            </div>
-          )
-        })()}
-
-        {/* ── Content ─────────────────────────────────────────────── */}
-
+        {/* ── Content (tab bar is rendered in DesktopLayout as flex-shrink-0) ── */}
+        {/* Badge on ADV tab: exposed via hasCustomGates so parent can show indicator */}
         <div key={activeTab} className="tab-content-fade">
           {activeTab === 'live' && (
             <LiveTab settings={settings} />

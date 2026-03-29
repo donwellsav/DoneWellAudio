@@ -9,6 +9,8 @@ import {
 } from '@/components/ui/accordion'
 import { cn } from '@/lib/utils'
 
+type SectionColor = 'amber' | 'blue' | 'cyan'
+
 interface ChannelSectionProps {
   title: string
   /** Optional badge rendered after the title (e.g. "Expert" badge) */
@@ -19,6 +21,11 @@ interface ChannelSectionProps {
   defaultOpen?: boolean
   children: React.ReactNode
   className?: string
+  /**
+   * Operator color group — overrides the amber-sidecar cascade.
+   * amber = detection, blue = scope/range, cyan = system/processing
+   */
+  color?: SectionColor
 }
 
 /**
@@ -26,6 +33,12 @@ interface ChannelSectionProps {
  * Uses `.panel-groove` top border and `.section-label` title.
  * Wraps shadcn Accordion for collapsible behavior.
  */
+const COLOR_VAR: Record<NonNullable<ChannelSectionProps['color']>, string> = {
+  amber: 'var(--console-amber)',
+  blue: 'var(--console-blue)',
+  cyan: 'var(--console-cyan)',
+}
+
 export const ChannelSection = memo(function ChannelSection({
   title,
   badge,
@@ -33,12 +46,15 @@ export const ChannelSection = memo(function ChannelSection({
   defaultOpen = false,
   children,
   className,
+  color,
 }: ChannelSectionProps) {
+  const labelStyle = color ? { color: COLOR_VAR[color] } : undefined
+
   if (!collapsible) {
     return (
       <div className={cn('channel-section-static', className)}>
         <div className="flex items-center gap-2 min-h-11 py-2 panel-groove">
-          <span className="section-label">{title}</span>
+          <span className="section-label" style={labelStyle}>{title}</span>
           {badge}
         </div>
         <div className="py-2">{children}</div>
@@ -55,7 +71,7 @@ export const ChannelSection = memo(function ChannelSection({
       <AccordionItem value={title} className="border-b-0">
         <AccordionTrigger className="min-h-11 py-2 panel-groove hover:no-underline">
           <span className="flex items-center gap-2">
-            <span className="section-label">{title}</span>
+            <span className="section-label" style={labelStyle}>{title}</span>
             {badge}
           </span>
         </AccordionTrigger>
