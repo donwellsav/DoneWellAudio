@@ -413,7 +413,7 @@ export const VerticalGainFader = memo(function VerticalGainFader({
     <div className="flex flex-col h-full items-center py-2 gap-1.5 select-none">
 
       {/* Mode toggle — segmented pill */}
-      <div className="flex-shrink-0 flex flex-col w-full rounded-md overflow-hidden border border-border/60">
+      <div className="flex-shrink-0 flex flex-col w-full rounded-md overflow-hidden border border-[rgba(245,158,11,0.20)]">
         <button
           onClick={() => onFaderModeChange('gain')}
           className={`flex-1 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
