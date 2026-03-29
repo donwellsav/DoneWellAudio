@@ -1,12 +1,12 @@
 'use client'
 
 import { memo } from 'react'
-import { HelpSection } from './HelpShared'
+import { HelpSection, HelpGroup } from './HelpShared'
 
 export const CompanionTab = memo(function CompanionTab() {
   return (
     <>
-      <HelpSection title="What is Companion Integration?">
+      <HelpSection title="What is Companion Integration?" color="green">
         <p>
           DoneWell Audio can send its EQ recommendations to <strong>Bitfocus Companion</strong>, which routes them to your hardware mixer or DSP processor.
           DoneWell detects feedback and calculates the cut — Companion talks to the mixer and applies it.
@@ -15,10 +15,9 @@ export const CompanionTab = memo(function CompanionTab() {
       </HelpSection>
 
       {/* Group: Download & Setup */}
-      <div>
-        <div className="py-1.5 px-2 section-label panel-groove bg-card/60">Download &amp; Setup</div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-3">
-          <HelpSection title="Get the Module">
+      <HelpGroup title="Download & Setup">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          <HelpSection title="Get the Module" color="green">
             <p className="mb-2">Pre-built, ready to use. Unzip into Companion&apos;s dev modules folder — no build step needed.</p>
             <div className="space-y-2">
               <a
@@ -54,7 +53,7 @@ export const CompanionTab = memo(function CompanionTab() {
             </p>
           </HelpSection>
 
-          <HelpSection title="Quick Start">
+          <HelpSection title="Quick Start" color="green">
             <ol className="list-decimal list-inside space-y-2">
               <li>Install <strong>Bitfocus Companion</strong> on any computer on your network</li>
               <li>Download and install the module (see left)</li>
@@ -66,13 +65,12 @@ export const CompanionTab = memo(function CompanionTab() {
             </ol>
           </HelpSection>
         </div>
-      </div>
+      </HelpGroup>
 
       {/* Group: App Settings */}
-      <div>
-        <div className="py-1.5 px-2 section-label panel-groove bg-card/60">App Settings</div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-3">
-          <HelpSection title="Companion Bridge Settings (Advanced Tab)">
+      <HelpGroup title="App Settings">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          <HelpSection title="Companion Bridge Settings (Advanced Tab)" color="green">
             <ul className="space-y-2">
               <li><strong>Enable Companion Bridge:</strong> Master on/off toggle. When off, no data is sent and the SEND button is hidden.</li>
               <li><strong>Pairing Code:</strong> A unique code (e.g., DWA-A1B2) that links this app to your Companion module. Enter it in the module settings. Click &ldquo;New Code&rdquo; to regenerate.</li>
@@ -82,13 +80,12 @@ export const CompanionTab = memo(function CompanionTab() {
             </ul>
           </HelpSection>
         </div>
-      </div>
+      </HelpGroup>
 
       {/* Group: How It Works */}
-      <div>
-        <div className="py-1.5 px-2 section-label panel-groove bg-card/60">How It Works</div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-3">
-          <HelpSection title="Architecture (3 Parts)">
+      <HelpGroup title="How It Works">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          <HelpSection title="Architecture (3 Parts)" color="blue">
             <p className="mb-2">The system has three parts that work together:</p>
             <ol className="list-decimal list-inside space-y-2">
               <li><strong>This app</strong> detects feedback and calculates EQ cuts. Posts advisories to a cloud relay (same-origin API, no network config needed).</li>
@@ -98,7 +95,7 @@ export const CompanionTab = memo(function CompanionTab() {
             <p className="mt-2">You then create a <strong>trigger</strong> in Companion that wires those variables to your mixer module. This is the step that actually applies EQ to hardware.</p>
           </HelpSection>
 
-          <HelpSection title="Sending EQ Recommendations">
+          <HelpSection title="Sending EQ Recommendations" color="amber">
             <ul className="space-y-2">
               <li><strong>SEND button:</strong> Appears on each issue card when Companion is enabled. Tap to send that specific advisory.</li>
               <li><strong>Auto-Send mode:</strong> Every new advisory is sent automatically when it meets the confidence threshold.</li>
@@ -109,13 +106,12 @@ export const CompanionTab = memo(function CompanionTab() {
             </p>
           </HelpSection>
         </div>
-      </div>
+      </HelpGroup>
 
       {/* Group: Companion Variables */}
-      <div>
-        <div className="py-1.5 px-2 section-label panel-groove bg-card/60">Companion Variables</div>
-        <div className="grid grid-cols-1 gap-1.5 pt-3">
-          <HelpSection title="Variables Exposed to Companion">
+      <HelpGroup title="Companion Variables">
+        <div className="grid grid-cols-1 gap-1.5">
+          <HelpSection title="Variables Exposed to Companion" color="blue">
             <p className="mb-2">These variables update every time DoneWell sends an advisory. Use them in triggers, button text, and expressions across all Companion modules.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
               <div><code className="font-mono text-xs bg-muted px-1 rounded">$(donewell:peq_frequency)</code> — PEQ center frequency (Hz)</div>
@@ -136,13 +132,12 @@ export const CompanionTab = memo(function CompanionTab() {
             </div>
           </HelpSection>
         </div>
-      </div>
+      </HelpGroup>
 
       {/* Group: Connecting to Your Mixer */}
-      <div>
-        <div className="py-1.5 px-2 section-label panel-groove bg-card/60">Connecting to Your Mixer</div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-3">
-          <HelpSection title="Built-in Mixer Output (Recommended)">
+      <HelpGroup title="Connecting to Your Mixer">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          <HelpSection title="Built-in Mixer Output (Recommended)" color="green">
             <p className="mb-2">The module can send EQ commands directly to your mixer — no separate mixer module or triggers needed.</p>
             <ol className="list-decimal list-inside space-y-2">
               <li>In the module settings, choose your <strong>Mixer Model</strong> (X32, Midas M32, Yamaha TF/CL/QL, A&amp;H dLive/SQ, dbx PA2, or Generic OSC)</li>
@@ -157,7 +152,7 @@ export const CompanionTab = memo(function CompanionTab() {
             </p>
           </HelpSection>
 
-          <HelpSection title="Supported Mixers">
+          <HelpSection title="Supported Mixers" color="green">
             <ul className="space-y-2">
               <li><strong>Behringer X32 / X-Air:</strong> OSC, port 10023. Normalized freq/gain/Q values.</li>
               <li><strong>Midas M32 / Pro Series:</strong> Same OSC protocol as X32.</li>
@@ -170,7 +165,7 @@ export const CompanionTab = memo(function CompanionTab() {
             </ul>
           </HelpSection>
 
-          <HelpSection title="OSC Channel Prefixes">
+          <HelpSection title="OSC Channel Prefixes" color="blue">
             <p className="mb-2">Common OSC paths for popular mixers:</p>
             <ul className="space-y-1">
               <li><code className="font-mono text-xs bg-muted px-1 rounded">/ch/01/eq</code> — X32/M32 channel 1</li>
@@ -183,7 +178,7 @@ export const CompanionTab = memo(function CompanionTab() {
             </p>
           </HelpSection>
 
-          <HelpSection title="Stream Deck Buttons">
+          <HelpSection title="Stream Deck Buttons" color="blue">
             <ul className="space-y-2">
               <li><strong>Apply Latest EQ:</strong> Press to send the current advisory to your mixer on demand (when Auto-Apply is off).</li>
               <li><strong>Latest Advisory:</strong> Shows frequency, gain, and Q. Turns yellow when pending, red for RUNAWAY.</li>
@@ -193,13 +188,12 @@ export const CompanionTab = memo(function CompanionTab() {
             </ul>
           </HelpSection>
         </div>
-      </div>
+      </HelpGroup>
 
       {/* Group: Module Configuration */}
-      <div>
-        <div className="py-1.5 px-2 section-label panel-groove bg-card/60">Module Configuration</div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-3">
-          <HelpSection title="Companion Module Settings">
+      <HelpGroup title="Module Configuration">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          <HelpSection title="Companion Module Settings" color="green">
             <ul className="space-y-2">
               <li><strong>Pairing Code:</strong> Must match the code shown in this app.</li>
               <li><strong>Site URL:</strong> The address of this app (copy from your browser bar).</li>
@@ -215,7 +209,7 @@ export const CompanionTab = memo(function CompanionTab() {
             </ul>
           </HelpSection>
 
-          <HelpSection title="Safety">
+          <HelpSection title="Safety" color="amber">
             <ul className="space-y-2">
               <li><strong>Manual mode by default:</strong> You must click SEND on each advisory unless auto-send is explicitly enabled.</li>
               <li><strong>Max cut depth:</strong> The module clamps all PEQ and GEQ cut recommendations to prevent excessive notching.</li>
@@ -225,20 +219,19 @@ export const CompanionTab = memo(function CompanionTab() {
             </ul>
           </HelpSection>
         </div>
-      </div>
+      </HelpGroup>
 
       {/* Group: PA2 Bridge */}
-      <div>
-        <div className="py-1.5 px-2 section-label panel-groove bg-card/60">PA2 Bridge</div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-3">
-          <HelpSection title="PA2 Bridge">
+      <HelpGroup title="PA2 Bridge">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          <HelpSection title="PA2 Bridge" color="green">
             <p className="mb-2">
               Deep integration with the PA2 Companion module. Enables smart PEQ notching, closed-loop GEQ tuning,
               panic mute, mode sync, dual-RTA overlay, and ML training data collection.
             </p>
             <p>Configure in <strong>Setup &rarr; PA2 Bridge</strong>.</p>
           </HelpSection>
-          <HelpSection title="PA2 Setup">
+          <HelpSection title="PA2 Setup" color="green">
             <ol className="list-decimal list-inside space-y-2">
               <li>Install the PA2 Companion module</li>
               <li>Configure it with your PA2&apos;s IP</li>
@@ -247,13 +240,12 @@ export const CompanionTab = memo(function CompanionTab() {
             </ol>
           </HelpSection>
         </div>
-      </div>
+      </HelpGroup>
 
       {/* Group: Troubleshooting */}
-      <div>
-        <div className="py-1.5 px-2 section-label panel-groove bg-card/60">Troubleshooting</div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-3">
-          <HelpSection title="Common Issues">
+      <HelpGroup title="Troubleshooting">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          <HelpSection title="Common Issues" color="amber">
             <div className="space-y-3">
               <div>
                 <p className="font-medium text-foreground text-sm mb-1">Relay active but nothing happens on mixer</p>
@@ -274,7 +266,7 @@ export const CompanionTab = memo(function CompanionTab() {
             </div>
           </HelpSection>
 
-          <HelpSection title="Best Practices">
+          <HelpSection title="Best Practices" color="amber">
             <ul className="space-y-2">
               <li><strong>Ring-out:</strong> Enable Ring-Out Auto-Send. Each time you click Next in the wizard, the PEQ cut goes to your mixer automatically.</li>
               <li><strong>Live show:</strong> Keep auto-send <strong>off</strong>. Use the SEND button manually — confirm each cut before it hits the PA.</li>
@@ -284,7 +276,7 @@ export const CompanionTab = memo(function CompanionTab() {
             </ul>
           </HelpSection>
         </div>
-      </div>
+      </HelpGroup>
     </>
   )
 })
