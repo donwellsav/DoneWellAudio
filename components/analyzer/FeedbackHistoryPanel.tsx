@@ -117,11 +117,11 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
           History
         </TooltipContent>
       </Tooltip>
-      <SheetContent side="right" className={cn("overflow-y-auto channel-strip", maxW)}>
-        <SheetHeader className="pb-3 panel-groove bg-card/60 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-4 max-sm:pt-2 shadow-[0_1px_8px_rgba(0,0,0,0.3),0_1px_0_rgba(75,146,255,0.06)]">
+      <SheetContent side="right" className={cn("overflow-y-auto channel-strip amber-sidecar", maxW)}>
+        <SheetHeader className="pb-3 panel-groove bg-card/60 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-4 max-sm:pt-2 shadow-[0_1px_8px_rgba(0,0,0,0.3),0_1px_0_rgba(245,158,11,0.09)]">
           <SheetTitle className="text-lg flex items-center gap-2">
-            <History className="h-5 w-5 text-primary" />
-            Feedback History
+            <History className="h-5 w-5" style={{ color: 'var(--console-amber)' }} />
+            <span style={{ color: 'var(--console-amber)' }}>Feedback History</span>
           </SheetTitle>
           <SheetDescription className="text-sm">
             Frequency hotspots & repeat offenders.
@@ -231,7 +231,7 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
           {/* All Hotspots */}
           <div>
             <div className="flex items-center gap-2 mb-2 py-1.5 px-2 panel-groove bg-card/60">
-              <BarChart3 className="h-4 w-4 text-primary" />
+              <BarChart3 className="h-4 w-4" style={{ color: 'var(--console-amber)' }} />
               <span className="section-label">All Problem Frequencies</span>
             </div>
             <div className={hotspots.length === 0 ? 'space-y-1.5' : gridCls}>
@@ -273,8 +273,8 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
           <div>
             <div className="flex items-center justify-between mb-2 py-1.5 px-2 panel-groove bg-card/60">
               <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <span className="section-label">Past Sessions</span>
+                <Clock className="h-4 w-4" style={{ color: 'var(--console-blue)' }} />
+                <span className="section-label" style={{ color: 'var(--console-blue)' }}>Past Sessions</span>
               </div>
               {archivedSessions.length > 0 && (
                 <AlertDialog>
@@ -316,7 +316,7 @@ export const FeedbackHistoryPanel = memo(function FeedbackHistoryPanel() {
                           {new Date(session.startTime).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </span>
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono">
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-[rgba(245,158,11,0.12)] font-mono" style={{ color: 'var(--console-amber)' }}>
                         {session.mode}
                       </span>
                     </div>
