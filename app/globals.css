@@ -514,10 +514,10 @@ html {
     background: rgba(255, 255, 255, 0.04);
   }
   .tab-track-item[data-active="true"] {
-    background: rgba(245, 158, 11, 0.14);
+    background: rgba(245, 158, 11, 0.13);
     box-shadow:
       0 1px 3px rgba(0, 0, 0, 0.25),
-      0 0 0 1px rgba(245, 158, 11, 0.18),
+      0 0 0 1px rgba(245, 158, 11, 0.28),
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
     color: rgba(245, 158, 11, 1);
   }
