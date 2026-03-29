@@ -363,7 +363,7 @@ export const CalibrationTab = memo(function CalibrationTab({
             }`}>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Status</span>
-                <span className={isRecording ? 'text-primary font-medium' : 'text-muted-foreground'}>
+                <span className={isRecording ? 'text-[var(--console-green)] font-medium' : 'text-muted-foreground'}>
                   {isRecording ? 'Recording' : 'Waiting for analysis...'}
                 </span>
               </div>

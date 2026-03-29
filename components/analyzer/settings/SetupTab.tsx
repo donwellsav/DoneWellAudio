@@ -142,7 +142,7 @@ export const SetupTab = memo(function SetupTab({
           {([['surgical', 'Surgical'], ['heavy', 'Heavy']] as const).map(([style, label]) => (
             <button key={style} onClick={() => ctx.setEqStyle(style)}
               className={`min-h-11 flex-1 px-2 rounded text-xs font-mono font-bold tracking-wide transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
-                settings.eqPreset === style ? 'bg-[rgba(245,158,11,0.12)] text-[var(--console-amber)] border border-[rgba(245,158,11,0.38)]' : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'
+                settings.eqPreset === style ? 'bg-[rgba(245,158,11,0.12)] text-[var(--console-amber)] border border-[rgba(245,158,11,0.38)]' : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-[rgba(245,158,11,0.18)]'
               }`}
             >{label}</button>
           ))}
