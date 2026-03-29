@@ -47,6 +47,8 @@ export class MSDPool {
   private readonly _age: Uint32Array
   // bin → slot mapping
   private readonly _binToSlot: Map<number, number>
+  // slot → bin reverse mapping for O(1) eviction lookup (avoids Map iteration)
+  private readonly _slotToBin: Int32Array
   // Available slot indices (LIFO stack)
   private _freeSlots: number[]
   // Global monotonic counter for LRU timestamps
@@ -80,6 +82,7 @@ export class MSDPool {
     this._frameCount = new Uint16Array(poolSize)
     this._age = new Uint32Array(poolSize)
     this._binToSlot = new Map()
+    this._slotToBin = new Int32Array(poolSize).fill(-1)
     this._freeSlots = Array.from({ length: poolSize }, (_, i) => i)
     this._clock = 0
     this._scratch = new Int32Array(historySize)
@@ -227,6 +230,7 @@ export class MSDPool {
     this._frameCount.fill(0)
     this._age.fill(0)
     this._binToSlot.clear()
+    this._slotToBin.fill(-1)
     this._freeSlots = Array.from({ length: this._poolSize }, (_, i) => i)
     this._clock = 0
   }
@@ -255,12 +259,10 @@ export class MSDPool {
       }
       slot = oldestSlot
 
-      // Remove evicted bin's mapping
-      for (const [bin, s] of this._binToSlot) {
-        if (s === slot) {
-          this._binToSlot.delete(bin)
-          break
-        }
+      // O(1) evicted bin lookup via reverse mapping (replaces Map iteration)
+      const evictedBin = this._slotToBin[slot]
+      if (evictedBin >= 0) {
+        this._binToSlot.delete(evictedBin)
       }
     }
 
@@ -270,6 +272,7 @@ export class MSDPool {
     this._writeIndex[slot] = 0
     this._frameCount[slot] = 0
     this._binToSlot.set(binIndex, slot)
+    this._slotToBin[slot] = binIndex
 
     return slot
   }

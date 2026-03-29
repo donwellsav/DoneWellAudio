@@ -114,6 +114,15 @@ export class TrackManager {
   }
 
   /**
+   * Check if a track ID is currently active. O(1) Map lookup.
+   * Used by combTracker prune to avoid allocating a Set of active IDs.
+   */
+  isActiveTrack(id: string): boolean {
+    const track = this.tracks.get(id)
+    return track !== undefined && track.isActive
+  }
+
+  /**
    * Get raw Track objects (for internal use)
    */
   getRawTracks(): Track[] {

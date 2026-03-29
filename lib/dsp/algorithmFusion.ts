@@ -367,6 +367,10 @@ export function calibrateProbability(raw: number, table?: CalibrationTable): num
 /** Module-level fallback — only used when no per-track tracker is provided. */
 const combStabilityTracker = new CombStabilityTracker()
 
+/** Pre-allocated buffer for effective scores in fuseAlgorithmResults().
+ *  Avoids per-call heap allocation (~500 calls/sec). Max 7 algorithms + 1 spare. */
+const _effScores = new Float64Array(8)
+
 // Three-model consensus (Claude+Gemini+ChatGPT): 'existing' was a legacy
 // prominence metric that overlapped with spectral/MSD (double-counting).
 // Removed entirely and redistributed to IHR (harmonic discrimination) and
@@ -738,27 +742,28 @@ export function fuseAlgorithmResults(
       break
   }
 
-  // When mlEnabled is explicitly false, remove ML from all mode branches
-  if (config.mlEnabled === false) {
-    activeAlgorithms = activeAlgorithms.filter(a => a !== 'ml')
-  }
+  // Convert to Set for O(1) .has() instead of O(n) .includes() on each algorithm check.
+  // Also handles mlEnabled filtering (replaces .filter(a => a !== 'ml')).
+  const active = new Set(activeAlgorithms)
+  if (config.mlEnabled === false) active.delete('ml')
 
   let weightedSum  = 0
   let totalWeight  = 0
   // F2 fix: collect effective (transformed) scores for agreement/confidence
-  const effectiveScores: number[] = []
+  // Pre-allocated typed array avoids per-call heap allocation + GC pressure (~500 calls/sec)
+  let effCount = 0
 
-  if (activeAlgorithms.includes('msd') && scores.msd) {
+  if (active.has('msd') && scores.msd) {
     weightedSum += scores.msd.feedbackScore * weights.msd
     totalWeight += weights.msd
-    effectiveScores.push(scores.msd.feedbackScore)
+    _effScores[effCount++] = scores.msd.feedbackScore
     contributingAlgorithms.push('MSD')
     if (scores.msd.isFeedbackLikely) {
       reasons.push(`MSD indicates feedback (${scores.msd.msd.toFixed(3)} dB/frame\u00b2)`)
     }
   }
 
-  if (activeAlgorithms.includes('phase') && scores.phase) {
+  if (active.has('phase') && scores.phase) {
     // Low-frequency phase suppression: below 200 Hz, FFT phase resolution
     // is too coarse for reliable coherence measurement (8 bins at 50 Hz).
     // Reduce phase influence by 50% to prevent phase noise from tanking
@@ -768,17 +773,17 @@ export function fuseAlgorithmResults(
       : scores.phase.feedbackScore
     weightedSum += phaseScore * weights.phase
     totalWeight += weights.phase
-    effectiveScores.push(phaseScore)
+    _effScores[effCount++] = phaseScore
     contributingAlgorithms.push('Phase')
     if (scores.phase.isFeedbackLikely) {
       reasons.push(`High phase coherence (${(scores.phase.coherence * 100).toFixed(0)}%)`)
     }
   }
 
-  if (activeAlgorithms.includes('spectral') && scores.spectral) {
+  if (active.has('spectral') && scores.spectral) {
     weightedSum += scores.spectral.feedbackScore * weights.spectral
     totalWeight += weights.spectral
-    effectiveScores.push(scores.spectral.feedbackScore)
+    _effScores[effCount++] = scores.spectral.feedbackScore
     contributingAlgorithms.push('Spectral')
     if (scores.spectral.isFeedbackLikely) {
       reasons.push(`Pure tone detected (flatness ${scores.spectral.flatness.toFixed(3)})`)
@@ -798,7 +803,7 @@ export function fuseAlgorithmResults(
   // Per-track trackers prevent cross-peak contamination when multiple peaks
   // have comb patterns in the same frame window.
   const cst = trackCombTracker ?? combStabilityTracker
-  if (activeAlgorithms.includes('comb') && scores.comb && scores.comb.hasPattern) {
+  if (active.has('comb') && scores.comb && scores.comb.hasPattern) {
     // Feed spacing into temporal tracker
     if (scores.comb.fundamentalSpacing != null) {
       cst.push(scores.comb.fundamentalSpacing)
@@ -813,7 +818,7 @@ export function fuseAlgorithmResults(
     const combWeight = weights.comb * 2
     weightedSum += combConfidence * combWeight
     totalWeight += weights.comb
-    effectiveScores.push(combConfidence)
+    _effScores[effCount++] = combConfidence
     contributingAlgorithms.push('Comb')
 
     const cvStr = cst.length >= 4
@@ -834,10 +839,10 @@ export function fuseAlgorithmResults(
     cst.reset()
   }
 
-  if (activeAlgorithms.includes('ihr') && scores.ihr) {
+  if (active.has('ihr') && scores.ihr) {
     weightedSum += scores.ihr.feedbackScore * weights.ihr
     totalWeight += weights.ihr
-    effectiveScores.push(scores.ihr.feedbackScore)
+    _effScores[effCount++] = scores.ihr.feedbackScore
     contributingAlgorithms.push('IHR')
     if (scores.ihr.isFeedbackLike) {
       reasons.push(`Clean tone (IHR ${scores.ihr.interHarmonicRatio.toFixed(2)}, ${scores.ihr.harmonicsFound} harmonics)`)
@@ -846,10 +851,10 @@ export function fuseAlgorithmResults(
     }
   }
 
-  if (activeAlgorithms.includes('ptmr') && scores.ptmr) {
+  if (active.has('ptmr') && scores.ptmr) {
     weightedSum += scores.ptmr.feedbackScore * weights.ptmr
     totalWeight += weights.ptmr
-    effectiveScores.push(scores.ptmr.feedbackScore)
+    _effScores[effCount++] = scores.ptmr.feedbackScore
     contributingAlgorithms.push('PTMR')
     if (scores.ptmr.isFeedbackLike) {
       reasons.push(`Sharp spectral peak (PTMR ${scores.ptmr.ptmrDb.toFixed(1)} dB)`)
@@ -858,10 +863,10 @@ export function fuseAlgorithmResults(
 
   // ML meta-model: 7th algorithm for false positive reduction.
   // Only contributes when model is loaded and available (graceful degradation).
-  if (activeAlgorithms.includes('ml') && scores.ml?.isAvailable) {
+  if (active.has('ml') && scores.ml?.isAvailable) {
     weightedSum += scores.ml.feedbackScore * weights.ml
     totalWeight += weights.ml
-    effectiveScores.push(scores.ml.feedbackScore)
+    _effScores[effCount++] = scores.ml.feedbackScore
     contributingAlgorithms.push('ML')
     reasons.push(`ML: ${(scores.ml.feedbackScore * 100).toFixed(0)}% (${scores.ml.modelVersion})`)
   }
@@ -887,15 +892,19 @@ export function fuseAlgorithmResults(
   // 14.3: Apply post-gate calibration (identity by default — zero behavior change)
   feedbackProbability = calibrateProbability(feedbackProbability, calibrationTable)
 
-  // Agreement and confidence use effectiveScores (collected above) so that
+  // Agreement and confidence use effective scores (collected above) so that
   // active algorithm filtering, phase suppression, and comb sweep penalties
   // are reflected in both probability and confidence.
-  const mean     = effectiveScores.length > 0
-    ? effectiveScores.reduce((a, b) => a + b, 0) / effectiveScores.length
-    : 0
-  const variance = effectiveScores.length > 0
-    ? effectiveScores.reduce((sum, s) => sum + Math.pow(s - mean, 2), 0) / effectiveScores.length
-    : 0
+  // Single-pass mean + variance over pre-allocated _effScores (no .reduce(), no Math.pow).
+  let _effSum = 0
+  for (let i = 0; i < effCount; i++) _effSum += _effScores[i]
+  const mean = effCount > 0 ? _effSum / effCount : 0
+  let _effVarSum = 0
+  for (let i = 0; i < effCount; i++) {
+    const d = _effScores[i] - mean
+    _effVarSum += d * d
+  }
+  const variance = effCount > 0 ? _effVarSum / effCount : 0
   const agreement = 1 - Math.sqrt(variance)
   // 14.8: Update agreement tracker and add persistence bonus to confidence
   agreementTracker?.update(agreement)
