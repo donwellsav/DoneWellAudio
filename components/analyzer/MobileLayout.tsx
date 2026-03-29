@@ -519,7 +519,7 @@ export const MobileLayout = memo(function MobileLayout({
               <div className="relative">
                 <tab.Icon className="w-5 h-5" />
                 {tab.badge > 0 && (
-                  <span className="absolute -top-1.5 -right-2.5 bg-primary text-primary-foreground text-xs rounded-full min-w-[16px] h-[16px] flex items-center justify-center font-bold leading-none px-0.5">
+                  <span className="absolute -top-1.5 -right-2.5 bg-[var(--console-amber)] text-[#0a0d10] text-xs rounded-full min-w-[16px] h-[16px] flex items-center justify-center font-bold leading-none px-0.5">
                     {tab.badge}
                   </span>
                 )}

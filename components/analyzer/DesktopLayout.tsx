@@ -221,7 +221,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                         {settings.mode === 'ringOut' && isRunning && onStartWizard && (
                           <button
                             onClick={onStartWizard}
-                            className="w-full mt-2 py-2 rounded font-mono text-xs font-bold tracking-[0.15em] uppercase bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-colors cursor-pointer"
+                            className="w-full mt-2 py-2 rounded font-mono text-xs font-bold tracking-[0.15em] uppercase bg-[rgba(245,158,11,0.10)] border border-[rgba(245,158,11,0.30)] text-[var(--console-amber)] hover:bg-[rgba(245,158,11,0.18)] transition-colors cursor-pointer"
                           >
                             Start Ring-Out Wizard
                           </button>

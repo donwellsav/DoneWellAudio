@@ -40,7 +40,7 @@ export const LandscapeSettingsSheet = memo(function LandscapeSettingsSheet({
           <Settings className="size-5" />
         </Button>
       </SheetTrigger>
-      <SheetContent side="bottom" className="max-h-[70vh] overflow-y-auto channel-strip pb-6">
+      <SheetContent side="bottom" className="max-h-[70vh] overflow-y-auto channel-strip amber-sidecar pb-6">
         <SheetTitle className="sr-only">Settings</SheetTitle>
         <SettingsPanel
           settings={settings}

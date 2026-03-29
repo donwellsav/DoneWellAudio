@@ -33,12 +33,12 @@ export const FullscreenOverlay = memo(function FullscreenOverlay({
         aria-label={isRunning ? 'Stop analysis' : 'Start analysis'}
         className="relative w-8 h-8 flex items-center justify-center flex-shrink-0 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary rounded-full"
       >
-        <div className={`absolute inset-0.5 rounded-full border-2 transition-colors duration-300 ${isRunning ? 'border-primary' : 'border-primary/50'}`} />
+        <div className={`absolute inset-0.5 rounded-full border-2 transition-colors duration-300 ${isRunning ? 'border-[var(--console-amber)]' : 'border-[var(--console-amber)]/50'}`} />
         {isRunning && (
-          <div className="absolute inset-0.5 rounded-full border-2 border-primary animate-ping opacity-30" />
+          <div className="absolute inset-0.5 rounded-full border-2 border-[var(--console-amber)] animate-ping opacity-30" />
         )}
         <svg
-          className={`w-4 h-4 relative z-10 transition-colors duration-300 ${isRunning ? 'text-primary' : 'text-primary/60 hover:text-primary'}`}
+          className={`w-4 h-4 relative z-10 transition-colors duration-300 ${isRunning ? 'text-[var(--console-amber)]' : 'text-[var(--console-amber)]/60 hover:text-[var(--console-amber)]'}`}
           viewBox="0 0 24 24"
           fill="currentColor"
         >
@@ -48,7 +48,7 @@ export const FullscreenOverlay = memo(function FullscreenOverlay({
 
       {/* Active issue count badge */}
       {activeAdvisoryCount > 0 && (
-        <span className="bg-primary text-primary-foreground text-xs rounded-full min-w-[20px] h-[20px] flex items-center justify-center font-mono font-bold leading-none px-1">
+        <span className="bg-[var(--console-amber)] text-[#0a0d10] text-xs rounded-full min-w-[20px] h-[20px] flex items-center justify-center font-mono font-bold leading-none px-1">
           {activeAdvisoryCount}
         </span>
       )}

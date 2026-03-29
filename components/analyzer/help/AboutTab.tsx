@@ -60,7 +60,7 @@ export const AboutTab = memo(function AboutTab() {
                 <span className="font-mono text-sm font-bold text-foreground">v{entry.version}</span>
                 <span className="text-xs text-muted-foreground font-mono">{entry.date}</span>
                 {entry.highlights && (
-                  <span className="text-xs text-primary font-mono">· {entry.highlights}</span>
+                  <span className="text-xs font-mono" style={{ color: 'var(--console-amber)' }}>· {entry.highlights}</span>
                 )}
               </div>
               <div className="space-y-1">
