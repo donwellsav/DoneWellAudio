@@ -8,6 +8,8 @@ interface DataConsentDialogProps {
   visible: boolean
   onAccept: () => void
   onDecline: () => void
+  /** When true, show GDPR-compliant disclosures required for EU/EEA/UK users */
+  isEU?: boolean
 }
 
 /**
@@ -24,6 +26,7 @@ export const DataConsentDialog = memo(function DataConsentDialog({
   visible,
   onAccept,
   onDecline,
+  isEU = false,
 }: DataConsentDialogProps) {
   const handleAccept = useCallback(() => onAccept(), [onAccept])
   const handleDecline = useCallback(() => onDecline(), [onDecline])
@@ -72,6 +75,20 @@ export const DataConsentDialog = memo(function DataConsentDialog({
           ))}
         </div>
 
+        {/* GDPR disclosures — EU/EEA/UK only */}
+        {isEU && (
+          <div className="border border-border/30 rounded bg-muted/20 px-3 py-3 mb-5 space-y-1.5">
+            <p className="text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-wider mb-2">
+              GDPR Information
+            </p>
+            {GDPR_POINTS.map((point, i) => (
+              <p key={i} className="text-[11px] text-muted-foreground font-mono leading-snug">
+                {point}
+              </p>
+            ))}
+          </div>
+        )}
+
         {/* Buttons */}
         <div className="flex items-center justify-between gap-2">
           <button
@@ -97,7 +114,7 @@ export const DataConsentDialog = memo(function DataConsentDialog({
             )}
           >
             <Database className="w-4 h-4" />
-            Share Data
+            {isEU ? 'I Consent' : 'Share Data'}
           </button>
         </div>
       </div>
@@ -110,4 +127,13 @@ const PRIVACY_POINTS = [
   'No device IDs, IP addresses, or location',
   'Random session IDs, never linked to you',
   'Used solely to improve detection accuracy',
+]
+
+const GDPR_POINTS = [
+  '\u2022 Legal basis: Article 6(1)(a) \u2014 your explicit consent',
+  '\u2022 Purpose: Training ML models to improve feedback detection accuracy',
+  '\u2022 Data collected: Frequency magnitude spectrum (~2\u202fKB per batch)',
+  '\u2022 Retention: Up to 24 months from collection date',
+  '\u2022 Storage: Supabase infrastructure (US/EU regions)',
+  '\u2022 Your rights: Withdraw consent anytime via Settings \u2192 Advanced. Data is fully anonymised (random session IDs, no device identifiers), so individual data access or deletion is not technically possible \u2014 this is the privacy-preserving design.',
 ]

@@ -23,6 +23,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   loadConsent,
   acceptConsent,
+  declineConsent,
   revokeConsent,
 } from '@/lib/data/consent'
 import type { ConsentStatus } from '@/types/data'
@@ -39,6 +40,8 @@ export interface DataCollectionState {
 }
 
 export interface DataCollectionHandle extends DataCollectionState {
+  /** Whether the user is in an EU/EEA/UK jurisdiction (drives GDPR dialog) */
+  isEU: boolean
   /** User accepted data collection (kept for Settings toggle compatibility) */
   handleAccept: () => void
   /** User declined data collection (kept for Settings toggle compatibility) */
@@ -59,6 +62,15 @@ export function useDataCollection(): DataCollectionHandle {
   const [consentStatus, setConsentStatus] = useState<ConsentStatus>(() => loadConsent().status)
   const [isCollecting, setIsCollecting] = useState(false)
   const [showConsentDialog, setShowConsentDialog] = useState(false)
+  const [isEU, setIsEU] = useState(false)
+
+  // Fetch jurisdiction once on mount — fail open (non-EU dialog on error)
+  useEffect(() => {
+    fetch('/api/geo')
+      .then(r => r.json())
+      .then(({ isEU: eu }: { isEU: boolean }) => setIsEU(eu))
+      .catch(() => {})
+  }, [])
 
   // DSP worker handle — set externally by the consumer after useAudioAnalyzer
   const workerRef = useRef<DSPWorkerHandle | null>(null)
@@ -131,21 +143,21 @@ export function useDataCollection(): DataCollectionHandle {
   // ─── Settings toggle actions ───────────────────────────────────────────
 
   const handleAccept = useCallback(() => {
-    acceptConsent()
+    acceptConsent(isEU ? 'EU' : 'other')
     setConsentStatus('accepted')
     setShowConsentDialog(false)
 
     if (audioParamsRef.current) {
       enableCollection(audioParamsRef.current.fftSize, audioParamsRef.current.sampleRate)
     }
-  }, [enableCollection])
+  }, [enableCollection, isEU])
 
   const handleDecline = useCallback(() => {
-    revokeConsent()
+    declineConsent(isEU ? 'EU' : 'other')
     setConsentStatus('declined')
     setShowConsentDialog(false)
     disableCollection()
-  }, [disableCollection])
+  }, [disableCollection, isEU])
 
   const handleRevoke = useCallback(() => {
     revokeConsent()
@@ -184,6 +196,7 @@ export function useDataCollection(): DataCollectionHandle {
     consentStatus,
     showConsentDialog,
     isCollecting,
+    isEU,
     handleAccept,
     handleDecline,
     handleRevoke,

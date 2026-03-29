@@ -13,16 +13,21 @@ import type { SeverityLevel, ContentType } from './advisory'
 
 export type ConsentStatus = 'not_asked' | 'prompted' | 'accepted' | 'declined'
 
+/** Legal jurisdiction under which consent was recorded */
+export type ConsentJurisdiction = 'EU' | 'other'
+
 export interface ConsentState {
   status: ConsentStatus
   /** Consent version — bump to re-ask on terms change */
   version: number
   /** ISO 8601 timestamp when user last responded */
   respondedAt: string | null
+  /** Jurisdiction at time of consent — 'EU' triggers GDPR disclosures, null = pre-v2 */
+  jurisdiction: ConsentJurisdiction | null
 }
 
 /** Current consent version — increment when terms change to re-prompt */
-export const CONSENT_VERSION = 1
+export const CONSENT_VERSION = 2
 
 // ─── Snapshots (worker-side) ────────────────────────────────────────────────
 

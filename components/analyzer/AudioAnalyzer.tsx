@@ -366,6 +366,7 @@ const AudioAnalyzerInner = memo(function AudioAnalyzerInner({
             visible={dataCollection.showConsentDialog}
             onAccept={dataCollection.handleAccept}
             onDecline={dataCollection.handleDecline}
+            isEU={dataCollection.isEU}
           />
 
           {error && !isErrorDismissed && (

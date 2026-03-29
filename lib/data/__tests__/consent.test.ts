@@ -89,15 +89,28 @@ describe('consent state machine', () => {
 })
 
 describe('version migration', () => {
-  it('resets consent to not_asked when stored version is older', () => {
+  it('preserves status when migrating from older version', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       status: 'accepted',
-      version: 0, // Older than current CONSENT_VERSION
+      version: 1, // Older than current CONSENT_VERSION
       respondedAt: '2025-01-01T00:00:00Z',
     }))
     const state = loadConsent()
-    expect(state.status).toBe('not_asked')
+    // Status preserved — EU users are re-prompted by hook version check, not by wiping state
+    expect(state.status).toBe('accepted')
     expect(state.version).toBe(CONSENT_VERSION)
+    expect(state.jurisdiction).toBeNull()
+  })
+
+  it('preserves declined status when migrating from older version', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      status: 'declined',
+      version: 1,
+      respondedAt: '2025-01-01T00:00:00Z',
+    }))
+    const state = loadConsent()
+    expect(state.status).toBe('declined')
+    expect(state.jurisdiction).toBeNull()
   })
 
   it('preserves consent when version matches', () => {
@@ -105,14 +118,69 @@ describe('version migration', () => {
       status: 'accepted',
       version: CONSENT_VERSION,
       respondedAt: '2025-01-01T00:00:00Z',
+      jurisdiction: 'EU',
     }))
     const state = loadConsent()
     expect(state.status).toBe('accepted')
+    expect(state.jurisdiction).toBe('EU')
   })
 
   it('resets on invalid JSON in localStorage', () => {
     localStorage.setItem(STORAGE_KEY, 'not-json')
     const state = loadConsent()
     expect(state.status).toBe('not_asked')
+  })
+})
+
+describe('jurisdiction', () => {
+  it('acceptConsent stores EU jurisdiction', () => {
+    const state = acceptConsent('EU')
+    expect(state.jurisdiction).toBe('EU')
+    expect(state.version).toBe(CONSENT_VERSION)
+    expect(loadConsent().jurisdiction).toBe('EU')
+  })
+
+  it('acceptConsent stores other jurisdiction', () => {
+    const state = acceptConsent('other')
+    expect(state.jurisdiction).toBe('other')
+  })
+
+  it('acceptConsent defaults to null jurisdiction', () => {
+    const state = acceptConsent()
+    expect(state.jurisdiction).toBeNull()
+  })
+
+  it('declineConsent stores EU jurisdiction', () => {
+    const state = declineConsent('EU')
+    expect(state.jurisdiction).toBe('EU')
+    expect(loadConsent().jurisdiction).toBe('EU')
+  })
+
+  it('declineConsent defaults to null jurisdiction', () => {
+    const state = declineConsent()
+    expect(state.jurisdiction).toBeNull()
+  })
+
+  it('isConsentGiven still true after v1 accepted migration', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      status: 'accepted',
+      version: 1,
+      respondedAt: '2025-01-01T00:00:00Z',
+    }))
+    expect(isConsentGiven()).toBe(true)
+  })
+
+  it('isConsentPending true for v1 not_asked state', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      status: 'not_asked',
+      version: 1,
+      respondedAt: null,
+    }))
+    expect(isConsentPending()).toBe(true)
+  })
+
+  it('defaultState includes jurisdiction null', () => {
+    const state = loadConsent()
+    expect(state.jurisdiction).toBeNull()
   })
 })

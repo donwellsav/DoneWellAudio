@@ -18,7 +18,7 @@
  * Privacy: consent state is stored locally only, never transmitted.
  */
 
-import type { ConsentState, ConsentStatus } from '@/types/data'
+import type { ConsentState, ConsentStatus, ConsentJurisdiction } from '@/types/data'
 import { CONSENT_VERSION } from '@/types/data'
 
 const STORAGE_KEY = 'dwa-data-consent'
@@ -33,9 +33,15 @@ export function loadConsent(): ConsentState {
 
     const stored: ConsentState = JSON.parse(raw)
 
-    // Version bump → reset to default (accepted)
+    // Version bump → migrate in-place (preserve status, add jurisdiction: null)
+    // Do NOT reset to default — EU users are re-prompted by version mismatch in
+    // useDataCollection, not by wiping their consent state.
     if (stored.version < CONSENT_VERSION) {
-      return defaultState()
+      return {
+        ...stored,
+        version: CONSENT_VERSION,
+        jurisdiction: stored.jurisdiction ?? null,
+      }
     }
 
     return stored
@@ -58,6 +64,7 @@ function defaultState(): ConsentState {
     status: 'not_asked',
     version: CONSENT_VERSION,
     respondedAt: null,
+    jurisdiction: null,
   }
 }
 
@@ -69,28 +76,31 @@ export function markPrompted(): ConsentState {
     status: 'prompted',
     version: CONSENT_VERSION,
     respondedAt: null,
+    jurisdiction: null,
   }
   saveConsent(state)
   return state
 }
 
 /** Record acceptance of data collection */
-export function acceptConsent(): ConsentState {
+export function acceptConsent(jurisdiction: ConsentJurisdiction | null = null): ConsentState {
   const state: ConsentState = {
     status: 'accepted',
     version: CONSENT_VERSION,
     respondedAt: new Date().toISOString(),
+    jurisdiction,
   }
   saveConsent(state)
   return state
 }
 
 /** Record decline of data collection (kept for compat) */
-export function declineConsent(): ConsentState {
+export function declineConsent(jurisdiction: ConsentJurisdiction | null = null): ConsentState {
   const state: ConsentState = {
     status: 'declined',
     version: CONSENT_VERSION,
     respondedAt: new Date().toISOString(),
+    jurisdiction,
   }
   saveConsent(state)
   return state
@@ -102,6 +112,7 @@ export function revokeConsent(): ConsentState {
     status: 'declined',
     version: CONSENT_VERSION,
     respondedAt: new Date().toISOString(),
+    jurisdiction: null,
   }
   saveConsent(state)
   return state
