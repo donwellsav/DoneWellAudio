@@ -60,7 +60,16 @@
       "Bash(findstr /i \"node\")",
       "Bash(node -e \":*)",
       "Bash(node .claude/hooks/ship-guard.js)",
-      "Bash(git cherry-pick:*)"
+      "Bash(git cherry-pick:*)",
+      "Bash(git push:*)",
+      "Bash(/tmp/claude-cia-audit.md:*)",
+      "Bash(ls components/analyzer/KillTheRing* components/analyzer/AudioAnalyzer* app/page.tsx)",
+      "Bash(ls docs/*.md)",
+      "Bash(gh pr:*)",
+      "Skill(commit-commands:commit)",
+      "Skill(commit-commands:commit:*)",
+      "Bash(grep -r \"Float32Array\\\\|Float64Array\" /c/DoneWellAV/DoneWellAudio/lib --include=\"*.ts\" ! -path \"*/node_modules/*\" ! -path \"*/.claude/*\")",
+      "Bash(wc -l /c/DoneWellAV/DoneWellAudio/lib/dsp/*.ts)"
     ]
   }
 }
