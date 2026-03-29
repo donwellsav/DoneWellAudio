@@ -17,12 +17,9 @@ import type {
   SpectralFlatnessResult,
   CompressionResult,
 } from '@/lib/dsp/compressionDetection'
-import type {
-  AlgorithmScores,
-  CombPatternResult,
-  InterHarmonicResult,
-  PTMRResult,
-} from '@/lib/dsp/algorithmFusion'
+import type { AlgorithmScores } from '@/lib/dsp/fusionEngine'
+import type { CombPatternResult } from '@/lib/dsp/combPattern'
+import type { InterHarmonicResult, PTMRResult } from '@/lib/dsp/spectralAlgorithms'
 
 // ── ScoreInput ──────────────────────────────────────────────────────────────
 

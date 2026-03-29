@@ -40,7 +40,7 @@ import {
   DEFAULT_FUSION_CONFIG,
   type FusionConfig,
   type AlgorithmScores,
-} from '@/lib/dsp/algorithmFusion'
+} from '@/lib/dsp/fusionEngine'
 import { buildScores, type ScoreInput } from '../helpers/mockAlgorithmScores'
 
 function fuse(

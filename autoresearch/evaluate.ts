@@ -17,7 +17,7 @@
  *   scenarios: 52/60 correct
  */
 
-import { fuseAlgorithmResults, FUSION_WEIGHTS } from '@/lib/dsp/algorithmFusion'
+import { fuseAlgorithmResults, FUSION_WEIGHTS } from '@/lib/dsp/fusionEngine'
 import { buildScores } from '@/tests/helpers/mockAlgorithmScores'
 import { SCENARIOS, type Scenario, type FeedbackVerdict } from './scenarios'
 

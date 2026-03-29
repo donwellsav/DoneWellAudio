@@ -11,28 +11,25 @@
  */
 
 import { describe, it, expect } from 'vitest'
+import { detectCombPattern, COMB_CONSTANTS } from '../combPattern'
+import { analyzeInterHarmonicRatio, calculatePTMR, detectContentType } from '../spectralAlgorithms'
 import {
-  detectCombPattern,
-  analyzeInterHarmonicRatio,
-  calculatePTMR,
   calculateMINDS,
-  detectContentType,
   fuseAlgorithmResults,
   FUSION_WEIGHTS,
   DEFAULT_FUSION_CONFIG,
-  COMB_CONSTANTS,
   AgreementPersistenceTracker,
   calibrateProbability,
   IDENTITY_CALIBRATION,
-} from '../algorithmFusion'
+} from '../fusionEngine'
 import type {
   AlgorithmScores,
   FusedDetectionResult,
-  CombPatternResult,
-  PTMRResult,
   MINDSResult,
   CalibrationTable,
-} from '../algorithmFusion'
+} from '../fusionEngine'
+import type { CombPatternResult } from '../combPattern'
+import type { PTMRResult } from '../spectralAlgorithms'
 import { buildScores } from '@/tests/helpers/mockAlgorithmScores'
 
 // ── detectCombPattern ──────────────────────────────────────────────────────
