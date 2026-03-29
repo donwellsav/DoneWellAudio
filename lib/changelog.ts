@@ -14,6 +14,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.38.0',
+    date: '2026-03-29',
+    changes: [
+      { type: 'feat', description: '**IssuesList.tsx** (876 → 280 lines): Now handles only list orchestration — sorting, 3s stability timer, Companion auto-send, aria-live announcements' },
+      { type: 'feat', description: '**IssueCard.tsx** (310 lines, new): Self-contained card component composing the swipe hook and action buttons' },
+      { type: 'feat', description: '**IssueCardActions.tsx** (160 lines, new): Unified action buttons with 3 layout modes (`desktop` / `mobile` / `copy-only`), eliminating the duplicated desktop/mobile button markup' },
+      { type: 'feat', description: '**hooks/useSwipeGesture.ts** (145 lines, new): Reusable swipe + long-press gesture hook with haptic feedback, vertical-scroll bailout, and configurable thresholds' },
+      { type: 'feat', description: '[x] `npx tsc --noEmit` — zero type errors' },
+      { type: 'feat', description: '[x] `pnpm test` — 985 tests pass (981 pass + 4 skip), 46 suites, identical to before' },
+      { type: 'feat', description: '[ ] Visual verification: cards render identically in desktop and mobile layouts' },
+      { type: 'feat', description: '[ ] Swipe gestures work on touch devices (left=dismiss, right=confirm, long-press=false+)' },
+      { type: 'feat', description: '[ ] Action buttons (FALSE+, CONFIRM, Copy, SEND, PA2) work in all 3 layout modes' },
+    ],
+  },
+  {
     version: '0.37.0',
     date: '2026-03-29',
     changes: [
