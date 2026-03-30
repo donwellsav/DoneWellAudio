@@ -14,6 +14,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.47.0',
+    date: '2026-03-30',
+    changes: [
+      { type: 'feat', description: '**Transport strip** — ENGAGE/STOP, PAUSE/RESUME, CLEAR buttons centered in header with console-button aesthetic (inset shadows, green/red/blue/amber/rose colors, mono tracking)' },
+      { type: 'feat', description: '**Full UI freeze** — PAUSE now freezes both spectrum canvas AND advisory cards. Detection pipeline keeps running; buffered updates flush on RESUME. RUNAWAY severity breaks through freeze for safety.' },
+      { type: 'feat', description: '**RTA level meter** — 6px vertical bar on left edge of RTA sharing the dB scale. Gradient: blue (below -75dB) → green → amber → red. Peak-hold line with 15 dB/sec VU decay.' },
+      { type: 'feat', description: '**Ambient level glow** — radial gradient behind spectrum shifts blue → amber → red with input level. Peripheral awareness of signal strength without looking at the meter.' },
+      { type: 'feat', description: '[x] `npx tsc --noEmit` — clean' },
+      { type: 'feat', description: '[x] `pnpm test` — 1076 pass, 4 skip (same baseline)' },
+      { type: 'feat', description: '[ ] Verify ENGAGE/STOP button toggles analysis' },
+      { type: 'feat', description: '[ ] Verify PAUSE freezes both spectrum and cards, RESUME flushes' },
+      { type: 'feat', description: '[ ] Verify RUNAWAY detection breaks through frozen state' },
+      { type: 'feat', description: '[ ] Verify CLEAR button clears advisories/GEQ/RTA' },
+      { type: 'feat', description: '[ ] Verify level meter bar appears with live mic signal' },
+      { type: 'feat', description: '[ ] Verify ambient glow shifts color with signal level' },
+      { type: 'feat', description: '[ ] Verify light theme renders correctly' },
+    ],
+  },
+  {
     version: '0.44.0',
     date: '2026-03-30',
     changes: [
