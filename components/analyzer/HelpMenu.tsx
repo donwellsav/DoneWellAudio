@@ -35,15 +35,15 @@ export const HelpMenu = memo(function HelpMenu() {
       <SheetContent side="right" className="sm:max-w-7xl overflow-y-auto channel-strip amber-sidecar">
         <SheetHeader className="pb-3 panel-groove bg-card/60 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-4 max-sm:pt-2 shadow-[0_1px_8px_rgba(0,0,0,0.3),0_1px_0_rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.09)]">
           <SheetTitle className="text-lg flex items-center gap-2">
-            <HelpCircle className="w-5 h-5" style={{ color: 'var(--console-amber)' }} />
-            <span style={{ color: 'var(--console-amber)' }}>Help</span>
+            <HelpCircle className="w-5 h-5" style={{ color: 'var(--console-blue)' }} />
+            <span style={{ color: 'var(--console-blue)' }}>Help</span>
           </SheetTitle>
           <SheetDescription className="text-sm flex items-center justify-between">
             <span>Guides, modes, algorithms & changelog.</span>
             <button
               onClick={() => { onboardingStorage.clear(); setOpen(false) }}
               className="inline-flex items-center gap-1 text-xs transition-colors cursor-pointer"
-              style={{ color: 'var(--console-amber)' }}
+              style={{ color: 'var(--console-blue)' }}
             >
               <RotateCcw className="w-3 h-3" />
               Replay Tutorial
@@ -53,28 +53,28 @@ export const HelpMenu = memo(function HelpMenu() {
 
         <Tabs defaultValue="guide" className="mt-4 max-sm:mt-1">
           <TabsList className="flex w-full bg-transparent rounded-none border-0 border-b border-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.18)] h-auto p-0">
-            <TabsTrigger value="guide" className="flex-1 flex-col gap-0.5 py-2 text-xs rounded-none border-0 border-b-2 border-transparent uppercase tracking-[0.15em] data-[state=active]:bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.06)] data-[state=active]:border-[var(--console-amber)] data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground hover:text-foreground transition-all duration-200">
-              <BookOpen className="w-4 h-4" style={{ color: 'var(--console-amber)' }} />
+            <TabsTrigger value="guide" className="flex-1 flex-col gap-0.5 py-2 text-xs rounded-none border-0 border-b-2 border-transparent uppercase tracking-[0.15em] data-[state=active]:bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.06)] data-[state=active]:border-[var(--console-blue)] data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground hover:text-foreground transition-all duration-200">
+              <BookOpen className="w-4 h-4" style={{ color: 'var(--console-blue)' }} />
               Guide
             </TabsTrigger>
-            <TabsTrigger value="modes" className="flex-1 flex-col gap-0.5 py-2 text-xs rounded-none border-0 border-b-2 border-transparent uppercase tracking-[0.15em] data-[state=active]:bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.06)] data-[state=active]:border-[var(--console-amber)] data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground hover:text-foreground transition-all duration-200">
-              <SlidersHorizontal className="w-4 h-4" style={{ color: 'var(--console-amber)' }} />
+            <TabsTrigger value="modes" className="flex-1 flex-col gap-0.5 py-2 text-xs rounded-none border-0 border-b-2 border-transparent uppercase tracking-[0.15em] data-[state=active]:bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.06)] data-[state=active]:border-[var(--console-blue)] data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground hover:text-foreground transition-all duration-200">
+              <SlidersHorizontal className="w-4 h-4" style={{ color: 'var(--console-blue)' }} />
               Modes
             </TabsTrigger>
-            <TabsTrigger value="algorithms" className="flex-1 flex-col gap-0.5 py-2 text-xs rounded-none border-0 border-b-2 border-transparent uppercase tracking-[0.15em] data-[state=active]:bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.06)] data-[state=active]:border-[var(--console-amber)] data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground hover:text-foreground transition-all duration-200">
-              <Cpu className="w-4 h-4" style={{ color: 'var(--console-amber)' }} />
+            <TabsTrigger value="algorithms" className="flex-1 flex-col gap-0.5 py-2 text-xs rounded-none border-0 border-b-2 border-transparent uppercase tracking-[0.15em] data-[state=active]:bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.06)] data-[state=active]:border-[var(--console-blue)] data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground hover:text-foreground transition-all duration-200">
+              <Cpu className="w-4 h-4" style={{ color: 'var(--console-blue)' }} />
               Algorithms
             </TabsTrigger>
-            <TabsTrigger value="reference" className="flex-1 flex-col gap-0.5 py-2 text-xs rounded-none border-0 border-b-2 border-transparent uppercase tracking-[0.15em] data-[state=active]:bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.06)] data-[state=active]:border-[var(--console-amber)] data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground hover:text-foreground transition-all duration-200">
-              <List className="w-4 h-4" style={{ color: 'var(--console-amber)' }} />
+            <TabsTrigger value="reference" className="flex-1 flex-col gap-0.5 py-2 text-xs rounded-none border-0 border-b-2 border-transparent uppercase tracking-[0.15em] data-[state=active]:bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.06)] data-[state=active]:border-[var(--console-blue)] data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground hover:text-foreground transition-all duration-200">
+              <List className="w-4 h-4" style={{ color: 'var(--console-blue)' }} />
               Reference
             </TabsTrigger>
-            <TabsTrigger value="companion" className="flex-1 flex-col gap-0.5 py-2 text-xs rounded-none border-0 border-b-2 border-transparent uppercase tracking-[0.15em] data-[state=active]:bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.06)] data-[state=active]:border-[var(--console-amber)] data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground hover:text-foreground transition-all duration-200">
-              <Radio className="w-4 h-4" style={{ color: 'var(--console-amber)' }} />
+            <TabsTrigger value="companion" className="flex-1 flex-col gap-0.5 py-2 text-xs rounded-none border-0 border-b-2 border-transparent uppercase tracking-[0.15em] data-[state=active]:bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.06)] data-[state=active]:border-[var(--console-blue)] data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground hover:text-foreground transition-all duration-200">
+              <Radio className="w-4 h-4" style={{ color: 'var(--console-blue)' }} />
               Companion
             </TabsTrigger>
-            <TabsTrigger value="about" className="flex-1 flex-col gap-0.5 py-2 text-xs rounded-none border-0 border-b-2 border-transparent uppercase tracking-[0.15em] data-[state=active]:bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.06)] data-[state=active]:border-[var(--console-amber)] data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground hover:text-foreground transition-all duration-200">
-              <Info className="w-4 h-4" style={{ color: 'var(--console-amber)' }} />
+            <TabsTrigger value="about" className="flex-1 flex-col gap-0.5 py-2 text-xs rounded-none border-0 border-b-2 border-transparent uppercase tracking-[0.15em] data-[state=active]:bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.06)] data-[state=active]:border-[var(--console-blue)] data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground hover:text-foreground transition-all duration-200">
+              <Info className="w-4 h-4" style={{ color: 'var(--console-blue)' }} />
               About
             </TabsTrigger>
           </TabsList>
