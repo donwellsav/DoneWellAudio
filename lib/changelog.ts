@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.45.0',
+    date: '2026-03-30',
+    changes: [
+      { type: 'feat', description: 'chore(deps): Bump the production group across 1 directory with 6 updates' },
+    ],
+  },
+  {
     version: '0.47.0',
     date: '2026-03-30',
     changes: [
