@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.49.0',
+    date: '2026-03-30',
+    changes: [
+      { type: 'feat', description: '⚡ Bolt: Optimize onThresholdChange handler with useCallback' },
+    ],
+  },
+  {
     version: '0.48.0',
     date: '2026-03-30',
     changes: [
