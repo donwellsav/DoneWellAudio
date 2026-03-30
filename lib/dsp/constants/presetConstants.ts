@@ -1,0 +1,331 @@
+/**
+ * Preset Constants — Operation Modes, Default Settings, Room Presets
+ *
+ * 8 operation mode presets (speech, worship, liveMusic, theater, monitors,
+ * ringOut, broadcast, outdoor), the DEFAULT_SETTINGS object, room size
+ * presets, and frequency range presets.
+ *
+ * @see DBX AFS whitepaper — mode-specific detection strategies
+ * @see Smaart v8 measurement guide — calibration modes
+ * @see Everest, "Master Handbook of Acoustics" — venue acoustics
+ * @see Hopkins, "Sound Insulation" — room mode behavior
+ */
+
+import type { DetectorSettings } from '@/types/advisory'
+
+// ── Mode Preset Interface ───────────────────────────────────────────────────
+
+export interface ModePreset {
+  label: string
+  description: string
+  // Detection thresholds
+  feedbackThresholdDb: number
+  ringThresholdDb: number
+  growthRateThreshold: number
+  // Analysis parameters
+  fftSize: 4096 | 8192 | 16384
+  minFrequency: number
+  maxFrequency: number
+  // Timing
+  sustainMs: number
+  clearMs: number
+  // Sensitivity
+  confidenceThreshold: number
+  prominenceDb: number
+  // Display/EQ
+  eqPreset: 'surgical' | 'heavy'
+  aWeightingEnabled: boolean
+  inputGainDb: number
+  autoGainTargetDb?: number // Optional — inherits from DEFAULT_SETTINGS when absent
+  ignoreWhistle: boolean
+}
+
+// ── Operation Modes ─────────────────────────────────────────────────────────
+
+export const OPERATION_MODES: Record<string, ModePreset> = {
+  speech: {
+    label: 'Speech',
+    description: 'Corporate & Conference',
+    feedbackThresholdDb: 20,
+    ringThresholdDb: 5,
+    growthRateThreshold: 1.0,
+    fftSize: 8192,
+    minFrequency: 150,
+    maxFrequency: 10000,
+    sustainMs: 300,
+    clearMs: 400,
+    confidenceThreshold: 0.35,
+    prominenceDb: 8,
+    eqPreset: 'surgical',
+    aWeightingEnabled: true,
+    inputGainDb: 0,
+    ignoreWhistle: true,
+  },
+
+  worship: {
+    label: 'Worship',
+    description: 'House of Worship',
+    feedbackThresholdDb: 35,
+    ringThresholdDb: 5,
+    growthRateThreshold: 2.0,
+    fftSize: 8192,
+    minFrequency: 100,
+    maxFrequency: 12000,
+    sustainMs: 280,
+    clearMs: 500,
+    confidenceThreshold: 0.45,
+    prominenceDb: 12,
+    eqPreset: 'surgical',
+    aWeightingEnabled: false,
+    inputGainDb: 2,
+    ignoreWhistle: true,
+  },
+
+  liveMusic: {
+    label: 'Live Music',
+    description: 'Concerts & Events',
+    feedbackThresholdDb: 42,
+    ringThresholdDb: 8,
+    growthRateThreshold: 4.0,
+    fftSize: 4096,
+    minFrequency: 60,
+    maxFrequency: 16000,
+    sustainMs: 350,
+    clearMs: 600,
+    confidenceThreshold: 0.55,
+    prominenceDb: 14,
+    eqPreset: 'heavy',
+    aWeightingEnabled: false,
+    inputGainDb: 0,
+    ignoreWhistle: false,
+  },
+
+  theater: {
+    label: 'Theater',
+    description: 'Drama & Musicals',
+    feedbackThresholdDb: 28,
+    ringThresholdDb: 4,
+    growthRateThreshold: 1.5,
+    fftSize: 8192,
+    minFrequency: 150,
+    maxFrequency: 10000,
+    sustainMs: 250,
+    clearMs: 400,
+    confidenceThreshold: 0.40,
+    prominenceDb: 10,
+    eqPreset: 'surgical',
+    aWeightingEnabled: true,
+    inputGainDb: 4,
+    ignoreWhistle: true,
+  },
+
+  monitors: {
+    label: 'Monitors',
+    description: 'Stage Wedges',
+    feedbackThresholdDb: 15,
+    ringThresholdDb: 3,
+    growthRateThreshold: 0.8,
+    fftSize: 4096,
+    minFrequency: 200,
+    maxFrequency: 6000,
+    sustainMs: 250,
+    clearMs: 300,
+    confidenceThreshold: 0.35,
+    prominenceDb: 8,
+    eqPreset: 'surgical',
+    aWeightingEnabled: false,
+    inputGainDb: 0,
+    ignoreWhistle: false,
+  },
+
+  ringOut: {
+    label: 'Ring Out',
+    description: 'System Calibration',
+    feedbackThresholdDb: 27,
+    ringThresholdDb: 2,
+    growthRateThreshold: 0.5,
+    fftSize: 16384,
+    minFrequency: 60,
+    maxFrequency: 16000,
+    sustainMs: 250,
+    clearMs: 300,
+    confidenceThreshold: 0.30,
+    prominenceDb: 8,
+    eqPreset: 'surgical',
+    aWeightingEnabled: false,
+    inputGainDb: 0,
+    autoGainTargetDb: -12,
+    ignoreWhistle: true,
+  },
+
+  broadcast: {
+    label: 'Broadcast',
+    description: 'Studio & Podcast',
+    feedbackThresholdDb: 22,
+    ringThresholdDb: 3,
+    growthRateThreshold: 1.0,
+    fftSize: 8192,
+    minFrequency: 80,
+    maxFrequency: 12000,
+    sustainMs: 250,
+    clearMs: 350,
+    confidenceThreshold: 0.30,
+    prominenceDb: 8,
+    eqPreset: 'surgical',
+    aWeightingEnabled: true,
+    inputGainDb: 0,
+    autoGainTargetDb: -24,
+    ignoreWhistle: true,
+  },
+
+  outdoor: {
+    label: 'Outdoor',
+    description: 'Open Air & Festivals',
+    feedbackThresholdDb: 38,
+    ringThresholdDb: 6,
+    growthRateThreshold: 2.5,
+    fftSize: 4096,
+    minFrequency: 100,
+    maxFrequency: 12000,
+    sustainMs: 250,
+    clearMs: 450,
+    confidenceThreshold: 0.45,
+    prominenceDb: 12,
+    eqPreset: 'heavy',
+    aWeightingEnabled: true,
+    inputGainDb: 0,
+    ignoreWhistle: true,
+  },
+} as const
+
+// ── Default Settings ────────────────────────────────────────────────────────
+
+// Default settings for the analyzer — OPTIMIZED FOR CORPORATE/CONFERENCE SPEECH SYSTEMS
+export const DEFAULT_SETTINGS: DetectorSettings = {
+  mode: 'speech' as const,
+  fftSize: 8192 as const,
+  smoothingTimeConstant: 0.5,
+  minFrequency: 150,
+  maxFrequency: 10000,
+  feedbackThresholdDb: 25,
+  ringThresholdDb: 5,
+  growthRateThreshold: 1.0,
+  peakMergeCents: 100,
+  maxDisplayedIssues: 8,
+  eqPreset: 'surgical' as const,
+  inputGainDb: 0,
+  autoGainEnabled: false,
+  autoGainTargetDb: -18,
+  graphFontSize: 15,
+  harmonicToleranceCents: 200,
+  showTooltips: true,
+  aWeightingEnabled: true,
+  micCalibrationProfile: 'none' as const,
+  confidenceThreshold: 0.35,
+  roomRT60: 1.0,
+  roomVolume: 1000,
+  roomPreset: 'none' as const,
+  roomTreatment: 'typical' as const,
+  algorithmMode: 'auto' as const,
+  enabledAlgorithms: ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml'] as ('msd' | 'phase' | 'spectral' | 'comb' | 'ihr' | 'ptmr' | 'ml')[],
+  mlEnabled: true,
+  adaptivePhaseSkip: true,
+  showAlgorithmScores: false,
+  showPeqDetails: false,
+  showFreqZones: false,
+  showRoomModeLines: true,
+  spectrumWarmMode: true,
+  roomLengthM: 15,
+  roomWidthM: 12,
+  roomHeightM: 5,
+  roomDimensionsUnit: 'meters' as const,
+  mainsHumEnabled: true,
+  mainsHumFundamental: 'auto' as const,
+  sustainMs: 300,
+  clearMs: 400,
+  thresholdMode: 'hybrid' as const,
+  prominenceDb: 8,
+  noiseFloorAttackMs: 200,
+  noiseFloorReleaseMs: 1000,
+  maxTracks: 64,
+  trackTimeoutMs: 1000,
+  ignoreWhistle: true,
+  rtaDbMin: -100,
+  rtaDbMax: 0,
+  spectrumLineWidth: 0.5,
+  showThresholdLine: true,
+  canvasTargetFps: 30,
+  faderMode: 'sensitivity' as const,
+  swipeLabeling: false,
+}
+
+// ── Room Presets ─────────────────────────────────────────────────────────────
+
+export const ROOM_PRESETS = {
+  none: {
+    label: 'None',
+    description: 'No room physics — raw detection only',
+    lengthM: 15, widthM: 12, heightM: 5,
+    treatment: 'typical' as const,
+    roomRT60: 1.0, roomVolume: 1000, schroederFreq: 63,
+    feedbackThresholdDb: 23, ringThresholdDb: 4,
+  },
+  small: {
+    label: 'Small Room',
+    description: 'Boardrooms, huddle rooms, podcast booths (10–20 people)',
+    lengthM: 6.1, widthM: 4.6, heightM: 2.9,
+    treatment: 'treated' as const,
+    roomRT60: 0.4, roomVolume: 80, schroederFreq: 141,
+    feedbackThresholdDb: 15, ringThresholdDb: 3,
+  },
+  medium: {
+    label: 'Medium Room',
+    description: 'Conference rooms, classrooms, training rooms (20–80 people)',
+    lengthM: 10.7, widthM: 8.5, heightM: 3.4,
+    treatment: 'typical' as const,
+    roomRT60: 0.7, roomVolume: 300, schroederFreq: 97,
+    feedbackThresholdDb: 23, ringThresholdDb: 4,
+  },
+  large: {
+    label: 'Large Venue',
+    description: 'Ballrooms, auditoriums, theaters, town halls (80–500 people)',
+    lengthM: 15.2, widthM: 12.2, heightM: 5.5,
+    treatment: 'typical' as const,
+    roomRT60: 1.0, roomVolume: 1000, schroederFreq: 63,
+    feedbackThresholdDb: 25, ringThresholdDb: 5,
+  },
+  arena: {
+    label: 'Arena / Hall',
+    description: 'Concert halls, arenas, convention centers (500+ people)',
+    lengthM: 30, widthM: 25, heightM: 6.7,
+    treatment: 'untreated' as const,
+    roomRT60: 1.8, roomVolume: 5000, schroederFreq: 38,
+    feedbackThresholdDb: 31, ringThresholdDb: 6,
+  },
+  worship: {
+    label: 'Worship Space',
+    description: 'Churches, cathedrals, temples (highly reverberant)',
+    lengthM: 20, widthM: 14, heightM: 7.1,
+    treatment: 'untreated' as const,
+    roomRT60: 2.0, roomVolume: 2000, schroederFreq: 63,
+    feedbackThresholdDb: 28, ringThresholdDb: 5,
+  },
+  custom: {
+    label: 'Custom',
+    description: 'Enter your own room dimensions',
+    lengthM: 15, widthM: 12, heightM: 5,
+    treatment: 'typical' as const,
+    roomRT60: 1.0, roomVolume: 1000, schroederFreq: 63,
+    feedbackThresholdDb: 23, ringThresholdDb: 4,
+  },
+} as const
+
+export type RoomPresetKey = keyof typeof ROOM_PRESETS
+
+// Frequency range presets — quick switching for different use cases
+export const FREQ_RANGE_PRESETS = [
+  { label: 'Vocal',   shortRange: '200–8k',  minFrequency: 200,  maxFrequency: 8000  },
+  { label: 'Monitor', shortRange: '300–3k',  minFrequency: 300,  maxFrequency: 3000  },
+  { label: 'Full',    shortRange: '20–20k',  minFrequency: 20,   maxFrequency: 20000 },
+  { label: 'Sub',     shortRange: '20–250',  minFrequency: 20,   maxFrequency: 250   },
+] as const

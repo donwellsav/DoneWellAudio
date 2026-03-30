@@ -249,8 +249,14 @@ hooks/ (18 files)             # Custom hooks
   useDSPWorker.ts (363)       #   Worker lifecycle, crash recovery, userFeedback
 lib/
   dsp/ (22 modules)           # DSP engine + ML inference:
-    feedbackDetector.ts (1757)#   Core: peak detection, MSD pool, auto-gain, persistence
-    constants.ts (1097)       #   All tuning constants, 8 mode presets, ECM8000 cal curve, mobile constants
+    feedbackDetector.ts (1527)#   Core: peak detection, MSD pool, auto-gain, persistence
+    constants/ (6 files)      #   All tuning constants, split by domain:
+      musicConstants.ts       #     ISO bands, pitch ref, EXP_LUT
+      acousticConstants.ts    #     Schroeder, frequency bands, room estimation
+      calibrationConstants.ts #     A-weighting, mic profiles (ECM8000, RTA-M, MEMS)
+      detectionConstants.ts   #     MSD, persistence, severity, gates, algorithm settings
+      presetConstants.ts      #     8 operation modes, DEFAULT_SETTINGS, room presets
+      uiConstants.ts          #     Canvas, colors, EQ presets, ERB, mobile settings
     acousticUtils.ts (1085)   #   Room modes, Schroeder, RT60, vibrato, cumulative growth
     classifier.ts (850)       #   11-feature Bayesian classification + formant/chromatic gates
     fusionEngine.ts (~500)    #   Core fusion, MINDS, calibration, FUSION_WEIGHTS, AgreementPersistenceTracker
