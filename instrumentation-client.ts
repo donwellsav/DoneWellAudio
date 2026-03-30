@@ -29,7 +29,7 @@ Sentry.init({
   replaysOnErrorSampleRate: 1.0,
 
   enableLogs: true,
-  sendDefaultPii: true,
+  sendDefaultPii: false,
 
   release: process.env.NEXT_PUBLIC_APP_VERSION
     ? `donewellaudio@${process.env.NEXT_PUBLIC_APP_VERSION}`

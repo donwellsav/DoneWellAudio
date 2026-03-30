@@ -447,7 +447,9 @@ export class FeedbackHistory {
             }
             localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
             return
-          } catch { /* give up silently */ }
+          } catch (retryErr) {
+            console.warn('[FeedbackHistory] Retry after prune also failed:', retryErr)
+          }
         }
       }
       console.warn('[FeedbackHistory] Failed to save to localStorage:', e)

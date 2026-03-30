@@ -23,7 +23,7 @@ const serwist = new Serwist({
       handler: new CacheFirst({
         cacheName: "static-assets-v1",
         plugins: [
-          new ExpirationPlugin({ maxEntries: 80, maxAgeSeconds: 30 * 24 * 60 * 60 }),
+          new ExpirationPlugin({ maxEntries: 80, maxAgeSeconds: 7 * 24 * 60 * 60 }),
         ],
       }),
     },

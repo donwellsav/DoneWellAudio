@@ -17,6 +17,9 @@ export function middleware(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
 
   const isDev = process.env.NODE_ENV === 'development'
+  if (isDev && process.env.VERCEL_ENV === 'production') {
+    console.warn('[CSP] WARNING: dev CSP (unsafe-eval) active on production deployment')
+  }
   const cspValue = [
     "default-src 'self'",
     isDev

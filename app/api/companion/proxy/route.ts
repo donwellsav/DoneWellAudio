@@ -18,8 +18,8 @@ import { NextRequest, NextResponse } from 'next/server'
 
 /**
  * Returns true if the URL should be blocked to prevent SSRF.
- * Blocks: non-http/https schemes, loopback, RFC 1918 private ranges,
- * link-local (169.254.x.x / cloud metadata), and unroutable addresses.
+ * Blocks: non-http/https schemes, loopback (IPv4 + IPv6), RFC 1918 private
+ * ranges, cloud metadata (169.254.x.x), and IPv6 private/link-local ranges.
  */
 function isBlockedHost(urlString: string): boolean {
   let parsed: URL
@@ -48,6 +48,15 @@ function isBlockedHost(urlString: string): boolean {
 
   // Loopback hostnames
   if (host === 'localhost' || host.endsWith('.localhost')) return true
+
+  // IPv6 checks (new URL() strips brackets: '[::1]' → '::1')
+  const lc = host.toLowerCase()
+  if (lc === '::1') return true                          // IPv6 loopback
+  if (lc === '::') return true                           // IPv6 unspecified
+  if (lc.startsWith('::ffff:')) return true              // IPv4-mapped IPv6 (e.g. ::ffff:127.0.0.1)
+  if (lc.startsWith('fe80')) return true                 // fe80::/10 — link-local
+  if (lc.startsWith('fc') || lc.startsWith('fd')) return true  // fc00::/7 — unique local (private)
+  if (lc.startsWith('ff')) return true                   // multicast
 
   return false
 }

@@ -77,6 +77,12 @@ function isRateLimited(request: NextRequest): boolean {
 
 // ─── Payload validation ───────────────────────────────────────────────────────
 
+/** Valid control message types that Companion recognizes */
+const VALID_CONTROL_TYPES = new Set(['resolve', 'dismiss', 'mode_change'])
+
+/** Max string field length to prevent oversized payloads */
+const MAX_FIELD_LENGTH = 100
+
 /**
  * Validates a relay POST payload.
  * Accepts advisory objects (id + severity + confidence) and control
@@ -86,18 +92,30 @@ function validatePayload(payload: unknown): string | null {
   if (!payload || typeof payload !== 'object') return 'Expected object'
   const p = payload as Record<string, unknown>
 
-  // Control messages (resolve / dismiss / mode_change) only need a type string
-  if (typeof p.type === 'string') return null
+  // Control messages — must be a known type
+  if (typeof p.type === 'string') {
+    if (!VALID_CONTROL_TYPES.has(p.type)) return `Unknown control type: ${p.type.slice(0, 30)}`
+    return null
+  }
 
   // Advisory payload
-  if (typeof p.id !== 'string' || p.id.length === 0) return 'Missing id'
-  if (typeof p.severity !== 'string' || p.severity.length === 0) return 'Missing severity'
-  if (typeof p.confidence !== 'number' || p.confidence < 0 || p.confidence > 1) {
+  if (typeof p.id !== 'string' || p.id.length === 0 || p.id.length > MAX_FIELD_LENGTH) {
+    return 'Invalid id'
+  }
+  if (typeof p.severity !== 'string' || p.severity.length === 0 || p.severity.length > MAX_FIELD_LENGTH) {
+    return 'Invalid severity'
+  }
+  if (typeof p.confidence !== 'number' || !Number.isFinite(p.confidence) || p.confidence < 0 || p.confidence > 1) {
     return 'Invalid confidence'
   }
 
   return null
 }
+
+// ─── Code format validation ──────────────────────────────────────────────────
+
+/** Codes are "DWA-XXXXXX" — 6 alphanumeric chars after prefix. Reject anything else. */
+const VALID_CODE = /^DWA-[A-Z0-9]{6}$/
 
 // ─── Route handlers ───────────────────────────────────────────────────────────
 
@@ -107,10 +125,13 @@ export async function GET(
   { params }: { params: Promise<{ code: string }> },
 ) {
   if (isRateLimited(request)) {
-    return NextResponse.json({ error: 'Rate limited' }, { status: 429 })
+    return NextResponse.json({ error: 'Rate limited' }, { status: 429, headers: { 'Retry-After': '60' } })
   }
 
   const { code } = await params
+  if (!VALID_CODE.test(code)) {
+    return NextResponse.json({ error: 'Invalid code' }, { status: 400 })
+  }
   prune()
 
   const relay = relays.get(code)
@@ -136,10 +157,13 @@ export async function POST(
   { params }: { params: Promise<{ code: string }> },
 ) {
   if (isRateLimited(request)) {
-    return NextResponse.json({ error: 'Rate limited' }, { status: 429 })
+    return NextResponse.json({ error: 'Rate limited' }, { status: 429, headers: { 'Retry-After': '60' } })
   }
 
   const { code } = await params
+  if (!VALID_CODE.test(code)) {
+    return NextResponse.json({ error: 'Invalid code' }, { status: 400 })
+  }
   prune()
 
   let advisory: unknown
@@ -180,6 +204,9 @@ export async function DELETE(
   { params }: { params: Promise<{ code: string }> },
 ) {
   const { code } = await params
+  if (!VALID_CODE.test(code)) {
+    return NextResponse.json({ error: 'Invalid code' }, { status: 400 })
+  }
   relays.delete(code)
   return NextResponse.json({ ok: true })
 }

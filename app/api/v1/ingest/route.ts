@@ -63,9 +63,15 @@ const IP_RATE_LIMIT_MAX_REQUESTS = 30
 
 export async function POST(request: NextRequest) {
   try {
+    // Require JSON content type
+    const ct = request.headers.get('content-type') ?? ''
+    if (!ct.includes('application/json')) {
+      return NextResponse.json({ error: 'Content-Type must be application/json' }, { status: 415 })
+    }
+
     // Check content length header (fast rejection for oversized requests)
     const contentLength = parseInt(request.headers.get('content-length') ?? '0', 10)
-    if (contentLength > MAX_PAYLOAD_BYTES) {
+    if (isNaN(contentLength) || contentLength < 0 || contentLength > MAX_PAYLOAD_BYTES) {
       return NextResponse.json({ error: 'Payload too large' }, { status: 413 })
     }
 
@@ -75,7 +81,7 @@ export async function POST(request: NextRequest) {
       ?? request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
       ?? 'unknown'
     if (isRateLimitedByKey(ipRateLimitMap, clientIp, IP_RATE_LIMIT_MAX_REQUESTS)) {
-      return NextResponse.json({ error: 'Rate limited' }, { status: 429 })
+      return NextResponse.json({ error: 'Rate limited' }, { status: 429, headers: { 'Retry-After': '60' } })
     }
 
     // Parse body and enforce actual size (Content-Length can be spoofed)
@@ -104,7 +110,7 @@ export async function POST(request: NextRequest) {
 
     // Session-based rate limit (secondary — catches burst within same session)
     if (isRateLimitedByKey(rateLimitMap, batch.sessionId, RATE_LIMIT_MAX_REQUESTS)) {
-      return NextResponse.json({ error: 'Rate limited' }, { status: 429 })
+      return NextResponse.json({ error: 'Rate limited' }, { status: 429, headers: { 'Retry-After': '60' } })
     }
 
     // If Supabase is not configured, accept and acknowledge (dev mode)

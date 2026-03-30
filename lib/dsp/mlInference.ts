@@ -49,6 +49,8 @@ export class MLInferenceEngine {
   private _available = false
   private _modelVersion = 'none'
   private _disposed = false
+  private _consecutiveFailures = 0
+  private _totalFailures = 0
 
   /** True once the model is loaded and ready for inference. */
   get isAvailable(): boolean {
@@ -58,6 +60,11 @@ export class MLInferenceEngine {
   /** Current model version string. */
   get modelVersion(): string {
     return this._modelVersion
+  }
+
+  /** Number of consecutive inference failures (resets on success). */
+  get consecutiveFailures(): number {
+    return this._consecutiveFailures
   }
 
   /**
@@ -97,7 +104,14 @@ export class MLInferenceEngine {
           isAvailable: true,
           modelVersion: this._modelVersion,
         }
-      }).catch(() => {})
+        this._consecutiveFailures = 0
+      }).catch((err: unknown) => {
+        this._consecutiveFailures++
+        this._totalFailures++
+        if (this._consecutiveFailures <= 3) {
+          console.warn(`[MLInference] predict() failed (${this._consecutiveFailures} consecutive):`, err)
+        }
+      })
 
       return result
     } catch {
@@ -154,6 +168,7 @@ export class MLInferenceEngine {
       // Fix 7 (AI Fight Club): Guard against stale write after dispose().
       // An in-flight inference promise can complete after dispose() nulls everything.
       if (this._disposed) return
+      this._consecutiveFailures = 0
       const score = output.output?.data[0] ?? 0.5
       this._lastPrediction = {
         feedbackScore: Math.max(0, Math.min(1, score)),
@@ -161,8 +176,13 @@ export class MLInferenceEngine {
         isAvailable: true,
         modelVersion: this._modelVersion,
       }
-    }).catch(() => {
-      // Inference error — keep last prediction
+    }).catch((err: unknown) => {
+      // Inference error — keep last prediction, track failures
+      this._consecutiveFailures++
+      this._totalFailures++
+      if (this._consecutiveFailures <= 3) {
+        console.warn(`[MLInference] inference failed (${this._consecutiveFailures} consecutive):`, err)
+      }
     }).finally(() => {
       this._inferenceInFlight = false
       // If new features arrived while we were processing, run again
