@@ -252,9 +252,8 @@ export const DesktopLayout = memo(function DesktopLayout({
           minSize="10%"
           maxSize="35%"
           collapsible
-          onResize={(size) => {
-            const pct = typeof size === 'object' && 'asPercentage' in size ? size.asPercentage : size as number
-            setIssuesPanelOpen(pct > 0)
+          onResize={(panelSize) => {
+            setIssuesPanelOpen(panelSize.asPercentage > 0)
           }}
         >
           <div className="flex flex-col h-full amber-sidecar overflow-hidden">
