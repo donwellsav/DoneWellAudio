@@ -56,6 +56,9 @@ export const AudioAnalyzer = memo(function AudioAnalyzerComponent() {
   const snapshotBatchRef = useRef<((batch: import('@/types/data').SnapshotBatch) => void) | null>(null)
   snapshotBatchRef.current = dataCollection.handleSnapshotBatch
 
+  // Shared frozen ref — synced by UIProvider, read by useAdvisoryMap to buffer cards
+  const frozenRef = useRef(false)
+
   // Fullscreen + portal container
   // Callback ref syncs both: rootRef (for useFullscreen imperative API) + rootEl state (for render-time portal)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -67,11 +70,12 @@ export const AudioAnalyzer = memo(function AudioAnalyzerComponent() {
 
   return (
     <div ref={rootCallbackRef} className="flex flex-col h-screen bg-background">
-      <AudioAnalyzerProvider onSnapshotBatchRef={snapshotBatchRef}>
+      <AudioAnalyzerProvider onSnapshotBatchRef={snapshotBatchRef} frozenRef={frozenRef}>
         <AudioAnalyzerInner
           dataCollection={dataCollection}
           rootRef={rootRef}
           rootEl={rootEl}
+          frozenRef={frozenRef}
         />
       </AudioAnalyzerProvider>
 
@@ -84,18 +88,27 @@ export const AudioAnalyzer = memo(function AudioAnalyzerComponent() {
   )
 })
 
+// ── FrozenSync: bridges UIContext.isFrozen → shared frozenRef for advisory buffering
+function FrozenSync({ frozenRef }: { frozenRef: React.RefObject<boolean> }) {
+  const { isFrozen } = useUI()
+  frozenRef.current = isFrozen
+  return null
+}
+
 // ── Inner: consumes AudioAnalyzerContext, renders remaining providers + UI ───
 
 interface AudioAnalyzerInnerProps {
   dataCollection: import('@/hooks/useDataCollection').DataCollectionHandle
   rootRef: React.RefObject<HTMLDivElement | null>
   rootEl: HTMLDivElement | null
+  frozenRef: React.RefObject<boolean>
 }
 
 const AudioAnalyzerInner = memo(function AudioAnalyzerInner({
   dataCollection,
   rootRef,
   rootEl,
+  frozenRef,
 }: AudioAnalyzerInnerProps) {
   const { isRunning, error, workerError, start, stop, dspWorker } = useEngine()
   const { settings, resetSettings, handleModeChange, setMicProfile } = useSettings()
@@ -356,6 +369,7 @@ const AudioAnalyzerInner = memo(function AudioAnalyzerInner({
       confirmedIds={confirmedIds}
     >
       <UIProvider rootRef={rootRef}>
+        <FrozenSync frozenRef={frozenRef} />
         <FullscreenPortalGate rootEl={rootEl}>
           <KeyboardShortcuts />
           <Suspense fallback={null}>

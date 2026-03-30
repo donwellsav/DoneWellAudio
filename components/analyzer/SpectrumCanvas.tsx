@@ -14,6 +14,7 @@ import type { EarlyWarning } from '@/hooks/useAudioAnalyzer'
 import {
   type DbRange, type CanvasTheme, calcPadding, drawGrid, drawFreqZones, drawRoomModeLines, drawIndicatorLines, drawSpectrum,
   drawFreqRangeOverlay, drawNotchOverlays, drawMarkers, drawAxisLabels, drawPlaceholder,
+  drawLevelMeter, drawLevelGlow,
   DARK_CANVAS_THEME, LIGHT_CANVAS_THEME,
 } from '@/lib/canvas/spectrumDrawing'
 
@@ -238,6 +239,7 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
     ctx.translate(padding.left, padding.top)
 
     drawGrid(ctx, plotWidth, plotHeight, range, canvasThemeRef.current)
+    drawLevelGlow(ctx, plotWidth, plotHeight, spectrum, canvasThemeRef.current === DARK_CANVAS_THEME)
     drawFreqZones(ctx, plotWidth, plotHeight, range, showFreqZones, canvasThemeRef.current)
     drawRoomModeLines(ctx, plotWidth, plotHeight, range, roomModes ?? null, showRoomModeLines, canvasThemeRef.current)
     drawIndicatorLines(ctx, plotWidth, plotHeight, range, spectrum, showThresholdLine, feedbackThresholdDb, fontSize, showDragHintRef.current)
@@ -249,6 +251,7 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
     }
 
     drawSpectrum(ctx, plotWidth, plotHeight, range, spectrum, gradientRef, gradientHeightRef, spectrumLineWidthProp ?? 0.5, peakHoldRef, spectrumWarmMode, canvasThemeRef.current, dtSeconds)
+    drawLevelMeter(ctx, plotHeight, range, spectrum, dtSeconds)
 
     // Store padding for pointer event calculations
     paddingRef.current = { left: padding.left, top: padding.top, plotWidth, plotHeight }

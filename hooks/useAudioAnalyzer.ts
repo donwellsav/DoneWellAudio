@@ -107,7 +107,8 @@ type InternalAnalyzerState = Omit<UseAudioAnalyzerState, 'advisories'>
 
 export function useAudioAnalyzer(
   initialSettings: Partial<DetectorSettings> = {},
-  externalCallbacks?: { onSnapshotBatch?: (batch: import('@/types/data').SnapshotBatch) => void }
+  externalCallbacks?: { onSnapshotBatch?: (batch: import('@/types/data').SnapshotBatch) => void },
+  frozenRef?: React.RefObject<boolean>
 ): UseAudioAnalyzerReturn {
   // Layered settings — derivation + auto-persist handled internally by the hook.
   // derivedSettings is a standard DetectorSettings object compatible with the entire pipeline.
@@ -122,7 +123,7 @@ export function useAudioAnalyzer(
   }, [settings])
 
   // ── Advisory state (Map, sorting, dedup) — extracted hook ──────────────────
-  const { advisories, onAdvisory, onAdvisoryCleared, clearMap } = useAdvisoryMap(settingsRef)
+  const { advisories, onAdvisory, onAdvisoryCleared, clearMap } = useAdvisoryMap(settingsRef, frozenRef)
 
   // ── Internal state (everything except advisories) ─────────────────────────
   const [state, setState] = useState<InternalAnalyzerState>({

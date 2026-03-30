@@ -35,7 +35,8 @@ export interface UseAdvisoryMapReturn {
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useAdvisoryMap(
-  settingsRef: React.RefObject<DetectorSettings>
+  settingsRef: React.RefObject<DetectorSettings>,
+  frozenRef?: React.RefObject<boolean>
 ): UseAdvisoryMapReturn {
   const [advisories, setAdvisories] = useState<Advisory[]>([])
 
@@ -43,6 +44,10 @@ export function useAdvisoryMap(
   const mapRef = useRef<Map<string, Advisory>>(new Map())
   const sortedCacheRef = useRef<Advisory[]>([])
   const dirtyRef = useRef(false)
+
+  // Freeze buffering: queue advisory updates while UI is frozen
+  const frozenBufferRef = useRef<{ updates: Advisory[]; clears: string[] }>({ updates: [], clears: [] })
+  const wasFrozenRef = useRef(false)
 
   // Sort: active above resolved → severity urgency → amplitude (descending)
   const buildSorted = useCallback(() => {
@@ -70,15 +75,29 @@ export function useAdvisoryMap(
   const onAdvisoryImplRef = useRef<(a: Advisory) => void>(() => {})
 
   onAdvisoryImplRef.current = (advisory: Advisory) => {
+    const isFrozen = frozenRef?.current ?? false
+
+    // When frozen, buffer updates — except RUNAWAY which breaks through
+    if (isFrozen && advisory.severity !== 'RUNAWAY') {
+      frozenBufferRef.current.updates.push(advisory)
+      // Still update the backing map so state is correct on unfreeze,
+      // but don't trigger React re-render (cards stay frozen)
+      applyToMap(advisory)
+      return
+    }
+
+    applyToMap(advisory)
+    flushToReact()
+  }
+
+  /** Apply an advisory to the backing map (no React update) */
+  function applyToMap(advisory: Advisory) {
     const map = mapRef.current
 
     if (map.has(advisory.id)) {
-      // O(1) — same track updating
       map.set(advisory.id, advisory)
     } else {
       // Frequency-proximity dedup (100 cents = 1 semitone, matches worker)
-      // Prevents duplicate cards when a peak is cleared then re-detected
-      // with a new track/advisory ID at the same frequency.
       let replacedKey: string | null = null
       for (const [key, existing] of map) {
         const cents = Math.abs(1200 * Math.log2(advisory.trueFrequencyHz / existing.trueFrequencyHz))
@@ -89,20 +108,20 @@ export function useAdvisoryMap(
       }
       if (replacedKey) map.delete(replacedKey)
       map.set(advisory.id, advisory)
-      dirtyRef.current = true // New entry — needs re-sort
+      dirtyRef.current = true
     }
+  }
 
-    // Only rebuild sorted array when structure changed; for updates, patch cache in-place
+  /** Push current map state to React */
+  function flushToReact() {
     if (dirtyRef.current) {
       const sorted = buildSorted()
       setAdvisories(sorted)
     } else {
-      // Check if the advisory actually changed before creating a new array
-      const prev = sortedCacheRef.current.find(a => a.id === advisory.id)
-      if (prev && prev.severity === advisory.severity && prev.confidence === advisory.confidence && prev.trueAmplitudeDb === advisory.trueAmplitudeDb) {
-        return // No meaningful change — skip re-render
-      }
-      const sorted = sortedCacheRef.current.map(a => a.id === advisory.id ? advisory : a)
+      const sorted = sortedCacheRef.current.map(a => {
+        const latest = mapRef.current.get(a.id)
+        return latest ?? a
+      })
       sortedCacheRef.current = sorted
       setAdvisories(sorted)
     }
@@ -119,11 +138,31 @@ export function useAdvisoryMap(
       if (!existing || existing.resolved) return
       const resolved = { ...existing, resolved: true, resolvedAt: Date.now() }
       map.set(advisoryId, resolved)
-      dirtyRef.current = true // resolved status changes sort order
+      dirtyRef.current = true
+
+      const isFrozen = frozenRef?.current ?? false
+      if (isFrozen) {
+        frozenBufferRef.current.clears.push(advisoryId)
+        return // Don't update React — cards stay frozen
+      }
+
       const sorted = buildSorted()
       setAdvisories(sorted)
     },
   }).current
+
+  // ── Flush buffered updates when unfreeze is detected ─────────────────
+  // Check on every render: if we were frozen and now aren't, flush.
+  const currentlyFrozen = frozenRef?.current ?? false
+  if (wasFrozenRef.current && !currentlyFrozen) {
+    // Transition from frozen → unfrozen: map already has all updates applied,
+    // just need to push current state to React
+    frozenBufferRef.current = { updates: [], clears: [] }
+    dirtyRef.current = true
+    const sorted = buildSorted()
+    setAdvisories(sorted)
+  }
+  wasFrozenRef.current = currentlyFrozen
 
   // ── clearMap — reset everything for fresh analysis ─────────────────────
 

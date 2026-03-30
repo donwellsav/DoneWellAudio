@@ -35,10 +35,10 @@ export const HeaderBar = memo(function HeaderBar() {
   const hasClearableContent = advisories.some(a => !dismissedIds.has(a.id)) || hasActiveGEQBars || hasActiveRTAMarkers
 
   return (
-    <header className="header-glow relative flex flex-row items-center justify-between gap-2 sm:gap-4 px-3 py-1 channel-strip amber-panel-header border-b border-b-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.20)] shadow-[0_1px_16px_rgba(0,0,0,0.15),0_2px_4px_rgba(0,0,0,0.1),0_1px_0_rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.06)] dark:shadow-[0_1px_16px_rgba(0,0,0,0.55),0_2px_4px_rgba(0,0,0,0.3),0_1px_0_rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.09)] sm:px-4 sm:py-1">
+    <header className="header-glow relative flex flex-row items-center gap-2 sm:gap-4 px-3 py-1 channel-strip amber-panel-header border-b border-b-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.20)] shadow-[0_1px_16px_rgba(0,0,0,0.15),0_2px_4px_rgba(0,0,0,0.1),0_1px_0_rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.06)] dark:shadow-[0_1px_16px_rgba(0,0,0,0.55),0_2px_4px_rgba(0,0,0,0.3),0_1px_0_rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.09)] sm:px-4 sm:py-1">
 
-      {/* ── Logo + start button (responsive single block) ─────────── */}
-      <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
+      {/* ── Left: Logo + text + device (flex-1 to balance center) ── */}
+      <div className="flex items-center gap-2 sm:gap-2.5 flex-1 min-w-0">
         <div className="relative">
           <button
             onClick={isRunning ? stop : start}
@@ -96,8 +96,69 @@ export const HeaderBar = memo(function HeaderBar() {
         )}
       </div>
 
-      {/* ── Action icons (right side) ──────────────────── */}
-      <div className="flex items-center justify-end gap-0 sm:gap-1 text-sm text-muted-foreground flex-shrink-0">
+      {/* ── Center: Transport strip (ENGAGE/STOP + PAUSE) ──── */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <button
+          onClick={isRunning ? stop : start}
+          aria-label={isRunning ? 'Stop analysis' : 'Engage analysis'}
+          className={`
+            relative min-w-[120px] h-11 px-5
+            font-mono text-xs font-bold uppercase tracking-[0.3em]
+            rounded-md cursor-pointer
+            border transition-all duration-200
+            focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary
+            ${isRunning
+              ? 'bg-red-100/80 border-red-300 text-red-700 shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)] hover:border-red-400 dark:bg-red-950/50 dark:border-red-500/40 dark:text-red-400 dark:shadow-[inset_0_1px_4px_rgba(0,0,0,0.4),0_0_12px_rgba(239,68,68,0.15)] dark:hover:border-red-400/70 dark:hover:shadow-[inset_0_1px_4px_rgba(0,0,0,0.4),0_0_16px_rgba(239,68,68,0.25)]'
+              : 'bg-emerald-100/80 border-emerald-300 text-emerald-700 shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)] hover:border-emerald-400 dark:bg-emerald-950/40 dark:border-emerald-500/30 dark:text-emerald-400 dark:shadow-[inset_0_1px_4px_rgba(0,0,0,0.4),0_0_8px_rgba(52,211,153,0.1)] dark:hover:border-emerald-400/60 dark:hover:shadow-[inset_0_1px_4px_rgba(0,0,0,0.4),0_0_16px_rgba(52,211,153,0.2)]'
+            }
+          `}
+        >
+          {isRunning ? 'STOP' : 'ENGAGE'}
+        </button>
+
+        {isRunning && (
+          <button
+            onClick={toggleFreeze}
+            aria-label={isFrozen ? 'Unfreeze spectrum' : 'Freeze spectrum'}
+            aria-pressed={isFrozen}
+            className={`
+              relative min-w-[100px] h-11 px-4
+              font-mono text-xs font-bold uppercase tracking-[0.3em]
+              rounded-md cursor-pointer
+              border transition-all duration-200
+              focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary
+              ${isFrozen
+                ? 'bg-amber-100/80 border-amber-300 text-amber-700 shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)] hover:border-amber-400 dark:bg-amber-950/40 dark:border-amber-500/40 dark:text-amber-400 dark:shadow-[inset_0_1px_4px_rgba(0,0,0,0.4),0_0_12px_rgba(245,158,11,0.15)] dark:hover:border-amber-400/70 dark:hover:shadow-[inset_0_1px_4px_rgba(0,0,0,0.4),0_0_16px_rgba(245,158,11,0.25)]'
+                : 'bg-blue-100/80 border-blue-300 text-blue-700 shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)] hover:border-blue-400 dark:bg-blue-950/30 dark:border-blue-500/30 dark:text-blue-400 dark:shadow-[inset_0_1px_4px_rgba(0,0,0,0.4),0_0_8px_rgba(75,146,255,0.1)] dark:hover:border-blue-400/60 dark:hover:shadow-[inset_0_1px_4px_rgba(0,0,0,0.4),0_0_16px_rgba(75,146,255,0.2)]'
+              }
+            `}
+          >
+            {isFrozen ? 'RESUME' : 'PAUSE'}
+          </button>
+        )}
+
+        <button
+          onClick={() => { onClearAll(); onClearGEQ(); onClearRTA() }}
+          disabled={!hasClearableContent}
+          aria-label="Clear all advisories, GEQ, and RTA markers"
+          className={`
+            relative min-w-[90px] h-11 px-4
+            font-mono text-xs font-bold uppercase tracking-[0.3em]
+            rounded-md
+            border transition-all duration-200
+            focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary
+            ${hasClearableContent
+              ? 'cursor-pointer bg-rose-100/80 border-rose-300 text-rose-700 shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)] hover:border-rose-400 dark:bg-rose-950/30 dark:border-rose-500/30 dark:text-rose-400 dark:shadow-[inset_0_1px_4px_rgba(0,0,0,0.4),0_0_8px_rgba(244,63,94,0.1)] dark:hover:border-rose-400/60 dark:hover:shadow-[inset_0_1px_4px_rgba(0,0,0,0.4),0_0_16px_rgba(244,63,94,0.2)]'
+              : 'cursor-default bg-muted/30 border-border/30 text-muted-foreground/25 dark:bg-muted/10 dark:border-border/20 dark:text-muted-foreground/20'
+            }
+          `}
+        >
+          CLEAR
+        </button>
+      </div>
+
+      {/* ── Right: Action icons (flex-1 to balance center) ── */}
+      <div className="flex items-center justify-end gap-0 sm:gap-1 text-sm text-muted-foreground flex-1 min-w-0">
 
         {/* ── PA2 status badge ─────────────────────────── */}
         {pa2.settings.enabled && (
@@ -121,58 +182,6 @@ export const HeaderBar = memo(function HeaderBar() {
             </TooltipContent>
           </Tooltip>
         )}
-
-        {/* ── Primary actions group ───────────────────── */}
-        <div className="flex items-center gap-0 icon-cluster">
-
-        {isRunning && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleFreeze}
-                className={`hidden tablet:flex tablet:landscape:hidden md:landscape:flex h-10 w-10 btn-glow ${
-                  isFrozen ? 'text-primary bg-primary/15 rounded-md' : 'text-muted-foreground hover:text-foreground'
-                }`}
-                aria-label={isFrozen ? 'Unfreeze spectrum' : 'Freeze spectrum'}
-                aria-pressed={isFrozen}
-              >
-                {isFrozen ? <Play className="size-6" /> : <Pause className="size-6" />}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-sm">
-              {isFrozen ? 'Unfreeze (P)' : 'Freeze display (P)'}
-            </TooltipContent>
-          </Tooltip>
-        )}
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => { onClearAll(); onClearGEQ(); onClearRTA() }}
-              disabled={!hasClearableContent}
-              className={`relative h-10 w-10 btn-glow ${
-                hasClearableContent
-                  ? 'text-muted-foreground hover:text-red-400'
-                  : 'text-muted-foreground/30 cursor-default'
-              }`}
-              aria-label="Clear all advisories, GEQ, and RTA markers"
-            >
-              <Trash2 className="size-5" />
-              {hasClearableContent && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-400/80" />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="text-sm">
-            Clear all
-          </TooltipContent>
-        </Tooltip>
-
-        </div>
 
         {/* ── Separator (desktop only) ────────────────── */}
         <div className="hidden tablet:block w-px h-6 bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.20)] mx-1 sm:mx-1.5 flex-shrink-0" aria-hidden="true" />

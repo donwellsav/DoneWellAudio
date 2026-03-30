@@ -43,6 +43,8 @@ export type AudioAnalyzerContextValue =
 interface AudioAnalyzerProviderProps {
   /** Ref to data collection snapshot handler — breaks circular dep with useDataCollection */
   onSnapshotBatchRef: MutableRefObject<((batch: SnapshotBatch) => void) | null>
+  /** Shared frozen ref — synced by UIProvider, read by useAdvisoryMap to buffer card updates */
+  frozenRef?: React.RefObject<boolean>
   children: ReactNode
 }
 
@@ -50,6 +52,7 @@ interface AudioAnalyzerProviderProps {
 
 export function AudioAnalyzerProvider({
   onSnapshotBatchRef,
+  frozenRef,
   children,
 }: AudioAnalyzerProviderProps) {
   // ── Core audio analyzer ───────────────────────────────────────────────
@@ -84,7 +87,7 @@ export function AudioAnalyzerProvider({
     layered,
   } = useAudioAnalyzer({}, {
     onSnapshotBatch: (batch: SnapshotBatch) => onSnapshotBatchRef.current?.(batch),
-  })
+  }, frozenRef)
 
   // ── Devices ───────────────────────────────────────────────────────────
 
