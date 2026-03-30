@@ -14,7 +14,7 @@ Sentry.init({
   // Enable logs to be sent to Sentry
   enableLogs: true,
 
-  // Enable sending user PII (Personally Identifiable Information)
+  // Disable sending user PII — aligns with GDPR consent flow and data minimization
   // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii
-  sendDefaultPii: true,
+  sendDefaultPii: false,
 });
