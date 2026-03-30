@@ -1,0 +1,99 @@
+/**
+ * UI & Display Constants
+ *
+ * Mobile performance settings, ML inference config, canvas rendering,
+ * EQ recommendation presets, ERB scaling, and visualization colors.
+ */
+
+// Mobile performance: recommended analysisIntervalMs for resource-constrained devices.
+// 40ms (25fps) halves CPU cost with imperceptible detection latency increase
+// (feedback builds over 200ms+, human reaction time ~150ms).
+export const MOBILE_ANALYSIS_INTERVAL_MS = 40
+/** Max advisories shown on mobile (cards, RTA markers, GEQ bars). */
+export const MOBILE_MAX_DISPLAYED_ISSUES = 5
+
+/** ML inference engine settings — 7th fusion algorithm (false positive filter) */
+export const ML_SETTINGS = {
+  /** Weight in fusion (0 to disable ML contribution) */
+  DEFAULT_WEIGHT: 0.10,
+  /** Model URL (relative to public/) — static asset or fetched from registry */
+  MODEL_PATH: '/models/dwa-fp-filter-v1.onnx',
+  /** Max inference time in ms before skipping (safety timeout) */
+  MAX_INFERENCE_MS: 2,
+  /** Feature count for the meta-model input vector */
+  FEATURE_COUNT: 11,
+} as const
+
+// Canvas rendering settings
+export const CANVAS_SETTINGS = {
+  RTA_DB_MIN: -100,
+  RTA_DB_MAX: 0,
+  RTA_FREQ_MIN: 20,
+  RTA_FREQ_MAX: 20000,
+  WATERFALL_HISTORY_FRAMES: 256,
+  GEQ_BAR_WIDTH_RATIO: 0.8, // Bar width as ratio of band spacing
+} as const
+
+// EQ recommendation presets
+export const EQ_PRESETS = {
+  surgical: {
+    defaultQ: 30,
+    runawayQ: 60,
+    maxCut: -18,
+    moderateCut: -9,
+    lightCut: -4,
+  },
+  heavy: {
+    defaultQ: 16,
+    runawayQ: 30,
+    maxCut: -12,
+    moderateCut: -6,
+    lightCut: -3,
+  },
+} as const
+
+// ERB (Equivalent Rectangular Bandwidth) settings for frequency-dependent EQ depth
+// Based on Glasberg & Moore (1990): ERB(f) = 24.7 * (4.37 * f/1000 + 1)
+// Notches narrower than one ERB are psychoacoustically transparent
+export const ERB_SETTINGS = {
+  /** Below this frequency, reduce cut depth to protect warmth */
+  LOW_FREQ_HZ: 500,
+  /** Above this frequency, allow deeper cuts (notch more transparent) */
+  HIGH_FREQ_HZ: 2000,
+  /** Max depth reduction factor for low frequencies (0.7 = 30% shallower) */
+  LOW_FREQ_SCALE: 0.7,
+  /** Max depth increase factor for high frequencies (1.2 = 20% deeper) */
+  HIGH_FREQ_SCALE: 1.2,
+} as const
+
+// Color palette for visualizations
+export const VIZ_COLORS = {
+  RUNAWAY: '#ef4444', // red-500
+  GROWING: '#fb923c', // orange-400 (WCAG AA ≥4.5:1 on dark)
+  RESONANCE: '#facc15', // yellow-400 (WCAG AA ≥4.6:1 on dark)
+  POSSIBLE_RING: '#c084fc', // purple-400 (WCAG AA ≥4.5:1 on dark)
+  WHISTLE: '#06b6d4', // cyan-500
+  INSTRUMENT: '#4ade80', // green-400 (WCAG AA ≥4.8:1 on dark)
+  NOISE_FLOOR: '#4a5060', // dimmed gray — pro tools keep data lines dominant
+  THRESHOLD: '#4B92FF', // LED blue
+  SPECTRUM: '#4B92FF', // LED blue
+  PEAK_MARKER: '#f59e0b', // amber-500
+  // Advanced algorithm colors
+  MSD_HIGH: '#22c55e', // green-500 (likely feedback)
+  MSD_LOW: '#6b7280', // gray-500 (not feedback)
+  PHASE_COHERENT: '#4B92FF', // LED blue (high coherence)
+  PHASE_RANDOM: '#9ca3af', // gray-400 (low coherence)
+  COMPRESSION: '#f59e0b', // amber-500 (compression detected)
+  COMB_PATTERN: '#8b5cf6', // violet-500 (comb pattern)
+  AXIS_LABEL: '#8891a0', // dimmed — pro tools keep grid labels subtle, data pops
+} as const
+
+/** Light-mode severity colors — darker tones for WCAG AA contrast on light backgrounds */
+export const VIZ_COLORS_LIGHT = {
+  RUNAWAY: '#dc2626',       // red-600 (7.1:1 on white)
+  GROWING: '#ea580c',       // orange-600 (4.6:1 on white)
+  RESONANCE: '#a16207',     // yellow-700 (5.2:1 on white)
+  POSSIBLE_RING: '#9333ea', // purple-600 (5.5:1 on white)
+  WHISTLE: '#0891b2',       // cyan-600 (4.5:1 on white)
+  INSTRUMENT: '#16a34a',    // green-600 (4.6:1 on white)
+} as const
