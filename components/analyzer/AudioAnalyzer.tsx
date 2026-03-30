@@ -21,7 +21,7 @@ import { useMetering } from '@/contexts/MeteringContext'
 import { useDetection } from '@/contexts/DetectionContext'
 import { AdvisoryProvider } from '@/contexts/AdvisoryContext'
 import { UIProvider, useUI } from '@/contexts/UIContext'
-import type { ImperativePanelHandle } from 'react-resizable-panels'
+import { usePanelRef } from '@/components/ui/resizable'
 import { AlertTriangle, RotateCcw, X } from 'lucide-react'
 
 // ── Error guidance ──────────────────────────────────────────────────────────────
@@ -136,7 +136,7 @@ const AudioAnalyzerInner = memo(function AudioAnalyzerInner({
 
   const [activeSidebarTab, setActiveSidebarTab] = useState<'issues' | 'controls'>('controls')
   const [issuesPanelOpen, setIssuesPanelOpen] = useState(true)
-  const issuesPanelRef = useRef<ImperativePanelHandle>(null)
+  const issuesPanelRef = usePanelRef()
 
   // Error dismiss state — resets whenever error value changes
   const [isErrorDismissed, setIsErrorDismissed] = useState(false)
@@ -316,7 +316,7 @@ const AudioAnalyzerInner = memo(function AudioAnalyzerInner({
   const openIssuesPanel = useCallback(() => {
     setIssuesPanelOpen(true)
     if (activeSidebarTab === 'issues') setActiveSidebarTab('controls')
-    requestAnimationFrame(() => issuesPanelRef.current?.resize(25))
+    requestAnimationFrame(() => issuesPanelRef.current?.resize("25%"))
   }, [activeSidebarTab])
 
   const closeIssuesPanel = useCallback(() => {

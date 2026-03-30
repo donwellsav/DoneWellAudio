@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AlertTriangle, PanelLeftClose, Columns2, Expand, Shrink } from 'lucide-react'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
-import type { ImperativePanelHandle } from 'react-resizable-panels'
+import type { usePanelRef } from '@/components/ui/resizable'
 import type { DetectorSettings } from '@/types/advisory'
 import type { CalibrationTabProps } from './settings/CalibrationTab'
 import { MODE_BASELINES } from '@/lib/settings/modeBaselines'
@@ -26,7 +26,7 @@ import { calculateRoomModes, calculateSchroederFrequency } from '@/lib/dsp/acous
 
 interface DesktopLayoutProps {
   issuesPanelOpen: boolean
-  issuesPanelRef: React.RefObject<ImperativePanelHandle | null>
+  issuesPanelRef: ReturnType<typeof usePanelRef>
   activeSidebarTab: 'issues' | 'controls'
   setActiveSidebarTab: (tab: 'issues' | 'controls') => void
   openIssuesPanel: () => void
@@ -92,7 +92,7 @@ export const DesktopLayout = memo(function DesktopLayout({
 
   return (
     <div className="hidden lg:flex lg:landscape:hidden md:landscape:flex flex-1 overflow-hidden">
-      <ResizablePanelGroup key={layoutKey} direction="horizontal" autoSaveId="dwa-layout-main-v4">
+      <ResizablePanelGroup key={layoutKey} orientation="horizontal">
         {/* Sidebar panel */}
         <ResizablePanel defaultSize={20} minSize={8} maxSize={30} collapsible>
           <div className="flex flex-col h-full amber-sidecar overflow-hidden">
@@ -246,14 +246,16 @@ export const DesktopLayout = memo(function DesktopLayout({
 
         {/* Issues side-panel (collapsible) */}
         <ResizablePanel
-          ref={issuesPanelRef}
+          panelRef={issuesPanelRef}
           defaultSize={25}
           collapsedSize={0}
           minSize={10}
           maxSize={35}
           collapsible
-          onCollapse={() => setIssuesPanelOpen(false)}
-          onExpand={() => setIssuesPanelOpen(true)}
+          onResize={(size) => {
+            const pct = typeof size === 'object' && 'asPercentage' in size ? size.asPercentage : size as number
+            setIssuesPanelOpen(pct > 0)
+          }}
         >
           <div className="flex flex-col h-full amber-sidecar overflow-hidden">
             <div className="flex-shrink-0 flex items-center justify-between px-3 py-1 amber-panel-header">
@@ -319,7 +321,7 @@ export const DesktopLayout = memo(function DesktopLayout({
 
         {/* Graph area panel */}
         <ResizablePanel defaultSize={50}>
-          <ResizablePanelGroup direction="vertical" autoSaveId="dwa-layout-vertical">
+          <ResizablePanelGroup orientation="vertical">
             {/* Top graph */}
             <ResizablePanel defaultSize={60} minSize={20} collapsible>
               <div className="h-full p-1 pb-0.5">
