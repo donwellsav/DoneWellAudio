@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { IssuesList } from './IssuesList'
 import { RingOutWizard } from './RingOutWizard'
 import { EarlyWarningPanel } from './EarlyWarningPanel'
@@ -67,6 +67,17 @@ export const DesktopLayout = memo(function DesktopLayout({
   const { spectrumRef, spectrumStatus, noiseFloorDb, inputLevel, isAutoGain, autoGainDb, autoGainLocked } = useMetering()
 
   const { isFrozen, toggleFreeze, layoutKey, rtaContainerRef, isRtaFullscreen, toggleRtaFullscreen } = useUI()
+
+
+  // ⚡ Bolt Optimization: Memoize threshold change handler to prevent unnecessary re-renders
+  // of child components like SpectrumCanvas and VerticalGainFader which are wrapped in React.memo()
+  const handleThresholdChange = useCallback((db: number) => {
+    const bl = MODE_BASELINES[session.modeId];
+    const eo = session.environment.feedbackOffsetDb;
+    const ce = bl.feedbackThresholdDb + eo + session.liveOverrides.sensitivityOffsetDb;
+    const d = db - ce;
+    if (d !== 0) setSensitivityOffset(session.liveOverrides.sensitivityOffsetDb + d);
+  }, [session.modeId, session.environment.feedbackOffsetDb, session.liveOverrides.sensitivityOffsetDb, setSensitivityOffset]);
 
   // Compute axial room modes for RTA overlay (memoized — only recomputes when dimensions/unit change)
   const roomModes = useMemo(() => {
@@ -356,7 +367,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                     </div>
                   </div>
                   <div className="flex-1 min-h-0">
-                    <SpectrumCanvas spectrumRef={spectrumRef} advisories={advisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} onStart={!isRunning && !isStarting ? start : undefined} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} showFreqZones={settings.showFreqZones} showRoomModeLines={settings.showRoomModeLines} roomModes={roomModes} spectrumWarmMode={settings.spectrumWarmMode} onThresholdChange={(db) => { const bl = MODE_BASELINES[session.modeId]; const eo = session.environment.feedbackOffsetDb; const ce = bl.feedbackThresholdDb + eo + session.liveOverrides.sensitivityOffsetDb; const d = db - ce; if (d !== 0) setSensitivityOffset(session.liveOverrides.sensitivityOffsetDb + d) }} />
+                    <SpectrumCanvas spectrumRef={spectrumRef} advisories={advisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} onStart={!isRunning && !isStarting ? start : undefined} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} showFreqZones={settings.showFreqZones} showRoomModeLines={settings.showRoomModeLines} roomModes={roomModes} spectrumWarmMode={settings.spectrumWarmMode} onThresholdChange={handleThresholdChange} />
                   </div>
                 </div>
               </div>
@@ -404,7 +415,7 @@ export const DesktopLayout = memo(function DesktopLayout({
           faderMode={settings.faderMode}
           onFaderModeChange={(mode) => updateDisplay({ faderMode: mode })}
           sensitivityValue={settings.feedbackThresholdDb}
-          onSensitivityChange={(db) => { const bl = MODE_BASELINES[session.modeId]; const eo = session.environment.feedbackOffsetDb; const ce = bl.feedbackThresholdDb + eo + session.liveOverrides.sensitivityOffsetDb; const d = db - ce; if (d !== 0) setSensitivityOffset(session.liveOverrides.sensitivityOffsetDb + d) }}
+          onSensitivityChange={handleThresholdChange}
           activeAdvisoryCount={activeAdvisoryCount}
         />
       </div>
