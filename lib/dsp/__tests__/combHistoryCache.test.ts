@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { CombHistoryCache, CombStabilityTracker } from '../algorithmFusion'
+import { CombHistoryCache, CombStabilityTracker } from '../combPattern'
 
 describe('CombHistoryCache', () => {
   let cache: CombHistoryCache

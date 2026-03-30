@@ -1,19 +1,22 @@
 // DoneWell Audio Feedback Detector - Core DSP engine for peak detection
 // Adapted from FeedbackDetector.js with TypeScript and enhancements
 
-import { A_WEIGHTING, MIC_CALIBRATION_PROFILES, EXP_LUT, HARMONIC_SETTINGS, MSD_SETTINGS, PERSISTENCE_SCORING, MODE_PERSISTENCE_HIGH_MS, SIGNAL_GATE, HYSTERESIS, PHPR_SETTINGS } from './constants'
-import { 
-  medianInPlace, 
-  buildPrefixSum, 
+import { EXP_LUT, HARMONIC_SETTINGS, MSD_SETTINGS, PERSISTENCE_SCORING, MODE_PERSISTENCE_HIGH_MS, SIGNAL_GATE, HYSTERESIS } from './constants'
+import {
+  medianInPlace,
+  buildPrefixSum,
   quadraticInterpolation,
   clamp,
   isValidFftSize,
-  generateId 
+  generateId
 } from '@/lib/utils/mathHelpers'
 import type { DetectedPeak, AnalysisConfig, DetectorSettings, AlgorithmMode, ContentType } from '@/types/advisory'
 import { DEFAULT_CONFIG } from '@/types/advisory'
 import type { CombPatternResult } from './advancedDetection'
 import { MSDPool } from './msdPool'
+import { computeAWeightingTable, computeMicCalibrationTable, computeAnalysisDbBounds, aWeightingDb } from './calibrationTables'
+import { estimateQ as estimateQFn, calculatePHPR as calculatePHPRFn } from './frequencyAnalysis'
+import { PersistenceTracker } from './persistenceScoring'
 
 const HOLD_DECAY_RATE_MULTIPLIER = 2
 
@@ -101,8 +104,11 @@ export class FeedbackDetector {
   // Peak Persistence Scoring - Phase 2 Enhancement (FUTURE-002: frame-rate-independent)
   // Tracks consecutive frames where a peak persists at the same frequency
   // Feedback = persistent (vertical streak), transient = short-lived
-  private persistenceCount: Uint16Array | null = null // Consecutive frames at this bin
-  private persistenceLastDb: Float32Array | null = null // Last amplitude for comparison
+  private _persistenceTracker: PersistenceTracker | null = null
+  /** @internal Test compatibility — exposes tracker's count buffer */
+  private get persistenceCount(): Uint16Array | null { return this._persistenceTracker?.counts ?? null }
+  /** @internal Test compatibility — exposes tracker's lastDb buffer */
+  private get persistenceLastDb(): Float32Array | null { return this._persistenceTracker?.lastDbs ?? null }
 
   // Frame-rate-independent persistence thresholds — computed from ms constants / analysisIntervalMs
   private _persistMinFrames = 5
@@ -656,9 +662,8 @@ export class FeedbackDetector {
     this._msdPool = new MSDPool(MSD_SETTINGS.POOL_SIZE, MSD_SETTINGS.HISTORY_SIZE)
     this._fastConfirmCounts = new Map()
 
-    // Peak Persistence Scoring - Phase 2
-    this.persistenceCount = new Uint16Array(n)
-    this.persistenceLastDb = new Float32Array(n)
+    // Peak Persistence Scoring — delegated to PersistenceTracker
+    this._persistenceTracker = new PersistenceTracker(n)
     
     this.noiseFloorDb = null
     this.recomputeDerivedIndices()
@@ -679,8 +684,7 @@ export class FeedbackDetector {
     this._contentType = undefined
     
     // Reset persistence scoring
-    if (this.persistenceCount) this.persistenceCount.fill(0)
-    if (this.persistenceLastDb) this.persistenceLastDb.fill(-200)
+    this._persistenceTracker?.reset()
 
     // Reset hysteresis state
     this._recentlyClearedBins.clear()
@@ -690,116 +694,33 @@ export class FeedbackDetector {
   // Temporal envelope analysis now runs in the worker (AlgorithmEngine.updateContentType).
 
   private computeAWeightingTable(): void {
-    const table = this.aWeightingTable
-    if (!table) return
-
-    const sr = this.getSampleRate()
-    const fft = this.config.fftSize
-    const hzPerBin = sr / fft
-
-    let min = Infinity
-    let max = -Infinity
-
-    for (let i = 0; i < table.length; i++) {
-      const f = i * hzPerBin
-      let w = this.aWeightingDb(f)
-      if (!Number.isFinite(w)) w = A_WEIGHTING.MIN_DB
-      table[i] = w
-      if (w < min) min = w
-      if (w > max) max = w
-    }
-
-    this.aWeightingMinDb = Number.isFinite(min) ? min : 0
-    this.aWeightingMaxDb = Number.isFinite(max) ? max : 0
+    const result = computeAWeightingTable(this.config.fftSize, this.getSampleRate(), this.config.aWeightingEnabled)
+    if (this.aWeightingTable) this.aWeightingTable.set(result.table)
+    this.aWeightingMinDb = result.minDb
+    this.aWeightingMaxDb = result.maxDb
   }
 
+  /** Delegate to extracted pure function (kept for internal callers) */
   private aWeightingDb(fHz: number): number {
-    if (fHz <= 0) return A_WEIGHTING.MIN_DB
-
-    const f2 = fHz * fHz
-    const { C1, C2, C3, C4, OFFSET } = A_WEIGHTING
-    const c1_2 = C1 * C1
-    const c2_2 = C2 * C2
-    const c3_2 = C3 * C3
-    const c4_2 = C4 * C4
-
-    const num = c4_2 * (f2 * f2)
-    const den = (f2 + c1_2) * (f2 + c4_2) * Math.sqrt((f2 + c2_2) * (f2 + c3_2))
-
-    const ra = num / den
-    if (ra <= 0 || !Number.isFinite(ra)) return A_WEIGHTING.MIN_DB
-
-    return OFFSET + 20 * Math.log10(ra)
+    return aWeightingDb(fHz)
   }
 
   private computeMicCalibrationTable(): void {
-    const table = this.micCalibrationTable
-    if (!table) return
-
-    const profile = this.config.micCalibrationProfile
-    const profileData = profile !== 'none' ? MIC_CALIBRATION_PROFILES[profile] : null
-    const cal = profileData?.curve
-
-    if (!cal) {
-      table.fill(0)
-      this.micCalMinDb = 0
-      this.micCalMaxDb = 0
-      return
-    }
-
-    const sr = this.getSampleRate()
-    const fft = this.config.fftSize
-    const hzPerBin = sr / fft
-
-    let min = Infinity
-    let max = -Infinity
-
-    for (let i = 0; i < table.length; i++) {
-      const f = i * hzPerBin
-      // Interpolate the calibration curve and negate (compensation = inverse)
-      let comp = 0
-      if (f <= cal[0][0]) {
-        comp = -cal[0][1]
-      } else if (f >= cal[cal.length - 1][0]) {
-        comp = -cal[cal.length - 1][1]
-      } else {
-        // Find bracketing points and interpolate in log-frequency space
-        for (let j = 1; j < cal.length; j++) {
-          if (f <= cal[j][0]) {
-            const fLow = cal[j - 1][0]
-            const fHigh = cal[j][0]
-            const dBLow = cal[j - 1][1]
-            const dBHigh = cal[j][1]
-            const t = (Math.log(f) - Math.log(fLow)) / (Math.log(fHigh) - Math.log(fLow))
-            comp = -(dBLow + t * (dBHigh - dBLow))
-            break
-          }
-        }
-      }
-
-      if (!Number.isFinite(comp)) comp = 0
-      table[i] = comp
-      if (comp < min) min = comp
-      if (comp > max) max = comp
-    }
-
-    this.micCalMinDb = Number.isFinite(min) ? min : 0
-    this.micCalMaxDb = Number.isFinite(max) ? max : 0
+    const result = computeMicCalibrationTable(this.config.fftSize, this.getSampleRate(), this.config.micCalibrationProfile)
+    if (this.micCalibrationTable) this.micCalibrationTable.set(result.table)
+    this.micCalMinDb = result.minDb
+    this.micCalMaxDb = result.maxDb
   }
 
   private recomputeAnalysisDbBounds(): void {
-    let minOffset = 0
-    let maxOffset = 0
-    if (this.config.aWeightingEnabled) {
-      minOffset += this.aWeightingMinDb
-      maxOffset += this.aWeightingMaxDb
-    }
-    if (this.config.micCalibrationProfile !== 'none') {
-      minOffset += this.micCalMinDb
-      maxOffset += this.micCalMaxDb
-    }
-    this.analysisMinDb = -100 + minOffset
-    this.analysisMaxDb = 0 + maxOffset
+    const bounds = computeAnalysisDbBounds(
+      this.config.aWeightingEnabled,
+      this.aWeightingMinDb, this.aWeightingMaxDb,
+      this.config.micCalibrationProfile,
+      this.micCalMinDb, this.micCalMaxDb,
+    )
+    this.analysisMinDb = bounds.analysisMinDb
+    this.analysisMaxDb = bounds.analysisMaxDb
   }
 
   private recomputeDerivedIndices(): void {
@@ -1214,8 +1135,7 @@ export class FeedbackDetector {
             this._fastConfirmCounts.delete(i)
 
             // Also reset persistence for this bin
-            if (this.persistenceCount) this.persistenceCount[i] = 0
-            if (this.persistenceLastDb) this.persistenceLastDb[i] = -200
+            this._persistenceTracker?.clearBin(i)
 
             // Record for hysteresis — recently cleared bins need extra dB to re-trigger
             this._recentlyClearedBins.set(i, now)
@@ -1370,122 +1290,17 @@ export class FeedbackDetector {
   }
 
   private estimateQ(binIndex: number, peakDb: number, trueFrequencyHz?: number): { qEstimate: number; bandwidthHz: number } {
-    // Find -3dB points around peak
-    const freqDb = this.freqDb
-    if (!freqDb) return { qEstimate: 10, bandwidthHz: 100 }
-
-    const threshold = peakDb - 3
-    const n = freqDb.length
-    const sr = this.getSampleRate()
-    const fft = this.config.fftSize
-    const hzPerBin = sr / fft
-
-    // Search left for -3dB crossing
-    let leftBin = binIndex
-    let foundLeft = false
-    for (let i = binIndex - 1; i >= 0; i--) {
-      if (freqDb[i] < threshold) {
-        // Interpolate crossing point
-        const denom = freqDb[i + 1] - freqDb[i]
-        if (denom > 0) {
-          const t = (threshold - freqDb[i]) / denom
-          leftBin = i + t
-        } else {
-          leftBin = i
-        }
-        foundLeft = true
-        break
-      }
-    }
-
-    // Search right for -3dB crossing
-    let rightBin = binIndex
-    let foundRight = false
-    for (let i = binIndex + 1; i < n; i++) {
-      if (freqDb[i] < threshold) {
-        // Interpolate crossing point
-        const denom = freqDb[i] - freqDb[i - 1]
-        if (denom < 0) {
-          const t = (threshold - freqDb[i - 1]) / denom
-          rightBin = i - 1 + t
-        } else {
-          rightBin = i
-        }
-        foundRight = true
-        break
-      }
-    }
-
-    // If no crossing found on either side, use 1-bin default bandwidth
-    if (!foundLeft && !foundRight) {
-      return { qEstimate: 100, bandwidthHz: hzPerBin }
-    }
-    // Mirror the found side if only one crossing was located
-    if (!foundLeft) leftBin = binIndex - (rightBin - binIndex)
-    if (!foundRight) rightBin = binIndex + (binIndex - leftBin)
-
-    const bandwidthBins = rightBin - leftBin
-    const bandwidthHz = bandwidthBins * hzPerBin
-    const centerHz = trueFrequencyHz ?? binIndex * hzPerBin
-
-    // Q = center / bandwidth
-    const qEstimate = bandwidthHz > 0 ? centerHz / bandwidthHz : 100
-
-    return { qEstimate: clamp(qEstimate, 1, 500), bandwidthHz: Math.max(bandwidthHz, hzPerBin) }
+    if (!this.freqDb) return { qEstimate: 10, bandwidthHz: 100 }
+    return estimateQFn(this.freqDb, binIndex, peakDb, this.getSampleRate(), this.config.fftSize, trueFrequencyHz)
   }
 
   /**
-   * Calculate PHPR (Peak-to-Harmonic Power Ratio) for a detected peak.
-   * Feedback is sinusoidal (no harmonics), music has rich harmonics.
-   *
-   * PHPR = peakDb - 10 * log10( mean( 10^(harmonicDb_i / 10) ) )
-   *
-   * Harmonic powers are averaged in the linear domain (not dB) to avoid
-   * overweighting quiet harmonics. Arithmetic dB averaging is nonlinear and
-   * introduces up to 3-5 dB error when harmonics span 20+ dB.
-   * Ref: Van Waterschoot & Moonen (2011), "50 years of acoustic feedback control"
-   *
-   * High PHPR (>15 dB) = likely feedback (pure tone)
-   * Low PHPR (<8 dB) = likely music/speech (harmonics present)
-   *
-   * @param freqBin - FFT bin index of the peak
-   * @returns PHPR in dB, or undefined if harmonics are out of FFT range
+   * Calculate PHPR — delegates to frequencyAnalysis.ts
+   * @see calculatePHPR in frequencyAnalysis.ts for algorithm details
    */
   private calculatePHPR(freqBin: number): number | undefined {
-    const spectrum = this.freqDb
-    if (!spectrum) return undefined
-
-    const n = spectrum.length
-    const peakDb = spectrum[freqBin]
-    let linearSum = 0
-    let harmonicCount = 0
-
-    for (let h = 2; h <= PHPR_SETTINGS.NUM_HARMONICS + 1; h++) {
-      const harmonicBin = Math.round(freqBin * h)
-      if (harmonicBin >= n) break // Harmonic out of FFT range
-
-      // Find max within ±BIN_TOLERANCE (accounts for FFT leakage)
-      let maxHarmonicDb = -Infinity
-      const lo = Math.max(0, harmonicBin - PHPR_SETTINGS.BIN_TOLERANCE)
-      const hi = Math.min(n - 1, harmonicBin + PHPR_SETTINGS.BIN_TOLERANCE)
-      for (let b = lo; b <= hi; b++) {
-        if (spectrum[b] > maxHarmonicDb) {
-          maxHarmonicDb = spectrum[b]
-        }
-      }
-
-      // Convert dB → linear power via EXP_LUT (clamped to [-100, 0] dB range)
-      const lutIdx = ((maxHarmonicDb + 100) * 10 + 0.5) | 0
-      linearSum += EXP_LUT[lutIdx < 0 ? 0 : lutIdx > 1300 ? 1300 : lutIdx]
-      harmonicCount++
-    }
-
-    if (harmonicCount === 0) return undefined
-
-    // Convert mean linear power back to dB: 10 * log10(meanLinearPower)
-    const meanLinearPower = linearSum / harmonicCount
-    const meanHarmonicDb = 10 * Math.log10(meanLinearPower)
-    return peakDb - meanHarmonicDb
+    if (!this.freqDb) return undefined
+    return calculatePHPRFn(this.freqDb, freqBin)
   }
 
   private updateNoiseFloorDb(dt: number): void {
@@ -1644,8 +1459,7 @@ export class FeedbackDetector {
 
           this._msdPool?.release(i)
           this._fastConfirmCounts.delete(i)
-          if (this.persistenceCount) this.persistenceCount[i] = 0
-          if (this.persistenceLastDb) this.persistenceLastDb[i] = -200
+          this._persistenceTracker?.clearBin(i)
 
           this.callbacks.onPeakCleared?.({
             binIndex: i,
@@ -1664,13 +1478,11 @@ export class FeedbackDetector {
    * Called when analysisIntervalMs changes (initAudioContext, updateConfig).
    */
   private _recomputePersistenceFrames(intervalMs: number): void {
-    // Per-mode HIGH_PERSISTENCE threshold — music modes use 500ms to avoid
-    // false-boosting sustained instrument notes; monitors/ringOut use 150ms
-    // for fastest detection. Falls back to global 300ms for unknown modes.
     const mode = this.config?.mode ?? 'speech'
+    this._persistenceTracker?.recomputeFrameThresholds(intervalMs, mode)
+    // Keep local fields in sync for getState() exposure
     const highMs = MODE_PERSISTENCE_HIGH_MS[mode] ?? PERSISTENCE_SCORING.HIGH_PERSISTENCE_MS
-    const veryHighMs = highMs * 2 // Maintain 2:1 ratio with high threshold
-
+    const veryHighMs = highMs * 2
     this._persistMinFrames = Math.ceil(PERSISTENCE_SCORING.MIN_PERSISTENCE_MS / intervalMs)
     this._persistHighFrames = Math.ceil(highMs / intervalMs)
     this._persistVeryHighFrames = Math.ceil(veryHighMs / intervalMs)
@@ -1693,32 +1505,12 @@ export class FeedbackDetector {
    * Update persistence count for a frequency bin
    * Tracks consecutive frames where a peak persists at similar amplitude
    */
+  /** Delegate to PersistenceTracker */
   private updatePersistence(binIndex: number, amplitudeDb: number): void {
-    if (!this.persistenceCount || !this.persistenceLastDb) return
-    
-    const lastDb = this.persistenceLastDb[binIndex]
-    const dbDiff = Math.abs(amplitudeDb - lastDb)
-    
-    // Check if amplitude is within tolerance (peak is "persisting")
-    if (dbDiff <= PERSISTENCE_SCORING.AMPLITUDE_TOLERANCE_DB && lastDb > -150) {
-      // Increment persistence (cap at history window)
-      this.persistenceCount[binIndex] = Math.min(
-        this.persistenceCount[binIndex] + 1,
-        this._persistHistoryFrames
-      )
-    } else {
-      // Amplitude changed too much, reset persistence
-      this.persistenceCount[binIndex] = 1
-    }
-    
-    // Update last amplitude
-    this.persistenceLastDb[binIndex] = amplitudeDb
+    this._persistenceTracker?.update(binIndex, amplitudeDb)
   }
-  
-  /**
-   * Get persistence score for a frequency bin
-   * Returns: { frames, boost, isPersistent, isVeryPersistent }
-   */
+
+  /** Delegate to PersistenceTracker */
   private getPersistenceScore(binIndex: number): {
     frames: number
     boost: number
@@ -1727,31 +1519,9 @@ export class FeedbackDetector {
     isHighlyPersistent: boolean
     isVeryHighlyPersistent: boolean
   } {
-    if (!this.persistenceCount) {
+    if (!this._persistenceTracker) {
       return { frames: 0, boost: 0, penalty: 0, isPersistent: false, isHighlyPersistent: false, isVeryHighlyPersistent: false }
     }
-    
-    const frames = this.persistenceCount[binIndex]
-    let boost = 0
-    let penalty = 0
-    
-    if (frames >= this._persistVeryHighFrames) {
-      boost = PERSISTENCE_SCORING.VERY_HIGH_PERSISTENCE_BOOST
-    } else if (frames >= this._persistHighFrames) {
-      boost = PERSISTENCE_SCORING.HIGH_PERSISTENCE_BOOST
-    } else if (frames >= this._persistMinFrames) {
-      boost = PERSISTENCE_SCORING.MIN_PERSISTENCE_BOOST
-    } else if (frames < this._persistLowFrames) {
-      penalty = PERSISTENCE_SCORING.LOW_PERSISTENCE_PENALTY
-    }
-
-    return {
-      frames,
-      boost,
-      penalty,
-      isPersistent: frames >= this._persistMinFrames,
-      isHighlyPersistent: frames >= this._persistHighFrames,
-      isVeryHighlyPersistent: frames >= this._persistVeryHighFrames,
-    }
+    return this._persistenceTracker.getScore(binIndex)
   }
 }

@@ -1,6 +1,6 @@
 # CLAUDE.md — DoneWell Audio Project Intelligence
 
-> **Last updated March 2026. 170+ TypeScript/TSX files, 1033 tests (1029 pass, 4 skip), 49 suites. Version 0.37.0.**
+> **Last updated March 2026. 170+ TypeScript/TSX files, 1080 tests (1076 pass, 4 skip), 52 suites. Version 0.37.0.**
 > Signal-responsive console tint. GDPR disclosures. Amber sidecar theme. Three-color operator vocabulary. Help accordion system. Fader UI overhaul. Adaptive phase skip. Performance-optimized fusion loop + canvas rendering.
 
 ## CRITICAL RULES
@@ -121,7 +121,7 @@ When the user asks to cut a release or "update the usuals":
 | DSP Offload | Web Worker (dspWorker.ts, ~458 lines) |
 | Visualization | HTML5 Canvas at 30fps |
 | State | React 19 hooks + 4 context providers (no external state library) |
-| Testing | Vitest (1033 tests, 49 suites, under 10s) |
+| Testing | Vitest (1080 tests, 52 suites, under 10s) |
 | Error Reporting | Sentry (browser + server + worker runtimes) |
 | PWA | Serwist (service worker, offline caching, installable) |
 | Package Manager | pnpm |
@@ -133,7 +133,7 @@ pnpm dev              # Dev server on :3000 (Turbopack, no SW)
 pnpm build            # Production build (webpack, generates SW)
 pnpm start            # Production server
 pnpm lint             # ESLint (flat config)
-pnpm test             # Vitest (1033 tests: 1029 pass + 4 skip)
+pnpm test             # Vitest (1080 tests: 1076 pass + 4 skip)
 pnpm test:watch       # Vitest watch mode
 pnpm test:coverage    # Vitest with V8 coverage
 npx tsc --noEmit      # Type-check (run BEFORE pnpm build)
@@ -248,12 +248,14 @@ hooks/ (18 files)             # Custom hooks
   useSignalTint.ts (85)       #   Signal-responsive tint: severity → CSS vars on <html>
   useDSPWorker.ts (363)       #   Worker lifecycle, crash recovery, userFeedback
 lib/
-  dsp/ (20 modules)           # DSP engine + ML inference:
+  dsp/ (22 modules)           # DSP engine + ML inference:
     feedbackDetector.ts (1757)#   Core: peak detection, MSD pool, auto-gain, persistence
     constants.ts (1097)       #   All tuning constants, 8 mode presets, ECM8000 cal curve, mobile constants
-    acousticUtils.ts (861)    #   Room modes, Schroeder, RT60, vibrato, cumulative growth
+    acousticUtils.ts (1085)   #   Room modes, Schroeder, RT60, vibrato, cumulative growth
     classifier.ts (850)       #   11-feature Bayesian classification + formant/chromatic gates
-    algorithmFusion.ts (1155) #   6-algo fusion, comb, IHR, PTMR, MINDS, CombStabilityTracker
+    fusionEngine.ts (~500)    #   Core fusion, MINDS, calibration, FUSION_WEIGHTS, AgreementPersistenceTracker
+    spectralAlgorithms.ts(~250)#  IHR, PTMR, content type detection (speech/music/compressed)
+    combPattern.ts (~300)     #   Comb filter detection (DBX), CombHistoryCache, CombStabilityTracker
     feedbackHistory.ts (467)  #   Session history, repeat offenders, hotspot tracking
     trackManager.ts (466)     #   Track lifecycle, cents-based association (100-cent tolerance)
     dspWorker.ts (745)        #   Worker orchestrator, temporal smoothing, ML score extraction
@@ -287,7 +289,7 @@ hooks/__tests__/ (7 files)    # Hook unit tests (useAdvisoryMap, useFpsMonitor, 
 contexts/__tests__/ (2 files) # Context unit tests (AdvisoryContext, UIContext)
 lib/storage/__tests__/ (1 file)  # dwaStorage unit tests
 lib/export/__tests__/ (3 files)  # Export module unit tests (txt, pdf, downloadFile)
-lib/dsp/__tests__/ (19 files)   # DSP unit tests (feedbackDetector, algorithmFusion, classifier, msdPool, eqAdvisor, etc.)
+lib/dsp/__tests__/ (22 files)   # DSP unit tests (feedbackDetector, fusionEngine, combPattern, classifier, acousticUtils, decayAnalyzer, severityUtils, etc.)
 public/models/                  # ML model assets
   manifest.json                 #   Model registry (version, metrics, architecture)
   dwa-fp-filter-v1.onnx         #   Bootstrap ONNX model (929 params, 4KB)

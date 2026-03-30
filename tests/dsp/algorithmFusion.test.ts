@@ -28,7 +28,7 @@ import {
   FUSION_WEIGHTS,
   DEFAULT_FUSION_CONFIG,
   type FusionConfig,
-} from '@/lib/dsp/algorithmFusion'
+} from '@/lib/dsp/fusionEngine'
 import { buildScores, type ScoreInput } from '../helpers/mockAlgorithmScores'
 
 // ── Helper ───────────────────────────────────────────────────────────────────

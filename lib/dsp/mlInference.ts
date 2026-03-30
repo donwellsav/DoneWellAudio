@@ -15,7 +15,7 @@
  * @see algorithmFusion.ts for MLScoreResult type and fusion integration
  */
 
-import type { MLScoreResult } from './algorithmFusion'
+import type { MLScoreResult } from './fusionEngine'
 import { ML_SETTINGS } from './constants'
 
 // ONNX Runtime Web types (resolved at runtime via dynamic import)
