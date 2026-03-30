@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.48.0',
+    date: '2026-03-30',
+    changes: [
+      { type: 'feat', description: 'Clean up `onResize` callback in `DesktopLayout.tsx` to use the proper v4 `PanelSize` parameter signature' },
+      { type: 'feat', description: 'Use `panelSize.asPercentage` directly instead of type-guarding with `typeof`/`in` checks' },
+      { type: 'feat', description: 'Functionally invariant — same behavior, clearer code' },
+      { type: 'feat', description: '[x] `npx tsc --noEmit` — clean' },
+      { type: 'feat', description: '[x] `pnpm test` — 1076 pass, 4 skip' },
+      { type: 'feat', description: '[x] DOM audit: 5 panels at correct percentages, 3 separators with correct orientations' },
+    ],
+  },
+  {
     version: '0.45.2',
     date: '2026-03-30',
     changes: [
