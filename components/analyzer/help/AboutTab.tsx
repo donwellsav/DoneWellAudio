@@ -23,7 +23,7 @@ export const AboutTab = memo(function AboutTab() {
           <HelpSection title="About" color="amber">
             <p>
               DoneWell Audio is a professional real-time acoustic feedback detection and analysis tool
-              for live sound engineers. It uses 6 detection algorithms from peer-reviewed acoustic
+              for live sound engineers. It uses 7 detection algorithms (6 classical + ML) from peer-reviewed acoustic
               research to identify feedback frequencies and deliver EQ recommendations with pitch translation.
             </p>
             <p className="mt-2">
@@ -37,7 +37,7 @@ export const AboutTab = memo(function AboutTab() {
               <span className="text-muted-foreground">Platform</span><span className="font-mono">Progressive Web App</span>
               <span className="text-muted-foreground">Framework</span><span className="font-mono">Next.js + React 19</span>
               <span className="text-muted-foreground">Audio</span><span className="font-mono">Web Audio API + Web Workers</span>
-              <span className="text-muted-foreground">Algorithms</span><span className="font-mono">6 (MSD, Phase, Spectral/Compression, Comb, IHR, PTMR)</span>
+              <span className="text-muted-foreground">Algorithms</span><span className="font-mono">7 (MSD, Phase, Spectral, Comb, IHR, PTMR, ML)</span>
               <span className="text-muted-foreground">Offline</span><span className="font-mono">Service worker cached</span>
             </div>
           </HelpSection>

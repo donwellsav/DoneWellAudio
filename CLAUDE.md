@@ -1,6 +1,6 @@
 # CLAUDE.md — DoneWell Audio Project Intelligence
 
-> **Last updated March 2026. 170+ TypeScript/TSX files, 1080 tests (1076 pass, 4 skip), 52 suites. Version 0.37.0.**
+> **Last updated March 2026. 170+ TypeScript/TSX files, 1080 tests (1076 pass, 4 skip), 52 suites. Version 0.43.0.**
 > Signal-responsive console tint. GDPR disclosures. Amber sidecar theme. Three-color operator vocabulary. Help accordion system. Fader UI overhaul. Adaptive phase skip. Performance-optimized fusion loop + canvas rendering.
 
 ## CRITICAL RULES
@@ -108,7 +108,7 @@ When the user asks to cut a release or "update the usuals":
 
 ## Project Overview
 
-**DoneWell Audio** (donewellaudio.com) is a browser-based real-time acoustic feedback detection PWA for live sound engineers. It captures microphone input via the Web Audio API, identifies feedback frequencies using seven fused detection algorithms (six classical + ML), and delivers EQ recommendations with pitch translation. Version 0.37.0. Repository: github.com/donwellsav/donewellaudio.
+**DoneWell Audio** (donewellaudio.com) is a browser-based real-time acoustic feedback detection PWA for live sound engineers. It captures microphone input via the Web Audio API, identifies feedback frequencies using seven fused detection algorithms (six classical + ML), and delivers EQ recommendations with pitch translation. Version 0.43.0. Repository: github.com/donwellsav/donewellaudio.
 
 ## Tech Stack
 
@@ -546,6 +546,7 @@ Then when user says "PR":
 - **Overlay scoping:** `[data-slot="sheet-content"]` pins `--tint-*` to amber — Help, History, Settings sheets stay branded regardless of detection state.
 - **RUNAWAY boost:** `.tint-runaway` class on `<html>` doubles alpha on headers/sidebars/glow lines for emergency visibility.
 - **Canvas code:** Cannot use CSS `var()` directly — use `getComputedStyle(document.documentElement).getPropertyValue('--tint-r')` to read tint values for `ctx.fillStyle`/`ctx.strokeStyle`.
+- **`--console-amber` is static** — always `#f59e0b` (dark) / `#d97706` (light). Used for text labels in the operator vocabulary. Surface tinting uses `rgba(var(--tint-r),...)` directly, never through `--console-amber`. Do not make `--console-amber` dynamic.
 - All panels use `amber-sidecar` class for cascade styling (accordion triggers, section labels)
 - `amber-panel-header` class for gradient header bars — requires compound selector when combined with `panel-header` or `channel-strip` (CSS specificity: later rules override equal-specificity earlier rules)
 - `instrument-window-amber` class for graph panel bezel borders
@@ -555,7 +556,8 @@ Then when user says "PR":
 ### Help Menu Structure
 - `HelpShared.tsx`: `HelpSection` (card with `color` prop) + `HelpGroup` (collapsible accordion)
 - Every `HelpSection` must be inside a `HelpGroup` — no orphaned cards
-- Color mapping: amber = detection topics, blue = scope/analysis, green = system/environment
+- Color mapping: amber = detection topics, blue = scope/analysis + Help menu, green = system/environment
+- **Help menu uses `--console-blue`** — it's reference documentation (scope/analysis), not detection controls. All Help text, icons, tab borders, and accordion labels are blue.
 
 ### Layout & Navigation
 - **Dual entry point:** Two start buttons — "Press to Start Analysis" (normal mode) and "Ring Out Room" (ring-out wizard). No settings menu required to switch modes.
