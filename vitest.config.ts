@@ -13,6 +13,7 @@ export default defineConfig({
       'tests/**/*.test.ts',
       'hooks/__tests__/**/*.test.ts',
       'contexts/__tests__/**/*.test.ts',
+      'app/**/__tests__/**/*.test.ts',
     ],
     environment: 'node',
     globals: true,
@@ -27,6 +28,7 @@ export default defineConfig({
         'lib/data/**/*.ts',
         'hooks/**/*.ts',
         'contexts/**/*.ts',
+        'app/api/**/*.ts',
       ],
       exclude: [
         '**/__tests__/**',
