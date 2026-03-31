@@ -10,8 +10,8 @@
 
 import type { AlgorithmMode } from '@/types/advisory'
 import { COMPRESSION_SETTINGS } from './constants'
-import type { MSDResult } from './msdAnalysis'
-import { MSD_CONSTANTS } from './msdAnalysis'
+import type { MSDResult } from '@/types/advisory'
+import { MSD_CONSTANTS } from './constants'
 import type { PhaseCoherenceResult } from './phaseCoherence'
 import { PHASE_CONSTANTS } from './phaseCoherence'
 import type { SpectralFlatnessResult, CompressionResult } from './compressionDetection'

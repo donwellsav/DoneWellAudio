@@ -256,7 +256,13 @@ export class FeedbackDetector {
         audioTrack.onended = () => {
           if (this.isRunning) {
             this.callbacks.onError?.('Microphone disconnected')
-            this.stop()
+            try {
+              this.stop()
+            } catch {
+              // stop() cleanup is best-effort — prevent cascade failure
+              // from leaving dangling listeners or buffers
+              this.isRunning = false
+            }
           }
         }
       }

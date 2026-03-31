@@ -7,29 +7,13 @@
  */
 
 import { MSD_SETTINGS } from './constants'
+import type { MSDResult } from '@/types/advisory'
+import { MSD_CONSTANTS } from './constants/detectionConstants'
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// ── Re-exports (canonical homes: types/advisory.ts + constants/detectionConstants.ts) ──
 
-export interface MSDResult {
-  msd: number
-  feedbackScore: number
-  secondDerivative: number
-  isFeedbackLikely: boolean
-  framesAnalyzed: number
-  /** Mean magnitude over the history window (dB) — used for energy gate */
-  meanMagnitudeDb: number
-}
-
-// ── Constants ────────────────────────────────────────────────────────────────
-
-export const MSD_CONSTANTS = {
-  THRESHOLD: MSD_SETTINGS.THRESHOLD,
-  SILENCE_FLOOR_DB: -70,
-  MIN_FRAMES_SPEECH: MSD_SETTINGS.MIN_FRAMES_SPEECH,
-  MIN_FRAMES_MUSIC: MSD_SETTINGS.MIN_FRAMES_MUSIC,
-  DEFAULT_FRAMES: MSD_SETTINGS.MIN_FRAMES_SPEECH,
-  MAX_FRAMES: MSD_SETTINGS.MAX_FRAMES,
-} as const
+export type { MSDResult } from '@/types/advisory'
+export { MSD_CONSTANTS } from './constants/detectionConstants'
 
 // ── MSD History Buffer ───────────────────────────────────────────────────────
 
