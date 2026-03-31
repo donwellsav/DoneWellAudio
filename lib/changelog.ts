@@ -14,6 +14,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.52.0',
+    date: '2026-03-31',
+    changes: [
+      { type: 'feat', description: '**Rate limiting** on companion proxy — 30 req/60s per IP, server-enforced (not spoofable like Origin headers)' },
+      { type: 'feat', description: '**Redirect exhaustion** — returns 502 when max hops exceeded instead of passing raw 3xx through' },
+      { type: 'feat', description: '**Audit documentation** — 5 deep-audit docs: API, dependency audit, developer guide, system architecture, test coverage review' },
+      { type: 'feat', description: '**Gitignore fix** — narrowed scope to only exclude .docx exports, not .md documentation' },
+      { type: 'feat', description: '[x] `npx tsc --noEmit` passes' },
+      { type: 'feat', description: '[x] `pnpm test` — 1138 tests pass (57 suites), 4 skipped' },
+      { type: 'feat', description: '[x] Rate limit test uses unique IPs to avoid crosstalk' },
+      { type: 'feat', description: '[x] Redirect loop test verifies 502 after 5 hops' },
+    ],
+  },
+  {
     version: '0.51.0',
     date: '2026-03-31',
     changes: [
