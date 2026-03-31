@@ -1,7 +1,7 @@
 # CLAUDE.md — DoneWell Audio Project Intelligence
 
-> **Last updated March 2026. 264 TypeScript/TSX files, 1142 tests (1138 pass, 4 skip), 57 suites. Version 0.52.0.**
-> Signal-responsive console tint. GDPR disclosures. Amber sidecar theme. Three-color operator vocabulary. Help accordion system. Fader UI overhaul. Adaptive phase skip. Performance-optimized fusion loop + canvas rendering. SSRF-hardened companion proxy.
+> **Last updated March 2026. 278 TypeScript/TSX files, 1100 tests (1096 pass, 4 skip), 54 suites. Version 0.54.1.**
+> Signal-responsive console tint. GDPR disclosures. Amber sidecar theme. Three-color operator vocabulary. Help accordion system. Fader UI overhaul. Adaptive phase skip. Performance-optimized fusion loop + canvas rendering. SSRF-hardened companion proxy. Health endpoint. Frontend design polish (7 improvements).
 
 ## CRITICAL RULES
 
