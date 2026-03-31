@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.53.0',
+    date: '2026-03-31',
+    changes: [
+      { type: 'feat', description: 'Update version to 0.52.0' },
+      { type: 'feat', description: 'Test counts: 1142 tests (1138 pass, 4 skip), 57 suites, 264 files' },
+      { type: 'feat', description: 'Companion proxy security notes updated to reflect 13-layer SSRF defense' },
+      { type: 'feat', description: '[x] Documentation-only change, no code modified' },
+    ],
+  },
+  {
     version: '0.52.0',
     date: '2026-03-31',
     changes: [
