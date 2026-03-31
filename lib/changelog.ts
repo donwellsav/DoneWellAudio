@@ -14,6 +14,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.59.0',
+    date: '2026-03-31',
+    changes: [
+      { type: 'feat', description: '**Worker death notification (CRITICAL)**: After 3 auto-restart failures, error banner escalates from amber ("auto-recovering") to red ("detection is offline") with actionable Restart button. Previously analysis silently stopped.' },
+      { type: 'feat', description: '**AudioContext closed state (CRITICAL)**: `statechange` handler now checks for `\'closed\'` state (not just `\'suspended\'`). Closed context triggers `stop()` + error callback instead of running RAF loop on dead analyser.' },
+      { type: 'feat', description: '**Shell permissions tightened (Codex)**: Removed 14 overly broad Bash permission entries from `settings.local.json` — `while read:*` loop fragments, malformed grep patterns, loose find/xargs.' },
+      { type: 'feat', description: '**Proxy redirect hardened (Codex)**: Catches ALL unresolved 3xx responses, not just max-hop exhaustion. Missing `Location` header no longer passes raw 3xx to client.' },
+      { type: 'feat', description: '[x] `npx tsc --noEmit` — clean' },
+      { type: 'feat', description: '[x] `pnpm test` — 59 suites, 1144 pass, 4 skip' },
+      { type: 'feat', description: '[ ] Trigger worker crash (DevTools → terminate worker) → verify red error banner appears' },
+      { type: 'feat', description: '[ ] Verify Restart button recovers analysis after worker death' },
+    ],
+  },
+  {
     version: '0.58.0',
     date: '2026-03-31',
     changes: [
