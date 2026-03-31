@@ -14,6 +14,7 @@ import { renderHook, act } from '@testing-library/react'
 let mockAdvisories: { id: string; severity: string }[] = []
 let mockDismissedIds = new Set<string>()
 let mockIsRunning = false
+let mockInputLevel = -30 // default: adequate signal
 
 vi.mock('@/contexts/AdvisoryContext', () => ({
   useAdvisories: () => ({ advisories: mockAdvisories, dismissedIds: mockDismissedIds }),
@@ -21,6 +22,10 @@ vi.mock('@/contexts/AdvisoryContext', () => ({
 
 vi.mock('@/contexts/EngineContext', () => ({
   useEngine: () => ({ isRunning: mockIsRunning }),
+}))
+
+vi.mock('@/contexts/MeteringContext', () => ({
+  useMetering: () => ({ inputLevel: mockInputLevel }),
 }))
 
 // Import after mocks are set up
@@ -42,6 +47,7 @@ beforeEach(() => {
   mockAdvisories = []
   mockDismissedIds = new Set()
   mockIsRunning = false
+  mockInputLevel = -30
   // Reset root CSS
   document.documentElement.style.removeProperty('--tint-r')
   document.documentElement.style.removeProperty('--tint-g')
@@ -68,13 +74,27 @@ describe('useSignalTint', () => {
     expect(b).toBe('139')
   })
 
-  it('sets listening (blue) tint when running with no advisories', () => {
+  it('sets green tint when running with adequate signal and no advisories', () => {
     mockIsRunning = true
+    mockInputLevel = -30 // above -45 threshold
     mockAdvisories = []
     renderHook(() => useSignalTint())
 
     const [r, g, b] = getTint()
-    // Listening = blue [59, 130, 246]
+    // Green = [34, 197, 94]
+    expect(r).toBe('34')
+    expect(g).toBe('197')
+    expect(b).toBe('94')
+  })
+
+  it('sets blue tint when running with low signal', () => {
+    mockIsRunning = true
+    mockInputLevel = -50 // below -45 threshold
+    mockAdvisories = []
+    renderHook(() => useSignalTint())
+
+    const [r, g, b] = getTint()
+    // Blue = [59, 130, 246]
     expect(r).toBe('59')
     expect(g).toBe('130')
     expect(b).toBe('246')
@@ -124,10 +144,10 @@ describe('useSignalTint', () => {
     renderHook(() => useSignalTint())
 
     const [r, g, b] = getTint()
-    // All dismissed → listening blue
-    expect(r).toBe('59')
-    expect(g).toBe('130')
-    expect(b).toBe('246')
+    // All dismissed → green (adequate signal, no active feedback)
+    expect(r).toBe('34')
+    expect(g).toBe('197')
+    expect(b).toBe('94')
   })
 
   it('uses worst severity when multiple advisories exist', () => {
@@ -150,7 +170,7 @@ describe('useSignalTint', () => {
     mockAdvisories = []
 
     const { rerender } = renderHook(() => useSignalTint())
-    expect(getTint()[0]).toBe('59') // blue
+    expect(getTint()[0]).toBe('34') // green (adequate signal, no feedback)
 
     // Add a RUNAWAY advisory
     mockAdvisories = [{ id: '1', severity: 'RUNAWAY' }]
@@ -172,9 +192,9 @@ describe('useSignalTint', () => {
     rerender()
     expect(getTint()[0]).toBe('239') // still red
 
-    // After 1s, downgrade to blue
+    // After 1s, downgrade to green (adequate signal, no feedback)
     act(() => { vi.advanceTimersByTime(1000) })
-    expect(getTint()[0]).toBe('59') // blue
+    expect(getTint()[0]).toBe('34') // green
   })
 
   it('resets tint vars on cleanup', () => {
