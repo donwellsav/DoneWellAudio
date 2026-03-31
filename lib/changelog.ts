@@ -14,6 +14,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.58.0',
+    date: '2026-03-31',
+    changes: [
+      { type: 'feat', description: '**Green tint state**: When running with adequate signal and no feedback detected, the console tint is now green instead of blue — completing the semantic gradient: idle (slate) → blue (low signal) → **green (healthy)** → amber (detection) → orange (growing) → red (RUNAWAY)' },
+      { type: 'feat', description: '**Blue low-signal**: Low-signal text and radar ring changed from amber to blue — matches operator vocabulary (blue = system/scope state, not a detection)' },
+      { type: 'feat', description: '`useSignalTint` now reads `inputLevel` from `MeteringContext` to determine low-signal state' },
+      { type: 'feat', description: '[x] `npx tsc --noEmit` — clean' },
+      { type: 'feat', description: '[x] `pnpm test` — 59 suites, 1144 pass, 4 skip (+1 new test)' },
+      { type: 'feat', description: '[ ] Visual verification: green tint with adequate signal, no feedback' },
+      { type: 'feat', description: '[ ] Visual verification: blue tint with low/no signal' },
+      { type: 'feat', description: '[ ] Visual verification: amber tint on first detection' },
+    ],
+  },
+  {
     version: '0.57.0',
     date: '2026-03-31',
     changes: [
