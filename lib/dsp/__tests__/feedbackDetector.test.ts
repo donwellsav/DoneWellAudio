@@ -185,7 +185,7 @@ describe('FeedbackDetector', () => {
     })
   })
 
-  // ── FUTURE-002: Frame-rate-independent persistence scoring ─────
+  // ── Frame-rate-independent persistence scoring ─────
 
   describe('persistence scoring — frame-rate independence', () => {
     /** Helper: get persistence thresholds from getState() */

@@ -14,6 +14,7 @@ export default defineConfig({
       'hooks/__tests__/**/*.test.ts',
       'contexts/__tests__/**/*.test.ts',
       'app/**/__tests__/**/*.test.ts',
+      'components/**/__tests__/**/*.test.{ts,tsx}',
     ],
     environment: 'node',
     globals: true,

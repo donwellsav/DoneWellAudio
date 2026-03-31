@@ -1,0 +1,195 @@
+// @vitest-environment jsdom
+/**
+ * Tests for useSignalTint — maps detection severity to CSS tint vars on <html>.
+ *
+ * Validates color progression (idle → blue → amber → orange → red),
+ * hysteresis (instant upgrade, delayed downgrade), and RUNAWAY class toggle.
+ */
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { renderHook, act } from '@testing-library/react'
+
+// ── Mock contexts before importing hook ──────────────────────────────────────
+
+let mockAdvisories: { id: string; severity: string }[] = []
+let mockDismissedIds = new Set<string>()
+let mockIsRunning = false
+
+vi.mock('@/contexts/AdvisoryContext', () => ({
+  useAdvisories: () => ({ advisories: mockAdvisories, dismissedIds: mockDismissedIds }),
+}))
+
+vi.mock('@/contexts/EngineContext', () => ({
+  useEngine: () => ({ isRunning: mockIsRunning }),
+}))
+
+// Import after mocks are set up
+import { useSignalTint } from '../useSignalTint'
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function getTint(): [string, string, string] {
+  const root = document.documentElement
+  return [
+    root.style.getPropertyValue('--tint-r'),
+    root.style.getPropertyValue('--tint-g'),
+    root.style.getPropertyValue('--tint-b'),
+  ]
+}
+
+beforeEach(() => {
+  vi.useFakeTimers()
+  mockAdvisories = []
+  mockDismissedIds = new Set()
+  mockIsRunning = false
+  // Reset root CSS
+  document.documentElement.style.removeProperty('--tint-r')
+  document.documentElement.style.removeProperty('--tint-g')
+  document.documentElement.style.removeProperty('--tint-b')
+  document.documentElement.classList.remove('tint-runaway')
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.useRealTimers()
+})
+
+// ── Tests ────────────────────────────────────────────────────────────────────
+
+describe('useSignalTint', () => {
+  it('sets idle (slate) tint when not running', () => {
+    mockIsRunning = false
+    renderHook(() => useSignalTint())
+
+    const [r, g, b] = getTint()
+    // Idle = slate gray [100, 116, 139]
+    expect(r).toBe('100')
+    expect(g).toBe('116')
+    expect(b).toBe('139')
+  })
+
+  it('sets listening (blue) tint when running with no advisories', () => {
+    mockIsRunning = true
+    mockAdvisories = []
+    renderHook(() => useSignalTint())
+
+    const [r, g, b] = getTint()
+    // Listening = blue [59, 130, 246]
+    expect(r).toBe('59')
+    expect(g).toBe('130')
+    expect(b).toBe('246')
+  })
+
+  it('sets amber tint for low severity (POSSIBLE_RING)', () => {
+    mockIsRunning = true
+    mockAdvisories = [{ id: '1', severity: 'POSSIBLE_RING' }]
+    renderHook(() => useSignalTint())
+
+    const [r, g, b] = getTint()
+    // Amber = [245, 158, 11]
+    expect(r).toBe('245')
+    expect(g).toBe('158')
+    expect(b).toBe('11')
+  })
+
+  it('sets orange tint for GROWING severity', () => {
+    mockIsRunning = true
+    mockAdvisories = [{ id: '1', severity: 'GROWING' }]
+    renderHook(() => useSignalTint())
+
+    const [r, g, b] = getTint()
+    // Orange = [249, 115, 22]
+    expect(r).toBe('249')
+    expect(g).toBe('115')
+    expect(b).toBe('22')
+  })
+
+  it('sets red tint and adds tint-runaway class for RUNAWAY', () => {
+    mockIsRunning = true
+    mockAdvisories = [{ id: '1', severity: 'RUNAWAY' }]
+    renderHook(() => useSignalTint())
+
+    const [r, g, b] = getTint()
+    // Red = [239, 68, 68]
+    expect(r).toBe('239')
+    expect(g).toBe('68')
+    expect(b).toBe('68')
+    expect(document.documentElement.classList.contains('tint-runaway')).toBe(true)
+  })
+
+  it('ignores dismissed advisories', () => {
+    mockIsRunning = true
+    mockAdvisories = [{ id: '1', severity: 'RUNAWAY' }]
+    mockDismissedIds = new Set(['1'])
+    renderHook(() => useSignalTint())
+
+    const [r, g, b] = getTint()
+    // All dismissed → listening blue
+    expect(r).toBe('59')
+    expect(g).toBe('130')
+    expect(b).toBe('246')
+  })
+
+  it('uses worst severity when multiple advisories exist', () => {
+    mockIsRunning = true
+    mockAdvisories = [
+      { id: '1', severity: 'POSSIBLE_RING' },
+      { id: '2', severity: 'GROWING' },
+    ]
+    renderHook(() => useSignalTint())
+
+    const [r, g, b] = getTint()
+    // GROWING is worse → orange
+    expect(r).toBe('249')
+    expect(g).toBe('115')
+    expect(b).toBe('22')
+  })
+
+  it('upgrades tint instantly', () => {
+    mockIsRunning = true
+    mockAdvisories = []
+
+    const { rerender } = renderHook(() => useSignalTint())
+    expect(getTint()[0]).toBe('59') // blue
+
+    // Add a RUNAWAY advisory
+    mockAdvisories = [{ id: '1', severity: 'RUNAWAY' }]
+    rerender()
+
+    // Should upgrade to red immediately (no delay)
+    expect(getTint()[0]).toBe('239')
+  })
+
+  it('delays downgrade by 1s (hysteresis)', () => {
+    mockIsRunning = true
+    mockAdvisories = [{ id: '1', severity: 'RUNAWAY' }]
+
+    const { rerender } = renderHook(() => useSignalTint())
+    expect(getTint()[0]).toBe('239') // red
+
+    // Remove advisory → should NOT downgrade immediately
+    mockAdvisories = []
+    rerender()
+    expect(getTint()[0]).toBe('239') // still red
+
+    // After 1s, downgrade to blue
+    act(() => { vi.advanceTimersByTime(1000) })
+    expect(getTint()[0]).toBe('59') // blue
+  })
+
+  it('resets tint vars on cleanup', () => {
+    mockIsRunning = true
+    mockAdvisories = [{ id: '1', severity: 'RUNAWAY' }]
+
+    const { unmount } = renderHook(() => useSignalTint())
+    expect(getTint()[0]).toBe('239')
+
+    unmount()
+
+    // Should reset to amber defaults
+    expect(getTint()[0]).toBe('245')
+    expect(getTint()[1]).toBe('158')
+    expect(getTint()[2]).toBe('11')
+    expect(document.documentElement.classList.contains('tint-runaway')).toBe(false)
+  })
+})

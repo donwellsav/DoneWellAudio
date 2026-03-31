@@ -165,7 +165,7 @@ export const MSD_SETTINGS = {
 
 // ── Persistence Scoring ─────────────────────────────────────────────────────
 
-// Peak Persistence Scoring - Phase 2 Enhancement (FUTURE-002: frame-rate-independent)
+// Peak Persistence Scoring — frame-rate-independent (ms → frames at runtime)
 // Feedback is persistent over time, transients are short-lived.
 // Thresholds are in milliseconds — frame equivalents computed at runtime
 // from analysisIntervalMs so behaviour is identical at 25fps, 50fps, 60fps.

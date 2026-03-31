@@ -55,7 +55,7 @@ export interface FeedbackDetectorState {
   compressionRatio?: number
   // Performance instrumentation (only populated when debugPerf is enabled)
   perfTimings?: PerfTimings | null
-  // FUTURE-002: Computed persistence thresholds (frame-rate-independent)
+  // Computed persistence thresholds (frame-rate-independent, ms → frames at runtime)
   persistenceThresholds?: {
     minFrames: number
     highFrames: number
@@ -101,7 +101,7 @@ export class FeedbackDetector {
   private _fastConfirmCounts: Map<number, number> = new Map() // binIndex → consecutive low-MSD frames
   private msdMinFrames: number = MSD_SETTINGS.DEFAULT_MIN_FRAMES // Content-adaptive (synced with worker)
 
-  // Peak Persistence Scoring - Phase 2 Enhancement (FUTURE-002: frame-rate-independent)
+  // Peak Persistence Scoring — frame-rate-independent (ms-based constants → frame counts)
   // Tracks consecutive frames where a peak persists at the same frequency
   // Feedback = persistent (vertical streak), transient = short-lived
   private _persistenceTracker: PersistenceTracker | null = null
@@ -279,7 +279,7 @@ export class FeedbackDetector {
     // Auto-gain state is NOT touched here — managed entirely by updateSettings()
     // when user clicks LOUD/MED/QUIET calibration buttons
 
-    // FUTURE-002: Frame-rate-independent persistence thresholds
+    // Recompute ms-based persistence thresholds for this frame rate
     this._recomputePersistenceFrames(this.config.analysisIntervalMs)
 
     // Connect source (PASSIVE - no output routing)
@@ -570,7 +570,7 @@ export class FeedbackDetector {
       isCompressed: this._isCompressed,
       compressionRatio: this._compressionRatio,
       perfTimings: this._debugPerf ? this._perfTimings : undefined,
-      // FUTURE-002: Expose computed persistence thresholds for testing
+      // Expose computed persistence thresholds for testing
       persistenceThresholds: {
         minFrames: this._persistMinFrames,
         highFrames: this._persistHighFrames,
@@ -1474,7 +1474,7 @@ export class FeedbackDetector {
   // ==================== Persistence Scoring (Phase 2) ====================
 
   /**
-   * FUTURE-002: Recompute frame-based persistence thresholds from ms constants.
+   * Recompute frame-based persistence thresholds from ms constants.
    * Called when analysisIntervalMs changes (initAudioContext, updateConfig).
    */
   private _recomputePersistenceFrames(intervalMs: number): void {
