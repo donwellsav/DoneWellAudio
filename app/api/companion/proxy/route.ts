@@ -421,10 +421,10 @@ export async function POST(request: NextRequest) {
       redirectCount++
     }
 
-    // Redirect exhaustion — don't pass raw 3xx through as a "success"
-    if (redirectCount >= MAX_REDIRECTS && response.status >= 300 && response.status < 400) {
+    // Never pass raw 3xx through — either redirect exhaustion or missing location header
+    if (response.status >= 300 && response.status < 400) {
       // eslint-disable-next-line no-console -- server-side diagnostic log (Vercel function logs)
-      console.error('[companion-proxy] Redirect limit exceeded:', redirectCount, 'hops. URL:', requestedUrl)
+      console.error('[companion-proxy] Unresolved redirect:', response.status, 'after', redirectCount, 'hops. URL:', requestedUrl)
       return NextResponse.json({ error: 'Too many redirects' }, { status: 502 })
     }
 
