@@ -1,31 +1,35 @@
 /**
  * PostToolUse hook: Auto-adds .docx files to .gitignore when created via Write.
  * Prevents accidental commits of generated Word documents.
+ * CommonJS — reads event payload from stdin (Claude Code hook protocol).
  */
-import { readFileSync, appendFileSync } from 'fs';
-import { resolve } from 'path';
 
-const input = JSON.parse(process.argv[2] || '{}');
-const filePath = input?.tool_input?.file_path || '';
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
-if (!filePath.endsWith('.docx')) process.exit(0);
+let input = '';
+process.stdin.on('data', d => { input += d; });
+process.stdin.on('end', () => {
+  try {
+    const data = JSON.parse(input);
+    const filePath = (data.tool_input && data.tool_input.file_path) || '';
 
-const gitignorePath = resolve('.gitignore');
-try {
-  const content = readFileSync(gitignorePath, 'utf8');
-  const relativePath = filePath.replace(/\\/g, '/').replace(/^.*?(?=docs\/)/, '');
+    if (!filePath.endsWith('.docx')) process.exit(0);
 
-  // Check if this specific file or its pattern is already ignored
-  if (content.includes(relativePath) || content.includes('docs/*.docx')) {
-    process.exit(0);
+    const gitignorePath = path.resolve('.gitignore');
+    try {
+      const content = fs.readFileSync(gitignorePath, 'utf8');
+
+      if (!content.includes('docs/*.docx')) {
+        fs.appendFileSync(gitignorePath, '\ndocs/*.docx\n');
+        process.stderr.write('[auto-gitignore] Added docs/*.docx to .gitignore\n');
+      }
+    } catch {
+      // .gitignore doesn't exist or can't be read — skip silently
+    }
+  } catch {
+    // Invalid JSON or missing fields — skip silently
   }
-
-  // File not ignored — it's covered by the existing docs/*.docx pattern
-  // If that pattern somehow got removed, re-add it
-  if (!content.includes('docs/*.docx')) {
-    appendFileSync(gitignorePath, '\ndocs/*.docx\n');
-    console.error(`[auto-gitignore] Added docs/*.docx to .gitignore`);
-  }
-} catch {
-  // .gitignore doesn't exist or can't be read — skip silently
-}
+  process.exit(0);
+});

@@ -10,7 +10,11 @@ Automate the standard version release checklist from CLAUDE.md.
 ## Arguments
 
 The user provides a version: `/update-usuals 0.53.0`
-If no version given, read the next PR number from `gh pr list --state all --limit 1 --json number` and use `0.<next_PR_number>.0`.
+If no version given, compute next PR number:
+```bash
+gh pr list --state all --limit 1 --json number
+```
+Take the returned number and add 1. Use `0.<result>.0` as the version.
 
 ## Steps
 

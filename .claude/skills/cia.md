@@ -33,19 +33,48 @@ Generate a CIA from the current git diff, mapping changes to the 16-system table
 
 3. Read the actual diffs to understand what changed
 4. Classify each system impact as POSITIVE, NEGATIVE, or NEUTRAL with evidence
-5. Output the CIA in the standard format from CLAUDE.md
+5. Output the CIA in the exact format below — the pre-commit gate validates this format
 6. Write the audit to `$TEMP/claude-cia-audit.md` so the pre-commit hook can find it
 
 ## Output Format
 
+The pre-commit gate checks for these exact patterns (case-insensitive):
+- `**change:**`
+- `**classification:**`
+- `| system |` (the impact table header)
+- `**verdict:**`
+- `## <system name>` for each system touched (e.g. `## DSP / Detection`)
+
+Use this template exactly:
+
 ```
-CHANGE: [one-line description]
-CLASSIFICATION: [emoji] POSITIVE | NEGATIVE | NEUTRAL
-SCOPE: [affected systems]
+**CHANGE:** [one-line description]
+**CLASSIFICATION:** 🟢 POSITIVE | 🔴 NEGATIVE | ⚪ NEUTRAL
+**SCOPE:** [comma-separated list of affected systems]
+
+## [System 1 Name]
+
+[Evidence — trace values, render paths, data flows as appropriate for the system type]
+
+## [System 2 Name]
+
+[Evidence]
 
 | System | Impact | Evidence |
 |--------|--------|----------|
-| ... | ... | ... |
+| [System 1] | 🟢/🔴/⚪ | [one-line proof] |
+| [System 2] | 🟢/🔴/⚪ | [one-line proof] |
 
-Verdict: [summary]
+**VERDICT:** [Summary — "Strict improvement because..." / "Trade-off: improves X but risks Y..." / "Functionally invariant because..."]
 ```
+
+## Notes
+
+- The `## <System Name>` sections must match the exact system names used by the edit tracker:
+  `DSP / Detection`, `Audio Pipeline`, `Worker / Threading`, `React State`, `UI Components`,
+  `Canvas / Visualization`, `Settings / Storage`, `PWA / Service Worker`, `Security / CSP`,
+  `API / Ingest`, `Testing`, `Build / CI`, `Accessibility`, `Performance`, `ML Pipeline`,
+  `Data / Privacy`
+- For trivial changes (typo, comment, single-value tweak), a one-line audit is sufficient:
+  `**CHANGE:** Fixed typo | **CLASSIFICATION:** ⚪ NEUTRAL | **VERDICT:** Text-only change, no logic impact.`
+  But still write it to `$TEMP/claude-cia-audit.md`.
