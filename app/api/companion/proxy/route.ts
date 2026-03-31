@@ -421,8 +421,10 @@ export async function POST(request: NextRequest) {
       redirectCount++
     }
 
-    // Never pass raw 3xx through — either redirect exhaustion or missing location header
-    if (response.status >= 300 && response.status < 400) {
+    // Catch unresolved redirects — don't pass raw 3xx through as success.
+    // Only actual redirect codes (301/302/303/307/308) are caught; 304 Not Modified is not a redirect.
+    const isRedirectStatus = [301, 302, 303, 307, 308].includes(response.status)
+    if (isRedirectStatus) {
       // eslint-disable-next-line no-console -- server-side diagnostic log (Vercel function logs)
       console.error('[companion-proxy] Unresolved redirect:', response.status, 'after', redirectCount, 'hops. URL:', requestedUrl)
       return NextResponse.json({ error: 'Too many redirects' }, { status: 502 })

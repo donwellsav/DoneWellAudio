@@ -11,7 +11,7 @@
  *   const result = fuseAlgorithmResults(scores, 'speech')
  */
 
-import type { MSDResult } from '@/lib/dsp/msdAnalysis'
+import type { MSDResult } from '@/types/advisory'
 import type { PhaseCoherenceResult } from '@/lib/dsp/phaseCoherence'
 import type {
   SpectralFlatnessResult,

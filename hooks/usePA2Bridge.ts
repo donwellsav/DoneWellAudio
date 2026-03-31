@@ -32,8 +32,6 @@ import type { Advisory } from '@/types/advisory'
 import type {
   PA2ConnectionConfig,
   PA2BridgeState,
-  PA2LoopResponse,
-  PA2MetersResponse,
 } from '@/types/pa2'
 import { createPA2Client, PA2ClientError } from '@/lib/pa2/pa2Client'
 import type { PA2Client } from '@/lib/pa2/pa2Client'
@@ -44,6 +42,14 @@ import {
   advisoriesToHybridActions,
 } from '@/lib/pa2/advisoryBridge'
 import { runClosedLoopCycle } from '@/lib/pa2/closedLoopEQ'
+import {
+  loopRTAToArray,
+  loopMetersToFull,
+  crossValidateWithPA2RTA,
+  filterNewOrWorsened,
+  markPEQSent,
+  PA2_RTA_FREQS,
+} from '@/lib/pa2/pa2Utils'
 
 // ═══ Hook Config ═══
 
@@ -247,60 +253,6 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
     }
   }, [enabled, pollIntervalMs, baseUrl, apiKey, timeoutMs])
 
-  // ── PEQ dedup: skip already-notched advisories, re-send if confidence rose 10%+ ──
-
-  const CONFIDENCE_RESEND_DELTA = 0.10
-
-  function filterNewOrWorsened<T extends { hz: number; confidence: number; clientId?: string }>(payload: T[]): T[] {
-    return payload.filter(det => {
-      const id = det.clientId
-      if (!id) return true // no ID — always send
-      const prev = sentPEQRef.current[id]
-      if (prev === undefined) return true // never sent
-      return det.confidence >= prev + CONFIDENCE_RESEND_DELTA // only if confidence rose 10%+
-    })
-  }
-
-  function markPEQSent(payload: { confidence: number; clientId?: string }[]) {
-    for (const det of payload) {
-      if (det.clientId) sentPEQRef.current[det.clientId] = det.confidence
-    }
-  }
-
-  // ── Dual-RTA cross-validation ──
-  // Compare DWA detection against PA2's independent RTA measurement mic.
-  // Two mics agreeing = higher confidence. Disagreeing = possible false positive.
-
-  const PA2_RTA_FREQS = [20,25,31.5,40,50,63,80,100,125,160,200,250,315,400,500,630,800,1000,1250,1600,2000,2500,3150,4000,5000,6300,8000,10000,12500,16000,20000]
-
-  function crossValidateWithPA2RTA(advFreqHz: number, advConfidence: number, pa2Rta: readonly number[]): number {
-    if (!pa2Rta || pa2Rta.length < 31) return advConfidence
-
-    // Find nearest PA2 RTA band to the advisory frequency
-    let bestIdx = 0
-    let bestDist = Infinity
-    for (let i = 0; i < PA2_RTA_FREQS.length; i++) {
-      const dist = Math.abs(Math.log2(advFreqHz / PA2_RTA_FREQS[i]))
-      if (dist < bestDist) { bestDist = dist; bestIdx = i }
-    }
-
-    // Check if PA2 RTA shows a peak at this frequency (above neighbors)
-    const bandDb = pa2Rta[bestIdx]
-    const leftDb = bestIdx > 0 ? pa2Rta[bestIdx - 1] : -90
-    const rightDb = bestIdx < 30 ? pa2Rta[bestIdx + 1] : -90
-    const neighborAvg = (leftDb + rightDb) / 2
-    const prominence = bandDb - neighborAvg
-
-    if (prominence > 6) {
-      // PA2 RTA confirms a peak — boost confidence 15%
-      return Math.min(1.0, advConfidence + 0.15)
-    } else if (prominence < 2 && bandDb < -60) {
-      // PA2 RTA shows no peak and low energy — reduce confidence 20%
-      return Math.max(0, advConfidence - 0.20)
-    }
-    return advConfidence
-  }
-
   // ── Auto-send advisory forwarding ──
 
   // Helpers to track auto-send results in state
@@ -404,12 +356,12 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
     } else if (autoSend === 'peq') {
       const effectiveThreshold = Math.max(autoSendMinConfidence, companionThresholdRef.current)
       const allPayload = advisoriesToDetectPayload(xvAdvisories, effectiveThreshold)
-      const payload = filterNewOrWorsened(allPayload)
+      const payload = filterNewOrWorsened(allPayload, sentPEQRef.current)
       if (payload.length > 0) {
         client.detect({ frequencies: payload, source: 'donewellaudio' })
           .then((res) => {
             if (mountedRef.current) {
-              markPEQSent(payload)
+              markPEQSent(payload, sentPEQRef.current)
               setState((s) => ({
                 ...s,
                 notchSlotsUsed: res.slots_used,
@@ -443,7 +395,7 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
           })
         }
       }
-      const peqPayload = filterNewOrWorsened(peqPayloadRaw)
+      const peqPayload = filterNewOrWorsened(peqPayloadRaw, sentPEQRef.current)
 
       const totalCount = Object.keys(geqCorrections).length + peqPayload.length
       if (Object.keys(geqCorrections).length > 0 && state.geq && geqFresh) {
@@ -454,7 +406,7 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
       }
       if (peqPayload.length > 0) {
         client.detect({ frequencies: peqPayload, source: 'donewellaudio' })
-          .then(() => markPEQSent(peqPayload))
+          .then(() => markPEQSent(peqPayload, sentPEQRef.current))
           .catch(recordAutoSendError)
       }
     } else if (autoSend === 'both') {
@@ -481,7 +433,7 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
           })
         }
       }
-      const peqPayload = filterNewOrWorsened(peqPayloadRaw)
+      const peqPayload = filterNewOrWorsened(peqPayloadRaw, sentPEQRef.current)
 
       // Send GEQ corrections for broad advisories
       let geqCount = 0
@@ -495,7 +447,7 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
         client.detect({ frequencies: peqPayload, source: 'donewellaudio' })
           .then((res) => {
             if (!mountedRef.current) return
-            markPEQSent(peqPayload)
+            markPEQSent(peqPayload, sentPEQRef.current)
             const placed = res.actions?.filter((a: { type: string }) => a.type === 'notch_placed').length ?? 0
             const skipped = res.actions?.filter((a: { type: string }) => a.type.startsWith('skipped')).length ?? 0
             if (placed > 0) {
@@ -605,7 +557,7 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
     const history = rtaHistoryRef.current
     const oldest = history[0]
     const newest = history[history.length - 1]
-    const GEQ_FREQS = [20,25,31.5,40,50,63,80,100,125,160,200,250,315,400,500,630,800,1000,1250,1600,2000,2500,3150,4000,5000,6300,8000,10000,12500,16000,20000]
+    const GEQ_FREQS = PA2_RTA_FREQS
 
     for (let i = 0; i < 31; i++) {
       const rise = newest[i] - oldest[i]
@@ -688,26 +640,3 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
   }
 }
 
-// ═══ Helpers ═══
-
-/** Convert /loop RTA object (freq keys) to sorted array of 31 values */
-function loopRTAToArray(loop: PA2LoopResponse): number[] {
-  const arr = new Array(31).fill(-90)
-  const freqs = [20, 25, 31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000, 20000]
-  for (let i = 0; i < freqs.length; i++) {
-    const val = loop.rta[String(freqs[i])]
-    if (val !== undefined) arr[i] = val
-  }
-  return arr
-}
-
-/** Reshape /loop meters to full PA2MetersResponse format */
-function loopMetersToFull(loop: PA2LoopResponse): PA2MetersResponse {
-  return {
-    input: loop.meters.input,
-    output: loop.meters.output,
-    compressor: { input: 0, gr: loop.meters.comp_gr },
-    limiter: { input: 0, gr: loop.meters.lim_gr },
-    timestamp: loop.timestamp,
-  }
-}

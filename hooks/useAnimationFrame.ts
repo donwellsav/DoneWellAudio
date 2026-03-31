@@ -1,4 +1,10 @@
-// DoneWell Audio Animation Frame Hook - RAF with delta timing for canvas rendering
+/**
+ * useAnimationFrame — requestAnimationFrame loop with delta timing for canvas rendering.
+ *
+ * Provides a stable RAF loop that respects an optional targetFps throttle.
+ * Callback receives deltaTime (ms since last frame) and raw timestamp.
+ * Automatically cancels on unmount or when `enabled` transitions to false.
+ */
 
 import { useEffect, useRef } from 'react'
 

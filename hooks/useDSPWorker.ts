@@ -54,6 +54,8 @@ export interface DSPWorkerHandle {
   isReady: boolean
   /** True if the worker crashed and needs re-initialization */
   isCrashed: boolean
+  /** True if the worker exhausted all restart attempts — drives red fatal UI banner */
+  isPermanentlyDead: boolean
   /** Get frame drop stats from backpressure */
   getBackpressureStats: () => { dropped: number; total: number; ratio: number }
   /** Send initial config to the worker */
@@ -97,7 +99,8 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
   const busyRef = useRef(false)     // Backpressure: true while worker processes a peak batch
   /** One-frame buffer: holds the most recent peak when worker is busy, processed when worker frees up */
   const pendingPeakRef = useRef<{ peak: DetectedPeak; spectrum: Float32Array; sampleRate: number; fftSize: number; timeDomain?: Float32Array } | null>(null)
-  const crashedRef = useRef(false)  // Set on unrecoverable worker error
+  const crashedRef = useRef(false)  // Set on any worker error (gates message drops)
+  const permanentlyDeadRef = useRef(false)  // Set only when MAX_RESTARTS exhausted — drives red UI banner
   const droppedFramesRef = useRef(0) // Frames skipped due to backpressure
   const totalFramesRef = useRef(0)   // Total frames attempted
   const callbacksRef = useRef(callbacks)
@@ -126,6 +129,7 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
         case 'ready':
           isReadyRef.current = true
           crashedRef.current = false
+          permanentlyDeadRef.current = false
           restartCountRef.current = 0  // Healthy worker — reset restart budget
           Sentry.addBreadcrumb({ category: 'dsp', message: 'Worker ready', level: 'info' })
           // Replay any enableCollection that arrived before the worker was ready
@@ -220,15 +224,19 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
         (canRestart ? ' — auto-restarting' : ' — giving up'),
         canRestart ? 'warning' : 'error'
       )
-      callbacksRef.current.onError?.(err.message ?? 'DSP worker crashed')
+
+      // Single onError call — distinct message for permanent vs recoverable
+      const errorMessage = canRestart
+        ? (err.message ?? 'DSP worker crashed')
+        : 'Analysis engine stopped after repeated failures — tap Restart to try again'
+      callbacksRef.current.onError?.(errorMessage)
 
       // Terminate the dead worker
       worker.terminate()
       workerRef.current = null
 
       if (!canRestart) {
-        // Permanently dead — surface a distinct error so UI can show fatal state
-        callbacksRef.current.onError?.('Analysis engine stopped after repeated failures — tap Restart to try again')
+        permanentlyDeadRef.current = true
         return
       }
 
@@ -294,6 +302,7 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
       busyRef.current = false
       Sentry.addBreadcrumb({ category: 'dsp', message: `Worker init: mode=${settings.mode} fft=${fftSize} sr=${sampleRate}`, level: 'info' })
       // Re-create worker if it died (onerror terminates + nulls workerRef)
+      permanentlyDeadRef.current = false
       if (!workerRef.current) {
         const w = new Worker(
           new URL('../lib/dsp/dspWorker.ts', import.meta.url),
@@ -450,6 +459,7 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
   return useMemo(() => ({
     get isReady() { return isReadyRef.current },
     get isCrashed() { return crashedRef.current },
+    get isPermanentlyDead() { return permanentlyDeadRef.current },
     getBackpressureStats: () => ({
       dropped: droppedFramesRef.current,
       total: totalFramesRef.current,

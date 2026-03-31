@@ -1,5 +1,13 @@
 'use client'
 
+/**
+ * useCompanion — manages Companion module connection, pairing, and advisory relay.
+ *
+ * Handles WebSocket bridge lifecycle, relay polling, auto-send of new advisories,
+ * pairing code generation, and settings persistence. Companion modules are external
+ * hardware/software (e.g., Wing OSC, dbx DriveRack PA2) that receive EQ recommendations.
+ */
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Advisory } from '@/types/advisory'
 import type { CompanionSettings } from '@/types/companion'

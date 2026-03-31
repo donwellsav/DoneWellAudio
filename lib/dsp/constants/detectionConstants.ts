@@ -163,6 +163,19 @@ export const MSD_SETTINGS = {
   POOL_SIZE: 256,
 } as const
 
+/**
+ * Convenience alias for MSD algorithm thresholds — used by fusionEngine and tests.
+ * Derived from MSD_SETTINGS. Previously in msdAnalysis.ts (deprecated).
+ */
+export const MSD_CONSTANTS = {
+  THRESHOLD: MSD_SETTINGS.THRESHOLD,
+  SILENCE_FLOOR_DB: -70,
+  MIN_FRAMES_SPEECH: MSD_SETTINGS.MIN_FRAMES_SPEECH,
+  MIN_FRAMES_MUSIC: MSD_SETTINGS.MIN_FRAMES_MUSIC,
+  DEFAULT_FRAMES: MSD_SETTINGS.MIN_FRAMES_SPEECH,
+  MAX_FRAMES: MSD_SETTINGS.MAX_FRAMES,
+} as const
+
 // ── Persistence Scoring ─────────────────────────────────────────────────────
 
 // Peak Persistence Scoring — frame-rate-independent (ms → frames at runtime)

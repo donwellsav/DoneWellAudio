@@ -9,6 +9,25 @@
  * business logic (versioning, debounced writes, quota recovery).
  */
 
+// ── Quota exceeded detection ─────────────────────────────────────────────────
+
+function isQuotaExceeded(err: unknown): boolean {
+  return err instanceof DOMException && (
+    err.name === 'QuotaExceededError' || err.code === 22
+  )
+}
+
+/**
+ * Notify the UI that localStorage is full. Dispatches a custom event on window
+ * so any component can listen for it (e.g., show a "storage full" banner).
+ */
+function notifyQuotaExceeded(key: string): void {
+  console.error(`[dwaStorage] Storage quota exceeded writing "${key}" — settings may not persist. Clear old data or reduce usage.`)
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('dwa:storage-quota-exceeded', { detail: { key } }))
+  }
+}
+
 // ── Generic factory ──────────────────────────────────────────────────────────
 
 export interface TypedStorage<T> {
@@ -41,7 +60,11 @@ export function typedStorage<T>(key: string, fallback: T): TypedStorage<T> {
       try {
         localStorage.setItem(key, JSON.stringify(value))
       } catch (err) {
-        console.warn(`[dwaStorage] Failed to save "${key}":`, err instanceof Error ? err.message : err)
+        if (isQuotaExceeded(err)) {
+          notifyQuotaExceeded(key)
+        } else {
+          console.warn(`[dwaStorage] Failed to save "${key}":`, err instanceof Error ? err.message : err)
+        }
       }
     },
 
@@ -83,7 +106,11 @@ export function stringStorage(key: string, fallback: string = ''): StringStorage
       try {
         localStorage.setItem(key, value)
       } catch (err) {
-        console.warn(`[dwaStorage] Failed to save "${key}":`, err instanceof Error ? err.message : err)
+        if (isQuotaExceeded(err)) {
+          notifyQuotaExceeded(key)
+        } else {
+          console.warn(`[dwaStorage] Failed to save "${key}":`, err instanceof Error ? err.message : err)
+        }
       }
     },
 
@@ -126,7 +153,11 @@ export function flagStorage(key: string): FlagStorage {
       try {
         localStorage.setItem(key, 'true')
       } catch (err) {
-        console.warn(`[dwaStorage] Failed to set flag "${key}":`, err instanceof Error ? err.message : err)
+        if (isQuotaExceeded(err)) {
+          notifyQuotaExceeded(key)
+        } else {
+          console.warn(`[dwaStorage] Failed to set flag "${key}":`, err instanceof Error ? err.message : err)
+        }
       }
     },
 

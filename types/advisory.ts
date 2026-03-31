@@ -19,6 +19,17 @@ export type IssueLabel = 'ACOUSTIC_FEEDBACK' | 'WHISTLE' | 'INSTRUMENT' | 'POSSI
 export type PEQType = 'bell' | 'notch' | 'highShelf' | 'lowShelf' | 'HPF' | 'LPF'
 export type ShelfType = 'highShelf' | 'lowShelf' | 'HPF' | 'LPF'
 
+/** MSD algorithm output — used by fusion engine and classification. */
+export interface MSDResult {
+  msd: number
+  feedbackScore: number
+  secondDerivative: number
+  isFeedbackLikely: boolean
+  framesAnalyzed: number
+  /** Mean magnitude over the history window (dB) — used for energy gate */
+  meanMagnitudeDb: number
+}
+
 export interface AnalysisConfig {
   fftSize: number
   minHz: number
