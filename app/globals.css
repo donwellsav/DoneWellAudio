@@ -518,6 +518,17 @@ html {
     animation: issue-enter 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
 
+  /* ── Severity accent strip flash on card enter ─────────────────────────── */
+  @keyframes strip-flash {
+    0%   { filter: brightness(0.5); }
+    35%  { filter: brightness(2.8); }
+    100% { filter: brightness(1); }
+  }
+
+  .animate-strip-flash {
+    animation: strip-flash 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
   /* ── Interactive button glow on hover + press ──────────────────────────── */
   .btn-glow {
     transition: box-shadow 120ms ease, transform 80ms ease, color 120ms ease, background-color 120ms ease;
@@ -671,6 +682,18 @@ html {
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
     color: rgba(var(--tint-r), var(--tint-g), var(--tint-b), 1);
   }
+  /* LED indicator strip under active tab — channel selector glow */
+  .tab-track-item[data-active="true"]::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 18%;
+    right: 18%;
+    height: 2px;
+    background: rgba(var(--tint-r), var(--tint-g), var(--tint-b), 0.85);
+    border-radius: 2px 2px 0 0;
+    box-shadow: 0 1px 8px rgba(var(--tint-r), var(--tint-g), var(--tint-b), 0.45);
+  }
   .light .tab-track-item {
     color: rgba(0, 0, 0, 0.40);
   }
@@ -682,6 +705,10 @@ html {
     background: rgba(255, 255, 255, 0.9);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.06);
     color: rgba(37, 99, 235, 1);
+  }
+  .light .tab-track-item[data-active="true"]::after {
+    background: rgba(37, 99, 235, 0.8);
+    box-shadow: 0 1px 6px rgba(37, 99, 235, 0.3);
   }
 
   /* ── Console-styled input fields ─────────────────────────────────────── */
@@ -765,6 +792,12 @@ html {
     border-radius: 0 2px 2px 0;
   }
 
+  /* Wider strip for runaway feedback — extra visual urgency */
+  .severity-accent-strip-runaway {
+    width: 5px;
+    border-radius: 0 2px 2px 0;
+  }
+
   /* ── Severity pill badges ──────────────────────────────────────────────── */
   .severity-pill {
     display: inline-flex;
@@ -809,6 +842,16 @@ html {
     border-radius: 50%;
     border: 1.5px solid var(--console-amber);
     animation: radar-ping 2.8s ease-out infinite;
+    opacity: 0;
+  }
+
+  /* Green variant for all-clear state */
+  .radar-ring-green {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 1.5px solid rgb(16, 185, 129);
+    animation: radar-ping 3.5s ease-out infinite;
     opacity: 0;
   }
 

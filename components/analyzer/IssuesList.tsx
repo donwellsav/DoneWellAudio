@@ -230,20 +230,40 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center flex-1 min-h-[80px] py-6 gap-2">
-            {/* Radar ping — sonar sweep */}
-            <div className="relative flex items-center justify-center flex-shrink-0" style={{ width: 44, height: 44 }}>
-              <div className={isLowSignal ? 'radar-ring-amber' : 'radar-ring'} />
-              <div className={`radar-ring ${isLowSignal ? 'radar-ring-amber' : ''}`} style={{ animationDelay: '1.4s' }} />
-              <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${isLowSignal ? 'bg-[var(--console-amber)]/50' : 'bg-[var(--console-amber)]/40'}`} />
-            </div>
-            <div className={`font-mono text-[10px] font-bold tracking-[0.25em] uppercase ${isLowSignal ? 'text-[var(--console-amber)]/60' : 'text-[var(--console-amber)]/50'}`}>
-              {isLowSignal ? 'Low Signal' : 'Clear'}
-            </div>
-            {isLowSignal && (
-              <div className="flex items-center gap-1.5 motion-safe:animate-pulse">
-                <span className="text-[var(--console-amber)]/60 text-xs leading-none">▲</span>
-                <span className="font-mono text-[9px] text-[var(--console-amber)]/50 tracking-wider uppercase">Increase gain</span>
-              </div>
+            {isLowSignal ? (
+              <>
+                {/* Low signal: amber warning */}
+                <div className="relative flex items-center justify-center flex-shrink-0" style={{ width: 44, height: 44 }}>
+                  <div className="radar-ring-amber" />
+                  <div className="radar-ring-amber" style={{ animationDelay: '1.4s' }} />
+                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-[var(--console-amber)]/50" />
+                </div>
+                <div className="font-mono text-[10px] font-bold tracking-[0.25em] uppercase text-[var(--console-amber)]/60">
+                  Low Signal
+                </div>
+                <div className="flex items-center gap-1.5 motion-safe:animate-pulse">
+                  <span className="text-[var(--console-amber)]/60 text-xs leading-none">▲</span>
+                  <span className="font-mono text-[9px] text-[var(--console-amber)]/50 tracking-wider uppercase">Increase gain</span>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* All-clear: green — no feedback detected */}
+                <div className="relative flex items-center justify-center flex-shrink-0" style={{ width: 56, height: 56 }}>
+                  <div className="radar-ring-green" />
+                  <div className="radar-ring-green" style={{ animationDelay: '1.75s' }} />
+                  <div
+                    className="w-3 h-3 rounded-full flex-shrink-0 bg-emerald-500/60"
+                    style={{ boxShadow: '0 0 10px rgba(16, 185, 129, 0.55)' }}
+                  />
+                </div>
+                <div className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase text-emerald-500/80">
+                  No Feedback
+                </div>
+                <div className="font-mono text-[9px] tracking-[0.18em] uppercase text-emerald-500/50">
+                  Detected
+                </div>
+              </>
             )}
           </div>
         )

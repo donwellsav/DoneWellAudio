@@ -78,6 +78,21 @@ export const IssueCard = memo(function IssueCard({
     }
   }, [advisory, isDark])
 
+  // PEQ notch SVG path — bell curve dip on a log-scale frequency axis
+  const peqNotchSvgPath = useMemo(() => {
+    const peq = advisory.advisory?.peq
+    if (!peq) return null
+    const logMin = Math.log10(20)
+    const logMax = Math.log10(20000)
+    const cx = ((Math.log10(Math.max(20, peq.hz)) - logMin) / (logMax - logMin)) * 40
+    const depth = Math.min(10, (Math.abs(peq.gainDb) / 12) * 10)
+    const hw = Math.max(2, Math.min(14, 20 / peq.q))
+    const x1 = Math.max(0, cx - hw)
+    const x2 = Math.min(40, cx + hw)
+    const bl = 5
+    return `M 0 ${bl} L ${x1.toFixed(1)} ${bl} Q ${cx.toFixed(1)} ${(bl + depth).toFixed(1)} ${x2.toFixed(1)} ${bl} L 40 ${bl}`
+  }, [advisory.advisory?.peq])
+
   // Age display — refreshes naturally on advisory updates (~10Hz)
   // eslint-disable-next-line react-hooks/purity -- benign: Date.now() in render is intentional for live age display
   const ageSec = Math.max(0, Math.round((Date.now() - advisory.timestamp) / 1000))
@@ -174,12 +189,14 @@ export const IssueCard = memo(function IssueCard({
         </div>
       )}
 
-      {/* Left severity accent — glowing strip */}
+      {/* Left severity accent — glowing strip, wider + brighter for RUNAWAY */}
       <div
-        className="absolute left-0 top-0 bottom-0 severity-accent-strip"
+        className={`absolute left-0 top-0 bottom-0 animate-strip-flash ${isRunaway ? 'severity-accent-strip-runaway' : 'severity-accent-strip'}`}
         style={{
           backgroundColor: isResolved ? 'hsl(var(--muted))' : severityColor,
-          boxShadow: isResolved ? 'none' : `2px 0 8px -2px ${severityColor}50, 0 0 4px -1px ${severityColor}30`,
+          boxShadow: isResolved ? 'none' : isRunaway
+            ? `3px 0 12px -1px ${severityColor}70, 0 0 6px -1px ${severityColor}50`
+            : `2px 0 8px -2px ${severityColor}50, 0 0 4px -1px ${severityColor}30`,
         }}
       />
 
@@ -198,9 +215,20 @@ export const IssueCard = memo(function IssueCard({
             <TooltipProvider delayDuration={300}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className={`font-mono text-2xl font-bold leading-none tracking-wide cursor-default ${
+                  <span className={`font-mono font-bold leading-none tracking-wide cursor-default ${
+                    isRunaway ? 'text-3xl' : 'text-2xl'
+                  } ${
                     isFalsePositive ? 'text-red-400/60 line-through' : 'text-foreground'
-                  }`}>
+                  }`}
+                    style={{
+                      fontVariantNumeric: 'tabular-nums slashed-zero',
+                      textShadow: isFalsePositive || isResolved ? 'none' : isRunaway
+                        ? `0 0 16px ${severityColor}80, 0 0 6px ${severityColor}40`
+                        : isWarning
+                          ? `0 0 10px ${severityColor}60, 0 0 4px ${severityColor}30`
+                          : `0 0 8px ${severityColor}40`,
+                    }}
+                  >
                     {exactFreqStr}
                   </span>
                 </TooltipTrigger>
@@ -340,11 +368,16 @@ export const IssueCard = memo(function IssueCard({
             {' → '}{advisory.algorithmScores.fusedProbability.toFixed(2)}
           </div>
         )}
-        {/* PEQ recommendation row */}
-        {showPeqDetails && advisory.advisory?.peq && (
-          <div className="text-[10px] font-mono text-muted-foreground/60 tracking-wide leading-none -mt-1">
-            PEQ: {advisory.advisory.peq.type} @ {advisory.advisory.peq.hz.toFixed(0)}Hz | Q:{advisory.advisory.peq.q.toFixed(1)} | {advisory.advisory.peq.gainDb}dB
-            {advisory.advisory.peq.bandwidthHz != null && ` | BW:${advisory.advisory.peq.bandwidthHz.toFixed(0)}Hz`}
+        {/* PEQ recommendation row — mini notch SVG + params */}
+        {showPeqDetails && advisory.advisory?.peq && peqNotchSvgPath && (
+          <div className="flex items-center gap-1.5 -mt-1">
+            <svg width="40" height="14" viewBox="0 0 40 14" aria-hidden className="flex-shrink-0">
+              <path d={peqNotchSvgPath} fill="none" stroke={severityColor} strokeWidth="1.2" strokeOpacity="0.5" />
+            </svg>
+            <span className="text-[10px] font-mono text-muted-foreground/60 tracking-wide leading-none">
+              {advisory.advisory.peq.type} @ {advisory.advisory.peq.hz.toFixed(0)}Hz | Q:{advisory.advisory.peq.q.toFixed(1)} | {advisory.advisory.peq.gainDb}dB
+              {advisory.advisory.peq.bandwidthHz != null && ` | BW:${advisory.advisory.peq.bandwidthHz.toFixed(0)}Hz`}
+            </span>
           </div>
         )}
 
@@ -366,16 +399,26 @@ export const IssueCard = memo(function IssueCard({
         )}
       </div>
 
-      {/* Freshness indicator bar — decays from full to empty over 60s */}
+      {/* Freshness indicator bar — decays over 60s, shifts toward red with age */}
       {!isResolved && (
-        <div className="h-[2px] w-full" aria-hidden>
+        <div className="h-[3px] w-full relative" aria-hidden>
           <div
-            className="h-full rounded-full transition-[width] duration-500 ease-linear"
+            className="absolute inset-0 h-full rounded-full transition-[width,background-color] duration-500 ease-linear"
             style={{
               width: `${Math.max(0, (1 - ageSec / 60)) * 100}%`,
-              backgroundColor: `${severityColor}50`,
+              backgroundColor: `${severityColor}b3`,
             }}
           />
+          {ageSec > 20 && (
+            <div
+              className="absolute inset-0 h-full rounded-full transition-[width,opacity] duration-500 ease-linear"
+              style={{
+                width: `${Math.max(0, (1 - ageSec / 60)) * 100}%`,
+                backgroundColor: '#ef4444',
+                opacity: Math.min(0.55, ((ageSec - 20) / 40) * 0.55),
+              }}
+            />
+          )}
         </div>
       )}
     </div>
