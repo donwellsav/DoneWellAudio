@@ -43,6 +43,25 @@ export const AdvancedTab = memo(function AdvancedTab({
     <div className="space-y-1">
       <SettingsGrid>
 
+      {/* Fader Link — ratio and center positions for dual fader coupling */}
+      <Section title="Fader Link" color="green" showTooltip={settings.showTooltips}
+        tooltip="Configure the dual fader strip coupling. Ratio controls how fast sensitivity moves relative to gain. Center values set the Home button positions.">
+        <div className="space-y-1">
+          <ConsoleSlider label="Link Ratio" color="green" value={`${settings.faderLinkRatio.toFixed(1)}:1`}
+            tooltip={settings.showTooltips ? 'Sensitivity-to-gain visual ratio. 1.0 = equal travel. 2.0 = sensitivity moves twice as fast.' : undefined}
+            min={0.5} max={2} step={0.1} sliderValue={settings.faderLinkRatio}
+            onChange={(v) => ctx.updateDisplay({ faderLinkRatio: v })} />
+          <ConsoleSlider label="Center Gain" color="green" value={`${settings.faderLinkCenterGainDb}dB`}
+            tooltip={settings.showTooltips ? 'Home position for gain fader. Default 0dB (unity).' : undefined}
+            min={-20} max={20} step={1} sliderValue={settings.faderLinkCenterGainDb}
+            onChange={(v) => ctx.updateDisplay({ faderLinkCenterGainDb: v })} />
+          <ConsoleSlider label="Center Sens" color="green" value={`${settings.faderLinkCenterSensDb}dB`}
+            tooltip={settings.showTooltips ? 'Home position for sensitivity fader. Default 25dB threshold.' : undefined}
+            min={5} max={40} step={1} sliderValue={settings.faderLinkCenterSensDb}
+            onChange={(v) => ctx.updateDisplay({ faderLinkCenterSensDb: v })} />
+        </div>
+      </Section>
+
       {/* Detection Policy — ring, growth, confidence, A-weight, whistle */}
       <Section title="Detection Policy" color="amber" showTooltip={settings.showTooltips}
         tooltip="Expert tuning for detection thresholds, timing, and filtering. Changes affect detection accuracy across all modes.">

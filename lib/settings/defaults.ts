@@ -59,6 +59,10 @@ export const DEFAULT_DISPLAY_PREFS: DisplayPrefs = {
   showThresholdLine: true,
   canvasTargetFps: 15,
   faderMode: 'sensitivity',
+  faderLinkMode: 'unlinked',
+  faderLinkRatio: 1.0,
+  faderLinkCenterGainDb: 0,
+  faderLinkCenterSensDb: 25,
   swipeLabeling: false,
 }
 

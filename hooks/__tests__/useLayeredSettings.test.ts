@@ -232,6 +232,10 @@ describe('useLayeredSettings — storage backfill', () => {
       showThresholdLine: true,
       canvasTargetFps: 30,
       faderMode: 'gain',
+      faderLinkMode: 'unlinked',
+      faderLinkRatio: 1.0,
+      faderLinkCenterGainDb: 0,
+      faderLinkCenterSensDb: 25,
       swipeLabeling: false,
       // NOTE: showRoomModeLines is intentionally missing
     }

@@ -185,6 +185,10 @@ export function deriveDetectorSettings(
     showThresholdLine: display.showThresholdLine,
     canvasTargetFps: display.canvasTargetFps,
     faderMode: display.faderMode,
+    faderLinkMode: display.faderLinkMode,
+    faderLinkRatio: display.faderLinkRatio,
+    faderLinkCenterGainDb: display.faderLinkCenterGainDb,
+    faderLinkCenterSensDb: display.faderLinkCenterSensDb,
     swipeLabeling: display.swipeLabeling,
   }
 }

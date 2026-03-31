@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useRef, useCallback, useMemo, useState } from 'react'
+import { memo, useRef, useCallback, useEffect, useMemo, useState } from 'react'
 import { IssuesList } from './IssuesList'
 import { RingOutWizard } from './RingOutWizard'
 import { EarlyWarningPanel } from './EarlyWarningPanel'
@@ -9,7 +9,8 @@ import { GEQBarView } from './GEQBarView'
 import { SettingsPanel, type DataCollectionTabProps } from './settings/SettingsPanel'
 import { LandscapeSettingsSheet } from './LandscapeSettingsSheet'
 import { InputMeterSlider } from './InputMeterSlider'
-import { VerticalGainFader } from './VerticalGainFader'
+import { SingleFader } from './SingleFader'
+import type { FaderGuidance } from './SingleFader'
 import { useEngine } from '@/contexts/EngineContext'
 import { useSettings } from '@/contexts/SettingsContext'
 import { useMetering } from '@/contexts/MeteringContext'
@@ -55,6 +56,18 @@ export const MobileLayout = memo(function MobileLayout({
     if (d !== 0) setSensitivityOffset(session.liveOverrides.sensitivityOffsetDb + d);
   }, [session.modeId, session.environment.feedbackOffsetDb, session.liveOverrides.sensitivityOffsetDb, setSensitivityOffset]);
 
+  // ── Mobile fader: local mode toggle (gain ↔ sensitivity) ──────────────────
+  const [mobileFaderMode, setMobileFaderMode] = useState<'gain' | 'sensitivity'>('sensitivity')
+  const mobileFaderValue = mobileFaderMode === 'sensitivity' ? settings.feedbackThresholdDb : settings.inputGainDb
+  const mobileFaderOnChange = useCallback((db: number) => {
+    if (mobileFaderMode === 'sensitivity') {
+      handleThresholdChange(db)
+    } else {
+      if (isAutoGain) setAutoGain(false)
+      setInputGain(db)
+    }
+  }, [mobileFaderMode, handleThresholdChange, isAutoGain, setAutoGain, setInputGain])
+
   // Compute axial room modes for RTA overlay (memoized)
   const roomModes = useMemo(() => {
     if (settings.roomPreset === 'none' || !settings.roomLengthM || !settings.roomWidthM || !settings.roomHeightM) return null
@@ -76,6 +89,36 @@ export const MobileLayout = memo(function MobileLayout({
     onFalsePositive, falsePositiveIds,
     onConfirmFeedback, confirmedIds,
   } = useAdvisories()
+
+  // Sensitivity guidance for mobile fader
+  const mobileNoDetectionSecsRef = useRef(0)
+  const [mobileProlongedSilence, setMobileProlongedSilence] = useState(false)
+  useEffect(() => {
+    if (!isRunning || mobileFaderMode !== 'sensitivity') {
+      mobileNoDetectionSecsRef.current = 0
+      setMobileProlongedSilence(false)
+      return
+    }
+    const id = setInterval(() => {
+      if (activeAdvisoryCount > 0 || inputLevel < -45) {
+        mobileNoDetectionSecsRef.current = 0
+        if (mobileProlongedSilence) setMobileProlongedSilence(false)
+      } else {
+        mobileNoDetectionSecsRef.current++
+        if (mobileNoDetectionSecsRef.current >= 2 && !mobileProlongedSilence) setMobileProlongedSilence(true)
+      }
+    }, 1000)
+    return () => clearInterval(id)
+  }, [isRunning, mobileFaderMode, activeAdvisoryCount, inputLevel, mobileProlongedSilence])
+
+  const mobileGuidance: FaderGuidance = useMemo(() => {
+    if (mobileFaderMode !== 'sensitivity' || !isRunning) return { direction: 'none', urgency: 'none' }
+    if (activeAdvisoryCount >= 3) return { direction: 'down', urgency: 'warning' }
+    if (mobileProlongedSilence && settings.feedbackThresholdDb > 20) return { direction: 'up', urgency: 'hint' }
+    if (settings.feedbackThresholdDb > 35) return { direction: 'up', urgency: settings.feedbackThresholdDb >= 42 ? 'warning' : 'hint' }
+    if (settings.feedbackThresholdDb < 10) return { direction: 'down', urgency: settings.feedbackThresholdDb <= 5 ? 'warning' : 'hint' }
+    return { direction: 'none', urgency: 'none' }
+  }, [mobileFaderMode, isRunning, activeAdvisoryCount, mobileProlongedSilence, settings.feedbackThresholdDb])
 
   // Inline graph — mode and resizable height
   const [inlineGraphMode, setInlineGraphMode] = useState<'rta' | 'geq'>('rta')
@@ -324,24 +367,36 @@ export const MobileLayout = memo(function MobileLayout({
           </div>
         </div>
         </div>
-        {/* Fader sidecar — persistent across all tabs */}
-        <div className="flex-shrink-0 w-12 min-[375px]:w-16 border-l border-border/50 channel-strip">
-          <VerticalGainFader
-            value={settings.inputGainDb}
-            onChange={(v) => setInputGain(v)}
-            level={inputLevel}
-            autoGainEnabled={isAutoGain}
-            autoGainDb={autoGainDb}
-            autoGainLocked={autoGainLocked}
-            onAutoGainToggle={(enabled) => setAutoGain(enabled)}
-            isRunning={isRunning}
-            noiseFloorDb={noiseFloorDb}
-            faderMode={settings.faderMode}
-            onFaderModeChange={(mode) => updateDisplay({ faderMode: mode })}
-            sensitivityValue={settings.feedbackThresholdDb}
-            onSensitivityChange={handleThresholdChange}
-            activeAdvisoryCount={activeAdvisoryCount}
-          />
+        {/* Fader sidecar — persistent across all tabs, with local mode toggle */}
+        <div className="flex-shrink-0 w-12 min-[375px]:w-16 border-l border-border/50 channel-strip flex flex-col">
+          {/* Mode toggle button */}
+          <button
+            onClick={() => setMobileFaderMode(m => m === 'gain' ? 'sensitivity' : 'gain')}
+            className={`flex-shrink-0 py-1 text-[9px] font-bold uppercase tracking-wider text-center cursor-pointer transition-colors ${
+              mobileFaderMode === 'sensitivity' ? 'text-blue-400' : 'text-[var(--console-amber)]'
+            }`}
+            title={`Switch to ${mobileFaderMode === 'gain' ? 'sensitivity' : 'gain'} fader`}
+          >
+            {mobileFaderMode === 'sensitivity' ? 'Sens' : 'Gain'}
+          </button>
+          <div className="flex-1 min-h-0">
+            <SingleFader
+              mode={mobileFaderMode}
+              value={mobileFaderValue}
+              onChange={mobileFaderOnChange}
+              level={inputLevel}
+              min={mobileFaderMode === 'sensitivity' ? 2 : -40}
+              max={mobileFaderMode === 'sensitivity' ? 50 : 40}
+              label=""
+              autoGainEnabled={mobileFaderMode === 'gain' ? isAutoGain : false}
+              autoGainDb={autoGainDb}
+              autoGainLocked={autoGainLocked}
+              onAutoGainToggle={mobileFaderMode === 'gain' ? (enabled) => setAutoGain(enabled) : undefined}
+              noiseFloorDb={mobileFaderMode === 'gain' ? noiseFloorDb : null}
+              guidance={mobileFaderMode === 'sensitivity' ? mobileGuidance : undefined}
+              isRunning={isRunning}
+            />
+          </div>
         </div>
       </div>
 
@@ -472,23 +527,33 @@ export const MobileLayout = memo(function MobileLayout({
           </div>
         </div>
         {/* Right fader sidecar — 5% */}
-        <div className="w-[5%] min-w-[3rem] flex-shrink-0 border-l border-border/50 channel-strip">
-          <VerticalGainFader
-            value={settings.inputGainDb}
-            onChange={(v) => setInputGain(v)}
-            level={inputLevel}
-            autoGainEnabled={isAutoGain}
-            autoGainDb={autoGainDb}
-            autoGainLocked={autoGainLocked}
-            onAutoGainToggle={(enabled) => setAutoGain(enabled)}
-            isRunning={isRunning}
-            noiseFloorDb={noiseFloorDb}
-            faderMode={settings.faderMode}
-            onFaderModeChange={(mode) => updateDisplay({ faderMode: mode })}
-            sensitivityValue={settings.feedbackThresholdDb}
-            onSensitivityChange={handleThresholdChange}
-            activeAdvisoryCount={activeAdvisoryCount}
-          />
+        <div className="w-[5%] min-w-[3rem] flex-shrink-0 border-l border-border/50 channel-strip flex flex-col">
+          <button
+            onClick={() => setMobileFaderMode(m => m === 'gain' ? 'sensitivity' : 'gain')}
+            className={`flex-shrink-0 py-0.5 text-[8px] font-bold uppercase tracking-wider text-center cursor-pointer transition-colors ${
+              mobileFaderMode === 'sensitivity' ? 'text-blue-400' : 'text-[var(--console-amber)]'
+            }`}
+          >
+            {mobileFaderMode === 'sensitivity' ? 'S' : 'G'}
+          </button>
+          <div className="flex-1 min-h-0">
+            <SingleFader
+              mode={mobileFaderMode}
+              value={mobileFaderValue}
+              onChange={mobileFaderOnChange}
+              level={inputLevel}
+              min={mobileFaderMode === 'sensitivity' ? 2 : -40}
+              max={mobileFaderMode === 'sensitivity' ? 50 : 40}
+              label=""
+              autoGainEnabled={mobileFaderMode === 'gain' ? isAutoGain : false}
+              autoGainDb={autoGainDb}
+              autoGainLocked={autoGainLocked}
+              onAutoGainToggle={mobileFaderMode === 'gain' ? (enabled) => setAutoGain(enabled) : undefined}
+              noiseFloorDb={mobileFaderMode === 'gain' ? noiseFloorDb : null}
+              guidance={mobileFaderMode === 'sensitivity' ? mobileGuidance : undefined}
+              isRunning={isRunning}
+            />
+          </div>
         </div>
       </div>
 

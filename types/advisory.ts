@@ -388,7 +388,11 @@ export interface DetectorSettings {
   spectrumLineWidth: number // RTA line width in pixels (0.5-4, default 1.5)
   showThresholdLine: boolean // Show effective threshold line on RTA graph
   canvasTargetFps: number // Target FPS for canvas rendering (15-60, default 30)
-  faderMode: 'gain' | 'sensitivity' // Vertical fader strip mode: input gain (white) or sensitivity (blue)
+  faderMode: 'gain' | 'sensitivity' // DEPRECATED — kept for mobile toggle during dual-fader migration
+  faderLinkMode: 'unlinked' | 'linked' | 'linked-reversed'
+  faderLinkRatio: number
+  faderLinkCenterGainDb: number
+  faderLinkCenterSensDb: number
   swipeLabeling: boolean // Enable swipe-to-label on issue cards (left=false+, right=confirm). Hides buttons when on.
   // Gate multiplier overrides — expert-only, undefined = use hardcoded default
   formantGateOverride?: number    // 0.65 default
