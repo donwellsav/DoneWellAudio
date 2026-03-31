@@ -18,22 +18,28 @@
 import { useMemo, useEffect, useState, useRef } from 'react'
 import { useAdvisories } from '@/contexts/AdvisoryContext'
 import { useEngine } from '@/contexts/EngineContext'
+import { useMetering } from '@/contexts/MeteringContext'
 import { getSeverityUrgency } from '@/lib/dsp/severityUtils'
 
 type RGB = [number, number, number]
 
 const TINT_IDLE: RGB   = [100, 116, 139]  // slate gray
-const TINT_LISTEN: RGB = [59, 130, 246]   // console blue
-const TINT_AMBER: RGB  = [245, 158, 11]   // console amber (default)
-const TINT_ORANGE: RGB = [249, 115, 22]   // warning
+const TINT_BLUE: RGB   = [59, 130, 246]   // console blue (low/no signal)
+const TINT_GREEN: RGB  = [34, 197, 94]    // healthy (good signal, no feedback)
+const TINT_AMBER: RGB  = [245, 158, 11]   // console amber (low severity detection)
+const TINT_ORANGE: RGB = [249, 115, 22]   // warning (growing)
 const TINT_RED: RGB    = [239, 68, 68]    // RUNAWAY
 
 /** Hold severity for 1s before allowing downgrade — prevents flicker */
 const HOLD_MS = 1000
 
-function tintForUrgency(urgency: number, running: boolean): RGB {
+/** Low signal threshold — matches DesktopLayout/MobileLayout (inputLevel < -45) */
+const LOW_SIGNAL_THRESHOLD_DB = -45
+
+function tintForUrgency(urgency: number, running: boolean, isLowSignal: boolean): RGB {
   if (!running) return TINT_IDLE
-  if (urgency === 0) return TINT_LISTEN
+  if (isLowSignal) return TINT_BLUE   // low/no signal — need more gain
+  if (urgency === 0) return TINT_GREEN // good signal, no feedback — healthy
   if (urgency <= 2) return TINT_AMBER
   if (urgency <= 4) return TINT_ORANGE
   return TINT_RED
@@ -49,6 +55,8 @@ function tintForUrgency(urgency: number, running: boolean): RGB {
 export function useSignalTint(): void {
   const { advisories, dismissedIds } = useAdvisories()
   const { isRunning } = useEngine()
+  const { inputLevel } = useMetering()
+  const isLowSignal = isRunning && inputLevel < LOW_SIGNAL_THRESHOLD_DB
 
   const rawUrgency = useMemo(() => {
     if (!isRunning) return 0
@@ -84,7 +92,7 @@ export function useSignalTint(): void {
     }
   }, [rawUrgency, displayedUrgency])
 
-  const [r, g, b] = tintForUrgency(displayedUrgency, isRunning)
+  const [r, g, b] = tintForUrgency(displayedUrgency, isRunning, isLowSignal)
   const isRunaway = displayedUrgency >= 5
 
   useEffect(() => {

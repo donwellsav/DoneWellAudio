@@ -250,18 +250,18 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
           <div className="flex flex-col items-center justify-center flex-1 min-h-[80px] py-6 gap-2">
             {isLowSignal ? (
               <>
-                {/* Low signal: amber warning */}
+                {/* Low signal: blue — system/scope state, not a detection */}
                 <div className="relative flex items-center justify-center flex-shrink-0" style={{ width: 44, height: 44 }}>
-                  <div className="radar-ring-amber" />
-                  <div className="radar-ring-amber" style={{ animationDelay: '1.4s' }} />
-                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-[var(--console-amber)]/50" />
+                  <div className="radar-ring" />
+                  <div className="radar-ring" style={{ animationDelay: '1.4s' }} />
+                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-[var(--console-blue)]/50" />
                 </div>
-                <div className="font-mono text-[10px] font-bold tracking-[0.25em] uppercase text-[var(--console-amber)]/60">
+                <div className="font-mono text-[10px] font-bold tracking-[0.25em] uppercase text-[var(--console-blue)]/70">
                   Low Signal
                 </div>
                 <div className="flex items-center gap-1.5 motion-safe:animate-pulse">
-                  <span className="text-[var(--console-amber)]/60 text-xs leading-none">▲</span>
-                  <span className="font-mono text-[9px] text-[var(--console-amber)]/50 tracking-wider uppercase">Increase gain</span>
+                  <span className="text-[var(--console-blue)]/60 text-xs leading-none">▲</span>
+                  <span className="font-mono text-[9px] text-[var(--console-blue)]/50 tracking-wider uppercase">Increase gain</span>
                 </div>
               </>
             ) : (
