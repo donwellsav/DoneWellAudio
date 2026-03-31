@@ -14,6 +14,28 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.55.0',
+    date: '2026-03-31',
+    changes: [
+      { type: 'feat', description: '**RUNAWAY card escalation**: 5px accent strip (vs 3px), stronger glow, `text-3xl` frequency hero' },
+      { type: 'feat', description: '**Mini notch SVG**: Inline bell-curve dip next to PEQ recommendation row (log-scale frequency position, Q-responsive width)' },
+      { type: 'feat', description: '**Enhanced all-clear state**: Green 56px radar ring with "No Feedback Detected" label (replaces minimal amber dot)' },
+      { type: 'feat', description: '**Strip flash animation**: Severity accent strip briefly flashes bright on card enter via `strip-flash` keyframe' },
+      { type: 'feat', description: '**Settings tab LED indicator**: Amber-tinted bottom bar under active tab — channel selector glow (dark + light mode)' },
+      { type: 'feat', description: '**Frequency readout glow**: `tabular-nums slashed-zero` for disambiguation, severity-matched `text-shadow`' },
+      { type: 'feat', description: '**Progress bar upgrade**: 3px height (was 2px), 70% opacity (was 31%), `transition-[width,background-color]`, age-to-red overlay after 20s' },
+      { type: 'feat', description: '[x] `npx tsc --noEmit` — clean' },
+      { type: 'feat', description: '[x] `pnpm test` — 57 suites, 1138 pass, 4 skip (unchanged)' },
+      { type: 'feat', description: '[x] Preview: settings tab LED indicator renders correctly, follows active tab' },
+      { type: 'feat', description: '[x] Preview: no console errors' },
+      { type: 'feat', description: '[ ] Visual verification: RUNAWAY card escalation with live audio' },
+      { type: 'feat', description: '[ ] Visual verification: all-clear green state when running with no feedback' },
+      { type: 'feat', description: '[ ] Visual verification: strip flash animation on new card appearance' },
+      { type: 'feat', description: '[ ] Visual verification: PEQ notch SVG with PEQ Details toggle enabled' },
+      { type: 'feat', description: '[ ] Visual verification: progress bar age-to-red fade' },
+    ],
+  },
+  {
     version: '0.54.1',
     date: '2026-03-31',
     changes: [
