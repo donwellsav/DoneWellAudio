@@ -62,7 +62,13 @@
       "Skill(commit-commands:commit)",
       "Skill(commit-commands:commit:*)",
       "Bash(grep -r \"Float32Array\\\\|Float64Array\" /c/DoneWellAV/DoneWellAudio/lib --include=\"*.ts\" ! -path \"*/node_modules/*\" ! -path \"*/.claude/*\")",
-      "Bash(wc -l /c/DoneWellAV/DoneWellAudio/lib/dsp/*.ts)"
+      "Bash(wc -l /c/DoneWellAV/DoneWellAudio/lib/dsp/*.ts)",
+      "Bash(gh release:*)",
+      "Bash(git rm:*)",
+      "Bash(node docs/generate-developer-guide-docx.js)",
+      "Bash(node docs/generate-api-docs-docx.js)",
+      "Bash(node docs/generate-system-architecture-docx.js)",
+      "Bash(node \"C:/Users/dwell/.claude/plugins/cache/openai-codex/codex/1.0.1/scripts/codex-companion.mjs\" adversarial-review \"\")"
     ]
   }
 }
