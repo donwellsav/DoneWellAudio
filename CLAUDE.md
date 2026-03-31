@@ -1,7 +1,7 @@
 # CLAUDE.md — DoneWell Audio Project Intelligence
 
-> **Last updated March 2026. 170+ TypeScript/TSX files, 1080 tests (1076 pass, 4 skip), 52 suites. Version 0.43.0.**
-> Signal-responsive console tint. GDPR disclosures. Amber sidecar theme. Three-color operator vocabulary. Help accordion system. Fader UI overhaul. Adaptive phase skip. Performance-optimized fusion loop + canvas rendering.
+> **Last updated March 2026. 264 TypeScript/TSX files, 1142 tests (1138 pass, 4 skip), 57 suites. Version 0.52.0.**
+> Signal-responsive console tint. GDPR disclosures. Amber sidecar theme. Three-color operator vocabulary. Help accordion system. Fader UI overhaul. Adaptive phase skip. Performance-optimized fusion loop + canvas rendering. 13-layer SSRF-hardened companion proxy.
 
 ## CRITICAL RULES
 
@@ -108,7 +108,7 @@ When the user asks to cut a release or "update the usuals":
 
 ## Project Overview
 
-**DoneWell Audio** (donewellaudio.com) is a browser-based real-time acoustic feedback detection PWA for live sound engineers. It captures microphone input via the Web Audio API, identifies feedback frequencies using seven fused detection algorithms (six classical + ML), and delivers EQ recommendations with pitch translation. Version 0.43.0. Repository: github.com/donwellsav/donewellaudio.
+**DoneWell Audio** (donewellaudio.com) is a browser-based real-time acoustic feedback detection PWA for live sound engineers. It captures microphone input via the Web Audio API, identifies feedback frequencies using seven fused detection algorithms (six classical + ML), and delivers EQ recommendations with pitch translation. Version 0.52.0. Repository: github.com/donwellsav/donewellaudio.
 
 ## Tech Stack
 
@@ -121,7 +121,7 @@ When the user asks to cut a release or "update the usuals":
 | DSP Offload | Web Worker (dspWorker.ts, ~458 lines) |
 | Visualization | HTML5 Canvas at 30fps |
 | State | React 19 hooks + 4 context providers (no external state library) |
-| Testing | Vitest (1080 tests, 52 suites, under 10s) |
+| Testing | Vitest (1142 tests, 57 suites, under 12s) |
 | Error Reporting | Sentry (browser + server + worker runtimes) |
 | PWA | Serwist (service worker, offline caching, installable) |
 | Package Manager | pnpm |
@@ -133,7 +133,7 @@ pnpm dev              # Dev server on :3000 (Turbopack, no SW)
 pnpm build            # Production build (webpack, generates SW)
 pnpm start            # Production server
 pnpm lint             # ESLint (flat config)
-pnpm test             # Vitest (1080 tests: 1076 pass + 4 skip)
+pnpm test             # Vitest (1142 tests: 1138 pass + 4 skip)
 pnpm test:watch       # Vitest watch mode
 pnpm test:coverage    # Vitest with V8 coverage
 npx tsc --noEmit      # Type-check (run BEFORE pnpm build)
@@ -499,7 +499,7 @@ Then when user says "PR":
 - **API:** Ingest endpoint validates v1.0/v1.1/v1.2 schema, dual rate-limiting (IP-based 30/60s primary + session-based 6/60s secondary), actual body size enforcement (512KB), strips IP, error messages not leaked
 - **Worker:** Inbound messages type-validated via `WorkerOutboundMessage` switch; outbound postMessage lacks compile-time Set validation (minor gap)
 - **localStorage:** 37 touchpoints, all via dwaStorage.ts abstraction with try/catch
-- **Companion proxy:** SSRF protection via `isBlockedHost()` — blocks RFC 1918, localhost, link-local, cloud metadata IPs before fetch (`app/api/companion/proxy/route.ts`)
+- **Companion proxy:** 13-layer SSRF defense (`app/api/companion/proxy/route.ts`): Origin check (browser-only), HTTP-only, RFC 6890 complete IPv4 blocklist, all-IPv6 blocked, DNS resolution via OS resolver with 2s timeout, IP pinning (TOCTOU-safe), dual-stack IPv4 filtering, manual redirect re-validation per hop, 307/308 method preservation, 1MB response cap, rate limiting (30 req/60s per IP), redirect exhaustion → 502, distinct error codes (403/429/504/502). Public HTTP endpoints only — LAN Companion uses relay.
 - **Companion relay:** Rate-limited (30 req/min per IP, amortized Map pruning), payload shape validated before storage (`app/api/companion/relay/[code]/route.ts`)
 - **Pairing codes:** `crypto.getRandomValues()` (not Math.random()), 6-char alphanumeric (`lib/companion/companionBridge.ts`)
 
