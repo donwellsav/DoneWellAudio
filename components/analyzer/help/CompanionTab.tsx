@@ -20,19 +20,20 @@ export const CompanionTab = memo(function CompanionTab() {
             <p className="mb-2">Pre-built, ready to use. Unzip into Companion&apos;s dev modules folder — no build step needed.</p>
             <div className="space-y-2">
               <a
-                href="/downloads/donewell-companion-modules.zip"
-                download
+                href="https://github.com/donwellsav/donewellaudio/releases/download/companion-modules-v0.3.0/donewell-companion-modules.zip"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary text-primary-foreground text-xs font-mono font-bold tracking-wider uppercase hover:bg-primary/90 transition-colors"
               >
                 Download Both Modules (.zip)
               </a>
               <p className="text-[10px] text-muted-foreground/60">DoneWell Audio + dbx PA2 Bridge. Recommended.</p>
               <div className="flex gap-2 flex-wrap">
-                <a href="/downloads/companion-module-donewell-audio.zip" download
+                <a href="https://github.com/donwellsav/donewellaudio/releases/download/companion-modules-v0.3.0/companion-module-donewell-audio.zip" target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-muted text-foreground text-xs font-mono hover:bg-muted/80 transition-colors">
                   DoneWell Audio Only
                 </a>
-                <a href="/downloads/companion-module-dbx-driverack-pa2.zip" download
+                <a href="https://github.com/donwellsav/donewellaudio/releases/download/companion-modules-v0.3.0/companion-module-dbx-driverack-pa2.zip" target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-muted text-foreground text-xs font-mono hover:bg-muted/80 transition-colors">
                   PA2 Bridge Only
                 </a>
