@@ -256,6 +256,10 @@ export const DEFAULT_SETTINGS: DetectorSettings = {
   showThresholdLine: true,
   canvasTargetFps: 30,
   faderMode: 'sensitivity' as const,
+  faderLinkMode: 'unlinked' as const,
+  faderLinkRatio: 1.0,
+  faderLinkCenterGainDb: 0,
+  faderLinkCenterSensDb: 25,
   swipeLabeling: false,
 }
 

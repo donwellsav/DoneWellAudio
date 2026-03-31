@@ -157,7 +157,11 @@ export interface DisplayPrefs {
   spectrumLineWidth: number
   showThresholdLine: boolean
   canvasTargetFps: number
-  faderMode: 'gain' | 'sensitivity'
+  faderMode: 'gain' | 'sensitivity' // DEPRECATED — kept for mobile toggle during dual-fader migration
+  faderLinkMode: 'unlinked' | 'linked' | 'linked-reversed'
+  faderLinkRatio: number        // 0.5–2.0, sensitivity-to-gain visual ratio
+  faderLinkCenterGainDb: number // Home position for gain fader (default 0)
+  faderLinkCenterSensDb: number // Home position for sensitivity fader (default 25)
   swipeLabeling: boolean
 }
 

@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button'
 import { GraduationCap } from 'lucide-react'
 import { ConsoleSlider } from '@/components/ui/console-slider'
 import { LEDToggle } from '@/components/ui/led-toggle'
-import { PillToggle } from '@/components/ui/pill-toggle'
 import { ChannelSection } from '@/components/ui/channel-section'
 
 import type { DisplayPrefs } from '@/types/settings'
@@ -76,18 +75,8 @@ export const DisplayTab = memo(function DisplayTab({
         />
       </div>
 
-      {/* Fader mode + max issues — display-owned controls */}
+      {/* Max issues — display-owned control */}
       <div className="space-y-1 pt-1">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground font-mono uppercase tracking-wide">Fader:</span>
-          <PillToggle
-            checked={settings.faderMode === 'sensitivity'}
-            onChange={(isSensitivity) => setDisplay({ faderMode: isSensitivity ? 'sensitivity' : 'gain' } as Partial<DisplayPrefs>)}
-            labelOn="Sensitivity"
-            labelOff="Input Gain"
-            tooltip={settings.showTooltips ? 'Sensitivity adjusts detection threshold. Input Gain adjusts mic input level.' : undefined}
-          />
-        </div>
         {/* Max Issues — desktop only; mobile hard-caps to MOBILE_MAX_DISPLAYED_ISSUES */}
         <div className="hidden lg:block">
           <ConsoleSlider label="Max Issues" value={`${settings.maxDisplayedIssues}`}
@@ -125,7 +114,7 @@ export const DisplayTab = memo(function DisplayTab({
             min={8} max={26} step={1} sliderValue={settings.graphFontSize}
             onChange={(v) => setDisplay({ graphFontSize: v })} />
 
-          {/* showThresholdLine and faderMode are now in the quick toggles section above */}
+          {/* showThresholdLine is now in the quick toggles section above */}
         </div>
       </ChannelSection>
 

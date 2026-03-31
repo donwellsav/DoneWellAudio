@@ -105,6 +105,10 @@ describe('deriveDetectorSettings — display passthrough', () => {
     expect(derived.showThresholdLine).toBe(DEFAULT_DISPLAY_PREFS.showThresholdLine)
     expect(derived.canvasTargetFps).toBe(DEFAULT_DISPLAY_PREFS.canvasTargetFps)
     expect(derived.faderMode).toBe(DEFAULT_DISPLAY_PREFS.faderMode)
+    expect(derived.faderLinkMode).toBe(DEFAULT_DISPLAY_PREFS.faderLinkMode)
+    expect(derived.faderLinkRatio).toBe(DEFAULT_DISPLAY_PREFS.faderLinkRatio)
+    expect(derived.faderLinkCenterGainDb).toBe(DEFAULT_DISPLAY_PREFS.faderLinkCenterGainDb)
+    expect(derived.faderLinkCenterSensDb).toBe(DEFAULT_DISPLAY_PREFS.faderLinkCenterSensDb)
     expect(derived.swipeLabeling).toBe(DEFAULT_DISPLAY_PREFS.swipeLabeling)
   })
 

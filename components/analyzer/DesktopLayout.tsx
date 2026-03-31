@@ -8,7 +8,7 @@ import { SpectrumCanvas } from './SpectrumCanvas'
 import { GEQBarView } from './GEQBarView'
 import { SettingsPanel, SETTINGS_TABS, type DataCollectionTabProps, type SettingsTab } from './settings/SettingsPanel'
 import { AlgorithmStatusBar } from './AlgorithmStatusBar'
-import { VerticalGainFader } from './VerticalGainFader'
+import { DualFaderStrip } from './DualFaderStrip'
 import { useEngine } from '@/contexts/EngineContext'
 import { useSettings } from '@/contexts/SettingsContext'
 import { useMetering } from '@/contexts/MeteringContext'
@@ -405,23 +405,30 @@ export const DesktopLayout = memo(function DesktopLayout({
         </ResizablePanel>
       </ResizablePanelGroup>
 
-      {/* Gain fader strip */}
-      <div className="flex-shrink-0 w-20 border-l border-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.18)] channel-strip amber-sidecar">
-        <VerticalGainFader
-          value={settings.inputGainDb}
-          onChange={(v) => setInputGain(v)}
+      {/* Dual fader strip — Gain + Sensitivity with optional linking */}
+      <div className="flex-shrink-0 w-[136px] border-l border-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.18)] channel-strip amber-sidecar">
+        <DualFaderStrip
+          gainDb={settings.inputGainDb}
+          onGainChange={(v) => setInputGain(v)}
           level={inputLevel}
           autoGainEnabled={isAutoGain}
           autoGainDb={autoGainDb}
           autoGainLocked={autoGainLocked}
           onAutoGainToggle={(enabled) => setAutoGain(enabled)}
-          isRunning={isRunning}
           noiseFloorDb={noiseFloorDb}
-          faderMode={settings.faderMode}
-          onFaderModeChange={(mode) => updateDisplay({ faderMode: mode })}
-          sensitivityValue={settings.feedbackThresholdDb}
+          sensitivityDb={settings.feedbackThresholdDb}
           onSensitivityChange={handleThresholdChange}
           activeAdvisoryCount={activeAdvisoryCount}
+          linkMode={settings.faderLinkMode}
+          linkRatio={settings.faderLinkRatio}
+          linkCenterGainDb={settings.faderLinkCenterGainDb}
+          linkCenterSensDb={settings.faderLinkCenterSensDb}
+          onLinkModeChange={(mode) => updateDisplay({
+            faderLinkMode: mode,
+            // Snap centers to current positions so linked movement starts from here, not from a stale center
+            ...(mode !== 'unlinked' ? { faderLinkCenterGainDb: settings.inputGainDb, faderLinkCenterSensDb: settings.feedbackThresholdDb } : {}),
+          })}
+          isRunning={isRunning}
         />
       </div>
     </div>
