@@ -1,5 +1,13 @@
 'use client'
 
+/**
+ * useFullscreen — Fullscreen API wrapper with overlay auto-hide and keyboard shortcut.
+ *
+ * Wraps the browser Fullscreen API with iOS PWA fallback (CSS-only fullscreen).
+ * Auto-hides an overlay after 3s of inactivity in fullscreen mode. F key toggles.
+ * Syncs with browser fullscreenchange events for external exit (Escape key).
+ */
+
 import { useState, useEffect, useCallback, useRef, type RefObject } from 'react'
 
 const OVERLAY_TIMEOUT_MS = 3000

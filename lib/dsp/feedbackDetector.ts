@@ -646,35 +646,46 @@ export class FeedbackDetector {
 
     const n = this.analyser.frequencyBinCount
 
-    this.freqDb = new Float32Array(n)
-    this.timeDomain = new Float32Array(this.config.fftSize) // Full waveform (fftSize, not frequencyBinCount)
-    this.power = new Float32Array(n)
-    this.prefix = new Float64Array(n + 1)
-    this.holdMs = new Float32Array(n)
-    this.deadMs = new Float32Array(n)
-    this.active = new Uint8Array(n)
-    this.activeHz = new Float32Array(n)
-    this.activeBins = new Uint32Array(n)
-    this.activeBinPos = new Int32Array(n)
-    this.activeBinPos.fill(-1)
+    // Reuse buffers if already allocated at the correct size — avoids GC pressure
+    // on repeated start/stop cycles. Only reallocate when FFT size changes.
+    if (!this.freqDb || this.freqDb.length !== n) {
+      this.freqDb = new Float32Array(n)
+      this.power = new Float32Array(n)
+      this.prefix = new Float64Array(n + 1)
+      this.holdMs = new Float32Array(n)
+      this.deadMs = new Float32Array(n)
+      this.active = new Uint8Array(n)
+      this.activeHz = new Float32Array(n)
+      this.activeBins = new Uint32Array(n)
+      this.activeBinPos = new Int32Array(n)
+      this.aWeightingTable = new Float32Array(n)
+      this.micCalibrationTable = new Float32Array(n)
+      this._persistenceTracker = new PersistenceTracker(n)
+      this._msdPool = new MSDPool(MSD_SETTINGS.POOL_SIZE, MSD_SETTINGS.HISTORY_SIZE)
+    } else {
+      // Same size — zero existing buffers instead of reallocating
+      this.holdMs!.fill(0)
+      this.deadMs!.fill(0)
+      this.active!.fill(0)
+      this.activeHz!.fill(0)
+      this.activeBins!.fill(0)
+      this._msdPool?.reset()
+      this._persistenceTracker?.reset()
+    }
+
+    // timeDomain uses fftSize (not frequencyBinCount)
+    if (!this.timeDomain || this.timeDomain.length !== this.config.fftSize) {
+      this.timeDomain = new Float32Array(this.config.fftSize)
+    }
+
+    this.activeBinPos!.fill(-1)
     this.activeCount = 0
 
-    // Build A-weighting table
-    this.aWeightingTable = new Float32Array(n)
     this.computeAWeightingTable()
-
-    // Build mic calibration table
-    this.micCalibrationTable = new Float32Array(n)
     this.computeMicCalibrationTable()
-
     this.recomputeAnalysisDbBounds()
 
-    // MSD pooled sparse allocation — 256 slots × 64 frames = 64KB (vs 1MB dense)
-    this._msdPool = new MSDPool(MSD_SETTINGS.POOL_SIZE, MSD_SETTINGS.HISTORY_SIZE)
     this._fastConfirmCounts = new Map()
-
-    // Peak Persistence Scoring — delegated to PersistenceTracker
-    this._persistenceTracker = new PersistenceTracker(n)
     
     this.noiseFloorDb = null
     this.recomputeDerivedIndices()
