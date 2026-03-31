@@ -14,6 +14,31 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.60.0',
+    date: '2026-03-31',
+    changes: [
+      { type: 'feat', description: '**Worker death notification**: Red banner ("detection is offline") when worker exhausts 3 auto-restart attempts. `isPermanentlyDead` flag separates transient crash (amber) from permanent death (red)' },
+      { type: 'feat', description: '**AudioContext closed state**: Handler now detects `\'closed\'` state and stops analysis with error callback instead of running RAF loop on dead analyser' },
+      { type: 'feat', description: 'Single `onError` call per crash — eliminates double-fire relying on React batching' },
+      { type: 'feat', description: '`isPermanentlyDead` ref prevents red banner flash during recoverable 500ms restart window' },
+      { type: 'feat', description: 'Proxy redirect guard narrowed to [301,302,303,307,308] — `304 Not Modified` no longer returns 502' },
+      { type: 'feat', description: 'Removed 14 overly broad Bash permission entries from `settings.local.json`' },
+      { type: 'feat', description: '`QuotaExceededError` detected explicitly in all `dwaStorage` save methods, dispatches `dwa:storage-quota-exceeded` event' },
+      { type: 'feat', description: 'Mic disconnect handler wrapped in try/catch — prevents listener leak on `stop()` failure' },
+      { type: 'feat', description: '`MSDResult` type → `types/advisory.ts`, `MSD_CONSTANTS` → `constants/detectionConstants.ts` (canonical homes)' },
+      { type: 'feat', description: '`allocateBuffers()` reuses typed arrays when FFT size unchanged — zeroes instead of reallocating ~12 buffers' },
+      { type: 'feat', description: 'JSDoc added to `useAnimationFrame`, `useFullscreen`, `useCompanion`' },
+      { type: 'feat', description: '6 pure functions extracted from `usePA2Bridge` (714→642 LOC) into `lib/pa2/pa2Utils.ts`' },
+      { type: 'feat', description: '`filterNewOrWorsened` and `markPEQSent` now take `sentPEQ` as parameter (testable, no ref closure)' },
+      { type: 'feat', description: '[x] `npx tsc --noEmit` — clean' },
+      { type: 'feat', description: '[x] `pnpm test` — 59 suites, 1144 pass, 4 skip' },
+      { type: 'feat', description: '[x] Chrome verification: all UI improvements rendering correctly' },
+      { type: 'feat', description: '[x] Chrome verification: green tint (no feedback), amber tint (detection active)' },
+      { type: 'feat', description: '[ ] Trigger worker crash → verify red error banner + Restart button' },
+      { type: 'feat', description: '[ ] Verify buffer reuse on repeated start/stop cycles (DevTools memory)' },
+    ],
+  },
+  {
     version: '0.59.0',
     date: '2026-03-31',
     changes: [
