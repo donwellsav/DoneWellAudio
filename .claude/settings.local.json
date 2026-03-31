@@ -68,7 +68,8 @@
       "Bash(node docs/generate-developer-guide-docx.js)",
       "Bash(node docs/generate-api-docs-docx.js)",
       "Bash(node docs/generate-system-architecture-docx.js)",
-      "Bash(node \"C:/Users/dwell/.claude/plugins/cache/openai-codex/codex/1.0.1/scripts/codex-companion.mjs\" adversarial-review \"\")"
+      "Bash(node \"C:/Users/dwell/.claude/plugins/cache/openai-codex/codex/1.0.1/scripts/codex-companion.mjs\" adversarial-review \"\")",
+      "Bash(ls tests/dsp/*.test.ts)"
     ]
   }
 }

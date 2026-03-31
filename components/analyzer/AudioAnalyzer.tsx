@@ -416,15 +416,25 @@ const AudioAnalyzerInner = memo(function AudioAnalyzerInner({
           )}
 
           {workerError && (
-            <div role="alert" className="px-3 py-1.5 sm:px-4 sm:py-2 bg-amber-500/5 border-b border-amber-500/20">
+            <div role="alert" className={`px-3 py-1.5 sm:px-4 sm:py-2 border-b ${
+              dspWorker.isCrashed
+                ? 'bg-red-500/10 border-red-500/30'
+                : 'bg-amber-500/5 border-amber-500/20'
+            }`}>
               <div className="flex items-center gap-2.5">
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                <p className="text-sm font-mono text-amber-600 dark:text-amber-400">
-                  DSP worker error — analysis may be degraded. Auto-recovering…
+                <AlertTriangle className={`w-3.5 h-3.5 flex-shrink-0 ${dspWorker.isCrashed ? 'text-red-500' : 'text-amber-500'}`} />
+                <p className={`text-sm font-mono ${dspWorker.isCrashed ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                  {dspWorker.isCrashed
+                    ? 'Analysis engine stopped — detection is offline.'
+                    : 'DSP worker error — analysis may be degraded. Auto-recovering…'}
                 </p>
                 <button
                   onClick={handleRetry}
-                  className="ml-auto text-sm font-mono text-amber-400 hover:text-amber-300 underline underline-offset-2 flex-shrink-0 transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-amber-500/50"
+                  className={`ml-auto text-sm font-mono underline underline-offset-2 flex-shrink-0 transition-colors cursor-pointer outline-none focus-visible:ring-[3px] ${
+                    dspWorker.isCrashed
+                      ? 'text-red-400 hover:text-red-300 focus-visible:ring-red-500/50'
+                      : 'text-amber-400 hover:text-amber-300 focus-visible:ring-amber-500/50'
+                  }`}
                 >
                   Restart
                 </button>

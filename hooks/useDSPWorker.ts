@@ -226,7 +226,11 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
       worker.terminate()
       workerRef.current = null
 
-      if (!canRestart) return
+      if (!canRestart) {
+        // Permanently dead — surface a distinct error so UI can show fatal state
+        callbacksRef.current.onError?.('Analysis engine stopped after repeated failures — tap Restart to try again')
+        return
+      }
 
       // Debounced restart: 500ms delay to avoid rapid crash loops
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current)

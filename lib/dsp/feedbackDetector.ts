@@ -317,6 +317,11 @@ export class FeedbackDetector {
           ctx.resume().catch(() => {
             this.callbacks.onError?.('Audio context suspended — could not resume. Try restarting.')
           })
+        } else if (ctx.state === 'closed') {
+          // AudioContext is permanently closed (cannot be resumed) — stop analysis
+          // and surface error so user can restart
+          this.callbacks.onError?.('Audio context closed unexpectedly — tap Restart to resume analysis.')
+          this.stop()
         }
       }
       this.audioContext.addEventListener('statechange', this._stateChangeHandler)
