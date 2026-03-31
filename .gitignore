@@ -27,3 +27,18 @@ nul
 # Local output and temp directories
 /output/
 /tmp/
+
+# Test coverage
+/coverage/
+
+# Generated docs
+docs/*.docx
+docs/*.md
+docs/generate-*.js
+docs/~$*
+
+# Claude agent worktrees
+.claude/worktrees/
+
+# Repomix exports
+repomix-output*.xml
