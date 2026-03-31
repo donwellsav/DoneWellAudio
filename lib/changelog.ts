@@ -14,6 +14,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.56.0',
+    date: '2026-03-31',
+    changes: [
+      { type: 'feat', description: '**Phase 1**: Add `/api/health` endpoint (deploy verification), remove 3 duplicate ChatGPT-context test files, sync CLAUDE.md to v0.54.1' },
+      { type: 'feat', description: '**Phase 2**: Add 5 test suites (+47 tests) — `useSwipeGesture`, `useSignalTint`, `useFullscreen` hooks + first-ever `IssueCard` and `IssuesList` component smoke tests. Extended vitest config to discover `components/**/__tests__/`' },
+      { type: 'feat', description: '**Phase 3**: Remove 7 stale FUTURE-002 labels across `feedbackDetector.ts`, `detectionConstants.ts`, `feedbackDetector.test.ts` — persistence scoring has been shipping since v0.106.0' },
+      { type: 'feat', description: '[x] `npx tsc --noEmit` — clean' },
+      { type: 'feat', description: '[x] `pnpm test` — 59 suites, 1143 pass, 4 skip' },
+      { type: 'feat', description: '[x] Chrome verification: settings tab LED indicator, all-clear green state, low-signal amber state' },
+      { type: 'feat', description: '[x] No console errors' },
+    ],
+  },
+  {
     version: '0.55.0',
     date: '2026-03-31',
     changes: [
