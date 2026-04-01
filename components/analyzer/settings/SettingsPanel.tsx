@@ -165,7 +165,7 @@ export const SettingsPanel = memo(function SettingsPanel({
           <ResetConfirmDialog
             onConfirm={onReset}
             trigger={
-              <Button variant="outline" size="sm" className="w-full h-8">
+              <Button variant="ghost" size="sm" className="w-full h-7 text-muted-foreground/50 hover:text-muted-foreground text-xs">
                 <RotateCcw className="h-3 w-3 mr-1.5" />
                 Reset Defaults
               </Button>

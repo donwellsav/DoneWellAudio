@@ -25,6 +25,11 @@ import { calculateRoomModes, calculateSchroederFrequency } from '@/lib/dsp/acous
 
 const TAB_ORDER = ['issues', 'settings'] as const
 
+/** Light haptic tap — silently no-ops on unsupported devices */
+function haptic(ms = 10) {
+  try { navigator?.vibrate?.(ms) } catch { /* unsupported */ }
+}
+
 interface MobileLayoutProps {
   calibration?: Omit<CalibrationTabProps, 'settings' | 'onSettingsChange'>
   dataCollection?: DataCollectionTabProps
@@ -257,7 +262,7 @@ export const MobileLayout = memo(function MobileLayout({
               onTouchEnd={onGraphTouchEnd}
             >
               {/* Graph mode toggle — tappable segmented pill (swipe gesture preserved) */}
-              <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 z-20 flex rounded-full bg-background/60 backdrop-blur-sm border border-border/40 overflow-hidden">
+              <div className="absolute top-0.5 left-0.5 z-20 flex rounded-full bg-background/60 backdrop-blur-sm border border-border/40 overflow-hidden">
                 <button
                   onClick={() => setInlineGraphMode('rta')}
                   className={`px-2.5 py-0.5 text-[10px] font-mono font-bold uppercase tracking-wider transition-colors cursor-pointer ${
@@ -298,13 +303,16 @@ export const MobileLayout = memo(function MobileLayout({
 
             {/* ── Drag handle to resize graph ─────────────────────── */}
             <div
-              className="flex-shrink-0 flex items-center justify-center py-3 cursor-row-resize touch-none active:bg-muted/30 transition-colors"
+              className="flex-shrink-0 flex items-center justify-center py-2.5 cursor-row-resize touch-none active:bg-muted/30 transition-colors"
               onTouchStart={onResizeStart}
               onTouchMove={onResizeMove}
               onTouchEnd={onResizeEnd}
               aria-label="Drag to resize graph"
             >
-              <div className="w-12 h-1 rounded-full bg-muted-foreground/40" />
+              <div className="flex flex-col items-center gap-[3px]">
+                <div className="w-8 h-[2px] rounded-full bg-muted-foreground/30" />
+                <div className="w-8 h-[2px] rounded-full bg-muted-foreground/30" />
+              </div>
             </div>
 
             {/* ── Issue cards (scrollable) ─────────────────────────── */}
@@ -366,23 +374,25 @@ export const MobileLayout = memo(function MobileLayout({
                 onAutoGainToggle={(enabled) => setAutoGain(enabled)}
               />
             </section>
-            <h3 className="section-label mt-1">Configuration</h3>
-            <SettingsPanel
-              settings={settings}
-              onModeChange={handleModeChange}
-              
-              onReset={resetSettings}
-              calibration={calibration}
-              dataCollection={dataCollection}
-            />
+            <div className="rounded-lg border border-border/40 bg-card/30 p-3">
+              <h3 className="section-label mb-2">Configuration</h3>
+              <SettingsPanel
+                settings={settings}
+                onModeChange={handleModeChange}
+
+                onReset={resetSettings}
+                calibration={calibration}
+                dataCollection={dataCollection}
+              />
+            </div>
           </div>
         </div>
         </div>
         {/* Fader sidecar — persistent across all tabs, with local mode toggle */}
-        <div className="flex-shrink-0 w-12 min-[375px]:w-16 border-l border-border/50 channel-strip flex flex-col">
+        <div className="flex-shrink-0 w-12 min-[375px]:w-16 border-l border-border bg-card/30 channel-strip flex flex-col">
           {/* Mode toggle button */}
           <button
-            onClick={() => setMobileFaderMode(m => m === 'gain' ? 'sensitivity' : 'gain')}
+            onClick={() => { haptic(); setMobileFaderMode(m => m === 'gain' ? 'sensitivity' : 'gain') }}
             className={`flex-shrink-0 py-1 text-[11px] font-bold uppercase tracking-wider text-center cursor-pointer transition-colors ${
               mobileFaderMode === 'sensitivity' ? 'text-blue-400' : 'text-[var(--console-amber)]'
             }`}
@@ -538,9 +548,9 @@ export const MobileLayout = memo(function MobileLayout({
           </div>
         </div>
         {/* Right fader sidecar — 6% */}
-        <div className="w-[6%] min-w-[3.5rem] flex-shrink-0 border-l border-border/50 channel-strip flex flex-col">
+        <div className="w-[6%] min-w-[3.5rem] flex-shrink-0 border-l border-border bg-card/30 channel-strip flex flex-col">
           <button
-            onClick={() => setMobileFaderMode(m => m === 'gain' ? 'sensitivity' : 'gain')}
+            onClick={() => { haptic(); setMobileFaderMode(m => m === 'gain' ? 'sensitivity' : 'gain') }}
             className={`flex-shrink-0 py-0.5 text-[10px] font-bold uppercase tracking-wider text-center cursor-pointer transition-colors ${
               mobileFaderMode === 'sensitivity' ? 'text-blue-400' : 'text-[var(--console-amber)]'
             }`}
@@ -568,18 +578,6 @@ export const MobileLayout = memo(function MobileLayout({
         </div>
       </div>
 
-      {/* ── Page indicator dots (portrait only) ─────────────────── */}
-      <div className="landscape:hidden lg:hidden flex items-center justify-center gap-1.5 py-1 bg-card/90" aria-hidden="true">
-        {TAB_ORDER.map(id => (
-          <div
-            key={id}
-            className={`h-1 rounded-full transition-all duration-200 ${
-              mobileTab === id ? 'w-2 bg-primary' : 'w-1 bg-muted-foreground/25'
-            }`}
-          />
-        ))}
-      </div>
-
       {/* ── Mobile bottom tab bar (portrait only) ──────────────── */}
       <nav className="landscape:hidden lg:hidden flex-shrink-0 border-t border-border/60 bg-card/90 backdrop-blur-sm">
         <div className="flex items-stretch" role="tablist" onKeyDown={handleTabKeyDown}>
@@ -590,7 +588,7 @@ export const MobileLayout = memo(function MobileLayout({
             <button
               key={tab.id}
               ref={el => { tabRefs.current[i] = el }}
-              onClick={() => setMobileTab(tab.id)}
+              onClick={() => { haptic(); setMobileTab(tab.id) }}
               role="tab"
               id={`mobile-tab-${tab.id}`}
               aria-selected={mobileTab === tab.id}
@@ -617,6 +615,10 @@ export const MobileLayout = memo(function MobileLayout({
               <span className="text-sm font-mono font-bold tracking-[0.15em] leading-none">{tab.label}</span>
             </button>
           ))}
+        </div>
+        {/* Version info integrated into tab bar */}
+        <div className="flex items-center justify-center py-0.5" aria-hidden>
+          <span className="font-mono text-[8px] tracking-[0.15em] text-muted-foreground/25 uppercase">DoneWell Audio · v{process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0'}</span>
         </div>
       </nav>
     </>

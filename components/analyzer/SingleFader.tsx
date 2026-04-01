@@ -71,6 +71,20 @@ export const SingleFader = memo(function SingleFader({
   const rafIdRef = useRef(0)
 
   const isSensitivity = mode === 'sensitivity'
+  const lastTapRef = useRef(0)
+
+  // Double-tap to reset fader to mode default
+  const handleDoubleTap = useCallback(() => {
+    const now = Date.now()
+    if (now - lastTapRef.current < 350) {
+      // Reset to mode default: sensitivity=20dB, gain=0dB
+      onChange(isSensitivity ? 20 : 0)
+      if (!isSensitivity && autoGainEnabled && onAutoGainToggle) onAutoGainToggle(false)
+      lastTapRef.current = 0
+    } else {
+      lastTapRef.current = now
+    }
+  }, [isSensitivity, onChange, autoGainEnabled, onAutoGainToggle])
 
   const normalizedLevel = Math.max(0, Math.min(1, (level + 60) / 60))
   const displayValue = isSensitivity
@@ -316,6 +330,7 @@ export const SingleFader = memo(function SingleFader({
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (editing) return
+    handleDoubleTap()
     isDragging.current = true
     updateValueFromYRef.current(e.touches[0].clientY)
   }
@@ -426,7 +441,7 @@ export const SingleFader = memo(function SingleFader({
               : `Input gain ${valueLabel}dB, click to edit`
           }
         >
-          {valueLabel}
+          {valueLabel}<span className="text-[9px] font-normal opacity-50 ml-px">dB</span>
         </button>
       )}
 

@@ -219,29 +219,22 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
 
             {onStartRingOut && (
               <>
-                <div className="flex items-center gap-2 w-full max-w-[220px]">
-                  <div className="flex-1 h-px panel-groove-subtle" />
-                  <span className="font-mono text-[9px] text-[var(--console-amber)]/40 uppercase tracking-widest">— OR —</span>
-                  <div className="flex-1 h-px panel-groove-subtle" />
-                </div>
+                <div className="w-full max-w-[220px] h-px bg-border/40" />
 
                 <button
                   onClick={onStartRingOut}
                   aria-label="Start ring-out wizard"
-                  className="group relative flex flex-col items-center justify-center gap-1 w-full max-w-[220px] py-3 px-4 rounded-xl border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-[color,background-color,border-color,box-shadow] duration-300 cursor-pointer btn-glow-amber focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-amber-500"
+                  className="group relative flex items-center justify-center gap-2 w-full max-w-[220px] py-2 px-4 rounded-lg border border-amber-500/15 hover:border-amber-500/30 bg-transparent hover:bg-amber-500/5 transition-[color,background-color,border-color] duration-300 cursor-pointer focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-amber-500"
                 >
-                  <span className="font-mono text-sm font-black tracking-[0.15em] text-amber-500 dark:text-amber-400">
-                    RING OUT ROOM
-                  </span>
-                  <span className="font-mono text-[9px] font-bold tracking-[0.12em] uppercase text-muted-foreground/60 group-hover:text-muted-foreground transition-colors">
-                    Guided Calibration
+                  <span className="font-mono text-[11px] font-bold tracking-[0.12em] uppercase text-amber-500/70 dark:text-amber-400/70 group-hover:text-amber-400">
+                    Ring Out Room
                   </span>
                 </button>
               </>
             )}
             {/* System status readout — gives the panel substance while idle */}
             <div className="flex flex-col items-center gap-1 mt-3 max-w-[220px]">
-              <div className="flex items-center gap-2 font-mono text-[9px] tracking-[0.12em] uppercase text-muted-foreground/45">
+              <div className="flex items-center gap-2 font-mono text-[9px] tracking-[0.12em] uppercase text-muted-foreground/65">
                 <span>{settings.mode}</span>
                 <span className="text-muted-foreground/25">·</span>
                 <span>{settings.fftSize} FFT</span>

@@ -124,17 +124,21 @@ html {
   --sidebar-accent-foreground: #2563eb;
   --sidebar-border: #d0d5dd;
   --sidebar-ring: #2563eb;
-  /* Console accent colors — muted for light theme (no glow) */
-  --console-amber: #d97706;
-  --console-amber-glow: rgba(217, 119, 6, 0.15);
-  --console-blue: #2563eb;
-  --console-blue-glow: rgba(37, 99, 235, 0.18);
-  --console-cyan: #0891b2;
-  --console-cyan-glow: rgba(8, 145, 178, 0.12);
-  --console-green: #22c55e;
-  --console-green-glow: rgba(34, 197, 94, 0.18);
-  --console-readout-text: #d97706;
-  --console-readout-glow: rgba(217, 119, 6, 0.08);
+  /* Console accent colors — stronger for light theme legibility */
+  --console-amber: #b45309;
+  --console-amber-glow: rgba(180, 83, 9, 0.18);
+  --console-blue: #1d4ed8;
+  --console-blue-glow: rgba(29, 78, 216, 0.20);
+  --console-cyan: #0e7490;
+  --console-cyan-glow: rgba(14, 116, 144, 0.15);
+  --console-green: #16a34a;
+  --console-green-glow: rgba(22, 163, 74, 0.20);
+  --console-readout-text: #b45309;
+  --console-readout-glow: rgba(180, 83, 9, 0.10);
+  /* Signal tint — warmer default for light mode */
+  --tint-r: 180;
+  --tint-g: 83;
+  --tint-b: 9;
 }
 
 @theme inline {
@@ -782,11 +786,17 @@ html {
     width: 3px;
     border-radius: 0 2px 2px 0;
   }
+  .light .severity-accent-strip {
+    width: 4px;
+  }
 
   /* Wider strip for runaway feedback — extra visual urgency */
   .severity-accent-strip-runaway {
     width: 5px;
     border-radius: 0 2px 2px 0;
+  }
+  .light .severity-accent-strip-runaway {
+    width: 6px;
   }
 
   /* ── Severity pill badges ──────────────────────────────────────────────── */

@@ -601,7 +601,7 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
                 <span className="text-sm text-neutral-400 font-mono">Tap to retry</span>
               </span>
             ) : (
-              <span className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.20)] bg-card/70 text-sm text-foreground/80 font-mono font-bold tracking-wide backdrop-blur-sm pointer-events-none animate-start-glow">
+              <span className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.20)] bg-card/90 text-sm text-foreground/90 font-mono font-bold tracking-wide backdrop-blur-md shadow-lg pointer-events-none animate-start-glow">
                 Press
                 {/* mini speaker button replica */}
                 <span className="inline-flex items-center justify-center w-6 h-6 rounded-full border border-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.45)] bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.10)] flex-shrink-0">

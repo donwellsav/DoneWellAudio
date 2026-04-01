@@ -15,7 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
-import { HelpCircle, History, LayoutGrid, Maximize2, Mic, Minimize2, Moon, MoreVertical, Pause, Play, Sun, Trash2 } from 'lucide-react'
+import { ChevronDown, HelpCircle, History, LayoutGrid, Maximize2, Mic, Minimize2, Moon, MoreVertical, Pause, Play, Sun, Trash2 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { DwaLogo } from './DwaLogo'
 import { useAdvisories } from '@/contexts/AdvisoryContext'
@@ -48,7 +48,7 @@ export const HeaderBar = memo(function HeaderBar() {
             className="relative flex items-center justify-center flex-shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary rounded"
           >
             <DwaLogo
-              className={`size-16 ${isRunning ? 'text-foreground drop-shadow-[0_0_8px_rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.5)]' : 'text-foreground/70 hover:text-foreground'}`}
+              className={`size-10 tablet:size-16 ${isRunning ? 'text-foreground drop-shadow-[0_0_8px_rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.5)]' : 'text-foreground/70 hover:text-foreground'}`}
               audioLevel={isRunning ? Math.max(0, Math.min(1, (inputLevel + 60) / 60)) : undefined}
             />
           </button>
@@ -65,10 +65,11 @@ export const HeaderBar = memo(function HeaderBar() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-11 w-11 text-foreground/70 hover:text-foreground btn-glow"
+                    className="h-11 w-11 text-foreground/70 hover:text-foreground btn-glow relative"
                     aria-label="Select audio input"
                   >
-                    <Mic className="size-6" />
+                    <Mic className="size-5 tablet:size-6" />
+                    <ChevronDown className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 text-muted-foreground/50" />
                   </Button>
                 </DropdownMenuTrigger>
               </TooltipTrigger>
