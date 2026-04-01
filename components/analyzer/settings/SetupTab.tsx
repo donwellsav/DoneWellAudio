@@ -117,7 +117,7 @@ export const SetupTab = memo(function SetupTab({
             <button
               key={mode}
               onClick={() => onModeChange(mode)}
-              className={`min-h-11 flex items-center justify-center overflow-hidden cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 px-1 rounded text-xs font-mono font-bold tracking-wide transition-all ${
+                className={`min-h-11 flex items-center justify-center overflow-hidden cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 px-1 rounded text-xs font-mono font-bold tracking-wide transition-[color,background-color,border-color,box-shadow] ${
                 settings.mode === mode
                   ? 'bg-[var(--console-amber)]/10 text-[var(--console-amber)] border border-[var(--console-amber)]/40 btn-glow'
                   : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.18)]'
@@ -133,7 +133,7 @@ export const SetupTab = memo(function SetupTab({
             <button
               key={mode}
               onClick={() => onModeChange(mode)}
-              className={`min-h-11 flex items-center justify-center overflow-hidden cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 px-1 rounded text-xs font-mono font-bold tracking-wide transition-all ${
+                className={`min-h-11 flex items-center justify-center overflow-hidden cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 px-1 rounded text-xs font-mono font-bold tracking-wide transition-[color,background-color,border-color,box-shadow] ${
                 settings.mode === mode
                   ? 'bg-[var(--console-amber)]/10 text-[var(--console-amber)] border border-[var(--console-amber)]/40 btn-glow'
                   : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.18)]'
@@ -281,7 +281,7 @@ export const SetupTab = memo(function SetupTab({
                   companionIp: '192.168.0.108', companionPort: 8000, instanceLabel: 'PA2',
                   baseUrl: 'http://192.168.0.108:8000/instance/PA2',
                 })}
-                className="px-1.5 py-0.5 rounded bg-muted hover:bg-muted/80 text-[10px] font-mono cursor-pointer"
+                className="px-1.5 py-0.5 rounded bg-muted hover:bg-muted/80 text-[10px] font-mono cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
               >
                 192.168.0.108
               </button>
@@ -291,7 +291,7 @@ export const SetupTab = memo(function SetupTab({
                   companionIp: 'localhost', companionPort: 8000, instanceLabel: 'PA2',
                   baseUrl: 'http://localhost:8000/instance/PA2',
                 })}
-                className="px-1.5 py-0.5 rounded bg-muted hover:bg-muted/80 text-[10px] font-mono cursor-pointer"
+                className="px-1.5 py-0.5 rounded bg-muted hover:bg-muted/80 text-[10px] font-mono cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
               >
                 localhost
               </button>
@@ -313,7 +313,7 @@ export const SetupTab = memo(function SetupTab({
                     ? `PA2 Connected — PEQ ${pa2.notchSlotsUsed}/${pa2.notchSlotsAvailable + pa2.notchSlotsUsed} slots`
                     : pa2.status === 'connected' && !pa2.pa2Connected
                     ? 'Companion OK — PA2 not connected'
-                    : pa2.status === 'connecting' ? 'Connecting...'
+                    : pa2.status === 'connecting' ? 'Connecting…'
                     : pa2.status === 'error' ? (pa2.error ?? 'Connection error')
                     : 'Disconnected'}
                 </span>
@@ -368,7 +368,7 @@ export const SetupTab = memo(function SetupTab({
                   })
                 } catch { /* shown in status */ }
               }}
-              className="w-full min-h-9 px-2 rounded bg-primary/20 text-primary text-xs font-mono font-bold hover:bg-primary/30 transition-colors cursor-pointer"
+              className="w-full min-h-9 px-2 rounded bg-primary/20 text-primary text-xs font-mono font-bold hover:bg-primary/30 transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
               Test: Send 2.5kHz notch to PA2
             </button>
@@ -477,13 +477,13 @@ export const SetupTab = memo(function SetupTab({
           )}
           {showSaveInput ? (
             <div className="flex items-center gap-1">
-              <input value={presetName} onChange={(e) => setPresetName(e.target.value)}
+              <input type="text" name="presetName" aria-label="Preset name" autoComplete="off" value={presetName} onChange={(e) => setPresetName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSavePreset()}
-                placeholder="Preset name..." autoFocus maxLength={20}
+                placeholder="Preset name…" maxLength={20}
                 className="flex-1 px-2 py-1.5 rounded text-sm bg-muted border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
               <button onClick={handleSavePreset} disabled={!presetName.trim()}
                 className="min-h-11 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 px-2 rounded text-sm font-medium bg-primary/20 text-primary border border-primary/40 disabled:opacity-40 transition-colors">Save</button>
-              <button onClick={() => { setShowSaveInput(false); setPresetName('') }}
+              <button type="button" aria-label="Cancel preset save" onClick={() => { setShowSaveInput(false); setPresetName('') }}
                 className="cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 text-muted-foreground hover:text-foreground p-1"><X className="w-4 h-4" /></button>
             </div>
           ) : (
@@ -502,6 +502,10 @@ export const SetupTab = memo(function SetupTab({
         <p className="text-[10px] text-muted-foreground/50 mb-1.5">Export detection history and EQ recommendations for documentation or post-show review.</p>
         <div className="space-y-2">
           <input
+            type="text"
+            name="venueName"
+            aria-label="Venue name"
+            autoComplete="organization"
             value={metadata.venueName ?? ''}
             onChange={(e) => updateMetadata({ venueName: e.target.value })}
             placeholder="Venue name (optional)"
@@ -509,6 +513,10 @@ export const SetupTab = memo(function SetupTab({
             className="w-full px-2 py-1.5 rounded text-sm bg-muted border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <input
+            type="text"
+            name="engineerName"
+            aria-label="Engineer name"
+            autoComplete="name"
             value={metadata.engineerName ?? ''}
             onChange={(e) => updateMetadata({ engineerName: e.target.value })}
             placeholder="Engineer (optional)"

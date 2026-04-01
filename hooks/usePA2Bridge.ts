@@ -143,6 +143,7 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
   } = config
 
   const [state, setState] = useState<PA2BridgeState>(INITIAL_STATE)
+  const [client, setClient] = useState<PA2Client | null>(null)
   const clientRef = useRef<PA2Client | null>(null)
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const lastAutoSendRef = useRef<number>(0)
@@ -160,15 +161,18 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
   useEffect(() => {
     if (!enabled || !baseUrl) {
       clientRef.current = null
+      setClient(null)
       setState(INITIAL_STATE)
       return
     }
 
     clientRef.current = createPA2Client({ baseUrl, apiKey, timeoutMs })
+    setClient(clientRef.current)
     setState((s) => ({ ...s, status: 'connecting' }))
 
     return () => {
       clientRef.current = null
+      setClient(null)
     }
   }, [baseUrl, apiKey, timeoutMs, enabled])
 
@@ -650,7 +654,7 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
     autoEQ,
     sendAction,
     clearNotches,
-    client: clientRef.current,
+    client,
   }
 }
 

@@ -45,12 +45,24 @@ interface IssuesListProps {
 
 export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10, dismissedIds, onClearAll, onClearResolved, touchFriendly, isRunning, onStart, onFalsePositive, falsePositiveIds, onConfirmFeedback, confirmedIds, isLowSignal, swipeLabeling, showAlgorithmScores, showPeqDetails, onStartRingOut, onDismiss }: IssuesListProps) {
   const companion = useCompanion()
+  const {
+    settings: companionSettings,
+    sendAdvisory,
+    autoSendAdvisories,
+  } = companion
   const pa2 = usePA2()
   const { settings } = useSettings()
 
   useEffect(() => {
-    companion.autoSendAdvisories(advisories)
-  }, [advisories, companion])
+    autoSendAdvisories(advisories)
+  }, [
+    advisories,
+    autoSendAdvisories,
+    companionSettings.enabled,
+    companionSettings.autoSend,
+    companionSettings.minConfidence,
+    companionSettings.pairingCode,
+  ])
 
   // Auto-send new advisories to PA2 when enabled (handled by usePA2Bridge internally)
   // The hook's autoSend mode handles forwarding — no extra effect needed here
@@ -80,7 +92,8 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
   // engineers can read them before they shuffle. Advisory data (severity, age,
   // velocity) still updates in-place via IssueCard's own memos.
   const stableRef = useRef(latestSorted)
-  const lastUpdateRef = useRef(Date.now())
+  const [initialSortTimestamp] = useState(() => Date.now())
+  const lastUpdateRef = useRef(initialSortTimestamp)
   const [sorted, setSorted] = useState(latestSorted)
   const pendingRef = useRef(false)
 
@@ -95,6 +108,7 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
     if (!orderChanged) {
       // Same cards in same order — update advisory data in-place (no visual jump)
       stableRef.current = latestSorted
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- this effect intentionally stages stable card order
       setSorted(latestSorted)
       return
     }
@@ -155,6 +169,7 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
         const freq = a.trueFrequencyHz != null ? formatFrequency(a.trueFrequencyHz) : 'unknown'
         const sev = getSeverityText(a.severity)
         const cut = a.advisory?.peq ? `cut ${Math.abs(a.advisory.peq.gainDb).toFixed(0)} dB at Q ${a.advisory.peq.q.toFixed(0)}` : ''
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- aria-live announcements must be emitted after commit
         setLiveAnnouncement(`Feedback detected at ${freq}, severity ${sev}${cut ? `, ${cut}` : ''}`)
         break // One announcement at a time
       }
@@ -179,7 +194,7 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
             <button
               onClick={onStart}
               aria-label="Start analysis"
-              className="group relative flex flex-col items-center justify-center gap-3 w-full max-w-[220px] py-5 px-5 rounded-xl border border-primary/20 hover:border-primary/40 bg-primary/5 hover:bg-primary/10 transition-all duration-300 cursor-pointer animate-start-glow focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary"
+              className="group relative flex flex-col items-center justify-center gap-3 w-full max-w-[220px] py-5 px-5 rounded-xl border border-primary/20 hover:border-primary/40 bg-primary/5 hover:bg-primary/10 transition-[color,background-color,border-color,box-shadow] duration-300 cursor-pointer animate-start-glow focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary"
               style={{ background: 'radial-gradient(ellipse 100% 80% at 50% 60%, rgba(75, 146, 255, 0.10) 0%, rgba(75, 146, 255, 0.03) 55%, transparent 100%)' }}
             >
               {/* Atmospheric radial pool behind logo */}
@@ -213,7 +228,7 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
                 <button
                   onClick={onStartRingOut}
                   aria-label="Start ring-out wizard"
-                  className="group relative flex flex-col items-center justify-center gap-1 w-full max-w-[220px] py-3 px-4 rounded-xl border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-all duration-300 cursor-pointer btn-glow-amber focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-amber-500"
+                  className="group relative flex flex-col items-center justify-center gap-1 w-full max-w-[220px] py-3 px-4 rounded-xl border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-[color,background-color,border-color,box-shadow] duration-300 cursor-pointer btn-glow-amber focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-amber-500"
                 >
                   <span className="font-mono text-sm font-black tracking-[0.15em] text-amber-500 dark:text-amber-400">
                     RING OUT ROOM
@@ -317,7 +332,7 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
               showAlgorithmScores={showAlgorithmScores}
               showPeqDetails={showPeqDetails}
               onDismiss={onDismiss}
-              onSendToMixer={companion.settings.enabled ? companion.sendAdvisory : undefined}
+              onSendToMixer={companionSettings.enabled ? sendAdvisory : undefined}
               onSendToPA2={pa2.settings.enabled && pa2.status === 'connected' ? pa2.sendDetections : undefined}
               pa2Connected={pa2.settings.enabled && pa2.status === 'connected'}
             />

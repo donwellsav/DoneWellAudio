@@ -7,17 +7,13 @@ import {
   useCallback,
   useMemo,
   useEffect,
-  useRef,
   type ReactNode,
 } from 'react'
 import type { Advisory } from '@/types/advisory'
 import type { EarlyWarning } from '@/hooks/useAudioAnalyzer'
 import { useDetection } from '@/contexts/DetectionContext'
 
-// ── Context value ───────────────────────────────────────────────────────────
-
 export interface AdvisoryContextValue {
-  // State
   advisories: Advisory[]
   activeAdvisoryCount: number
   earlyWarning: EarlyWarning | null
@@ -28,8 +24,6 @@ export interface AdvisoryContextValue {
   hasActiveGEQBars: boolean
   falsePositiveIds: ReadonlySet<string> | undefined
   confirmedIds: ReadonlySet<string> | undefined
-
-  // Actions
   onDismiss: (id: string) => void
   onClearAll: () => void
   onClearResolved: () => void
@@ -41,8 +35,6 @@ export interface AdvisoryContextValue {
 
 const AdvisoryContext = createContext<AdvisoryContextValue | null>(null)
 
-// ── Provider props ──────────────────────────────────────────────────────────
-
 interface AdvisoryProviderProps {
   onFalsePositive: ((advisoryId: string) => void) | undefined
   falsePositiveIds: ReadonlySet<string> | undefined
@@ -50,8 +42,6 @@ interface AdvisoryProviderProps {
   confirmedIds: ReadonlySet<string> | undefined
   children: ReactNode
 }
-
-// ── Consolidated clear state ─────────────────────────────────────────────
 
 interface ClearState {
   dismissed: Set<string>
@@ -65,8 +55,6 @@ const EMPTY_CLEAR_STATE: ClearState = {
   rtaCleared: new Set(),
 }
 
-// ── Provider ────────────────────────────────────────────────────────────────
-
 export function AdvisoryProvider({
   onFalsePositive,
   falsePositiveIds,
@@ -74,54 +62,39 @@ export function AdvisoryProvider({
   confirmedIds,
   children,
 }: AdvisoryProviderProps) {
-  // ── Source-of-truth from audio context ─────────────────────────────────
-
   const { advisories, earlyWarning } = useDetection()
-
-  // ── Derived state ───────────────────────────────────────────────────────
-
-  function getActiveAdvisoryCount(): number {
-    return advisories.filter(a => !a.resolved && !clearState.dismissed.has(a.id)).length
-  }
-
-  // ── Unified cleared-ID state ──────────────────────────────────────────
-
   const [clearState, setClearState] = useState<ClearState>(EMPTY_CLEAR_STATE)
 
   const activeAdvisoryCount = useMemo(
-    () => getActiveAdvisoryCount(),
+    () => advisories.filter(a => !a.resolved && !clearState.dismissed.has(a.id)).length,
     [advisories, clearState.dismissed],
   )
-
-  // Ref for stable callback identity — avoids recreating callbacks on every advisory change
-  const advisoriesRef = useRef(advisories)
-  advisoriesRef.current = advisories
 
   const onDismiss = useCallback((id: string) => {
     setClearState(prev => ({ ...prev, dismissed: new Set(prev.dismissed).add(id) }))
   }, [])
 
   const onClearAll = useCallback(() => {
-    setClearState(prev => ({ ...prev, dismissed: new Set(advisoriesRef.current.map(a => a.id)) }))
-  }, [])
+    setClearState(prev => ({ ...prev, dismissed: new Set(advisories.map(a => a.id)) }))
+  }, [advisories])
 
   const onClearResolved = useCallback(() => {
     setClearState(prev => {
       const next = new Set(prev.dismissed)
-      advisoriesRef.current.forEach(a => { if (a.resolved) next.add(a.id) })
+      advisories.forEach(a => {
+        if (a.resolved) next.add(a.id)
+      })
       return { ...prev, dismissed: next }
     })
-  }, [])
+  }, [advisories])
 
   const onClearGEQ = useCallback(() => {
-    setClearState(prev => ({ ...prev, geqCleared: new Set(advisoriesRef.current.map(a => a.id)) }))
-  }, [])
+    setClearState(prev => ({ ...prev, geqCleared: new Set(advisories.map(a => a.id)) }))
+  }, [advisories])
 
   const onClearRTA = useCallback(() => {
-    setClearState(prev => ({ ...prev, rtaCleared: new Set(advisoriesRef.current.map(a => a.id)) }))
-  }, [])
-
-  // ── Derived booleans ──────────────────────────────────────────────────
+    setClearState(prev => ({ ...prev, rtaCleared: new Set(advisories.map(a => a.id)) }))
+  }, [advisories])
 
   const hasActiveGEQBars = useMemo(
     () => advisories.some(a => !clearState.geqCleared.has(a.id) && a.advisory?.geq),
@@ -133,27 +106,37 @@ export function AdvisoryProvider({
     [advisories, clearState.rtaCleared],
   )
 
-  // ── Auto-expire stale IDs when advisories leave the live list ───────────
-
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: prune stale IDs when advisories change
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- stale cleared ids must be pruned after advisories change
     setClearState(prev => {
-      if (prev.dismissed.size === 0 && prev.geqCleared.size === 0 && prev.rtaCleared.size === 0) return prev
-      const liveIds = new Set(advisories.map(a => a.id))
-      const prune = (s: Set<string>) => {
-        const next = new Set<string>()
-        s.forEach(id => { if (liveIds.has(id)) next.add(id) })
-        return next.size === s.size ? s : next
+      if (prev.dismissed.size === 0 && prev.geqCleared.size === 0 && prev.rtaCleared.size === 0) {
+        return prev
       }
+
+      const liveIds = new Set(advisories.map(a => a.id))
+      const prune = (ids: Set<string>) => {
+        const next = new Set<string>()
+        ids.forEach(id => {
+          if (liveIds.has(id)) next.add(id)
+        })
+        return next.size === ids.size ? ids : next
+      }
+
       const dismissed = prune(prev.dismissed)
       const geqCleared = prune(prev.geqCleared)
       const rtaCleared = prune(prev.rtaCleared)
-      if (dismissed === prev.dismissed && geqCleared === prev.geqCleared && rtaCleared === prev.rtaCleared) return prev
+
+      if (
+        dismissed === prev.dismissed &&
+        geqCleared === prev.geqCleared &&
+        rtaCleared === prev.rtaCleared
+      ) {
+        return prev
+      }
+
       return { dismissed, geqCleared, rtaCleared }
     })
   }, [advisories])
-
-  // ── Memoized value ──────────────────────────────────────────────────────
 
   const value = useMemo<AdvisoryContextValue>(() => ({
     advisories,
@@ -199,8 +182,6 @@ export function AdvisoryProvider({
     </AdvisoryContext.Provider>
   )
 }
-
-// ── Hook ────────────────────────────────────────────────────────────────────
 
 export function useAdvisories(): AdvisoryContextValue {
   const ctx = useContext(AdvisoryContext)

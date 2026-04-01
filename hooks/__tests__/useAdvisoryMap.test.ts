@@ -132,12 +132,61 @@ describe('useAdvisoryMap', () => {
     expect(result.current.advisories[0].id).toBe('adv-1')
   })
 
+  it('keeps the rendered list frozen when maxDisplayedIssues changes during freeze', () => {
+    const frozenRef = { current: false }
+    const { result, rerender } = renderHook(
+      ({ maxDisplayedIssues }) => useAdvisoryMap(maxDisplayedIssues, frozenRef),
+      { initialProps: { maxDisplayedIssues: 3 } }
+    )
+
+    act(() => {
+      result.current.onAdvisory(makeAdvisory({ id: 'adv-1', severity: 'RUNAWAY', trueFrequencyHz: 500 }))
+      result.current.onAdvisory(makeAdvisory({ id: 'adv-2', severity: 'GROWING', trueFrequencyHz: 1000 }))
+      result.current.onAdvisory(makeAdvisory({ id: 'adv-3', severity: 'RESONANCE', trueFrequencyHz: 2000 }))
+    })
+
+    expect(result.current.advisories).toHaveLength(3)
+
+    frozenRef.current = true
+    rerender({ maxDisplayedIssues: 1 })
+
+    expect(result.current.advisories).toHaveLength(3)
+
+    frozenRef.current = false
+    rerender({ maxDisplayedIssues: 1 })
+
+    expect(result.current.advisories).toHaveLength(1)
+    expect(result.current.advisories[0].id).toBe('adv-1')
+  })
+
   it('onAdvisoryCleared marks advisory as resolved', () => {
     const { result } = renderHook(() => useAdvisoryMap(50))
     act(() => result.current.onAdvisory(makeAdvisory({ id: 'adv-1' })))
     act(() => result.current.onAdvisoryCleared('adv-1'))
     expect(result.current.advisories[0].resolved).toBe(true)
     expect(result.current.advisories[0].resolvedAt).toBeDefined()
+  })
+
+  it('keeps the updated maxDisplayedIssues cap when a visible advisory is cleared', () => {
+    const { result, rerender } = renderHook(
+      ({ maxDisplayedIssues }) => useAdvisoryMap(maxDisplayedIssues),
+      { initialProps: { maxDisplayedIssues: 3 } }
+    )
+
+    act(() => {
+      result.current.onAdvisory(makeAdvisory({ id: 'adv-1', severity: 'RUNAWAY', trueFrequencyHz: 500 }))
+      result.current.onAdvisory(makeAdvisory({ id: 'adv-2', severity: 'GROWING', trueFrequencyHz: 1000 }))
+      result.current.onAdvisory(makeAdvisory({ id: 'adv-3', severity: 'RESONANCE', trueFrequencyHz: 2000 }))
+    })
+
+    rerender({ maxDisplayedIssues: 1 })
+
+    act(() => {
+      result.current.onAdvisoryCleared('adv-1')
+    })
+
+    expect(result.current.advisories).toHaveLength(1)
+    expect(result.current.advisories[0].id).toBe('adv-2')
   })
 
   it('clearMap resets everything', () => {

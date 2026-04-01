@@ -255,8 +255,7 @@ interface GEQBarViewProps {
 
 export const GEQBarView = memo(function GEQBarView({ advisories, graphFontSize = 11, clearedIds }: GEQBarViewProps) {
   const { resolvedTheme } = useTheme()
-  const isDarkRef = useRef(true)
-  isDarkRef.current = resolvedTheme !== 'light'
+  const isDark = resolvedTheme !== 'light'
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const dimensionsRef = useRef({ width: 0, height: 0 })
@@ -367,19 +366,19 @@ export const GEQBarView = memo(function GEQBarView({ advisories, graphFontSize =
     ctx.save()
     ctx.translate(padding.left, padding.top)
 
-    drawGEQGrid(ctx, plotWidth, plotHeight, centerY, isDarkRef.current)
+    drawGEQGrid(ctx, plotWidth, plotHeight, centerY, isDark)
     drawBars(ctx, plotWidth, plotHeight, centerY, barSpacing, barWidth, maxCut, numBands, bandRecommendations, issueFontSize)
 
     ctx.restore()
 
-    drawGEQAxisLabels(ctx, padding, plotWidth, plotHeight, centerY, barSpacing, numBands, fontSize, width, height, isDarkRef.current)
+    drawGEQAxisLabels(ctx, padding, plotWidth, plotHeight, centerY, barSpacing, numBands, fontSize, width, height, isDark)
 
-  }, [bandRecommendations, graphFontSize])
+  }, [bandRecommendations, graphFontSize, isDark])
 
   useAnimationFrame(render)
 
   // Mark dirty when display data changes (triggers redraw on next rAF tick)
-  useEffect(() => { dirtyRef.current = true }, [bandRecommendations, graphFontSize])
+  useEffect(() => { dirtyRef.current = true }, [bandRecommendations, graphFontSize, isDark])
 
   const hasRecommendations = bandRecommendations.size > 0
 

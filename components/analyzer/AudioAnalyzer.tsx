@@ -319,17 +319,17 @@ const AudioAnalyzerInner = memo(function AudioAnalyzerInner({
     setIssuesPanelOpen(true)
     if (activeSidebarTab === 'issues') setActiveSidebarTab('controls')
     requestAnimationFrame(() => issuesPanelRef.current?.resize("25%"))
-  }, [activeSidebarTab])
+  }, [activeSidebarTab, issuesPanelRef])
 
   const closeIssuesPanel = useCallback(() => {
     issuesPanelRef.current?.collapse()
-  }, [])
+  }, [issuesPanelRef])
 
   /** Close split view and focus the Issues list in the left sidebar */
   const closeIssuesPanelToIssues = useCallback(() => {
     setActiveSidebarTab('issues')
     issuesPanelRef.current?.collapse()
-  }, [])
+  }, [issuesPanelRef])
 
   // ── Calibration + data collection tab props ─────────────────────────────
 

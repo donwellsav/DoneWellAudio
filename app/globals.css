@@ -454,15 +454,6 @@ html {
     animation: led-blink 2s ease-in-out infinite;
   }
 
-  /* Idle "Press to Begin" pill — slow border glow pulse */
-  @keyframes start-glow {
-    0%, 100% { box-shadow: 0 0 0 1px rgba(75, 146, 255, 0.12), 0 0 8px rgba(75, 146, 255, 0.08); }
-    50%       { box-shadow: 0 0 0 1px rgba(75, 146, 255, 0.28), 0 0 16px rgba(75, 146, 255, 0.18); }
-  }
-  .animate-start-glow {
-    animation: start-glow 3s ease-in-out infinite;
-  }
-
   /* Fast red flash for fader guidance arrows — warning urgency */
   @keyframes arrow-flash {
     0%, 100% { opacity: 1; }

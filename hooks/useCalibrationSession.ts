@@ -93,6 +93,7 @@ export function useCalibrationSession(
       }
       sessionRef.current = null
       lastContentTypeRef.current = 'unknown'
+      setAmbientCapture(null)
       setIsCapturingAmbient(false)
       setFalsePositiveIds(new Set())
       setStats(INITIAL_STATS)

@@ -211,4 +211,42 @@ describe('useCalibrationSession', () => {
     expect(result.current.isCapturingAmbient).toBe(false)
     expect(result.current.ambientCapture).toBeNull()
   })
+
+  it('clears a completed ambient capture before the next calibration session export', () => {
+    const spectrumRef = { current: makeSpectrum() }
+    const { result } = renderHook(() => useCalibrationSession(spectrumRef, true, DEFAULT_SETTINGS))
+
+    act(() => {
+      result.current.setCalibrationEnabled(true)
+    })
+
+    act(() => {
+      result.current.captureAmbient(spectrumRef)
+      vi.advanceTimersByTime(5_000)
+    })
+
+    expect(result.current.ambientCapture).not.toBeNull()
+
+    act(() => {
+      result.current.setCalibrationEnabled(false)
+    })
+
+    expect(result.current.ambientCapture).toBeNull()
+
+    act(() => {
+      result.current.setCalibrationEnabled(true)
+    })
+
+    act(() => {
+      result.current.exportSession(DEFAULT_SETTINGS, '0.61.0')
+    })
+
+    const nextSession = calibrationMocks.sessionInstances[1]
+    expect(nextSession.buildExport).toHaveBeenCalledWith(
+      expect.any(Object),
+      null,
+      DEFAULT_SETTINGS,
+      '0.61.0',
+    )
+  })
 })

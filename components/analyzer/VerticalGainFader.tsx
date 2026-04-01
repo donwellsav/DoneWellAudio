@@ -42,8 +42,7 @@ export const VerticalGainFader = memo(function VerticalGainFader({
   activeAdvisoryCount,
 }: VerticalGainFaderProps) {
   const { resolvedTheme } = useTheme()
-  const isDarkRef = useRef(true)
-  isDarkRef.current = resolvedTheme !== 'light'
+  const isDark = resolvedTheme !== 'light'
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
@@ -70,6 +69,7 @@ export const VerticalGainFader = memo(function VerticalGainFader({
   useEffect(() => {
     if (!isRunning || !isSensitivity) {
       noDetectionSecsRef.current = 0
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- leaving sensitivity mode must clear the guidance latch
       setProlongedSilence(false)
       return
     }
@@ -158,7 +158,7 @@ export const VerticalGainFader = memo(function VerticalGainFader({
     ctx.clearRect(0, 0, w, h)
 
     // Background
-    ctx.fillStyle = isDarkRef.current ? '#0e1012' : '#e8eaee'
+    ctx.fillStyle = isDark ? '#0e1012' : '#e8eaee'
     ctx.fillRect(0, 0, w, h)
 
     // Cached vertical gradient — bottom-to-top
@@ -269,7 +269,7 @@ export const VerticalGainFader = memo(function VerticalGainFader({
       ctx.textBaseline = 'middle'
       ctx.fillText('0', w * 0.48, zeroY)
     }
-  }, [min, max, isSensitivity])
+  }, [isDark, isSensitivity, max, min])
 
   // Ballistic animation loop
   useEffect(() => {
@@ -299,7 +299,7 @@ export const VerticalGainFader = memo(function VerticalGainFader({
   // Force redraw on theme change
   useEffect(() => {
     prevDrawnRef.current = -1 // invalidate cache to force next tick to redraw
-  }, [resolvedTheme])
+  }, [isDark])
 
   // Vertical drag: top = max, bottom = min (gain) OR top = 2, bottom = 50 (sensitivity, inverted)
   const updateValueFromY = (clientY: number) => {
@@ -456,6 +456,7 @@ export const VerticalGainFader = memo(function VerticalGainFader({
         <input
           autoFocus
           type="text"
+          aria-label={isSensitivity ? 'Edit detection sensitivity' : 'Edit input gain'}
           defaultValue={String(displayValue)}
           className="font-mono bg-input border border-primary rounded px-0.5 text-center text-foreground focus-visible:outline-none text-sm w-12 h-6 flex-shrink-0"
           onBlur={(e) => commitEdit(e.target.value)}

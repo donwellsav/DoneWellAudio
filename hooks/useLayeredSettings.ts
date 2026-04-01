@@ -78,8 +78,7 @@ export interface UseLayeredSettingsReturn {
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
 export function useLayeredSettings(initialSettings: Partial<DetectorSettings> = {}): UseLayeredSettingsReturn {
-  const initialStateRef = useRef<{ session: DwaSessionState; display: DisplayPrefs } | null>(null)
-  if (initialStateRef.current === null) {
+  const [initialState] = useState<{ session: DwaSessionState; display: DisplayPrefs }>(() => {
     const storedSession = sessionStorageV2.load()
     const storedDisplay = displayStorageV2.load()
     const baseSession: DwaSessionState = {
@@ -93,18 +92,14 @@ export function useLayeredSettings(initialSettings: Partial<DetectorSettings> = 
       ...DEFAULT_DISPLAY_PREFS,
       ...storedDisplay,
     }
-    initialStateRef.current = applyInitialDetectorSettings(baseSession, baseDisplay, initialSettings)
-  }
+    return applyInitialDetectorSettings(baseSession, baseDisplay, initialSettings)
+  })
 
   // Load initial state from v2 storage, backfilling new fields from defaults.
   // Flat spread works for DisplayPrefs; nested merge needed for DwaSessionState
   // because environment/liveOverrides/diagnostics are objects that gain fields over time.
-  const [session, setSession] = useState<DwaSessionState>(() => initialStateRef.current?.session ?? DEFAULT_SESSION_STATE)
-  const [display, setDisplay] = useState<DisplayPrefs>(() => initialStateRef.current?.display ?? DEFAULT_DISPLAY_PREFS)
-
-  // Refs for stable callbacks
-  const sessionRef = useRef(session)
-  sessionRef.current = session
+  const [session, setSession] = useState<DwaSessionState>(initialState.session)
+  const [display, setDisplay] = useState<DisplayPrefs>(initialState.display)
 
   // ── Persist on change (debounced to 100ms for slider performance) ─────
   const sessionPersistRef = useRef<ReturnType<typeof setTimeout>>(undefined)

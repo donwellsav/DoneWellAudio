@@ -271,7 +271,7 @@ export function useAudioAnalyzer(
   // ── Analyzer ────────────────────────────────────────────────────────────────
   // Initialize analyzer
   useEffect(() => {
-    const analyzer = createAudioAnalyzer(settings, {
+    const analyzer = createAudioAnalyzer(settingsRef.current, {
       onSpectrum: (data) => {
         // Hot path: write to ref every frame (canvas reads this directly)
         spectrumRef.current = data
@@ -437,7 +437,7 @@ export function useAudioAnalyzer(
 
   const resetSettings = useCallback(() => {
     layered.resetAll()
-  }, [layered.resetAll])
+  }, [layered])
 
   // ── Room estimation controls ──────────────────────────────────────────────
   const startRoomMeasurement = useCallback(() => {

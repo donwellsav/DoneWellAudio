@@ -31,8 +31,7 @@ export const InputMeterSlider = memo(function InputMeterSlider({
   onAutoGainToggle,
 }: InputMeterSliderProps) {
   const { resolvedTheme } = useTheme()
-  const isDarkRef = useRef(true)
-  isDarkRef.current = resolvedTheme !== 'light'
+  const isDark = resolvedTheme !== 'light'
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const sliderRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
@@ -99,7 +98,7 @@ export const InputMeterSlider = memo(function InputMeterSlider({
     ctx.clearRect(0, 0, w, h)
 
     // Background
-    ctx.fillStyle = isDarkRef.current ? '#0e1012' : '#e8eaee'
+    ctx.fillStyle = isDark ? '#0e1012' : '#e8eaee'
     ctx.fillRect(0, 0, w, h)
 
     // Cached meter gradient — only recreated when width changes
@@ -144,7 +143,7 @@ export const InputMeterSlider = memo(function InputMeterSlider({
     ctx.moveTo(zeroPos, 0)
     ctx.lineTo(zeroPos, h)
     ctx.stroke()
-  }, [min, max])
+  }, [isDark, max, min])
 
   // Ballistic meter animation loop — fast attack, slow decay
   useEffect(() => {
@@ -173,6 +172,10 @@ export const InputMeterSlider = memo(function InputMeterSlider({
     rafIdRef.current = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(rafIdRef.current)
   }, [drawMeter])
+
+  useEffect(() => {
+    prevDrawnRef.current = -1
+  }, [isDark])
 
   const updateValueFromX = (clientX: number) => {
     const slider = sliderRef.current

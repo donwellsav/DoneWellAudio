@@ -8,7 +8,7 @@
  * hardware/software (e.g., Wing OSC, dbx DriveRack PA2) that receive EQ recommendations.
  */
 
-import { useEffect, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import type { Advisory } from '@/types/advisory'
 import type { CompanionSettings } from '@/types/companion'
 import { DEFAULT_COMPANION_SETTINGS } from '@/types/companion'
@@ -184,7 +184,7 @@ export function useCompanion(): UseCompanionReturn {
     }
   }, [current.settings.enabled])
 
-  return {
+  return useMemo(() => ({
     settings: current.settings,
     updateSettings: updateCompanionSettings,
     connected: current.connected,
@@ -193,7 +193,7 @@ export function useCompanion(): UseCompanionReturn {
     autoSendAdvisories: autoSendCompanionAdvisories,
     checkConnection: checkCompanionConnection,
     regenerateCode: regenerateCompanionCode,
-  }
+  }), [current.settings, current.connected, current.lastError])
 }
 
 export { DEFAULT_COMPANION_SETTINGS }
