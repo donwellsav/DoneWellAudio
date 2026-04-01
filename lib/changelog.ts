@@ -14,6 +14,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.65.0',
+    date: '2026-04-01',
+    changes: [
+      { type: 'feat', description: 'hardened the ingest path in `app/api/v1/ingest/route.ts` and the Supabase ingest function, added `002_ingest_hardening.sql`, and expanded route coverage for the auth and forwarding edge cases' },
+      { type: 'feat', description: 'fixed the analyzer follow-up regressions in advisory and calibration state, including display-limit refill, frozen-list behavior, and stale ambient calibration carry-over' },
+      { type: 'feat', description: 'cleaned up the analyzer frontend and supporting hooks so they no longer rely on render-time ref mutation, simplified layered settings initialization, and tightened callback/dependency handling across the analyzer shell' },
+      { type: 'feat', description: 'added the Figma design-system workflow rules to `AGENTS.md`' },
+      { type: 'feat', description: 'ingest forwarding fails closed more reliably' },
+      { type: 'feat', description: 'analyzer sessions no longer rehydrate too many advisories after display-cap changes, redraw while frozen, or carry stale ambient calibration into a fresh run' },
+      { type: 'feat', description: 'the analyzer UI and hooks are safer under the current React lint/compiler rules without changing user-facing behavior' },
+      { type: 'feat', description: '`npx tsc --noEmit`' },
+      { type: 'feat', description: '`pnpm test`' },
+      { type: 'feat', description: 'full suite passed at `1184 passed, 4 skipped`' },
+      { type: 'feat', description: 'left the local `.codex-dev*.log` files out of the branch' },
+    ],
+  },
+  {
     version: '0.64.0',
     date: '2026-04-01',
     changes: [
