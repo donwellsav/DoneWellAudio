@@ -54,7 +54,10 @@ export const AudioAnalyzer = memo(function AudioAnalyzerComponent() {
   // Data collection: consent + uploader + worker wiring
   const dataCollection = useDataCollection()
 
-  // Ref that bridges data collection ↔ AudioAnalyzerProvider (breaks circular dep)
+  // Ref bridges data collection ↔ AudioAnalyzerProvider (breaks circular dep:
+  // provider needs snapshot handler, but dataCollection needs provider's worker).
+  // useLayoutEffect guarantees the ref is set synchronously after render, before
+  // any child effects fire, so the provider always sees the current handler.
   const snapshotBatchRef = useRef<((batch: SnapshotBatch) => void) | null>(null)
   useLayoutEffect(() => { snapshotBatchRef.current = dataCollection.handleSnapshotBatch })
 

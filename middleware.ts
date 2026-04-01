@@ -12,6 +12,11 @@ import { NextResponse, type NextRequest } from 'next/server'
  * loaded by nonced scripts (lazy chunks, dynamic imports, etc.).
  *
  * Dev mode keeps `'unsafe-inline'` + `'unsafe-eval'` for Turbopack hot reload.
+ *
+ * NOTE: This file owns script-src CSP (per-request nonce). Non-script security
+ * headers (HSTS, X-Frame-Options, Permissions-Policy, etc.) are set in
+ * next.config.mjs → headers(). Changes to security posture may require edits
+ * in BOTH files.
  */
 export function middleware(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64')

@@ -49,11 +49,12 @@ export const IssueCard = memo(function IssueCard({
   const isDark = resolvedTheme !== 'light'
 
   // ── Derived values ───────────────────────────────────────────────
+  // #15: Split memo — advisory-derived data recalculates only when advisory changes,
+  // not on theme toggle. severityColor is the only theme-dependent value.
   const {
-    severityColor, pitchStr, exactFreqStr, isClustered,
+    pitchStr, exactFreqStr, isClustered,
     velocity, isRunaway, isWarning, isResolved, timeToClipStr,
   } = useMemo(() => {
-    const _severityColor = getSeverityColor(advisory.severity, isDark)
     const _pitchStr = advisory.advisory?.pitch ? formatPitch(advisory.advisory.pitch) : null
     const _isClustered = (advisory.clusterCount ?? 1) > 1 && advisory.clusterMinHz != null && advisory.clusterMaxHz != null
     const _exactFreqStr = advisory.trueFrequencyHz != null
@@ -72,11 +73,14 @@ export const IssueCard = memo(function IssueCard({
       ? `~${(_timeToClipMs / 1000).toFixed(1)}s`
       : null
     return {
-      severityColor: _severityColor, pitchStr: _pitchStr, exactFreqStr: _exactFreqStr,
+      pitchStr: _pitchStr, exactFreqStr: _exactFreqStr,
       velocity: _velocity, isRunaway: _isRunaway, isWarning: _isWarning,
       isResolved: _isResolved, timeToClipStr: _timeToClipStr, isClustered: _isClustered,
     }
-  }, [advisory, isDark])
+  }, [advisory])
+
+  // Theme-dependent color — separate memo so theme toggle doesn't recompute advisory data
+  const severityColor = useMemo(() => getSeverityColor(advisory.severity, isDark), [advisory.severity, isDark])
 
   // PEQ notch SVG path — bell curve dip on a log-scale frequency axis
   const peqNotchSvgPath = useMemo(() => {
@@ -234,7 +238,7 @@ export const IssueCard = memo(function IssueCard({
                 </TooltipTrigger>
                 {detailParts.length > 0 && (
                   <TooltipContent side="top" className="text-sm space-y-0.5">
-                    {detailParts.map((d, i) => <div key={i}>{d}</div>)}
+                    {detailParts.map((d) => <div key={d}>{d}</div>)}
                   </TooltipContent>
                 )}
               </Tooltip>
@@ -257,7 +261,10 @@ export const IssueCard = memo(function IssueCard({
                 <TooltipProvider delayDuration={300}>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <span className="inline-flex items-center gap-0.5 text-sm text-amber-400 bg-amber-500/20 px-1.5 py-0.5 rounded-sm leading-none border border-amber-500/30">
+                      <span
+                        className="inline-flex items-center gap-0.5 text-sm text-amber-400 bg-amber-500/20 px-1.5 py-0.5 rounded-sm leading-none border border-amber-500/30"
+                        aria-label={`Repeat offender: detected ${occurrenceCount} times`}
+                      >
                         <TrendingUp className="w-2.5 h-2.5" />
                         {occurrenceCount}×
                       </span>

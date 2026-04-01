@@ -263,6 +263,10 @@ export function AudioAnalyzerProvider({
  * This hook reads all 4 contexts and re-renders on ANY context change — no re-render savings.
  */
 export function useAudio(): AudioAnalyzerContextValue {
+  if (process.env.NODE_ENV === 'development') {
+    // eslint-disable-next-line no-console
+    console.warn('[DWA] useAudio() is deprecated — use useEngine(), useSettings(), useMetering(), or useDetection() for granular re-renders')
+  }
   const engine = useEngine()
   const settingsCtx = useSettings()
   const metering = useMetering()

@@ -9,6 +9,7 @@ import { GEQBarView } from './GEQBarView'
 import { SettingsPanel, SETTINGS_TABS, type DataCollectionTabProps, type SettingsTab } from './settings/SettingsPanel'
 import { AlgorithmStatusBar } from './AlgorithmStatusBar'
 import { DualFaderStrip } from './DualFaderStrip'
+import { ErrorBoundary } from './ErrorBoundary'
 import { useEngine } from '@/contexts/EngineContext'
 import { useSettings } from '@/contexts/SettingsContext'
 import { useMetering } from '@/contexts/MeteringContext'
@@ -21,22 +22,27 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/componen
 import type { usePanelRef } from '@/components/ui/resizable'
 import type { DetectorSettings } from '@/types/advisory'
 import type { CalibrationTabProps } from './settings/CalibrationTab'
-import { MODE_BASELINES } from '@/lib/settings/modeBaselines'
+import { useThresholdChange } from '@/hooks/useThresholdChange'
 import { calculateRoomModes, calculateSchroederFrequency } from '@/lib/dsp/acousticUtils'
 
 interface DesktopLayoutProps {
+  // Panel state
   issuesPanelOpen: boolean
   issuesPanelRef: ReturnType<typeof usePanelRef>
   activeSidebarTab: 'issues' | 'controls'
   setActiveSidebarTab: (tab: 'issues' | 'controls') => void
+  // Panel callbacks
   openIssuesPanel: () => void
   closeIssuesPanel: () => void
   closeIssuesPanelToIssues: () => void
   setIssuesPanelOpen: (open: boolean) => void
+  // Diagnostics
   actualFps?: number
   droppedPercent?: number
+  // Feature delegates
   calibration?: Omit<CalibrationTabProps, 'settings' | 'onSettingsChange'>
   dataCollection?: DataCollectionTabProps
+  // Ring-out wizard
   isWizardActive?: boolean
   onStartWizard?: () => void
   onFinishWizard?: () => void
@@ -69,15 +75,7 @@ export const DesktopLayout = memo(function DesktopLayout({
   const { isFrozen, toggleFreeze, layoutKey, rtaContainerRef, isRtaFullscreen, toggleRtaFullscreen } = useUI()
 
 
-  // ⚡ Bolt Optimization: Memoize threshold change handler to prevent unnecessary re-renders
-  // of child components like SpectrumCanvas and VerticalGainFader which are wrapped in React.memo()
-  const handleThresholdChange = useCallback((db: number) => {
-    const bl = MODE_BASELINES[session.modeId];
-    const eo = session.environment.feedbackOffsetDb;
-    const ce = bl.feedbackThresholdDb + eo + session.liveOverrides.sensitivityOffsetDb;
-    const d = db - ce;
-    if (d !== 0) setSensitivityOffset(session.liveOverrides.sensitivityOffsetDb + d);
-  }, [session.modeId, session.environment.feedbackOffsetDb, session.liveOverrides.sensitivityOffsetDb, setSensitivityOffset]);
+  const handleThresholdChange = useThresholdChange(session, setSensitivityOffset)
 
   // Compute axial room modes for RTA overlay (memoized — only recomputes when dimensions/unit change)
   const roomModes = useMemo(() => {
@@ -210,25 +208,27 @@ export const DesktopLayout = memo(function DesktopLayout({
                       />
                     ) : (
                       <>
-                        <IssuesList
-                          advisories={advisories}
-                          maxIssues={settings.maxDisplayedIssues}
-                          dismissedIds={dismissedIds}
+                        <ErrorBoundary>
+                          <IssuesList
+                            advisories={advisories}
+                            maxIssues={settings.maxDisplayedIssues}
+                            dismissedIds={dismissedIds}
 
-                          onClearAll={onClearAll}
-                          isRunning={isRunning}
-                          onStart={start}
-                          onFalsePositive={onFalsePositive}
-                          falsePositiveIds={falsePositiveIds}
-                          onConfirmFeedback={onConfirmFeedback}
-                          confirmedIds={confirmedIds}
-                          isLowSignal={isRunning && inputLevel < -45}
-                          swipeLabeling={settings.swipeLabeling}
-                          showAlgorithmScores={settings.showAlgorithmScores}
-                          showPeqDetails={settings.showPeqDetails}
-                          onStartRingOut={onStartRingOut}
-                          onDismiss={onDismiss}
-                        />
+                            onClearAll={onClearAll}
+                            isRunning={isRunning}
+                            onStart={start}
+                            onFalsePositive={onFalsePositive}
+                            falsePositiveIds={falsePositiveIds}
+                            onConfirmFeedback={onConfirmFeedback}
+                            confirmedIds={confirmedIds}
+                            isLowSignal={isRunning && inputLevel < -45}
+                            swipeLabeling={settings.swipeLabeling}
+                            showAlgorithmScores={settings.showAlgorithmScores}
+                            showPeqDetails={settings.showPeqDetails}
+                            onStartRingOut={onStartRingOut}
+                            onDismiss={onDismiss}
+                          />
+                        </ErrorBoundary>
                         {settings.mode === 'ringOut' && isRunning && onStartWizard && (
                           <button
                             onClick={onStartWizard}
@@ -367,7 +367,9 @@ export const DesktopLayout = memo(function DesktopLayout({
                     </div>
                   </div>
                   <div className="flex-1 min-h-0">
-                    <SpectrumCanvas spectrumRef={spectrumRef} advisories={advisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} onStart={!isRunning && !isStarting ? start : undefined} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} showFreqZones={settings.showFreqZones} showRoomModeLines={settings.showRoomModeLines} roomModes={roomModes} spectrumWarmMode={settings.spectrumWarmMode} onThresholdChange={handleThresholdChange} />
+                    <ErrorBoundary>
+                      <SpectrumCanvas spectrumRef={spectrumRef} advisories={advisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} onStart={!isRunning && !isStarting ? start : undefined} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} showFreqZones={settings.showFreqZones} showRoomModeLines={settings.showRoomModeLines} roomModes={roomModes} spectrumWarmMode={settings.spectrumWarmMode} onThresholdChange={handleThresholdChange} />
+                    </ErrorBoundary>
                   </div>
                 </div>
               </div>
