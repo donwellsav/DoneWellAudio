@@ -81,7 +81,7 @@ export const LiveTab = memo(function LiveTab({ settings }: LiveTabProps) {
             const isActive = settings.minFrequency === preset.minFrequency && settings.maxFrequency === preset.maxFrequency
             return (
               <button key={preset.label} onClick={() => handleFreqPresetClick(preset.minFrequency, preset.maxFrequency)}
-                className={`min-h-11 px-3 py-1.5 rounded-md flex flex-col items-center gap-0.5 text-xs font-mono font-bold tracking-wide transition-all cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+                className={`min-h-11 px-3 py-1.5 rounded-md flex flex-col items-center gap-0.5 text-xs font-mono font-bold tracking-wide transition-[color,background-color,border-color,box-shadow] cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                   isActive
                     ? 'bg-[rgba(75,146,255,0.12)] text-[var(--console-blue)] border border-[rgba(75,146,255,0.38)] shadow-[0_0_10px_rgba(75,146,255,0.16)]'
                     : 'bg-[rgba(255,255,255,0.03)] text-foreground/50 border border-[rgba(255,255,255,0.08)] hover:text-foreground/80 hover:border-border/50'

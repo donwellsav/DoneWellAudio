@@ -18,7 +18,9 @@ import type { SnapshotBatch } from '@/types/data'
 // ─── Configuration ──────────────────────────────────────────────────────────
 
 const SUPABASE_INGEST_URL = process.env.SUPABASE_INGEST_URL ?? ''
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
+const SUPABASE_INGEST_AUTH_TOKEN = process.env.SUPABASE_INGEST_SHARED_SECRET
+  ?? process.env.SUPABASE_SERVICE_ROLE_KEY
+  ?? ''
 
 /**
  * SSRF defense: validate SUPABASE_INGEST_URL against Supabase domain allowlist.
@@ -39,8 +41,8 @@ if (SUPABASE_INGEST_URL) {
 }
 
 // Production environment validation — catch silent misconfiguration early
-if (process.env.NODE_ENV === 'production' && SUPABASE_INGEST_URL && !SUPABASE_SERVICE_KEY) {
-  console.error('[ingest] WARNING: SUPABASE_INGEST_URL set but SUPABASE_SERVICE_ROLE_KEY is missing — forwarding will fail')
+if (process.env.NODE_ENV === 'production' && SUPABASE_INGEST_URL && !SUPABASE_INGEST_AUTH_TOKEN) {
+  console.error('[ingest] WARNING: SUPABASE_INGEST_URL set but ingest auth token is missing — forwarding will fail')
 }
 
 /** Max payload size: 512KB (batches are typically 2-10KB uncompressed) */
@@ -122,12 +124,20 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    if (!SUPABASE_INGEST_AUTH_TOKEN) {
+      console.error('[ingest] Missing SUPABASE_INGEST_SHARED_SECRET or SUPABASE_SERVICE_ROLE_KEY')
+      return NextResponse.json(
+        { error: 'Storage temporarily unavailable' },
+        { status: 503 }
+      )
+    }
+
     // Forward to Supabase Edge Function (strip IP — don't forward X-Forwarded-For)
     const forwardResponse = await fetch(SUPABASE_INGEST_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'Authorization': `Bearer ${SUPABASE_INGEST_AUTH_TOKEN}`,
       },
       body: JSON.stringify(batch),
     })

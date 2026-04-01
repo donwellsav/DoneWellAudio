@@ -118,11 +118,11 @@ export function AudioAnalyzerProvider({
   // Mode change: calls setMode directly (no longer via legacy shim)
   const handleModeChange = useCallback((mode: OperationMode) => {
     layered.setMode(mode as ModeId)
-  }, [layered])
+  }, [layered.setMode])
 
   const handleFreqRangeChange = useCallback((min: number, max: number) => {
     layered.setFocusRange({ kind: 'custom', minHz: min, maxHz: max })
-  }, [layered])
+  }, [layered.setFocusRange])
 
   const handleDeviceChange = useCallback((deviceId: string) => {
     setSelectedDeviceId(deviceId)

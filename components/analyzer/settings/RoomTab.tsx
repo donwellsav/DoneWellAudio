@@ -324,8 +324,9 @@ export const RoomTab = memo(function RoomTab({
                   ['Height', 'height', 30] as const,
                 ]).map(([label, dimKey, max]) => (
                   <div key={dimKey} className="space-y-1">
-                    <label className="text-sm text-muted-foreground font-mono">{label}</label>
+                    <label htmlFor={`room-dimension-${dimKey}`} className="text-sm text-muted-foreground font-mono">{label}</label>
                     <input
+                      id={`room-dimension-${dimKey}`}
                       type="number"
                       value={dimKey === 'length' ? settings.roomLengthM : dimKey === 'width' ? settings.roomWidthM : settings.roomHeightM}
                       onChange={(e) => {
@@ -342,7 +343,7 @@ export const RoomTab = memo(function RoomTab({
                           dimensionsM: currentDims,
                         })
                       }}
-                      className="w-full h-7 px-2 text-sm rounded border border-border/40 bg-input font-mono focus:outline-none focus:border-primary"
+                      className="w-full h-7 px-2 text-sm rounded border border-border/40 bg-input font-mono focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:border-primary"
                       min={1} max={max} step={0.5}
                     />
                   </div>

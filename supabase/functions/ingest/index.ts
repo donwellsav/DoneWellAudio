@@ -63,21 +63,33 @@ const SUPPORTED_VERSIONS = ["1.0", "1.1", "1.2"]
 
 // ─── Rate limit ─────────────────────────────────────────────────────────────
 
-const RATE_LIMIT_WINDOW_MS = 60_000
+const BEARER_PREFIX = "Bearer "
+const RATE_LIMIT_WINDOW_SECONDS = 60
 const RATE_LIMIT_MAX = 10
-const rateLimits = new Map<string, { count: number; start: number }>()
+const textEncoder = new TextEncoder()
 
-function isRateLimited(sessionId: string): boolean {
-  const now = Date.now()
-  const entry = rateLimits.get(sessionId)
+function timingSafeEquals(left: string, right: string): boolean {
+  const leftBytes = textEncoder.encode(left)
+  const rightBytes = textEncoder.encode(right)
 
-  if (!entry || now - entry.start > RATE_LIMIT_WINDOW_MS) {
-    rateLimits.set(sessionId, { count: 1, start: now })
+  if (leftBytes.length !== rightBytes.length) {
     return false
   }
 
-  entry.count++
-  return entry.count > RATE_LIMIT_MAX
+  let mismatch = 0
+  for (let i = 0; i < leftBytes.length; i++) {
+    mismatch |= leftBytes[i] ^ rightBytes[i]
+  }
+
+  return mismatch === 0
+}
+
+function hasValidIngestToken(authHeader: string | null, expectedToken: string): boolean {
+  if (!authHeader?.startsWith(BEARER_PREFIX) || !expectedToken) {
+    return false
+  }
+
+  return timingSafeEquals(authHeader.slice(BEARER_PREFIX.length), expectedToken)
 }
 
 // ─── Handler ────────────────────────────────────────────────────────────────
@@ -90,8 +102,19 @@ Deno.serve(async (req: Request) => {
     })
   }
 
+  const expectedIngestToken = Deno.env.get("SUPABASE_INGEST_SHARED_SECRET")
+    ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
+    ?? ""
+  if (!expectedIngestToken) {
+    console.error("Missing SUPABASE_INGEST_SHARED_SECRET/SUPABASE_SERVICE_ROLE_KEY")
+    return new Response(JSON.stringify({ error: "Server misconfigured" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+
   const authHeader = req.headers.get("Authorization")
-  if (!authHeader?.startsWith("Bearer ")) {
+  if (!hasValidIngestToken(authHeader, expectedIngestToken)) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
@@ -116,16 +139,39 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    if (isRateLimited(batch.sessionId)) {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? ""
+    const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      console.error("Missing SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY")
+      return new Response(JSON.stringify({ error: "Server misconfigured" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
+    const rateLimitResult = await supabase.rpc("check_ingest_rate_limit", {
+      p_bucket_key: batch.sessionId,
+      p_max_requests: RATE_LIMIT_MAX,
+      p_window_seconds: RATE_LIMIT_WINDOW_SECONDS,
+    })
+    if (rateLimitResult.error) {
+      console.error("Rate limit check failed:", JSON.stringify({
+        code: rateLimitResult.error.code,
+        message: rateLimitResult.error.message,
+      }))
+      return new Response(JSON.stringify({ error: "Rate limiting unavailable" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+
+    if (rateLimitResult.data === true) {
       return new Response(JSON.stringify({ error: "Rate limited" }), {
         status: 429,
         headers: { "Content-Type": "application/json" },
       })
     }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    const supabase = createClient(supabaseUrl, supabaseKey)
 
     // Build row — base fields present in all versions
     const row: Record<string, unknown> = {
@@ -171,11 +217,7 @@ Deno.serve(async (req: Request) => {
         details: error.details,
         hint: error.hint,
       }))
-      return new Response(JSON.stringify({
-        error: "Storage failed",
-        code: error.code,
-        message: error.message,
-      }), {
+      return new Response(JSON.stringify({ error: "Storage failed" }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
       })

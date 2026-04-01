@@ -456,6 +456,7 @@ export const VerticalGainFader = memo(function VerticalGainFader({
         <input
           autoFocus
           type="text"
+          aria-label={isSensitivity ? 'Edit detection sensitivity' : 'Edit input gain'}
           defaultValue={String(displayValue)}
           className="font-mono bg-input border border-primary rounded px-0.5 text-center text-foreground focus-visible:outline-none text-sm w-12 h-6 flex-shrink-0"
           onBlur={(e) => commitEdit(e.target.value)}

@@ -137,6 +137,9 @@ export const CalibrationTab = memo(function CalibrationTab({
         <p className="text-[10px] text-muted-foreground/50 mb-1.5 px-1">Venue details for session logs, room mode calculation, and threshold tuning.</p>
         <Section title="Venue Name">
           <Input
+            name="venueName"
+            aria-label="Venue name"
+            autoComplete="organization"
             value={room.name}
             onChange={e => updateRoom({ name: e.target.value })}
             placeholder="Hotel Ballroom — Corporate Conference"
@@ -258,6 +261,9 @@ export const CalibrationTab = memo(function CalibrationTab({
 
         <Section title="Signal Path">
           <Input
+            name="signalPath"
+            aria-label="Signal path"
+            autoComplete="off"
             value={room.signalPath}
             onChange={e => updateRoom({ signalPath: e.target.value })}
             placeholder="Yamaha TF → USB → Laptop"
@@ -267,9 +273,12 @@ export const CalibrationTab = memo(function CalibrationTab({
 
         <Section title="Notes">
           <Textarea
+            name="roomNotes"
+            aria-label="Notes"
+            autoComplete="off"
             value={room.notes}
             onChange={e => updateRoom({ notes: e.target.value })}
-            placeholder="HVAC on south wall, stage at north end..."
+            placeholder="HVAC on south wall, stage at north end…"
             className="font-mono text-sm min-h-[60px] resize-y"
             rows={2}
           />
@@ -364,7 +373,7 @@ export const CalibrationTab = memo(function CalibrationTab({
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Status</span>
                 <span className={isRecording ? 'text-[var(--console-green)] font-medium' : 'text-muted-foreground'}>
-                  {isRecording ? 'Recording' : 'Waiting for analysis...'}
+                  {isRecording ? 'Recording' : 'Waiting for analysis…'}
                 </span>
               </div>
               {isRecording && (

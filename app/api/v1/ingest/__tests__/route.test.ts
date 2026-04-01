@@ -49,7 +49,10 @@ describe('POST /api/v1/ingest', () => {
   beforeEach(() => {
     vi.resetModules()
     delete process.env.SUPABASE_INGEST_URL
+    delete process.env.SUPABASE_INGEST_SHARED_SECRET
     delete process.env.SUPABASE_SERVICE_ROLE_KEY
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
   })
 
   describe('schema validation', () => {
@@ -277,6 +280,51 @@ describe('POST /api/v1/ingest', () => {
       expect(data.ok).toBe(true)
       expect(data.stored).toBe(false)
       expect(data.reason).toContain('not configured')
+    })
+  })
+
+  describe('forwarding auth', () => {
+    it('fails closed when Supabase URL is configured without an auth token', async () => {
+      process.env.SUPABASE_INGEST_URL = 'https://demo.supabase.co/functions/v1/ingest'
+
+      const fetchMock = vi.fn()
+      vi.stubGlobal('fetch', fetchMock)
+
+      const { POST } = await importRoute()
+      const res = await POST(makeRequest(validBatch()))
+
+      expect(res.status).toBe(503)
+      expect(fetchMock).not.toHaveBeenCalled()
+      expect((await res.json()).error).toBe('Storage temporarily unavailable')
+    })
+
+    it('prefers the shared ingest secret when forwarding to Supabase', async () => {
+      process.env.SUPABASE_INGEST_URL = 'https://demo.supabase.co/functions/v1/ingest'
+      process.env.SUPABASE_INGEST_SHARED_SECRET = 'shared-ingest-secret'
+
+      const fetchMock = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      )
+      vi.stubGlobal('fetch', fetchMock)
+
+      const { POST } = await importRoute()
+      const res = await POST(makeRequest(validBatch()))
+
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual({ ok: true, stored: true })
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://demo.supabase.co/functions/v1/ingest',
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            Authorization: 'Bearer shared-ingest-secret',
+            'Content-Type': 'application/json',
+          }),
+        })
+      )
     })
   })
 })
