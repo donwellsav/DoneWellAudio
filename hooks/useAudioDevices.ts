@@ -12,6 +12,7 @@ export function useAudioDevices() {
   const [devices, setDevices] = useState<AudioDevice[]>([])
   const [selectedDeviceId, setSelectedDeviceIdState] = useState<string>('')
   const mountedRef = useRef(true)
+  const selectedDeviceIdRef = useRef('')
 
   const enumerate = useCallback(async () => {
     try {
@@ -23,6 +24,12 @@ export function useAudioDevices() {
           label: d.label || `Microphone ${i + 1}`,
         }))
       if (mountedRef.current) setDevices(inputs)
+      const currentSelectedId = selectedDeviceIdRef.current
+      if (currentSelectedId && !inputs.some(d => d.deviceId === currentSelectedId)) {
+        selectedDeviceIdRef.current = ''
+        deviceStorage.clear()
+        if (mountedRef.current) setSelectedDeviceIdState('')
+      }
       return inputs
     } catch {
       return []
@@ -33,15 +40,10 @@ export function useAudioDevices() {
   useEffect(() => {
     mountedRef.current = true
     const saved = deviceStorage.load()
+    selectedDeviceIdRef.current = saved
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: restore saved device preference from localStorage on mount
     setSelectedDeviceIdState(saved)
-    enumerate().then(inputs => {
-      // If saved device is gone, fall back to default
-      if (saved && inputs.length > 0 && !inputs.some(d => d.deviceId === saved)) {
-        setSelectedDeviceIdState('')
-        deviceStorage.clear()
-      }
-    })
+    void enumerate()
     return () => { mountedRef.current = false }
   }, [enumerate])
 
@@ -53,6 +55,7 @@ export function useAudioDevices() {
   }, [enumerate])
 
   const setSelectedDeviceId = useCallback((id: string) => {
+    selectedDeviceIdRef.current = id
     setSelectedDeviceIdState(id)
     if (id) {
       deviceStorage.save(id)

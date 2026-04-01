@@ -325,7 +325,7 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
     const client = clientRef.current
 
     if (autoSend === 'geq' && state.geq && geqFresh) {
-      const corrections = advisoriesToGEQCorrections(xvAdvisories, autoSendMinConfidence)
+      const corrections = advisoriesToGEQCorrections(xvAdvisories, effectiveThreshold)
       // Skip bands already applied at the same depth (prevents accumulation)
       const newCorrections: Record<string, number> = {}
       for (const [band, gain] of Object.entries(corrections)) {
@@ -340,14 +340,15 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
             Object.assign(appliedGEQRef.current, newCorrections)
             recordAutoSendSuccess('geq', Object.keys(newCorrections).length)
             // Closed-loop verify: check if corrections were effective, deepen if not
-            if (clientRef.current) {
-              try {
-                const { deepened } = await runClosedLoopCycle(clientRef.current, newCorrections, 2000)
-                if (Object.keys(deepened).length > 0 && clientRef.current) {
-                  const deepMerged = mergeGEQCorrections(state.geq?.bands ?? {}, deepened)
-                  await clientRef.current.setGEQBands(deepMerged)
-                  Object.assign(appliedGEQRef.current, deepened)
-                }
+              if (clientRef.current) {
+                try {
+                  const { deepened } = await runClosedLoopCycle(clientRef.current, newCorrections, 2000)
+                  if (Object.keys(deepened).length > 0 && clientRef.current) {
+                    const latestGeq = await clientRef.current.getGEQ().catch(() => state.geq)
+                    const deepMerged = mergeGEQCorrections(latestGeq?.bands ?? {}, deepened)
+                    await clientRef.current.setGEQBands(deepMerged)
+                    Object.assign(appliedGEQRef.current, deepened)
+                  }
               } catch { /* closed-loop is best-effort */ }
             }
           })
@@ -437,7 +438,7 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
 
       // Send GEQ corrections for broad advisories
       let geqCount = 0
-      if (Object.keys(geqCorrections).length > 0 && state.geq) {
+      if (Object.keys(geqCorrections).length > 0 && state.geq && geqFresh) {
         const merged = mergeGEQCorrections(state.geq.bands, geqCorrections)
         geqCount = Object.keys(geqCorrections).length
         client.setGEQBands(merged).catch(recordAutoSendError)
@@ -602,7 +603,7 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
     const client = clientRef.current
     if (!client || !state.geq) return
 
-    const corrections = advisoriesToGEQCorrections(advisories, autoSendMinConfidence)
+    const corrections = advisoriesToGEQCorrections(advisories, Math.max(autoSendMinConfidence, companionThresholdRef.current))
     if (Object.keys(corrections).length === 0) return
 
     const merged = mergeGEQCorrections(state.geq.bands, corrections)

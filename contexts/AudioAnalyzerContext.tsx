@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useMemo,
   type ReactNode,
   type MutableRefObject,
@@ -91,7 +92,13 @@ export function AudioAnalyzerProvider({
 
   // ── Devices ───────────────────────────────────────────────────────────
 
-  const { devices, selectedDeviceId, setSelectedDeviceId } = useAudioDevices()
+  const { devices, selectedDeviceId, setSelectedDeviceId, refresh: refreshDevices } = useAudioDevices()
+
+  useEffect(() => {
+    if (isRunning) {
+      void refreshDevices()
+    }
+  }, [isRunning, refreshDevices])
 
   // ── Wrapped start (always passes persisted device preference) ─────────
 

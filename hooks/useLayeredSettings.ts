@@ -18,7 +18,6 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react'
 
-import { getRoomParametersFromDimensions } from '@/lib/dsp/acousticUtils'
 import { deriveDetectorSettings } from '@/lib/settings/deriveSettings'
 import {
   DEFAULT_DIAGNOSTICS,
@@ -27,8 +26,11 @@ import {
   DEFAULT_LIVE_OVERRIDES,
   DEFAULT_SESSION_STATE,
 } from '@/lib/settings/defaults'
-import { ENVIRONMENT_TEMPLATES } from '@/lib/settings/environmentTemplates'
 import { MODE_BASELINES } from '@/lib/settings/modeBaselines'
+import {
+  applyInitialDetectorSettings,
+  resolveEnvironmentSelection,
+} from '@/lib/settings/seedLayeredSettings'
 import {
   displayStorageV2,
   sessionStorageV2,
@@ -75,24 +77,30 @@ export interface UseLayeredSettingsReturn {
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
-export function useLayeredSettings(): UseLayeredSettingsReturn {
+export function useLayeredSettings(initialSettings: Partial<DetectorSettings> = {}): UseLayeredSettingsReturn {
+  const initialStateRef = useRef<{ session: DwaSessionState; display: DisplayPrefs } | null>(null)
+  if (initialStateRef.current === null) {
+    const storedSession = sessionStorageV2.load()
+    const storedDisplay = displayStorageV2.load()
+    const baseSession: DwaSessionState = {
+      ...DEFAULT_SESSION_STATE,
+      ...storedSession,
+      environment: { ...DEFAULT_ENVIRONMENT, ...storedSession.environment },
+      liveOverrides: { ...DEFAULT_LIVE_OVERRIDES, ...storedSession.liveOverrides },
+      diagnostics: { ...DEFAULT_DIAGNOSTICS, ...storedSession.diagnostics },
+    }
+    const baseDisplay: DisplayPrefs = {
+      ...DEFAULT_DISPLAY_PREFS,
+      ...storedDisplay,
+    }
+    initialStateRef.current = applyInitialDetectorSettings(baseSession, baseDisplay, initialSettings)
+  }
+
   // Load initial state from v2 storage, backfilling new fields from defaults.
   // Flat spread works for DisplayPrefs; nested merge needed for DwaSessionState
   // because environment/liveOverrides/diagnostics are objects that gain fields over time.
-  const [session, setSession] = useState<DwaSessionState>(() => {
-    const stored = sessionStorageV2.load()
-    return {
-      ...DEFAULT_SESSION_STATE,
-      ...stored,
-      environment: { ...DEFAULT_ENVIRONMENT, ...stored.environment },
-      liveOverrides: { ...DEFAULT_LIVE_OVERRIDES, ...stored.liveOverrides },
-      diagnostics: { ...DEFAULT_DIAGNOSTICS, ...stored.diagnostics },
-    }
-  })
-  const [display, setDisplay] = useState<DisplayPrefs>(() => ({
-    ...DEFAULT_DISPLAY_PREFS,
-    ...displayStorageV2.load(),
-  }))
+  const [session, setSession] = useState<DwaSessionState>(() => initialStateRef.current?.session ?? DEFAULT_SESSION_STATE)
+  const [display, setDisplay] = useState<DisplayPrefs>(() => initialStateRef.current?.display ?? DEFAULT_DISPLAY_PREFS)
 
   // Refs for stable callbacks
   const sessionRef = useRef(session)
@@ -138,43 +146,10 @@ export function useLayeredSettings(): UseLayeredSettingsReturn {
   }, [updateSession])
 
   const setEnvironment = useCallback((partial: Partial<EnvironmentSelection> & { templateId?: RoomTemplateId | string }) => {
-    updateSession(prev => {
-      // If setting a known template, apply its offsets
-      if (partial.templateId && partial.templateId in ENVIRONMENT_TEMPLATES) {
-        const template = ENVIRONMENT_TEMPLATES[partial.templateId as RoomTemplateId]
-        const merged: EnvironmentSelection = {
-          ...prev.environment,
-          templateId: template.templateId,
-          treatment: partial.treatment ?? template.treatment,
-          roomRT60: partial.roomRT60 ?? template.roomRT60,
-          roomVolume: partial.roomVolume ?? template.roomVolume,
-          dimensionsM: partial.dimensionsM ?? { length: template.lengthM, width: template.widthM, height: template.heightM },
-          provenance: partial.provenance ?? 'template',
-          displayUnit: partial.displayUnit ?? prev.environment.displayUnit,
-          feedbackOffsetDb: partial.feedbackOffsetDb ?? template.feedbackOffsetDb,
-          ringOffsetDb: partial.ringOffsetDb ?? template.ringOffsetDb,
-          mainsHumEnabled: partial.mainsHumEnabled ?? prev.environment.mainsHumEnabled ?? true,
-          mainsHumFundamental: partial.mainsHumFundamental ?? prev.environment.mainsHumFundamental ?? 'auto',
-        }
-        return { ...prev, environment: merged }
-      }
-      // Custom or unknown template: apply partial, recompute room params from dimensions
-      const merged: EnvironmentSelection = { ...prev.environment, ...partial }
-      if (partial.dimensionsM || partial.treatment || partial.displayUnit) {
-        const dims = merged.dimensionsM ?? { length: 15, width: 12, height: 5 }
-        const treatment = merged.treatment ?? prev.environment.treatment
-        const unit = merged.displayUnit ?? prev.environment.displayUnit
-        // Convert to meters if dimensions are stored in feet
-        const FEET_TO_METERS = 0.3048
-        const lM = unit === 'feet' ? dims.length * FEET_TO_METERS : dims.length
-        const wM = unit === 'feet' ? dims.width * FEET_TO_METERS : dims.width
-        const hM = unit === 'feet' ? dims.height * FEET_TO_METERS : dims.height
-        const params = getRoomParametersFromDimensions(lM, wM, hM, treatment)
-        merged.roomRT60 = Math.round(params.rt60 * 10) / 10
-        merged.roomVolume = Math.round(params.volume)
-      }
-      return { ...prev, environment: merged }
-    })
+    updateSession(prev => ({
+      ...prev,
+      environment: resolveEnvironmentSelection(prev.environment, partial),
+    }))
   }, [updateSession])
 
   const setSensitivityOffset = useCallback((db: number) => {
