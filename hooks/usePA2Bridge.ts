@@ -251,7 +251,7 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current)
       if (abortController) abortController.abort()
     }
-  }, [enabled, pollIntervalMs, baseUrl, apiKey, timeoutMs])
+  }, [enabled, pollIntervalMs, baseUrl, apiKey, timeoutMs, autoSendMinConfidence])
 
   // ── Auto-send advisory forwarding ──
 
@@ -472,7 +472,20 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
         recordAutoSendSuccess('geq', geqCount)
       }
     }
-  }, [advisories, autoSend, autoSendMinConfidence, autoSendIntervalMs, state.status, state.geq, state.pa2Connected, state.lastPollTimestamp])
+  }, [
+    advisories,
+    autoSend,
+    autoSendMinConfidence,
+    autoSendIntervalMs,
+    panicMuteEnabled,
+    pollIntervalMs,
+    state.status,
+    state.geq,
+    state.meters,
+    state.pa2Connected,
+    state.rta,
+    state.lastPollTimestamp,
+  ])
 
   // ── Auto-release notches when advisories resolve ──
 

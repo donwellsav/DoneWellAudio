@@ -3,12 +3,12 @@
 /**
  * useCompanion — manages Companion module connection, pairing, and advisory relay.
  *
- * Handles WebSocket bridge lifecycle, relay polling, auto-send of new advisories,
+ * Handles relay bridge lifecycle, connectivity checks, auto-send of new advisories,
  * pairing code generation, and settings persistence. Companion modules are external
  * hardware/software (e.g., Wing OSC, dbx DriveRack PA2) that receive EQ recommendations.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import type { Advisory } from '@/types/advisory'
 import type { CompanionSettings } from '@/types/companion'
 import { DEFAULT_COMPANION_SETTINGS } from '@/types/companion'
@@ -32,82 +32,139 @@ interface UseCompanionReturn {
   regenerateCode: () => void
 }
 
-export function useCompanion(): UseCompanionReturn {
-  const [settings, setSettings] = useState<CompanionSettings>(() => {
-    const saved = companionStorage.load()
-    // Generate a pairing code on first use
-    if (!saved.pairingCode) {
-      saved.pairingCode = generatePairingCode()
-      companionStorage.save(saved)
-    }
-    return saved
+interface CompanionSnapshot {
+  readonly settings: CompanionSettings
+  readonly connected: boolean
+  readonly lastError: string | null
+}
+
+const listeners = new Set<() => void>()
+let snapshot: CompanionSnapshot | null = null
+let bridge: CompanionBridge | null = null
+let pendingStatusCheck: Promise<boolean> | null = null
+
+function loadSettings(): CompanionSettings {
+  const saved = companionStorage.load()
+  if (saved.pairingCode) return saved
+
+  const next = { ...saved, pairingCode: generatePairingCode() }
+  companionStorage.save(next)
+  return next
+}
+
+function ensureSnapshot(): CompanionSnapshot {
+  if (snapshot) return snapshot
+
+  const settings = loadSettings()
+  bridge = new CompanionBridge(settings.pairingCode)
+  snapshot = { settings, connected: false, lastError: null }
+  return snapshot
+}
+
+function getBridge(): CompanionBridge {
+  const current = ensureSnapshot()
+  if (!bridge) {
+    bridge = new CompanionBridge(current.settings.pairingCode)
+  }
+  return bridge
+}
+
+function publish(next: CompanionSnapshot): void {
+  snapshot = next
+  listeners.forEach((listener) => listener())
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
+
+function getSnapshot(): CompanionSnapshot {
+  return ensureSnapshot()
+}
+
+function updateCompanionSettings(partial: Partial<CompanionSettings>): void {
+  const current = getSnapshot()
+  const nextSettings = { ...current.settings, ...partial }
+  const pairingCodeChanged = nextSettings.pairingCode !== current.settings.pairingCode
+  const disableRequested = partial.enabled === false
+
+  companionStorage.save(nextSettings)
+
+  if (pairingCodeChanged) {
+    getBridge().configure(nextSettings.pairingCode)
+  }
+
+  publish({
+    settings: nextSettings,
+    connected: disableRequested || pairingCodeChanged ? false : current.connected,
+    lastError: disableRequested || pairingCodeChanged ? null : current.lastError,
   })
-  const [connected, setConnected] = useState(false)
-  const [lastError, setLastError] = useState<string | null>(null)
+}
 
-  const bridgeRef = useRef<CompanionBridge | null>(null)
+async function checkCompanionConnection(): Promise<boolean> {
+  if (pendingStatusCheck) return pendingStatusCheck
 
-  const bridge = useMemo(() => {
-    if (!bridgeRef.current) {
-      bridgeRef.current = new CompanionBridge(settings.pairingCode)
-    } else {
-      bridgeRef.current.configure(settings.pairingCode)
-    }
-    return bridgeRef.current
-  }, [settings.pairingCode])
-
-  const updateSettings = useCallback((partial: Partial<CompanionSettings>) => {
-    setSettings((prev) => {
-      const next = { ...prev, ...partial }
-      companionStorage.save(next)
-      return next
+  const currentBridge = getBridge()
+  pendingStatusCheck = currentBridge.checkStatus()
+    .then((status) => {
+      const ok = status !== null
+      const current = getSnapshot()
+      publish({
+        ...current,
+        connected: ok,
+        lastError: ok ? null : currentBridge.lastError,
+      })
+      return ok
     })
-  }, [])
+    .finally(() => {
+      pendingStatusCheck = null
+    })
 
-  const checkConnection = useCallback(async (): Promise<boolean> => {
-    const status = await bridge.checkStatus()
-    const ok = status !== null
-    setConnected(ok)
-    setLastError(ok ? null : bridge.lastError)
-    return ok
-  }, [bridge])
+  return pendingStatusCheck
+}
 
-  const sendAdvisory = useCallback(
-    async (advisory: Advisory): Promise<boolean> => {
-      if (!settings.enabled) return false
-      if (advisory.confidence < settings.minConfidence) return false
+async function sendCompanionAdvisory(advisory: Advisory): Promise<boolean> {
+  const current = getSnapshot()
+  if (!current.settings.enabled) return false
+  if (advisory.confidence < current.settings.minConfidence) return false
 
-      const result = await bridge.sendAdvisory(advisory)
-      setConnected(bridge.connected)
-      setLastError(bridge.lastError)
-      return result.accepted
-    },
-    [bridge, settings.enabled, settings.minConfidence],
-  )
+  const currentBridge = getBridge()
+  const result = await currentBridge.sendAdvisory(advisory)
+  publish({
+    ...getSnapshot(),
+    connected: currentBridge.connected,
+    lastError: currentBridge.lastError,
+  })
+  return result.accepted
+}
 
-  const regenerateCode = useCallback(() => {
-    const newCode = generatePairingCode()
-    updateSettings({ pairingCode: newCode })
-  }, [updateSettings])
+function regenerateCompanionCode(): void {
+  updateCompanionSettings({ pairingCode: generatePairingCode() })
+}
 
-  // Check connection on enable
+export function useCompanion(): UseCompanionReturn {
+  const current = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
+
   useEffect(() => {
-    if (settings.enabled) {
-      checkConnection()
-    } else {
-      setConnected(false)
-      setLastError(null)
+    if (current.settings.enabled) {
+      void checkCompanionConnection()
+      return
     }
-  }, [settings.enabled, checkConnection])
+
+    if (current.connected || current.lastError !== null) {
+      publish({ ...current, connected: false, lastError: null })
+    }
+  }, [current.settings.enabled])
 
   return {
-    settings,
-    updateSettings,
-    connected,
-    lastError,
-    sendAdvisory,
-    checkConnection,
-    regenerateCode,
+    settings: current.settings,
+    updateSettings: updateCompanionSettings,
+    connected: current.connected,
+    lastError: current.lastError,
+    sendAdvisory: sendCompanionAdvisory,
+    checkConnection: checkCompanionConnection,
+    regenerateCode: regenerateCompanionCode,
   }
 }
 
