@@ -135,6 +135,7 @@ export async function POST(request: NextRequest) {
     // Forward to Supabase Edge Function (strip IP — don't forward X-Forwarded-For)
     const forwardResponse = await fetch(SUPABASE_INGEST_URL, {
       method: 'POST',
+      signal: AbortSignal.timeout(5000),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${SUPABASE_INGEST_AUTH_TOKEN}`,

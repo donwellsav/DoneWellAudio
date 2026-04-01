@@ -14,7 +14,14 @@ import { NextRequest, NextResponse } from 'next/server'
 
 // ─── Relay store ─────────────────────────────────────────────────────────────
 
-/** In-memory relay store. Each code maps to a queue of advisories. */
+/**
+ * In-memory relay store. Each code maps to a queue of advisories.
+ *
+ * Intentionally ephemeral — data is lost on cold start or redeploy.
+ * This suits the relay use case (short-lived advisory forwarding between
+ * paired sessions). Active relay sessions may lose queued advisories
+ * during Vercel serverless function cold starts.
+ */
 const relays = new Map<string, { advisories: unknown[]; lastActivity: number }>()
 
 /** Max advisories per relay to prevent memory bloat */

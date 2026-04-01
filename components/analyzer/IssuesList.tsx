@@ -348,9 +348,12 @@ const SwipeHint = memo(function SwipeHint({ onDismiss }: { onDismiss: () => void
 
   return (
     <div
-      className="flex items-center justify-center gap-4 px-3 py-2 rounded-md bg-primary/10 border border-primary/20 text-xs font-mono text-muted-foreground animate-issue-enter"
-      role="status"
+      className="flex items-center justify-center gap-4 px-3 py-2 rounded-md bg-primary/10 border border-primary/20 text-xs font-mono text-muted-foreground animate-issue-enter cursor-pointer"
+      role="button"
+      tabIndex={0}
       onClick={onDismiss}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') onDismiss() }}
+      aria-label="Swipe gestures: left to dismiss, right to confirm, long-press for false positive. Press to close hint."
     >
       <span className="flex items-center gap-1">
         <ArrowLeft className="w-3 h-3 text-muted-foreground" />

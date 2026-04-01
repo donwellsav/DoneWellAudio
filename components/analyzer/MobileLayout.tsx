@@ -8,6 +8,7 @@ import { SpectrumCanvas } from './SpectrumCanvas'
 import { GEQBarView } from './GEQBarView'
 import { SettingsPanel, type DataCollectionTabProps } from './settings/SettingsPanel'
 import { LandscapeSettingsSheet } from './LandscapeSettingsSheet'
+import { ErrorBoundary } from './ErrorBoundary'
 import { InputMeterSlider } from './InputMeterSlider'
 import { SingleFader } from './SingleFader'
 import type { FaderGuidance } from './SingleFader'
@@ -20,7 +21,7 @@ import { AlertTriangle, Settings2, Expand, Shrink } from 'lucide-react'
 import type { DetectorSettings } from '@/types/advisory'
 import type { CalibrationTabProps } from './settings/CalibrationTab'
 import { MOBILE_MAX_DISPLAYED_ISSUES } from '@/lib/dsp/constants'
-import { MODE_BASELINES } from '@/lib/settings/modeBaselines'
+import { useThresholdChange } from '@/hooks/useThresholdChange'
 import { calculateRoomModes, calculateSchroederFrequency } from '@/lib/dsp/acousticUtils'
 
 const TAB_ORDER = ['issues', 'settings'] as const
@@ -51,15 +52,7 @@ export const MobileLayout = memo(function MobileLayout({
   const { isFrozen, toggleFreeze, mobileTab, setMobileTab, rtaContainerRef, isRtaFullscreen, toggleRtaFullscreen } = useUI()
 
 
-  // ⚡ Bolt Optimization: Memoize threshold change handler to prevent unnecessary re-renders
-  // of child components like SpectrumCanvas and VerticalGainFader which are wrapped in React.memo()
-  const handleThresholdChange = useCallback((db: number) => {
-    const bl = MODE_BASELINES[session.modeId];
-    const eo = session.environment.feedbackOffsetDb;
-    const ce = bl.feedbackThresholdDb + eo + session.liveOverrides.sensitivityOffsetDb;
-    const d = db - ce;
-    if (d !== 0) setSensitivityOffset(session.liveOverrides.sensitivityOffsetDb + d);
-  }, [session.modeId, session.environment.feedbackOffsetDb, session.liveOverrides.sensitivityOffsetDb, setSensitivityOffset]);
+  const handleThresholdChange = useThresholdChange(session, setSensitivityOffset)
 
   // ── Mobile fader: local mode toggle (gain ↔ sensitivity) ──────────────────
   const [mobileFaderMode, setMobileFaderMode] = useState<'gain' | 'sensitivity'>('sensitivity')
@@ -294,7 +287,9 @@ export const MobileLayout = memo(function MobileLayout({
 
               {inlineGraphMode === 'rta' ? (
                 <div ref={rtaContainerRef} className="w-full h-full">
-                  <SpectrumCanvas spectrumRef={spectrumRef} advisories={mobileAdvisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} showFreqZones={settings.showFreqZones} showRoomModeLines={settings.showRoomModeLines} roomModes={roomModes} spectrumWarmMode={settings.spectrumWarmMode} onThresholdChange={handleThresholdChange} />
+                  <ErrorBoundary>
+                    <SpectrumCanvas spectrumRef={spectrumRef} advisories={mobileAdvisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} showFreqZones={settings.showFreqZones} showRoomModeLines={settings.showRoomModeLines} roomModes={roomModes} spectrumWarmMode={settings.spectrumWarmMode} onThresholdChange={handleThresholdChange} />
+                  </ErrorBoundary>
                 </div>
               ) : (
                 <GEQBarView advisories={mobileAdvisories} graphFontSize={settings.graphFontSize} clearedIds={geqClearedIds} />
@@ -326,26 +321,28 @@ export const MobileLayout = memo(function MobileLayout({
                 />
               ) : (
                 <>
-                  <IssuesList
-                    advisories={mobileAdvisories}
-                    maxIssues={MOBILE_MAX_DISPLAYED_ISSUES}
-                    dismissedIds={dismissedIds}
-                    onClearAll={onClearAll}
-                    onClearResolved={onClearResolved}
-                    touchFriendly
-                    isRunning={isRunning}
-                    onStart={start}
-                    onFalsePositive={onFalsePositive}
-                    falsePositiveIds={falsePositiveIds}
-                    onConfirmFeedback={onConfirmFeedback}
-                    confirmedIds={confirmedIds}
-                    isLowSignal={isRunning && inputLevel < -45}
-                    swipeLabeling
-                    showAlgorithmScores={settings.showAlgorithmScores}
-                    showPeqDetails={settings.showPeqDetails}
-                    onStartRingOut={onStartRingOut}
-                    onDismiss={onDismiss}
-                  />
+                  <ErrorBoundary>
+                    <IssuesList
+                      advisories={mobileAdvisories}
+                      maxIssues={MOBILE_MAX_DISPLAYED_ISSUES}
+                      dismissedIds={dismissedIds}
+                      onClearAll={onClearAll}
+                      onClearResolved={onClearResolved}
+                      touchFriendly
+                      isRunning={isRunning}
+                      onStart={start}
+                      onFalsePositive={onFalsePositive}
+                      falsePositiveIds={falsePositiveIds}
+                      onConfirmFeedback={onConfirmFeedback}
+                      confirmedIds={confirmedIds}
+                      isLowSignal={isRunning && inputLevel < -45}
+                      swipeLabeling
+                      showAlgorithmScores={settings.showAlgorithmScores}
+                      showPeqDetails={settings.showPeqDetails}
+                      onStartRingOut={onStartRingOut}
+                      onDismiss={onDismiss}
+                    />
+                  </ErrorBoundary>
                   <EarlyWarningPanel earlyWarning={earlyWarning} />
                 </>
               )}
@@ -355,7 +352,7 @@ export const MobileLayout = memo(function MobileLayout({
           {/* Settings panel */}
           <div
             id="mobile-tabpanel-settings"
-            className="w-full flex-shrink-0 h-full overflow-y-auto p-4 space-y-4 bg-background scroll-fade-bottom"
+            className="w-full flex-shrink-0 h-full overflow-y-auto p-4 space-y-4 bg-background scroll-fade-bottom max-w-md mx-auto"
             role="tabpanel"
             aria-labelledby="mobile-tab-settings"
             aria-hidden={mobileTab !== 'settings'}

@@ -4,6 +4,10 @@ import { memo } from 'react'
 import { Copy, Check, X } from 'lucide-react'
 import type { Advisory } from '@/types/advisory'
 
+// ── Shared button class bases ────────────────────────────────────────
+const ACTION_BTN = 'rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1.5 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-8 min-w-[44px]'
+const COPY_BTN = 'rounded btn-glow flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50'
+
 // ── Types ────────────────────────────────────────────────────────────
 
 export interface IssueCardActionsProps {
@@ -52,7 +56,7 @@ export const IssueCardActions = memo(function IssueCardActions({
       <button
         onClick={onCopy}
         aria-label={`Copy ${exactFreqStr} frequency info`}
-        className={`rounded btn-glow flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 w-8 h-8 flex-shrink-0 self-center ${
+        className={`${COPY_BTN} w-8 h-8 min-w-[44px] min-h-[44px] flex-shrink-0 self-center ${
           copied ? 'text-[var(--console-amber)]' : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60'
         }`}
       >
@@ -71,7 +75,7 @@ export const IssueCardActions = memo(function IssueCardActions({
             <button
               onClick={() => onFalsePositive(advisoryId)}
               aria-label={`${isFalsePositive ? 'Unflag' : 'Flag'} ${exactFreqStr} as false positive`}
-              className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1.5 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-8 min-w-[44px] ${
+              className={`${ACTION_BTN} ${
                 isFalsePositive ? 'text-red-400 bg-red-500/20 border border-red-500/40' : 'text-muted-foreground/50 hover:text-red-400 hover:bg-red-500/10 border border-transparent'
               }`}
             >
@@ -94,7 +98,7 @@ export const IssueCardActions = memo(function IssueCardActions({
             <button
               onClick={() => onConfirmFeedback(advisoryId)}
               aria-label={`${isConfirmed ? 'Unconfirm' : 'Confirm'} ${exactFreqStr} as real feedback`}
-              className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1.5 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-8 min-w-[44px] ${
+              className={`${ACTION_BTN} ${
                 isConfirmed ? 'text-[var(--console-amber)] bg-[var(--console-amber)]/15 border border-[var(--console-amber)]/35' : 'text-muted-foreground/50 hover:text-[var(--console-amber)] hover:bg-[var(--console-amber)]/10 border border-transparent'
               }`}
             >
@@ -104,7 +108,7 @@ export const IssueCardActions = memo(function IssueCardActions({
           <button
             onClick={onCopy}
             aria-label={`Copy ${exactFreqStr} frequency info`}
-            className={`rounded btn-glow flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-8 w-8 ${
+            className={`${COPY_BTN} h-8 w-8 ${
               copied ? 'text-[var(--console-amber)]' : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60'
             }`}
           >
@@ -112,13 +116,13 @@ export const IssueCardActions = memo(function IssueCardActions({
           </button>
         </div>
         {/* Row 3: Send to Mixer (Companion) / PA2 */}
-        {(onSendToMixer || pa2Connected) && (
+        {(onSendToMixer || (pa2Connected && onSendToPA2)) && (
           <div className="flex items-center gap-1">
             {onSendToMixer && (
               <button
                 onClick={() => onSendToMixer(advisory)}
                 aria-label={`Send ${exactFreqStr} EQ recommendation to mixer via Companion`}
-                className="rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1.5 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-8 min-w-[44px] text-blue-400/60 hover:text-blue-400 hover:bg-blue-500/10 border border-transparent"
+                className={`${ACTION_BTN} text-blue-400/60 hover:text-blue-400 hover:bg-blue-500/10 border border-transparent`}
               >
                 SEND
               </button>
@@ -127,7 +131,7 @@ export const IssueCardActions = memo(function IssueCardActions({
               <button
                 onClick={() => onSendToPA2()}
                 aria-label={`Send ${exactFreqStr} to PA2 via Companion`}
-                className="rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1.5 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-8 min-w-[44px] text-cyan-400/60 hover:text-cyan-400 hover:bg-cyan-500/10 border border-transparent"
+                className={`${ACTION_BTN} text-cyan-400/60 hover:text-cyan-400 hover:bg-cyan-500/10 border border-transparent`}
               >
                 PA2
               </button>
@@ -148,7 +152,7 @@ export const IssueCardActions = memo(function IssueCardActions({
           <button
             onClick={() => onFalsePositive(advisoryId)}
             aria-label={`${isFalsePositive ? 'Unflag' : 'Flag'} false positive`}
-            className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-2 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-8 min-w-[44px] ${
+            className={`${ACTION_BTN} px-2 ${
               isFalsePositive ? 'text-red-400 bg-red-500/20 border border-red-500/40' : 'text-muted-foreground/50 hover:text-red-400 hover:bg-red-500/10 border border-transparent'
             }`}
           >
@@ -171,7 +175,7 @@ export const IssueCardActions = memo(function IssueCardActions({
           <button
             onClick={() => onConfirmFeedback(advisoryId)}
             aria-label={`${isConfirmed ? 'Unconfirm' : 'Confirm'} feedback`}
-            className={`rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-2 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-8 min-w-[44px] ${
+            className={`${ACTION_BTN} px-2 ${
               isConfirmed ? 'text-[var(--console-amber)] bg-[var(--console-amber)]/15 border border-[var(--console-amber)]/35' : 'text-muted-foreground/50 hover:text-[var(--console-amber)] hover:bg-[var(--console-amber)]/10 border border-transparent'
             }`}
           >
@@ -181,7 +185,7 @@ export const IssueCardActions = memo(function IssueCardActions({
         <button
           onClick={onCopy}
           aria-label={`Copy ${exactFreqStr}`}
-          className={`rounded btn-glow flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 w-9 h-8 ${
+          className={`${COPY_BTN} w-9 h-8 ${
             copied ? 'text-[var(--console-amber)]' : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60'
           }`}
         >

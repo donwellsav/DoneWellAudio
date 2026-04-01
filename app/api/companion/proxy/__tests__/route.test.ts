@@ -542,6 +542,50 @@ describe('POST /api/companion/proxy', () => {
     expect(body.error).toBe('Too many requests')
   })
 
+  // === IPv6 edge cases ===
+
+  describe('IPv6 edge cases', () => {
+    it('blocks IPv4-mapped IPv6 addresses (::ffff:x.x.x.x)', async () => {
+      const { POST } = await getRoute()
+      // ::ffff:127.0.0.1 — loopback via IPv4-mapped
+      expect((await POST(makeRequest({ url: 'http://[::ffff:127.0.0.1]:8000/status' }))).status).toBe(403)
+      // ::ffff:10.0.0.1 — RFC 1918 via IPv4-mapped
+      expect((await POST(makeRequest({ url: 'http://[::ffff:10.0.0.1]:8000/status' }))).status).toBe(403)
+      // ::ffff:192.168.1.1 — RFC 1918 via IPv4-mapped
+      expect((await POST(makeRequest({ url: 'http://[::ffff:192.168.1.1]:8000/status' }))).status).toBe(403)
+    })
+
+    it('blocks IPv4-compatible IPv6 addresses (::x.x.x.x)', async () => {
+      const { POST } = await getRoute()
+      // ::127.0.0.1 — loopback via deprecated IPv4-compatible format
+      expect((await POST(makeRequest({ url: 'http://[::127.0.0.1]:8000/status' }))).status).toBe(403)
+    })
+
+    it('blocks IPv6 loopback (::1)', async () => {
+      const { POST } = await getRoute()
+      expect((await POST(makeRequest({ url: 'http://[::1]:8000/status' }))).status).toBe(403)
+    })
+
+    it('blocks regular IPv6 addresses (proxy is IPv4-only)', async () => {
+      const { POST } = await getRoute()
+      // 2001:db8::1 — documentation range, but all IPv6 should be blocked
+      expect((await POST(makeRequest({ url: 'http://[2001:db8::1]:8000/status' }))).status).toBe(403)
+    })
+
+    it('blocks DNS resolving to IPv4-mapped IPv6', async () => {
+      const lookup = await getDnsMock()
+      lookup.mockResolvedValueOnce([{ address: '::ffff:10.0.0.1', family: 6 }])
+
+      const fetchMock = vi.fn()
+      vi.stubGlobal('fetch', fetchMock)
+
+      const { POST } = await getRoute()
+      const res = await POST(makeRequest({ url: 'http://sneaky-mapped.local:8000/status' }))
+      expect(res.status).toBe(403)
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+  })
+
   // === Redirect exhaustion ===
 
   it('returns 502 when redirect hops are exhausted', async () => {
