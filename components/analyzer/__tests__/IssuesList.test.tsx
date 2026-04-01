@@ -21,6 +21,7 @@ vi.mock('@/hooks/useCompanion', () => ({
   useCompanion: () => ({
     settings: { enabled: false, autoSend: false },
     sendAdvisory: vi.fn(),
+    autoSendAdvisories: vi.fn(),
   }),
 }))
 

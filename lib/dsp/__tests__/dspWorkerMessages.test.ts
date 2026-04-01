@@ -75,6 +75,25 @@ describe('WorkerOutboundMessage types', () => {
     expect(msg.contentType).toBeUndefined()
   })
 
+  it('combPatternUpdate message carries normalized early-warning pattern payload', () => {
+    const msg: WorkerOutboundMessage = {
+      type: 'combPatternUpdate',
+      pattern: {
+        hasPattern: true,
+        predictedFrequencies: [500, 1000, 1500],
+        fundamentalSpacing: 500,
+        estimatedPathLength: 0.34,
+        confidence: 0.82,
+        matchingPeaks: 3,
+      },
+    }
+    expect(msg.type).toBe('combPatternUpdate')
+    if (msg.type === 'combPatternUpdate') {
+      expect(msg.pattern?.predictedFrequencies).toEqual([500, 1000, 1500])
+      expect(msg.pattern?.confidence).toBe(0.82)
+    }
+  })
+
   it('error message has string message', () => {
     const msg: WorkerOutboundMessage = {
       type: 'error',

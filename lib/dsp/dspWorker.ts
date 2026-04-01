@@ -18,7 +18,7 @@ import { TrackManager } from './trackManager'
 import { classifyTrackWithAlgorithms, shouldReportIssue } from './classifier'
 import { generateEQAdvisory, analyzeSpectralTrends } from './eqAdvisor'
 import { fuseAlgorithmResults, DEFAULT_FUSION_CONFIG, CombStabilityTracker } from './advancedDetection'
-import type { FusionConfig } from './advancedDetection'
+import type { CombPatternResult, FusionConfig } from './advancedDetection'
 import { AlgorithmEngine } from './workerFft'
 import { AdvisoryManager } from './advisoryManager'
 import { DecayAnalyzer } from './decayAnalyzer'
@@ -89,6 +89,7 @@ export type WorkerOutboundMessage =
   | { type: 'advisory'; advisory: Advisory }
   | { type: 'advisoryCleared'; advisoryId: string }
   | { type: 'tracksUpdate'; tracks: TrackedPeak[]; contentType?: ContentType; algorithmMode?: AlgorithmMode; isCompressed?: boolean; compressionRatio?: number }
+  | { type: 'combPatternUpdate'; pattern: CombPatternResult | null }
   | { type: 'returnBuffers'; spectrum: Float32Array; timeDomain?: Float32Array; source?: 'peak' | 'spectrumUpdate' }
   | { type: 'contentTypeUpdate'; contentType: ContentType; isCompressed: boolean; compressionRatio: number }
   | { type: 'ready' }
@@ -127,6 +128,36 @@ let cachedShelvesFrameId = -1
 let lastContentType: ContentType = 'unknown'
 let lastIsCompressed = false
 let lastCompressionRatio = 1
+let lastCombPattern: CombPatternResult | null = null
+
+function normalizeCombPattern(pattern: CombPatternResult | null | undefined): CombPatternResult | null {
+  if (!pattern || !pattern.hasPattern || pattern.predictedFrequencies.length === 0) return null
+  return {
+    ...pattern,
+    predictedFrequencies: [...pattern.predictedFrequencies],
+  }
+}
+
+function combPatternEquals(a: CombPatternResult | null, b: CombPatternResult | null): boolean {
+  if (a === b) return true
+  if (!a || !b) return false
+  if (a.hasPattern !== b.hasPattern) return false
+  if (Math.round((a.fundamentalSpacing ?? 0) * 10) !== Math.round((b.fundamentalSpacing ?? 0) * 10)) return false
+  if (Math.round((a.estimatedPathLength ?? 0) * 100) !== Math.round((b.estimatedPathLength ?? 0) * 100)) return false
+  if (Math.round(a.confidence * 100) !== Math.round(b.confidence * 100)) return false
+  if (a.predictedFrequencies.length !== b.predictedFrequencies.length) return false
+  for (let i = 0; i < a.predictedFrequencies.length; i++) {
+    if (Math.round(a.predictedFrequencies[i]) !== Math.round(b.predictedFrequencies[i])) return false
+  }
+  return true
+}
+
+function publishCombPattern(pattern: CombPatternResult | null | undefined): void {
+  const normalized = normalizeCombPattern(pattern)
+  if (combPatternEquals(lastCombPattern, normalized)) return
+  lastCombPattern = normalized
+  self.postMessage({ type: 'combPatternUpdate', pattern: normalized } satisfies WorkerOutboundMessage)
+}
 
 // ─── Snapshot collection (free tier only) ────────────────────────────────────
 // SnapshotCollector is statically imported (line 32) but only instantiated when
@@ -254,6 +285,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       peakProcessCount = 0
       cachedShelves = null
       cachedShelvesFrameId = -1
+      lastCombPattern = null
 
       self.postMessage({ type: 'ready' } satisfies WorkerOutboundMessage)
       break
@@ -282,6 +314,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       cachedShelvesFrameId = -1
       _cachedFusionConfig = null
       snapshotCollector?.reset()
+      publishCombPattern(null)
       break
     }
 
@@ -514,6 +547,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         peak, track, spectrum, sampleRate, fftSize, peakFrequencies
       )
       const { algorithmScores } = algorithmResult
+      publishCombPattern(algorithmScores.comb ?? null)
 
       // Worker owns authoritative content type (S7 refactor: temporal metrics +
       // majority-vote smoothing now run in worker via spectrumUpdate).
@@ -714,6 +748,9 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       // Prune combTrackers for tracks that no longer exist
       for (const trackId of combTrackers.keys()) {
         if (!trackManager.getTrack(trackId)) combTrackers.delete(trackId)
+      }
+      if (trackManager.getActiveTracks().length < 3) {
+        publishCombPattern(null)
       }
 
       // Clear advisory by frequency (also sets band cooldown)

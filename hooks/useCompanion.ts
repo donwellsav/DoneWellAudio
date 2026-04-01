@@ -26,6 +26,8 @@ interface UseCompanionReturn {
   lastError: string | null
   /** Send a single advisory to the relay. Returns true if accepted. */
   sendAdvisory: (advisory: Advisory) => Promise<boolean>
+  /** Auto-send only advisories that have not already been relayed this session. */
+  autoSendAdvisories: (advisories: readonly Advisory[]) => void
   /** Check relay connection */
   checkConnection: () => Promise<boolean>
   /** Generate a new pairing code */
@@ -42,6 +44,7 @@ const listeners = new Set<() => void>()
 let snapshot: CompanionSnapshot | null = null
 let bridge: CompanionBridge | null = null
 let pendingStatusCheck: Promise<boolean> | null = null
+const autoSentAdvisoryIds = new Set<string>()
 
 function loadSettings(): CompanionSettings {
   const saved = companionStorage.load()
@@ -95,6 +98,10 @@ function updateCompanionSettings(partial: Partial<CompanionSettings>): void {
     getBridge().configure(nextSettings.pairingCode)
   }
 
+  if (disableRequested || pairingCodeChanged) {
+    autoSentAdvisoryIds.clear()
+  }
+
   publish({
     settings: nextSettings,
     connected: disableRequested || pairingCodeChanged ? false : current.connected,
@@ -139,6 +146,26 @@ async function sendCompanionAdvisory(advisory: Advisory): Promise<boolean> {
   return result.accepted
 }
 
+function autoSendCompanionAdvisories(advisories: readonly Advisory[]): void {
+  const current = getSnapshot()
+  if (!current.settings.enabled || !current.settings.autoSend) return
+
+  for (const advisory of advisories) {
+    if (advisory.resolved) continue
+    if (advisory.confidence < current.settings.minConfidence) continue
+    if (autoSentAdvisoryIds.has(advisory.id)) continue
+
+    autoSentAdvisoryIds.add(advisory.id)
+    void sendCompanionAdvisory(advisory)
+      .then((accepted) => {
+        if (!accepted) autoSentAdvisoryIds.delete(advisory.id)
+      })
+      .catch(() => {
+        autoSentAdvisoryIds.delete(advisory.id)
+      })
+  }
+}
+
 function regenerateCompanionCode(): void {
   updateCompanionSettings({ pairingCode: generatePairingCode() })
 }
@@ -163,6 +190,7 @@ export function useCompanion(): UseCompanionReturn {
     connected: current.connected,
     lastError: current.lastError,
     sendAdvisory: sendCompanionAdvisory,
+    autoSendAdvisories: autoSendCompanionAdvisories,
     checkConnection: checkCompanionConnection,
     regenerateCode: regenerateCompanionCode,
   }

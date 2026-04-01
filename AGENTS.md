@@ -1,6 +1,6 @@
 # AGENTS.md — DoneWell Audio
 
-> **Version 0.22.0 | March 2026 | 169 TypeScript/TSX files | 985 tests (981 pass, 4 skip) | 46 suites**
+> **Version 0.61.0 | March 2026 | 241 TypeScript/TSX files | 1183 tests (1179 pass, 4 skip) | 65 test files**
 
 ## Critical Rules
 
@@ -15,7 +15,7 @@
 ```bash
 pnpm dev              # Dev server on :3000 (Turbopack)
 pnpm build            # Production build (webpack, generates SW)
-pnpm test             # Vitest (985 tests, 46 suites)
+pnpm test             # Vitest (1183 tests, 65 test files)
 pnpm test:watch       # Vitest watch mode
 pnpm test:coverage    # Vitest with V8 coverage
 pnpm lint             # ESLint (flat config)
@@ -144,7 +144,7 @@ types/advisory.ts                 # All DSP interfaces
 
 ## Testing
 
-- 985 tests across 46 suites (under 12s)
+- 1183 tests across 65 test files
 - Coverage thresholds: lines 80%, functions 80%, branches 70%
 - Test patterns: `lib/**/__tests__/**`, `tests/**`, `hooks/__tests__/**`, `contexts/__tests__/**`
 - Run after every change: `npx tsc --noEmit && pnpm test`

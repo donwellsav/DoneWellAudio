@@ -14,6 +14,14 @@ import { downsampleSpectrum } from '@/lib/calibration'
 import { roomStorage } from '@/lib/storage/dwaStorage'
 
 const SAMPLE_INTERVAL_MS = 60_000 // 60 seconds
+const CONTENT_TYPE_POLL_MS = 250
+const INITIAL_STATS: CalibrationStats = {
+  elapsedMs: 0,
+  detectionCount: 0,
+  falsePositiveCount: 0,
+  missedCount: 0,
+  snapshotCount: 0,
+}
 
 export interface UseCalibrationSessionReturn {
   // State
@@ -46,19 +54,20 @@ export function useCalibrationSession(
   const [room, setRoom] = useState<RoomProfile>(() => ({ ...EMPTY_ROOM_PROFILE, ...roomStorage.load() }))
   const [ambientCapture, setAmbientCapture] = useState<AmbientCapture | null>(null)
   const [isCapturingAmbient, setIsCapturingAmbient] = useState(false)
-  const [stats, setStats] = useState<CalibrationStats>({
-    elapsedMs: 0, detectionCount: 0, falsePositiveCount: 0, missedCount: 0, snapshotCount: 0,
-  })
+  const [stats, setStats] = useState<CalibrationStats>(INITIAL_STATS)
   const [falsePositiveIds, setFalsePositiveIds] = useState<ReadonlySet<string>>(new Set())
+  const [sessionActive, setSessionActive] = useState(false)
 
   const sessionRef = useRef<CalibrationSession | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const ambientCaptureTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const settingsSnapshotRef = useRef<DetectorSettings | null>(null)
+  const mountedRef = useRef(true)
 
   // Keep settings snapshot in sync so session creation guard works
   useEffect(() => { settingsSnapshotRef.current = settings }, [settings])
 
-  const isRecording = calibrationEnabled && isAnalysisRunning && sessionRef.current !== null
+  const isRecording = calibrationEnabled && isAnalysisRunning && sessionActive
 
   // Start/stop session lifecycle
   useEffect(() => {
@@ -66,10 +75,28 @@ export function useCalibrationSession(
       // Start a new session if none exists
       if (!sessionRef.current && settingsSnapshotRef.current) {
         sessionRef.current = new CalibrationSession(settingsSnapshotRef.current)
+        lastContentTypeRef.current = 'unknown'
         setFalsePositiveIds(new Set())
+        setStats(INITIAL_STATS)
       }
+      setSessionActive(true)
+      return
     }
-    // Don't auto-clear session on stop — preserve data for export
+
+    setSessionActive(false)
+
+    // Turning calibration off starts a fresh session next time.
+    if (!calibrationEnabled) {
+      if (ambientCaptureTimerRef.current) {
+        clearInterval(ambientCaptureTimerRef.current)
+        ambientCaptureTimerRef.current = null
+      }
+      sessionRef.current = null
+      lastContentTypeRef.current = 'unknown'
+      setIsCapturingAmbient(false)
+      setFalsePositiveIds(new Set())
+      setStats(INITIAL_STATS)
+    }
   }, [calibrationEnabled, isAnalysisRunning])
 
   // Periodic sampling (noise floor + spectrum snapshot every 60s)
@@ -109,13 +136,34 @@ export function useCalibrationSession(
   const lastContentTypeRef = useRef<string>('unknown')
   useEffect(() => {
     if (!isRecording) return
-    const spectrum = spectrumRef.current
-    const ct = spectrum?.contentType ?? 'unknown'
-    if (ct !== lastContentTypeRef.current) {
-      sessionRef.current?.logContentTypeChange(lastContentTypeRef.current, ct)
-      lastContentTypeRef.current = ct
+    const pollContentType = () => {
+      const spectrum = spectrumRef.current
+      const ct = spectrum?.contentType ?? 'unknown'
+      if (ct !== lastContentTypeRef.current) {
+        sessionRef.current?.logContentTypeChange(lastContentTypeRef.current, ct)
+        lastContentTypeRef.current = ct
+      }
     }
-  })
+
+    pollContentType()
+    const timer = setInterval(pollContentType, CONTENT_TYPE_POLL_MS)
+    return () => clearInterval(timer)
+  }, [isRecording, spectrumRef])
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+      if (ambientCaptureTimerRef.current) {
+        clearInterval(ambientCaptureTimerRef.current)
+        ambientCaptureTimerRef.current = null
+      }
+    }
+  }, [])
 
   const updateRoom = useCallback((partial: Partial<RoomProfile>) => {
     setRoom(prev => {
@@ -134,7 +182,7 @@ export function useCalibrationSession(
   }, [])
 
   const captureAmbient = useCallback((specRef: React.RefObject<SpectrumData | null>) => {
-    if (isCapturingAmbient) return
+    if (isCapturingAmbient || ambientCaptureTimerRef.current) return
     setIsCapturingAmbient(true)
 
     const frames: Float32Array[] = []
@@ -142,17 +190,20 @@ export function useCalibrationSession(
     const interval = 100 // sample every 100ms
     let elapsed = 0
 
-    const timer = setInterval(() => {
+    ambientCaptureTimerRef.current = setInterval(() => {
       const spectrum = specRef.current
       if (spectrum?.freqDb) {
         frames.push(new Float32Array(spectrum.freqDb))
       }
       elapsed += interval
       if (elapsed >= duration) {
-        clearInterval(timer)
+        if (ambientCaptureTimerRef.current) {
+          clearInterval(ambientCaptureTimerRef.current)
+          ambientCaptureTimerRef.current = null
+        }
 
         if (frames.length === 0) {
-          setIsCapturingAmbient(false)
+          if (mountedRef.current) setIsCapturingAmbient(false)
           return
         }
 
@@ -168,22 +219,24 @@ export function useCalibrationSession(
         const avgDb = avg.reduce((sum, v) => sum + v, 0) / avg.length
         const firstSpectrum = specRef.current
 
-        setAmbientCapture({
-          capturedAt: new Date().toISOString(),
-          avgNoiseFloorDb: Math.round(avgDb * 10) / 10,
-          spectrum: downsampleSpectrum(avg),
-          sampleRate: firstSpectrum?.sampleRate ?? 48000,
-          fftSize: firstSpectrum?.fftSize ?? 8192,
-          durationSeconds: duration / 1000,
-          micCalibrationApplied: (settingsSnapshotRef.current?.micCalibrationProfile ?? 'none') !== 'none',
-        })
+        if (mountedRef.current) {
+          setAmbientCapture({
+            capturedAt: new Date().toISOString(),
+            avgNoiseFloorDb: Math.round(avgDb * 10) / 10,
+            spectrum: downsampleSpectrum(avg),
+            sampleRate: firstSpectrum?.sampleRate ?? 48000,
+            fftSize: firstSpectrum?.fftSize ?? 8192,
+            durationSeconds: duration / 1000,
+            micCalibrationApplied: (settingsSnapshotRef.current?.micCalibrationProfile ?? 'none') !== 'none',
+          })
+        }
 
         // Also log as a spectrum snapshot if session active
         if (sessionRef.current && firstSpectrum) {
           sessionRef.current.logSpectrumSnapshot(firstSpectrum, 'ambient_capture')
         }
 
-        setIsCapturingAmbient(false)
+        if (mountedRef.current) setIsCapturingAmbient(false)
       }
     }, interval)
   }, [isCapturingAmbient])

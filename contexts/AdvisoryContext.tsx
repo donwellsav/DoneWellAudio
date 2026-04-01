@@ -80,14 +80,18 @@ export function AdvisoryProvider({
 
   // ── Derived state ───────────────────────────────────────────────────────
 
-  const activeAdvisoryCount = useMemo(
-    () => advisories.filter(a => !a.resolved).length,
-    [advisories],
-  )
+  function getActiveAdvisoryCount(): number {
+    return advisories.filter(a => !a.resolved && !clearState.dismissed.has(a.id)).length
+  }
 
   // ── Unified cleared-ID state ──────────────────────────────────────────
 
   const [clearState, setClearState] = useState<ClearState>(EMPTY_CLEAR_STATE)
+
+  const activeAdvisoryCount = useMemo(
+    () => getActiveAdvisoryCount(),
+    [advisories, clearState.dismissed],
+  )
 
   // Ref for stable callback identity — avoids recreating callbacks on every advisory change
   const advisoriesRef = useRef(advisories)

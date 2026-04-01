@@ -973,6 +973,8 @@ export class FeedbackDetector {
     const power = this.power!
     const prefix = this.prefix!
     const n = freqDb.length
+    const analysisMinDb = this.analysisMinDb
+    const analysisMaxDb = this.analysisMaxDb
 
     const useAWeighting = this.config.aWeightingEnabled && !!this.aWeightingTable
     const aTable = this.aWeightingTable
@@ -993,8 +995,9 @@ export class FeedbackDetector {
     prefix[0] = 0
     for (let i = 0; i < n; i++) {
       let db = freqDb[i]
+      const prefixValue = prefix[i]
 
-      if (!Number.isFinite(db)) db = -100
+      if (!Number.isFinite(db)) db = analysisMinDb
 
       // Apply software input gain
       db += inputGain
@@ -1007,7 +1010,8 @@ export class FeedbackDetector {
       // resulting values outside [-100, 0].
       if (useAWeighting && aTable) db += aTable[i]
       if (useMicCalibration && micCalTable) db += micCalTable[i]
-      db = clamp(db, this.analysisMinDb, this.analysisMaxDb)
+      if (db < analysisMinDb) db = analysisMinDb
+      else if (db > analysisMaxDb) db = analysisMaxDb
 
       freqDb[i] = db
 
@@ -1015,7 +1019,7 @@ export class FeedbackDetector {
       // be peaks and contribute negligibly to neighborhood averages
       if (db < skipThreshold) {
         power[i] = 0
-        prefix[i + 1] = prefix[i]
+        prefix[i + 1] = prefixValue
         continue
       }
 
@@ -1023,7 +1027,7 @@ export class FeedbackDetector {
       const lutIdx = ((db + 100) * 10 + 0.5) | 0
       const p = EXP_LUT[lutIdx < 0 ? 0 : lutIdx > 1300 ? 1300 : lutIdx]
       power[i] = p
-      prefix[i + 1] = prefix[i] + p
+      prefix[i + 1] = prefixValue + p
     }
   }
 
@@ -1043,6 +1047,14 @@ export class FeedbackDetector {
     const nb = this.effectiveNb
     const start = this.startBin
     const end = this.endBin
+    const prominenceThreshold = this.config.prominenceDb
+    const clearMs = this.config.clearMs
+    const sustainMs = this.config.sustainMs
+    const msdWriteThreshold = effectiveThresholdDb - 6
+    const earlyConfirmThreshold = effectiveThresholdDb - MSD_SETTINGS.THRESHOLD_REDUCTION_DB
+    const reTriggerThreshold = effectiveThresholdDb + HYSTERESIS.RE_TRIGGER_DB
+    const neighborhoodCount = 2 * nb - 4
+    const hzPerBin = this.getSampleRate() / this.config.fftSize
 
     // Clear per-frame MSD cache (avoids duplicate calculateMsd calls within this scan)
     this._msdResultCache.clear()
@@ -1054,7 +1066,7 @@ export class FeedbackDetector {
 
       // MSD: Always update magnitude history for active or candidate peaks
       // This enables early detection of growing feedback
-      if (peakDb >= effectiveThresholdDb - 6) { // Track peaks within 6dB of threshold
+      if (peakDb >= msdWriteThreshold) { // Track peaks within 6dB of threshold
         this._msdPool!.write(i, peakDb)
         this.updatePersistence(i, peakDb) // Phase 2: Also track persistence
       }
@@ -1067,7 +1079,7 @@ export class FeedbackDetector {
       // MSD early detection: if peak is just below threshold but MSD confirms
       // a howl pattern (consistent growth), lower the threshold to catch it early.
       // This lets quiet feedback through before it becomes obvious.
-      if (!valid && isLocalMax && peakDb >= effectiveThresholdDb - MSD_SETTINGS.THRESHOLD_REDUCTION_DB) {
+      if (!valid && isLocalMax && peakDb >= earlyConfirmThreshold) {
         const msdResult = this.calculateMsd(i)
         this._msdResultCache.set(i, msdResult)
         if (msdResult.isHowl || msdResult.fastConfirm) {
@@ -1079,9 +1091,9 @@ export class FeedbackDetector {
       if (valid && active[i] === 0) {
         const clearedAt = this._recentlyClearedBins.get(i)
         if (clearedAt !== undefined) {
-          if ((now - clearedAt) < this.config.clearMs) {
+          if ((now - clearedAt) < clearMs) {
             // Within cooldown — require extra dB
-            if (peakDb < effectiveThresholdDb + HYSTERESIS.RE_TRIGGER_DB) {
+            if (peakDb < reTriggerThreshold) {
               valid = false
             }
           } else {
@@ -1101,15 +1113,13 @@ export class FeedbackDetector {
         let totalPower = prefix[endNbExcl] - prefix[startNb]
         totalPower -= power[i - 2] + power[i - 1] + power[i] + power[i + 1] + power[i + 2]
 
-        // count = (2*nb+1) - 5 = 2*nb - 4
-        const count = 2 * nb - 4
         if (totalPower < 0) totalPower = 0
 
-        const avgPower = count > 0 ? totalPower / count : 0
+        const avgPower = neighborhoodCount > 0 ? totalPower / neighborhoodCount : 0
         const avgDb = avgPower > 0 ? 10 * Math.log10(avgPower) : this.analysisMinDb
 
         prominence = peakDb - avgDb
-        if (prominence < this.config.prominenceDb) valid = false
+        if (prominence < prominenceThreshold) valid = false
       }
 
       if (valid) {
@@ -1119,9 +1129,9 @@ export class FeedbackDetector {
         // Adaptive sustain: low frequencies need longer confirmation (room modes),
         // high frequencies confirm faster (almost always feedback, not resonance).
         // Scale: <200Hz = 1.5x sustain, 200-4000Hz = 1.0x, >4000Hz = 0.6x
-        const freqHz = i * (this.getSampleRate() / this.config.fftSize)
+        const freqHz = i * hzPerBin
         const sustainScale = freqHz < 200 ? 1.5 : freqHz > 4000 ? 0.6 : 1.0
-        if (hold[i] >= this.config.sustainMs * sustainScale && active[i] === 0) {
+        if (hold[i] >= sustainMs * sustainScale && active[i] === 0) {
           this._registerPeak(i, now, prominence, effectiveThresholdDb)
         }
       } else {
@@ -1130,7 +1140,7 @@ export class FeedbackDetector {
         if (active[i] === 1) {
           dead[i] += dt
 
-          if (dead[i] >= this.config.clearMs) {
+          if (dead[i] >= clearMs) {
             const clearedHz = this.activeHz?.[i] ?? this.binToFrequency(i)
 
             active[i] = 0

@@ -65,14 +65,15 @@ describe('useFullscreen', () => {
   })
 
   it('exit calls document.exitFullscreen when active', () => {
+    const el = document.createElement('div')
     Object.defineProperty(document, 'fullscreenElement', {
-      value: document.createElement('div'),
+      value: el,
       writable: true,
       configurable: true,
     })
     document.exitFullscreen = vi.fn().mockResolvedValue(undefined)
 
-    const ref = createRef()
+    const ref = createRef(el)
     const { result } = renderHook(() => useFullscreen(ref))
     act(() => result.current.exit())
 
@@ -97,12 +98,13 @@ describe('useFullscreen', () => {
   })
 
   it('syncs with fullscreenchange events', () => {
-    const ref = createRef()
+    const el = document.createElement('div')
+    const ref = createRef(el)
     const { result } = renderHook(() => useFullscreen(ref))
 
     // Simulate browser entering fullscreen
     Object.defineProperty(document, 'fullscreenElement', {
-      value: document.createElement('div'),
+      value: el,
       writable: true,
       configurable: true,
     })
@@ -110,6 +112,20 @@ describe('useFullscreen', () => {
 
     expect(result.current.isFullscreen).toBe(true)
     expect(result.current.isOverlayVisible).toBe(true)
+  })
+
+  it('ignores fullscreenchange when another element enters fullscreen', () => {
+    const ref = createRef()
+    const { result } = renderHook(() => useFullscreen(ref))
+
+    Object.defineProperty(document, 'fullscreenElement', {
+      value: document.createElement('div'),
+      writable: true,
+      configurable: true,
+    })
+    act(() => fullscreenChangeHandler?.())
+
+    expect(result.current.isFullscreen).toBe(false)
   })
 
   it('toggle calls enter then exit on second call', () => {

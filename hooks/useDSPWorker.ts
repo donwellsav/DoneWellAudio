@@ -32,11 +32,13 @@ import type { WorkerInboundMessage, WorkerOutboundMessage } from '@/lib/dsp/dspW
 
 import type { SnapshotBatch } from '@/types/data'
 import type { RoomDimensionEstimate } from '@/types/calibration'
+import type { CombPatternResult } from '@/lib/dsp/advancedDetection'
 
 export interface DSPWorkerCallbacks {
   onAdvisory?: (advisory: Advisory) => void
   onAdvisoryCleared?: (advisoryId: string) => void
   onTracksUpdate?: (tracks: TrackedPeak[], status?: { contentType?: ContentType; algorithmMode?: AlgorithmMode; isCompressed?: boolean; compressionRatio?: number }) => void
+  onEarlyWarningUpdate?: (pattern: CombPatternResult | null) => void
   /** Called when the worker updates the authoritative content-type classification */
   onContentTypeUpdate?: (contentType: ContentType, isCompressed: boolean, compressionRatio: number) => void
   onReady?: () => void
@@ -169,6 +171,9 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
           break
         case 'contentTypeUpdate':
           callbacksRef.current.onContentTypeUpdate?.(msg.contentType, msg.isCompressed, msg.compressionRatio)
+          break
+        case 'combPatternUpdate':
+          callbacksRef.current.onEarlyWarningUpdate?.(msg.pattern)
           break
         case 'returnBuffers':
           busyRef.current = false  // Also clears backpressure (fixes stall on early-break paths)

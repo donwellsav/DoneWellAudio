@@ -26,12 +26,26 @@ export function useFullscreen(elementRef: RefObject<HTMLDivElement | null>): Use
 
   // ── Fullscreen API helpers ──────────────────────────────
   const isApiSupported = typeof document !== 'undefined' && !!document.documentElement?.requestFullscreen
+  const isTrackedElementFullscreen = useCallback(() => (
+    document.fullscreenElement !== null && document.fullscreenElement === elementRef.current
+  ), [elementRef])
 
   const enter = useCallback(() => {
     const el = elementRef.current
     if (!el) return
 
     if (isApiSupported) {
+      if (document.fullscreenElement && document.fullscreenElement !== el) {
+        document.exitFullscreen()
+          .catch(() => undefined)
+          .finally(() => {
+            el.requestFullscreen().catch(() => {
+              // iOS Safari fallback — hide header/nav only
+              setIsFullscreen(true)
+            })
+          })
+        return
+      }
       el.requestFullscreen().catch(() => {
         // iOS Safari fallback — hide header/nav only
         setIsFullscreen(true)
@@ -43,14 +57,14 @@ export function useFullscreen(elementRef: RefObject<HTMLDivElement | null>): Use
   }, [elementRef, isApiSupported])
 
   const exit = useCallback(() => {
-    if (document.fullscreenElement) {
+    if (isTrackedElementFullscreen()) {
       document.exitFullscreen().catch(() => {
         setIsFullscreen(false)
       })
     } else {
       setIsFullscreen(false)
     }
-  }, [])
+  }, [isTrackedElementFullscreen])
 
   const toggle = useCallback(() => {
     if (isFullscreen) {
@@ -63,13 +77,13 @@ export function useFullscreen(elementRef: RefObject<HTMLDivElement | null>): Use
   // ── Sync with browser fullscreen events ─────────────────
   useEffect(() => {
     const onChange = () => {
-      const active = !!document.fullscreenElement
+      const active = isTrackedElementFullscreen()
       setIsFullscreen(active)
       if (active) setIsOverlayVisible(true)
     }
     document.addEventListener('fullscreenchange', onChange)
     return () => document.removeEventListener('fullscreenchange', onChange)
-  }, [])
+  }, [isTrackedElementFullscreen])
 
   // ── Keyboard shortcut: F key ────────────────────────────
   useEffect(() => {

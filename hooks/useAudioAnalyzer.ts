@@ -18,6 +18,7 @@ import type { RoomDimensionEstimate } from '@/types/calibration'
 import { ROOM_ESTIMATION } from '@/lib/dsp/constants'
 import { useLayeredSettings } from '@/hooks/useLayeredSettings'
 import { useSessionHistory } from '@/hooks/useSessionHistory'
+import type { CombPatternResult } from '@/lib/dsp/advancedDetection'
 
 /** Early warning for predicted feedback frequencies based on comb pattern detection */
 export interface EarlyWarning {
@@ -36,6 +37,37 @@ export interface EarlyWarning {
 /** Throttled scalar fields from SpectrumData for DOM consumers.
  *  noiseFloorDb lives at UseAudioAnalyzerState top-level (single source of truth). */
 const STATUS_THROTTLE_MS = 250 // ~4fps React state updates for DOM consumers
+
+function earlyWarningMatchesPattern(
+  earlyWarning: EarlyWarning,
+  pattern: CombPatternResult,
+): boolean {
+  if (Math.round((earlyWarning.fundamentalSpacing ?? 0) * 10) !== Math.round((pattern.fundamentalSpacing ?? 0) * 10)) return false
+  if (Math.round((earlyWarning.estimatedPathLength ?? 0) * 100) !== Math.round((pattern.estimatedPathLength ?? 0) * 100)) return false
+  if (Math.round(earlyWarning.confidence * 100) !== Math.round(pattern.confidence * 100)) return false
+  if (earlyWarning.predictedFrequencies.length !== pattern.predictedFrequencies.length) return false
+  for (let i = 0; i < earlyWarning.predictedFrequencies.length; i++) {
+    if (Math.round(earlyWarning.predictedFrequencies[i]) !== Math.round(pattern.predictedFrequencies[i])) return false
+  }
+  return true
+}
+
+function buildEarlyWarning(
+  previous: EarlyWarning | null,
+  pattern: CombPatternResult | null,
+): EarlyWarning | null {
+  if (!pattern || !pattern.hasPattern || pattern.predictedFrequencies.length === 0) return null
+
+  return {
+    predictedFrequencies: pattern.predictedFrequencies,
+    fundamentalSpacing: pattern.fundamentalSpacing,
+    estimatedPathLength: pattern.estimatedPathLength,
+    confidence: pattern.confidence,
+    timestamp: previous && earlyWarningMatchesPattern(previous, pattern)
+      ? previous.timestamp
+      : Date.now(),
+  }
+}
 
 export interface SpectrumStatus {
   peak: number
@@ -112,7 +144,7 @@ export function useAudioAnalyzer(
 ): UseAudioAnalyzerReturn {
   // Layered settings — derivation + auto-persist handled internally by the hook.
   // derivedSettings is a standard DetectorSettings object compatible with the entire pipeline.
-  const layered = useLayeredSettings()
+  const layered = useLayeredSettings(initialSettings)
   const settings = layered.derivedSettings
 
   const settingsRef = useRef(settings)
@@ -172,21 +204,44 @@ export function useAudioAnalyzer(
   const externalCallbacksRef = useRef(externalCallbacks)
   useEffect(() => { externalCallbacksRef.current = externalCallbacks }, [externalCallbacks])
 
+  const applyEarlyWarningPattern = (pattern: CombPatternResult | null) => {
+    setState(prev => {
+      const nextEarlyWarning = buildEarlyWarning(prev.earlyWarning, pattern)
+      const unchanged = prev.earlyWarning === nextEarlyWarning || (
+        prev.earlyWarning !== null &&
+        nextEarlyWarning !== null &&
+        prev.earlyWarning.timestamp === nextEarlyWarning.timestamp &&
+        earlyWarningMatchesPattern(prev.earlyWarning, {
+          ...nextEarlyWarning,
+          hasPattern: true,
+          matchingPeaks: nextEarlyWarning.predictedFrequencies.length,
+        })
+      )
+      if (unchanged) return prev
+      return { ...prev, earlyWarning: nextEarlyWarning }
+    })
+  }
+
   // Stable callbacks object — created once, never triggers re-renders
   const stableCallbacks = useRef<DSPWorkerCallbacks>({
     onAdvisory,
     onAdvisoryCleared,
     onTracksUpdate: (tracks, status) => {
       tracksRef.current = tracks
-      if (status) workerStatusRef.current = status
+      if (status) {
+        workerStatusRef.current.algorithmMode = status.algorithmMode
+        workerStatusRef.current.contentType = status.contentType
+        workerStatusRef.current.isCompressed = status.isCompressed
+        workerStatusRef.current.compressionRatio = status.compressionRatio
+      }
+    },
+    onEarlyWarningUpdate: (pattern) => {
+      applyEarlyWarningPattern(pattern)
     },
     onContentTypeUpdate: (contentType, isCompressed, compressionRatio) => {
-      workerStatusRef.current = {
-        ...workerStatusRef.current,
-        contentType,
-        isCompressed,
-        compressionRatio,
-      }
+      workerStatusRef.current.contentType = contentType
+      workerStatusRef.current.isCompressed = isCompressed
+      workerStatusRef.current.compressionRatio = compressionRatio
     },
     onReady: () => {
       // Worker (re)started successfully — clear any crash warning
@@ -254,7 +309,9 @@ export function useAudioAnalyzer(
               ps.contentType === nextStatus.contentType &&
               ps.msdFrameCount === nextStatus.msdFrameCount &&
               ps.isCompressed === nextStatus.isCompressed &&
+              ps.compressionRatio === nextStatus.compressionRatio &&
               ps.isSignalPresent === nextStatus.isSignalPresent &&
+              ps.rawPeakDb === nextStatus.rawPeakDb &&
               prev.noiseFloorDb === nextNoiseFloor
             ) {
               return prev
@@ -276,21 +333,7 @@ export function useAudioAnalyzer(
       },
       // Early warning: comb filter pattern detected with predicted frequencies
       onCombPatternDetected: (pattern) => {
-        if (pattern.hasPattern && pattern.predictedFrequencies.length > 0) {
-          setState(prev => ({
-            ...prev,
-            earlyWarning: {
-              predictedFrequencies: pattern.predictedFrequencies,
-              fundamentalSpacing: pattern.fundamentalSpacing,
-              estimatedPathLength: pattern.estimatedPathLength,
-              confidence: pattern.confidence,
-              timestamp: Date.now(),
-            },
-          }))
-        } else {
-          // Clear early warning when pattern is no longer detected
-          setState(prev => prev.earlyWarning ? { ...prev, earlyWarning: null } : prev)
-        }
+        applyEarlyWarningPattern(pattern)
       },
       onError: (error) => {
         setState(prev => ({

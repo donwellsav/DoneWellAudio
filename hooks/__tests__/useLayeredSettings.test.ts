@@ -55,6 +55,26 @@ describe('useLayeredSettings — default state', () => {
     expect(result.current.session.liveOverrides.sensitivityOffsetDb).toBe(0)
     expect(result.current.session.environment.feedbackOffsetDb).toBe(0)
   })
+
+  it('applies initial detector overrides on mount', () => {
+    const { result } = renderHook(() => useLayeredSettings({
+      mode: 'monitors',
+      feedbackThresholdDb: 18,
+      minFrequency: 250,
+      maxDisplayedIssues: 5,
+      showAlgorithmScores: true,
+      roomPreset: 'small',
+      mainsHumFundamental: 60,
+    }))
+
+    expect(result.current.derivedSettings.mode).toBe('monitors')
+    expect(result.current.derivedSettings.feedbackThresholdDb).toBe(18)
+    expect(result.current.derivedSettings.minFrequency).toBe(250)
+    expect(result.current.display.maxDisplayedIssues).toBe(5)
+    expect(result.current.display.showAlgorithmScores).toBe(true)
+    expect(result.current.session.environment.templateId).toBe('small')
+    expect(result.current.session.environment.mainsHumFundamental).toBe(60)
+  })
 })
 
 // ─── Semantic actions ────────────────────────────────────────────────────────

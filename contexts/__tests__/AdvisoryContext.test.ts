@@ -148,4 +148,16 @@ describe('AdvisoryContext', () => {
     const { result } = renderHook(() => useAdvisories(), { wrapper })
     expect(result.current.activeAdvisoryCount).toBe(2)
   })
+
+  it('activeAdvisoryCount excludes dismissed advisories', () => {
+    mockAdvisories = [
+      makeAdvisory({ id: 'a1', resolved: false }),
+      makeAdvisory({ id: 'a2', resolved: false }),
+    ]
+    const { result } = renderHook(() => useAdvisories(), { wrapper })
+
+    act(() => result.current.onDismiss('a2'))
+
+    expect(result.current.activeAdvisoryCount).toBe(1)
+  })
 })

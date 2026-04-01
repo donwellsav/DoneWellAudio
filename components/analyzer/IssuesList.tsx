@@ -48,16 +48,8 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
   const pa2 = usePA2()
   const { settings } = useSettings()
 
-  // Auto-send new advisories to Companion when enabled
-  const sentIdsRef = useRef(new Set<string>())
   useEffect(() => {
-    if (!companion.settings.enabled || !companion.settings.autoSend) return
-    for (const a of advisories) {
-      if (!sentIdsRef.current.has(a.id) && !a.resolved) {
-        sentIdsRef.current.add(a.id)
-        companion.sendAdvisory(a)
-      }
-    }
+    companion.autoSendAdvisories(advisories)
   }, [advisories, companion])
 
   // Auto-send new advisories to PA2 when enabled (handled by usePA2Bridge internally)
