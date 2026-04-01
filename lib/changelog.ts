@@ -14,6 +14,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.69.0',
+    date: '2026-04-01',
+    changes: [
+      { type: 'feat', description: '**A11y:** 44px touch targets, aria-labels, keyboard-dismissable SwipeHint' },
+      { type: 'feat', description: '**Error resilience:** Granular ErrorBoundary around IssuesList + SpectrumCanvas in both layouts' },
+      { type: 'feat', description: '**Performance:** IssueCard memo split (theme vs advisory data), extracted useThresholdChange hook' },
+      { type: 'feat', description: '**API safety:** 5s timeout on Supabase ingest fetch, relay cold-start documented' },
+      { type: 'feat', description: '**Tests:** 64 new tests — mlInference (35), settingsStorageV2 (40), useThresholdChange (7), IPv6 proxy (5)' },
+      { type: 'feat', description: '**Dependencies:** 12 packages updated to latest patch/minor' },
+      { type: 'feat', description: '**UI polish:** Improved offline page, mobile settings max-width, button class dedup' },
+      { type: 'feat', description: '[x] `npx tsc --noEmit` — clean' },
+      { type: 'feat', description: '[x] `pnpm test` — 66 suites, 1249 pass, 4 skip' },
+      { type: 'feat', description: '[ ] Visual check: copy-only button hit area on mobile' },
+      { type: 'feat', description: '[ ] Visual check: mobile settings panel width on iPad landscape' },
+      { type: 'feat', description: '[ ] Visual check: offline page branding at /~offline' },
+      { type: 'feat', description: '[ ] Keyboard test: Tab to SwipeHint, press Escape to dismiss' },
+    ],
+  },
+  {
     version: '0.68.0',
     date: '2026-04-01',
     changes: [
