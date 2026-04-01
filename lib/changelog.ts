@@ -14,6 +14,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.67.0',
+    date: '2026-04-01',
+    changes: [
+      { type: 'feat', description: 'Shrink logo 64→40px on mobile, keeping 64px on desktop' },
+      { type: 'feat', description: 'Add chevron hint to mic selector for discoverability' },
+      { type: 'feat', description: 'Move RTA/GEQ toggle pill to top-left (was overlapping frequency axis)' },
+      { type: 'feat', description: 'Stronger contrast on "Press To Begin Analysis" overlay' },
+      { type: 'feat', description: 'Double-line drag handle for better resize affordance' },
+      { type: 'feat', description: 'GEQ empty state now shows "Start analysis to detect feedback" hint' },
+      { type: 'feat', description: 'dB units suffix on readout value' },
+      { type: 'feat', description: 'Stronger sidecar border + subtle background tint' },
+      { type: 'feat', description: 'Double-tap to reset fader to mode default (20dB sens, 0dB gain)' },
+      { type: 'feat', description: 'Ring Out button demoted to ghost style (secondary action)' },
+      { type: 'feat', description: 'Status readout contrast bumped (45%→65% opacity)' },
+      { type: 'feat', description: '"— OR —" replaced with clean divider line' },
+      { type: 'feat', description: 'Redundant page indicator dots removed' },
+      { type: 'feat', description: 'Version info merged into tab bar (mobile) / desktop-only info bar' },
+      { type: 'feat', description: 'SettingsPanel wrapped in matching card container' },
+      { type: 'feat', description: 'Reset Defaults button switched to ghost style' },
+      { type: 'feat', description: 'Haptic feedback (navigator.vibrate) on fader toggle + tab switches' },
+      { type: 'feat', description: 'Light mode: stronger console accents, warmer tint, wider severity strips' },
+      { type: 'feat', description: '[x] `npx tsc --noEmit` clean' },
+      { type: 'feat', description: '[x] `pnpm test` — all suites pass' },
+      { type: 'feat', description: '[ ] Mobile 375px: header compact, pill at top-left, drag handle visible, tab bar with version' },
+      { type: 'feat', description: '[ ] Desktop: info bar at bottom, GEQ empty hint, dB on fader' },
+      { type: 'feat', description: '[ ] Light mode: stronger accent colors, wider severity strips' },
+    ],
+  },
+  {
     version: '0.66.0',
     date: '2026-04-01',
     changes: [
