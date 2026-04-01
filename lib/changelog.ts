@@ -14,6 +14,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.64.0',
+    date: '2026-04-01',
+    changes: [
+      { type: 'feat', description: 'added direct regression tests for `useAudioDevices` and `useCalibrationSession`' },
+      { type: 'feat', description: 'added an integration test proving duplicate `IssuesList` mounts only auto-send once' },
+      { type: 'feat', description: 'removed dead `RoomAnalysisView` code' },
+      { type: 'feat', description: 'extracted layered settings seeding into `lib/settings/seedLayeredSettings.ts`' },
+      { type: 'feat', description: 'applied a small hot-path optimization in `feedbackDetector.ts` and reduced worker status object churn in `useAudioAnalyzer.ts`' },
+      { type: 'feat', description: 'refreshed stale test/version metadata in `AGENTS.md`' },
+      { type: 'feat', description: 'better regression protection around device changes, calibration lifecycle, and duplicate advisory side effects' },
+      { type: 'feat', description: 'less dead code to maintain' },
+      { type: 'feat', description: 'clearer separation between layered settings state and legacy seeding logic' },
+      { type: 'feat', description: 'lower detector hot-path overhead without changing detection behavior' },
+      { type: 'feat', description: '`npx tsc --noEmit`' },
+      { type: 'feat', description: '`pnpm test`' },
+      { type: 'feat', description: 'synthetic detector benchmark against `HEAD` with the same harness improved average hot-path cost from `0.2855 ms/frame` to `0.2109 ms/frame` (about `26.1%` lower)' },
+      { type: 'feat', description: 'left unrelated local files `.claude/settings.local.json` and `repomix-output.md` out of the commit' },
+    ],
+  },
+  {
     version: '0.63.0',
     date: '2026-04-01',
     changes: [
