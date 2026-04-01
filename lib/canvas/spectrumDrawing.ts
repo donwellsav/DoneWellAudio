@@ -230,10 +230,15 @@ const FREQ_ZONE_BANDS = [
 const ZONE_ALPHA_DARK  = [0.20, 0.17, 0.15, 0.14, 0.14]
 const ZONE_ALPHA_LIGHT = [0.08, 0.07, 0.07, 0.06, 0.06]
 
+// #5 Zone fade-in state — module-level for zero-alloc per-frame tracking
+let _zoneFadeStart = 0
+let _zoneWasVisible = false
+
 /**
  * Draw labeled frequency zone bands behind the spectrum.
  * Tinted rectangles with labels at top to help engineers orient.
  * Theme-aware: stronger fills on dark backgrounds, subtler on light.
+ * Fades in over 300ms when toggled on (#5).
  * @param showZones - when false, this function is a no-op
  */
 export function drawFreqZones(
@@ -244,7 +249,11 @@ export function drawFreqZones(
   showZones: boolean,
   theme: CanvasTheme = DARK_CANVAS_THEME,
 ) {
-  if (!showZones) return
+  if (!showZones) { _zoneWasVisible = false; return }
+  // Track fade-in start time
+  if (!_zoneWasVisible) { _zoneFadeStart = performance.now(); _zoneWasVisible = true }
+  const fadeProgress = Math.min(1, (performance.now() - _zoneFadeStart) / 300)
+
   const isDark = theme === DARK_CANVAS_THEME
   const alphas = isDark ? ZONE_ALPHA_DARK : ZONE_ALPHA_LIGHT
 
@@ -254,14 +263,14 @@ export function drawFreqZones(
     const x2 = freqToLogPosition(Math.min(zone.maxHz, range.freqMax), range.freqMin, range.freqMax) * plotWidth
     if (x2 <= x1) continue // zone outside visible range
 
-    // Tinted background band
-    ctx.fillStyle = `rgba(${zone.rgb}, ${alphas[z]})`
+    // Tinted background band (faded in via fadeProgress)
+    ctx.fillStyle = `rgba(${zone.rgb}, ${alphas[z] * fadeProgress})`
     ctx.fillRect(x1, 0, x2 - x1, plotHeight)
 
     // Fix 12 (AI Fight Club): save/restore to prevent alpha leakage on exception
     ctx.save()
     ctx.strokeStyle = theme.zoneLabel
-    ctx.globalAlpha = 0.25
+    ctx.globalAlpha = 0.25 * fadeProgress
     ctx.lineWidth = 0.5
     ctx.beginPath()
     ctx.moveTo(x1, 0)
@@ -273,11 +282,14 @@ export function drawFreqZones(
     const centerX = (x1 + x2) / 2
     const labelWidth = x2 - x1
     if (labelWidth > 30) { // only draw label if zone is wide enough
+      ctx.save()
+      ctx.globalAlpha = fadeProgress
       ctx.font = '10px var(--font-sans, sans-serif)'
       ctx.fillStyle = theme.zoneLabel
       ctx.textAlign = 'center'
       ctx.textBaseline = 'top'
       ctx.fillText(zone.label, centerX, 4)
+      ctx.restore()
     }
   }
 
@@ -1078,20 +1090,28 @@ export function drawAxisLabels(
   ctx.shadowOffsetY = 0
   ctx.fillStyle = theme.axisLabel
 
-  // Y-axis (dB)
+  // Y-axis (dB) — thin out labels when plot is short (#4)
   ctx.textAlign = 'right'
-  for (const db of DB_ALL) {
+  const dbLabels = plotHeight < 200 ? DB_MAJOR : DB_ALL
+  for (const db of dbLabels) {
     const y = padding.top + ((range.dbMax - db) / (range.dbMax - range.dbMin)) * plotHeight
     ctx.fillText(`${db}`, padding.left - 5, y)
   }
 
-  // X-axis (Hz)
+  // X-axis (Hz) with tick marks (#6)
   ctx.textAlign = 'center'
   const xLabelY = padding.top + plotHeight + padding.bottom * 0.55
+  ctx.strokeStyle = theme.gridMinor
+  ctx.lineWidth = 0.75
   for (const freq of FREQ_LABELS) {
     const x = padding.left + freqToLogPosition(freq, range.freqMin, range.freqMax) * plotWidth
     const label = freq >= 1000 ? `${freq / 1000}k` : `${freq}`
     ctx.fillText(label, x, xLabelY)
+    // Tick mark connecting axis to plot
+    ctx.beginPath()
+    ctx.moveTo(x, padding.top + plotHeight)
+    ctx.lineTo(x, padding.top + plotHeight + 4)
+    ctx.stroke()
   }
 
   // Reset shadow

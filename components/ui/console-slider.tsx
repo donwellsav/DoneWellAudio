@@ -1,6 +1,6 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, useState, useCallback } from 'react'
 import * as SliderPrimitive from '@radix-ui/react-slider'
 import {
   Tooltip,
@@ -98,6 +98,9 @@ export const ConsoleSlider = memo(function ConsoleSlider({
   className,
 }: ConsoleSliderProps) {
   const c = COLOR_CONFIG[color]
+  const [isDragging, setIsDragging] = useState(false)
+  const handlePointerDown = useCallback(() => setIsDragging(true), [])
+  const handlePointerUp = useCallback(() => setIsDragging(false), [])
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -124,6 +127,8 @@ export const ConsoleSlider = memo(function ConsoleSlider({
         <SliderPrimitive.Root
           value={[sliderValue]}
           onValueChange={([v]) => onChange(v)}
+          onPointerDown={handlePointerDown}
+          onPointerUp={handlePointerUp}
           min={min}
           max={max}
           step={step}
@@ -138,14 +143,21 @@ export const ConsoleSlider = memo(function ConsoleSlider({
               style={{ background: c.rangeGradient, boxShadow: c.rangeGlow }}
             />
           </SliderPrimitive.Track>
-          <SliderPrimitive.Thumb
-            className="console-thumb block shrink-0 rounded-full transition-[box-shadow,transform] duration-100 focus-visible:outline-hidden cursor-grab active:cursor-grabbing"
-            style={{
-              width: 20, height: 20,
-              borderColor: c.thumbBorder,
-              boxShadow: c.thumbGlow,
-            }}
-          />
+          <Tooltip open={isDragging}>
+            <TooltipTrigger asChild>
+              <SliderPrimitive.Thumb
+                className="console-thumb block shrink-0 rounded-full transition-[box-shadow,transform] duration-100 focus-visible:outline-hidden cursor-grab active:cursor-grabbing"
+                style={{
+                  width: 20, height: 20,
+                  borderColor: c.thumbBorder,
+                  boxShadow: c.thumbGlow,
+                }}
+              />
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs font-mono py-0.5 px-1.5" style={{ color: c.text }}>
+              {value}
+            </TooltipContent>
+          </Tooltip>
         </SliderPrimitive.Root>
       </div>
     </TooltipProvider>

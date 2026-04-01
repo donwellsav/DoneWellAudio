@@ -196,6 +196,17 @@ export const SingleFader = memo(function SingleFader({
         ctx.textBaseline = 'middle'
         ctx.fillText(`${db}`, w * 0.48, y)
       }
+      // #15 Reference zone labels — contextual guidance for sensitivity ranges
+      const zoneSize = Math.max(5, Math.min(7, w * 0.14))
+      ctx.font = `${zoneSize}px monospace`
+      ctx.textAlign = 'left'
+      ctx.textBaseline = 'middle'
+      for (const { db, label } of [{ db: 15, label: 'MON' }, { db: 27, label: 'SPK' }, { db: 42, label: 'MUS' }]) {
+        const zy = h * (1 - (50 - db) / 48)
+        ctx.fillStyle = 'rgba(100,180,255,0.12)'
+        ctx.fillText(label, 2, zy)
+      }
+
       // Default (25dB) reference line
       const defRatio = (50 - 25) / 48
       const defY = h * (1 - defRatio)
@@ -470,6 +481,11 @@ export const SingleFader = memo(function SingleFader({
           {/* Side rails */}
           <div className="absolute inset-y-2 pointer-events-none" style={{ left: 'calc(50% - 5px)', width: '1px', background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.06) 20%, rgba(255,255,255,0.06) 80%, transparent)' }} />
           <div className="absolute inset-y-2 pointer-events-none" style={{ left: 'calc(50% + 5px)', width: '1px', background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.06) 20%, rgba(255,255,255,0.06) 80%, transparent)' }} />
+          {/* #13 Center detent marker — default position indicator */}
+          <div className="absolute left-0 right-0 h-[2px] pointer-events-none" style={{
+            bottom: `${isSensitivity ? ((50 - 20) / 48) * 100 : ((0 - min) / (max - min)) * 100}%`,
+            background: 'linear-gradient(90deg, transparent 30%, rgba(255,255,255,0.12) 45%, rgba(255,255,255,0.18) 50%, rgba(255,255,255,0.12) 55%, transparent 70%)',
+          }} />
           <canvas
             ref={canvasRef}
             className="w-full h-full"

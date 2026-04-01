@@ -194,7 +194,7 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
             <button
               onClick={onStart}
               aria-label="Start analysis"
-              className="group relative flex flex-col items-center justify-center gap-3 w-full max-w-[220px] py-5 px-5 rounded-xl border border-primary/20 hover:border-primary/40 bg-primary/5 hover:bg-primary/10 transition-[color,background-color,border-color,box-shadow] duration-300 cursor-pointer animate-start-glow focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary"
+              className="group relative flex flex-col items-center justify-center gap-3 w-full max-w-[220px] py-5 px-5 rounded-xl border border-primary/20 hover:border-primary/40 bg-primary/5 hover:bg-primary/10 active:scale-[0.97] transition-[color,background-color,border-color,box-shadow,transform] duration-300 cursor-pointer animate-start-glow focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary"
               style={{ background: 'radial-gradient(ellipse 100% 80% at 50% 60%, rgba(75, 146, 255, 0.10) 0%, rgba(75, 146, 255, 0.03) 55%, transparent 100%)' }}
             >
               {/* Atmospheric radial pool behind logo */}
@@ -214,6 +214,7 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
                 <span className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-muted-foreground/60 group-hover:text-muted-foreground transition-colors">
                   Analysis
                 </span>
+                <span className="hidden tablet:block font-mono text-[8px] text-muted-foreground/30 mt-1">⏎ Enter</span>
               </div>
             </button>
 

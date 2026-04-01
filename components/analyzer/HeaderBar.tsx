@@ -52,6 +52,10 @@ export const HeaderBar = memo(function HeaderBar() {
               audioLevel={isRunning ? Math.max(0, Math.min(1, (inputLevel + 60) / 60)) : undefined}
             />
           </button>
+          {/* #1 Power LED — running state at a glance (mobile only, desktop has ENGAGE button) */}
+          <div className={`absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-[5px] h-[5px] rounded-full tablet:hidden transition-colors duration-500 ${
+            isRunning ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.7)]' : 'bg-muted-foreground/20'
+          }`} aria-hidden />
         </div>
 
         {/* Branding text moved to bottom info bar — removed from header */}
@@ -186,7 +190,7 @@ export const HeaderBar = memo(function HeaderBar() {
         {/* ── Utility group (desktop: inline, mobile: overflow menu) ── */}
         <div className="hidden tablet:flex items-center gap-0 icon-cluster">
           <FeedbackHistoryPanel />
-          <Suspense fallback={<div className="h-10 w-10" />}>
+          <Suspense fallback={<div className="h-10 w-10 rounded-md bg-muted/30 animate-pulse" />}>
             <LazyHelpMenu />
           </Suspense>
 
@@ -228,14 +232,14 @@ export const HeaderBar = memo(function HeaderBar() {
         {/* ── Separator before fullscreen ─────────────── */}
         <div className="hidden tablet:block w-px h-6 bg-border/40 mx-1 flex-shrink-0" aria-hidden="true" />
 
-        {/* ── Fullscreen (far right) ──────────────────── */}
+        {/* ── Fullscreen (far right, hidden on mobile — #2) ──────────────────── */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
               onClick={toggleFullscreen}
-              className={`h-10 w-10 btn-glow ${isFullscreen ? 'text-primary bg-primary/15 rounded-md' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`hidden tablet:flex h-10 w-10 btn-glow ${isFullscreen ? 'text-primary bg-primary/15 rounded-md' : 'text-muted-foreground hover:text-foreground'}`}
               aria-label={isFullscreen ? 'Exit App Fullscreen' : 'App Fullscreen'}
             >
               {isFullscreen ? <Minimize2 className="size-6" /> : <Maximize2 className="size-6" />}
@@ -253,10 +257,11 @@ export const HeaderBar = memo(function HeaderBar() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-10 w-10 text-muted-foreground hover:text-foreground"
+                className={`h-10 w-10 text-muted-foreground hover:text-foreground relative`}
                 aria-label="More actions"
               >
                 <MoreVertical className="size-5" />
+                {isRunning && <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-emerald-400 motion-safe:animate-pulse" aria-hidden />}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[180px]">

@@ -298,18 +298,24 @@ export const IssueCard = memo(function IssueCard({
 
               {advisory.confidence != null && (
                 <span
-                  className={`inline-flex items-center text-sm font-mono px-1.5 py-0.5 rounded-sm leading-none ${
-                    advisory.confidence >= 0.85
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                      : advisory.confidence >= 0.70
-                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                        : advisory.confidence >= 0.45
-                          ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                          : 'bg-muted text-muted-foreground border border-border'
-                  }`}
+                  className="inline-flex items-center gap-0.5 text-sm font-mono leading-none"
                   title={`${Math.round(advisory.confidence * 100)}% confidence`}
                 >
-                  {Math.round(advisory.confidence * 100)}%
+                  <svg width="18" height="18" viewBox="0 0 18 18" className="flex-shrink-0" aria-hidden>
+                    <circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" strokeWidth="1.5" opacity={0.1} />
+                    <circle cx="9" cy="9" r="7" fill="none"
+                      stroke={advisory.confidence >= 0.85 ? '#34d399' : advisory.confidence >= 0.70 ? '#60a5fa' : advisory.confidence >= 0.45 ? '#fbbf24' : '#6b7280'}
+                      strokeWidth="1.5" strokeLinecap="round"
+                      strokeDasharray={`${advisory.confidence * 44} 44`}
+                      transform="rotate(-90 9 9)"
+                    />
+                  </svg>
+                  <span className={
+                    advisory.confidence >= 0.85 ? 'text-emerald-400'
+                    : advisory.confidence >= 0.70 ? 'text-blue-400'
+                    : advisory.confidence >= 0.45 ? 'text-amber-400'
+                    : 'text-muted-foreground'
+                  }>{Math.round(advisory.confidence * 100)}%</span>
                 </span>
               )}
             </div>
@@ -401,7 +407,7 @@ export const IssueCard = memo(function IssueCard({
 
       {/* Freshness indicator bar — decays over 60s, shifts toward red with age */}
       {!isResolved && (
-        <div className="h-[3px] w-full relative" aria-hidden>
+        <div className="h-[3px] w-full relative" aria-hidden title={`Freshness: ${Math.max(0, 60 - ageSec)}s remaining`}>
           <div
             className="absolute inset-0 h-full rounded-full transition-[width,background-color] duration-500 ease-linear"
             style={{

@@ -187,7 +187,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                         : 'text-muted-foreground hover:text-foreground hover:bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.04)]'
                     }`}
                   >
-                    <Icon className="w-3 h-3 flex-shrink-0" />
+                    <Icon className="w-3 h-3 flex-shrink-0" style={controlsTab === id ? { color: id === 'live' ? 'var(--console-amber)' : id === 'setup' ? 'var(--console-blue)' : id === 'display' ? 'var(--console-green)' : 'var(--console-cyan)' } : undefined} />
                     <span className="truncate">{shortLabel ?? label}</span>
                     {id === 'advanced' && hasCustomGates && (
                       <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-amber-500" title="Custom gate overrides active" />

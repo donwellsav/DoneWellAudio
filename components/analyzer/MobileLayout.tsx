@@ -256,7 +256,7 @@ export const MobileLayout = memo(function MobileLayout({
           >
             {/* ── Inline graph area (resizable) — swipeable RTA ↔ GEQ ─── */}
             <div
-              className="flex-shrink-0 relative bg-card/40 border-b border-border/40 overflow-hidden"
+              className="flex-shrink-0 relative bg-card/40 rounded-sm border-b border-border/40 overflow-hidden"
               style={{ height: `${graphHeightVh}vh` }}
               onTouchStart={onGraphTouchStart}
               onTouchEnd={onGraphTouchEnd}
@@ -355,7 +355,7 @@ export const MobileLayout = memo(function MobileLayout({
           {/* Settings panel */}
           <div
             id="mobile-tabpanel-settings"
-            className="w-full flex-shrink-0 h-full overflow-y-auto p-4 space-y-4 bg-background"
+            className="w-full flex-shrink-0 h-full overflow-y-auto p-4 space-y-4 bg-background scroll-fade-bottom"
             role="tabpanel"
             aria-labelledby="mobile-tab-settings"
             aria-hidden={mobileTab !== 'settings'}
@@ -580,7 +580,13 @@ export const MobileLayout = memo(function MobileLayout({
 
       {/* ── Mobile bottom tab bar (portrait only) ──────────────── */}
       <nav className="landscape:hidden lg:hidden flex-shrink-0 border-t border-border/60 bg-card/90 backdrop-blur-sm">
-        <div className="flex items-stretch" role="tablist" onKeyDown={handleTabKeyDown}>
+        <div className="flex items-stretch relative" role="tablist" onKeyDown={handleTabKeyDown}>
+          {/* #20 Sliding amber indicator bar */}
+          <div
+            className="absolute top-0 h-[2px] bg-[var(--console-amber)] rounded-full transition-[left,width] duration-200 ease-out"
+            style={{ left: `${tabIndex * 50 + 10}%`, width: '30%' }}
+            aria-hidden
+          />
           {([
             { id: 'issues' as const, label: 'Issues', Icon: AlertTriangle, badge: activeAdvisoryCount },
             { id: 'settings' as const, label: 'Settings', Icon: Settings2, badge: 0 },
@@ -601,11 +607,9 @@ export const MobileLayout = memo(function MobileLayout({
               }`}
               aria-label={tab.label}
             >
-              {mobileTab === tab.id && (
-                <div className="absolute top-0 left-[20%] right-[20%] h-[2px] bg-[var(--console-amber)] rounded-full" aria-hidden />
-              )}
               <div className="relative">
-                <tab.Icon className={mobileTab === tab.id ? 'w-[22px] h-[22px]' : 'w-5 h-5'} />
+                {/* #19 Bounce animation on active icon */}
+                <tab.Icon className={mobileTab === tab.id ? 'w-[22px] h-[22px] motion-safe:animate-tab-bounce' : 'w-5 h-5'} />
                 {tab.badge > 0 && (
                   <span className="absolute -top-1.5 -right-2.5 bg-[var(--console-amber)] text-[#0a0d10] text-xs rounded-full min-w-[16px] h-[16px] flex items-center justify-center font-bold leading-none px-0.5">
                     {tab.badge}

@@ -287,7 +287,7 @@ export const InputMeterSlider = memo(function InputMeterSlider({
               : 'Switch to auto gain'
           }
         >
-          {autoGainEnabled ? (autoGainLocked ? 'Lock' : 'Cal') : 'Man'}
+          {autoGainEnabled ? (autoGainLocked ? 'Locked' : 'Auto') : 'Manual'}
         </button>
       )}
 
