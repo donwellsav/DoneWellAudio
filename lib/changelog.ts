@@ -14,6 +14,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.70.0',
+    date: '2026-04-02',
+    changes: [
+      { type: 'feat', description: '**Scroll-wheel** on every slider, fader, and number input — focus-gated (click to activate, click away to resume panel scroll). Hold Shift for fine-step.' },
+      { type: 'feat', description: '**Click-to-edit** on all ConsoleSlider value readouts — type exact values directly.' },
+      { type: 'feat', description: '**Reset-to-default** icon on every tuning slider — appears only when value differs from default. Mode-aware for sensitivity.' },
+      { type: 'feat', description: '**Unified controls** — converted 9 Radix Sliders in AdvancedTab to ConsoleSliders for consistent UX.' },
+      { type: 'feat', description: '[x] `npx tsc --noEmit` — clean' },
+      { type: 'feat', description: '[x] `pnpm test` — 66 suites, 1249 pass, 4 skip' },
+      { type: 'feat', description: '[ ] Scroll settings panel freely — sliders should NOT capture wheel without focus' },
+      { type: 'feat', description: '[ ] Click a slider thumb, then scroll — value steps, panel stays' },
+      { type: 'feat', description: '[ ] Click a value readout → type a number → Enter to confirm' },
+      { type: 'feat', description: '[ ] Change a slider → reset icon appears → click to snap back to default' },
+      { type: 'feat', description: '[ ] Switch modes → sensitivity reset icon updates to new mode baseline' },
+      { type: 'feat', description: '[ ] Fader sidecar: click track, scroll to adjust gain/sensitivity' },
+    ],
+  },
+  {
     version: '0.69.0',
     date: '2026-04-01',
     changes: [
