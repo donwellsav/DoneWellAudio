@@ -10,6 +10,7 @@ import type { DetectorSettings } from '@/types/advisory'
 import type { EnvironmentSelection, RoomTemplateId } from '@/types/settings'
 // RoomDimensionEstimate flows through EngineContext — no direct import needed
 import { useEngine } from '@/contexts/EngineContext'
+import { Input } from '@/components/ui/input'
 import { Section, type TabSettingsProps } from './SettingsShared'
 
 // ── Room Modes Display ─────────────────────────────────────────────────────────
@@ -325,7 +326,7 @@ export const RoomTab = memo(function RoomTab({
                 ]).map(([label, dimKey, max]) => (
                   <div key={dimKey} className="space-y-1">
                     <label htmlFor={`room-dimension-${dimKey}`} className="text-sm text-muted-foreground font-mono">{label}</label>
-                    <input
+                    <Input
                       id={`room-dimension-${dimKey}`}
                       type="number"
                       value={dimKey === 'length' ? settings.roomLengthM : dimKey === 'width' ? settings.roomWidthM : settings.roomHeightM}
@@ -343,7 +344,7 @@ export const RoomTab = memo(function RoomTab({
                           dimensionsM: currentDims,
                         })
                       }}
-                      className="w-full h-7 px-2 text-sm rounded border border-border/40 bg-input font-mono focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:border-primary"
+                      className="w-full h-7 px-2 text-sm rounded border border-border/40 bg-input font-mono"
                       min={1} max={max} step={0.5}
                     />
                   </div>

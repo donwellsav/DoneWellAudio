@@ -1,7 +1,7 @@
 'use client'
 
 import { memo } from 'react'
-import { Slider } from '@/components/ui/slider'
+
 import {
   Select,
   SelectContent,
@@ -50,15 +50,15 @@ export const AdvancedTab = memo(function AdvancedTab({
           <ConsoleSlider label="Link Ratio" color="green" value={`${settings.faderLinkRatio.toFixed(1)}:1`}
             tooltip={settings.showTooltips ? 'Sensitivity-to-gain visual ratio. 1.0 = equal travel. 2.0 = sensitivity moves twice as fast.' : undefined}
             min={0.5} max={2} step={0.1} sliderValue={settings.faderLinkRatio}
-            onChange={(v) => ctx.updateDisplay({ faderLinkRatio: v })} />
+            onChange={(v) => ctx.updateDisplay({ faderLinkRatio: v })} defaultValue={1.0} />
           <ConsoleSlider label="Center Gain" color="green" value={`${settings.faderLinkCenterGainDb}dB`}
             tooltip={settings.showTooltips ? 'Home position for gain fader. Default 0dB (unity).' : undefined}
             min={-20} max={20} step={1} sliderValue={settings.faderLinkCenterGainDb}
-            onChange={(v) => ctx.updateDisplay({ faderLinkCenterGainDb: v })} />
+            onChange={(v) => ctx.updateDisplay({ faderLinkCenterGainDb: v })} defaultValue={0} />
           <ConsoleSlider label="Center Sens" color="green" value={`${settings.faderLinkCenterSensDb}dB`}
             tooltip={settings.showTooltips ? 'Home position for sensitivity fader. Default 25dB threshold.' : undefined}
             min={5} max={40} step={1} sliderValue={settings.faderLinkCenterSensDb}
-            onChange={(v) => ctx.updateDisplay({ faderLinkCenterSensDb: v })} />
+            onChange={(v) => ctx.updateDisplay({ faderLinkCenterSensDb: v })} defaultValue={25} />
         </div>
       </Section>
 
@@ -69,15 +69,15 @@ export const AdvancedTab = memo(function AdvancedTab({
           <ConsoleSlider label="Ring" color="amber" value={`${settings.ringThresholdDb}dB`}
             tooltip={settings.showTooltips ? 'Resonance detection. 2-3 dB ring out/monitors, 4-5 dB normal, 6+ dB live music/outdoor.' : undefined}
             min={1} max={12} step={0.5} sliderValue={settings.ringThresholdDb}
-            onChange={(v) => diag('ringThresholdDbOverride', v)} />
+            onChange={(v) => diag('ringThresholdDbOverride', v)} defaultValue={5} />
           <ConsoleSlider label="Growth" color="amber" value={`${settings.growthRateThreshold.toFixed(1)}dB/s`}
             tooltip={settings.showTooltips ? 'How fast feedback must grow. 0.5-1dB/s catches early, 3+dB/s only runaway.' : undefined}
             min={0.5} max={8} step={0.5} sliderValue={settings.growthRateThreshold}
-            onChange={(v) => diag('growthRateThresholdOverride', v)} />
+            onChange={(v) => diag('growthRateThresholdOverride', v)} defaultValue={1.0} />
           <ConsoleSlider label="Confidence" color="amber" value={`${Math.round((settings.confidenceThreshold ?? 0.35) * 100)}%`}
             tooltip={settings.showTooltips ? 'Minimum confidence to flag. 25-35% aggressive, 45-55% balanced, 60%+ conservative.' : undefined}
             min={0.2} max={0.8} step={0.05} sliderValue={settings.confidenceThreshold ?? 0.35}
-            onChange={(v) => diag('confidenceThresholdOverride', v)} />
+            onChange={(v) => diag('confidenceThresholdOverride', v)} defaultValue={0.35} />
           <LEDToggle color="amber" checked={settings.aWeightingEnabled} onChange={(checked) => diag('aWeightingOverride', checked)} label="A-Weighting (IEC 61672-1)"
             tooltip={settings.showTooltips ? 'Apply IEC 61672-1 A-weighting curve. Emphasizes 1-5 kHz where hearing is most sensitive.' : undefined} />
           <LEDToggle color="amber" checked={settings.ignoreWhistle} onChange={(checked) => diag('ignoreWhistleOverride', checked)} label="Ignore Whistle"
@@ -88,23 +88,15 @@ export const AdvancedTab = memo(function AdvancedTab({
       {/* Timing — sustain, clear */}
       <Section title="Timing" color="blue" showTooltip={settings.showTooltips}
         tooltip="Controls how long peaks must persist before flagging and how fast resolved issues disappear.">
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-mono tracking-wide" style={{ color: 'var(--console-blue)' }}>Sustain Time</span>
-              <span className="text-sm font-mono tabular-nums" style={{ color: 'var(--console-blue)' }}>{settings.sustainMs}ms</span>
-            </div>
-            <Slider value={[settings.sustainMs]} onValueChange={([v]) => diag('sustainMsOverride', v)} min={100} max={2000} step={50} />
-            <div className="flex justify-between text-xs text-muted-foreground font-mono"><span className="flex-shrink-0">Fast confirm</span><span className="text-right">Cautious</span></div>
-          </div>
-          <div className="space-y-1">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-mono tracking-wide" style={{ color: 'var(--console-blue)' }}>Clear Time</span>
-              <span className="text-sm font-mono tabular-nums" style={{ color: 'var(--console-blue)' }}>{settings.clearMs}ms</span>
-            </div>
-            <Slider value={[settings.clearMs]} onValueChange={([v]) => diag('clearMsOverride', v)} min={100} max={2000} step={50} />
-            <div className="flex justify-between text-xs text-muted-foreground font-mono"><span className="flex-shrink-0">Quick clear</span><span className="text-right">Persistent</span></div>
-          </div>
+        <div className="space-y-1">
+          <ConsoleSlider label="Sustain Time" color="blue" value={`${settings.sustainMs}ms`}
+            tooltip={settings.showTooltips ? 'How long a peak must persist before flagging. 100ms fast, 2000ms cautious.' : undefined}
+            min={100} max={2000} step={50} sliderValue={settings.sustainMs}
+            onChange={(v) => diag('sustainMsOverride', v)} defaultValue={500} />
+          <ConsoleSlider label="Clear Time" color="blue" value={`${settings.clearMs}ms`}
+            tooltip={settings.showTooltips ? 'How fast resolved issues disappear. 100ms quick, 2000ms persistent.' : undefined}
+            min={100} max={2000} step={50} sliderValue={settings.clearMs}
+            onChange={(v) => diag('clearMsOverride', v)} defaultValue={500} />
         </div>
       </Section>
 
@@ -149,38 +141,26 @@ export const AdvancedTab = memo(function AdvancedTab({
       {/* Noise Floor */}
       <Section title="Noise Floor" color="green" showTooltip={settings.showTooltips}
         tooltip="Controls how the adaptive noise floor estimates and tracks ambient noise levels.">
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-mono tracking-wide" style={{ color: 'var(--console-green)' }}>Attack Time</span>
-              <span className="text-sm font-mono tabular-nums" style={{ color: 'var(--console-green)' }}>{settings.noiseFloorAttackMs}ms</span>
-            </div>
-            <Slider value={[settings.noiseFloorAttackMs]} onValueChange={([v]) => diag('noiseFloorAttackMs', v)} min={50} max={1000} step={25} />
-            <div className="flex justify-between text-xs text-muted-foreground font-mono"><span className="flex-shrink-0">Fast response</span><span className="text-right">Smooth</span></div>
-          </div>
-          <div className="space-y-1">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-mono tracking-wide" style={{ color: 'var(--console-green)' }}>Release Time</span>
-              <span className="text-sm font-mono tabular-nums" style={{ color: 'var(--console-green)' }}>{settings.noiseFloorReleaseMs}ms</span>
-            </div>
-            <Slider value={[settings.noiseFloorReleaseMs]} onValueChange={([v]) => diag('noiseFloorReleaseMs', v)} min={200} max={5000} step={100} />
-            <div className="flex justify-between text-xs text-muted-foreground font-mono"><span className="flex-shrink-0">Quick drop</span><span className="text-right">Gradual</span></div>
-          </div>
+        <div className="space-y-1">
+          <ConsoleSlider label="Attack Time" color="green" value={`${settings.noiseFloorAttackMs}ms`}
+            tooltip={settings.showTooltips ? 'How fast the noise floor rises. 50ms responsive, 1000ms smooth.' : undefined}
+            min={50} max={1000} step={25} sliderValue={settings.noiseFloorAttackMs}
+            onChange={(v) => diag('noiseFloorAttackMs', v)} defaultValue={200} />
+          <ConsoleSlider label="Release Time" color="green" value={`${settings.noiseFloorReleaseMs}ms`}
+            tooltip={settings.showTooltips ? 'How fast the noise floor drops. 200ms quick, 5000ms gradual.' : undefined}
+            min={200} max={5000} step={100} sliderValue={settings.noiseFloorReleaseMs}
+            onChange={(v) => diag('noiseFloorReleaseMs', v)} defaultValue={1000} />
         </div>
       </Section>
 
       {/* Peak Detection */}
       <Section title="Peak Detection" color="blue" showTooltip={settings.showTooltips}
         tooltip="Fine-tune peak merging, threshold modes, and minimum prominence for peak identification.">
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-mono tracking-wide" style={{ color: 'var(--console-blue)' }}>Peak Merge Window</span>
-              <span className="text-sm font-mono tabular-nums" style={{ color: 'var(--console-blue)' }}>{settings.peakMergeCents}¢</span>
-            </div>
-            <Slider value={[settings.peakMergeCents]} onValueChange={([v]) => diag('peakMergeCents', v)} min={10} max={150} step={5} />
-            <div className="flex justify-between text-xs text-muted-foreground font-mono"><span className="flex-shrink-0">Narrow (precise)</span><span>Wide</span></div>
-          </div>
+        <div className="space-y-1">
+          <ConsoleSlider label="Peak Merge" color="blue" value={`${settings.peakMergeCents}¢`}
+            tooltip={settings.showTooltips ? 'Merge peaks within this cents window. 10¢ precise, 150¢ wide.' : undefined}
+            min={10} max={150} step={5} sliderValue={settings.peakMergeCents}
+            onChange={(v) => diag('peakMergeCents', v)} defaultValue={100} />
           <Section title="Threshold Mode" color="blue" showTooltip={settings.showTooltips}
             tooltip="Absolute: fixed dB threshold. Relative: above noise floor. Hybrid: uses both (recommended).">
             <Select value={settings.thresholdMode} onValueChange={(v) => diag('thresholdMode', v)}>
@@ -192,42 +172,29 @@ export const AdvancedTab = memo(function AdvancedTab({
               </SelectContent>
             </Select>
           </Section>
-          <div className="space-y-1">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-mono tracking-wide" style={{ color: 'var(--console-blue)' }}>Prominence</span>
-              <span className="text-sm font-mono tabular-nums" style={{ color: 'var(--console-blue)' }}>{settings.prominenceDb}dB</span>
-            </div>
-            <Slider value={[settings.prominenceDb]} onValueChange={([v]) => diag('prominenceDbOverride', v)} min={4} max={30} step={1} />
-            <div className="flex justify-between text-xs text-muted-foreground font-mono"><span className="flex-shrink-0">Sensitive</span><span>Strong peaks</span></div>
-          </div>
+          <ConsoleSlider label="Prominence" color="blue" value={`${settings.prominenceDb}dB`}
+            tooltip={settings.showTooltips ? 'Minimum peak prominence. 4dB sensitive, 30dB strong peaks only.' : undefined}
+            min={4} max={30} step={1} sliderValue={settings.prominenceDb}
+            onChange={(v) => diag('prominenceDbOverride', v)} defaultValue={8} />
         </div>
       </Section>
 
       {/* Track Management */}
       <Section title="Track Management" color="green" showTooltip={settings.showTooltips}
         tooltip="Controls for frequency tracker limits, timeout, and harmonic association tolerance.">
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-mono tracking-wide" style={{ color: 'var(--console-green)' }}>Max Tracks</span>
-              <span className="text-sm font-mono tabular-nums" style={{ color: 'var(--console-green)' }}>{settings.maxTracks}</span>
-            </div>
-            <Slider value={[settings.maxTracks]} onValueChange={([v]) => diag('maxTracks', v)} min={8} max={128} step={8} />
-          </div>
-          <div className="space-y-1">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-mono tracking-wide" style={{ color: 'var(--console-green)' }}>Track Timeout</span>
-              <span className="text-sm font-mono tabular-nums" style={{ color: 'var(--console-green)' }}>{settings.trackTimeoutMs}ms</span>
-            </div>
-            <Slider value={[settings.trackTimeoutMs]} onValueChange={([v]) => diag('trackTimeoutMs', v)} min={200} max={5000} step={100} />
-          </div>
-          <div className="space-y-1">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-mono tracking-wide" style={{ color: 'var(--console-blue)' }}>Harmonic Tolerance</span>
-              <span className="text-sm font-mono tabular-nums" style={{ color: 'var(--console-blue)' }}>{settings.harmonicToleranceCents}¢</span>
-            </div>
-            <Slider value={[settings.harmonicToleranceCents]} onValueChange={([v]) => diag('harmonicToleranceCents', v)} min={25} max={400} step={25} />
-          </div>
+        <div className="space-y-1">
+          <ConsoleSlider label="Max Tracks" color="green" value={`${settings.maxTracks}`}
+            tooltip={settings.showTooltips ? 'Maximum simultaneous frequency tracks. 8 minimal, 128 maximum.' : undefined}
+            min={8} max={128} step={8} sliderValue={settings.maxTracks}
+            onChange={(v) => diag('maxTracks', v)} defaultValue={64} />
+          <ConsoleSlider label="Track Timeout" color="green" value={`${settings.trackTimeoutMs}ms`}
+            tooltip={settings.showTooltips ? 'How long a quiet track persists before removal. 200ms fast, 5000ms persistent.' : undefined}
+            min={200} max={5000} step={100} sliderValue={settings.trackTimeoutMs}
+            onChange={(v) => diag('trackTimeoutMs', v)} defaultValue={2000} />
+          <ConsoleSlider label="Harmonic Tolerance" color="blue" value={`${settings.harmonicToleranceCents}¢`}
+            tooltip={settings.showTooltips ? 'Cents tolerance for harmonic association. 25¢ tight, 400¢ loose.' : undefined}
+            min={25} max={400} step={25} sliderValue={settings.harmonicToleranceCents}
+            onChange={(v) => diag('harmonicToleranceCents', v)} defaultValue={200} />
         </div>
       </Section>
 
@@ -245,13 +212,10 @@ export const AdvancedTab = memo(function AdvancedTab({
               </SelectContent>
             </Select>
           </Section>
-          <div className="space-y-1">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-mono tracking-wide" style={{ color: 'var(--console-blue)' }}>Smoothing</span>
-              <span className="text-sm font-mono tabular-nums" style={{ color: 'var(--console-blue)' }}>{(settings.smoothingTimeConstant * 100).toFixed(0)}%</span>
-            </div>
-            <Slider value={[settings.smoothingTimeConstant]} onValueChange={([v]) => diag('smoothingTimeConstantOverride', v)} min={0} max={0.95} step={0.05} />
-          </div>
+          <ConsoleSlider label="Smoothing" color="blue" value={`${(settings.smoothingTimeConstant * 100).toFixed(0)}%`}
+            tooltip={settings.showTooltips ? 'Spectral smoothing time constant. 0% raw, 95% very smooth.' : undefined}
+            min={0} max={0.95} step={0.05} sliderValue={settings.smoothingTimeConstant}
+            onChange={(v) => diag('smoothingTimeConstantOverride', v)} defaultValue={0.3} />
         </div>
       </Section>
 
@@ -336,7 +300,7 @@ const CompanionSection = memo(function CompanionSection({ showTooltips }: { show
             <ConsoleSlider label="Min Confidence" value={`${Math.round(cs.minConfidence * 100)}%`}
               tooltip={showTooltips ? 'Only send advisories above this confidence threshold to Companion.' : undefined}
               min={0.3} max={0.95} step={0.05} sliderValue={cs.minConfidence}
-              onChange={(v) => updateSettings({ minConfidence: v })} />
+              onChange={(v) => updateSettings({ minConfidence: v })} defaultValue={0.5} />
 
             <LEDToggle checked={cs.autoSend} onChange={(checked) => updateSettings({ autoSend: checked })}
               label="Auto-Send Advisories"

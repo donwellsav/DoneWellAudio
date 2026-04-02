@@ -3,6 +3,7 @@
 import React, { memo, useState, useCallback } from 'react'
 import { HelpCircle, Save, Trash2, X, Download, FileText, FileJson, FileSpreadsheet, Loader2, ChevronDown } from 'lucide-react'
 import { ConsoleSlider } from '@/components/ui/console-slider'
+import { Input } from '@/components/ui/input'
 import { ChannelSection } from '@/components/ui/channel-section'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -173,7 +174,7 @@ export const SetupTab = memo(function SetupTab({
           tooltip={settings.showTooltips ? 'Post-gain peak target. -12 hot (ring out), -18 balanced, -24 conservative (broadcast).' : undefined}
           min={-30} max={-6} step={1} sliderValue={settings.autoGainTargetDb}
           onChange={(v) => ctx.setAutoGain(settings.autoGainEnabled, v)}
-          color="green" />
+          color="green" defaultValue={-18} />
       )}
 
       {/* Room */}
@@ -232,7 +233,7 @@ export const SetupTab = memo(function SetupTab({
           <div className="grid grid-cols-2 gap-2">
             <label className="block text-xs">
               <span className="text-muted-foreground">Port</span>
-              <input
+              <Input
                 type="number"
                 value={pa2.settings.companionPort}
                 onChange={(e) => {
@@ -243,7 +244,7 @@ export const SetupTab = memo(function SetupTab({
                   })
                 }}
                 min={1} max={65535}
-                className="mt-1 block w-full rounded border border-border bg-background px-2 py-1 text-xs font-mono"
+                className="mt-1 block w-full rounded border border-border bg-background px-2 py-1 text-xs font-mono h-auto"
               />
             </label>
             <label className="block text-xs">
@@ -401,6 +402,7 @@ export const SetupTab = memo(function SetupTab({
               sliderValue={pa2.settings.autoSendMinConfidence * 100}
               onChange={(v: number) => pa2.updateSettings({ autoSendMinConfidence: v / 100 })}
               min={20} max={100} step={5}
+              defaultValue={50}
             />
             <p className="text-[10px] text-muted-foreground/50 mt-0.5">
               Only send detections above this confidence level. Higher = fewer false positives, lower = faster response.

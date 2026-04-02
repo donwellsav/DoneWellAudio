@@ -1,7 +1,9 @@
 'use client'
 
-import { memo, useState, useCallback } from 'react'
+import { memo, useState, useCallback, useRef } from 'react'
 import * as SliderPrimitive from '@radix-ui/react-slider'
+import { useWheelStep } from '@/hooks/useWheelStep'
+import { ResetDefault } from '@/components/ui/reset-default'
 import {
   Tooltip,
   TooltipContent,
@@ -12,9 +14,6 @@ import { HelpCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // ── Color config ─────────────────────────────────────────────────────────────
-// Maps semantic color names to CSS variable references + rgba fill gradients.
-// Inline styles are necessary here because Radix SliderPrimitive.Range ignores
-// Tailwind class-based fills — the component applies its own style attribute.
 
 type SliderColor = 'amber' | 'blue' | 'green'
 
@@ -73,16 +72,16 @@ interface ConsoleSliderProps {
    */
   color?: SliderColor
   className?: string
+  /** When provided, shows a reset icon when value differs from default */
+  defaultValue?: number
 }
 
 /**
  * Pro-audio console-style slider with recessed track, color-coded fill,
- * knob thumb with glow ring, and monospace LED value readout.
+ * knob thumb with glow ring, monospace LED value readout, and click-to-edit.
  *
- * Three semantic color groups mirror a real mixing console:
- *   amber = what triggers detection  (mode, sensitivity, thresholds)
- *   blue  = analysis scope / range   (freq range, timing windows, FFT)
- *   cyan  = signal processing system (auto-gain, noise floor, track mgmt)
+ * Click the value readout to type a number directly. Scroll the slider
+ * track (after clicking to focus) to step ±1. Hold Shift for fine-step.
  */
 export const ConsoleSlider = memo(function ConsoleSlider({
   label,
@@ -96,19 +95,37 @@ export const ConsoleSlider = memo(function ConsoleSlider({
   onChange,
   color = 'amber',
   className,
+  defaultValue,
 }: ConsoleSliderProps) {
   const c = COLOR_CONFIG[color]
   const [isDragging, setIsDragging] = useState(false)
   const handlePointerDown = useCallback(() => setIsDragging(true), [])
   const handlePointerUp = useCallback(() => setIsDragging(false), [])
+  const sliderRef = useRef<HTMLSpanElement>(null)
+  useWheelStep(sliderRef, { value: sliderValue, min, max, step, onChange })
+
+  // Click-to-edit state for the value readout
+  const [editing, setEditing] = useState(false)
+  const commitEdit = useCallback((raw: string) => {
+    const parsed = parseFloat(raw)
+    if (!isNaN(parsed)) {
+      // Round to step precision and clamp
+      const rounded = Math.round(parsed / step) * step
+      onChange(Math.min(max, Math.max(min, rounded)))
+    }
+    setEditing(false)
+  }, [min, max, step, onChange])
 
   return (
     <TooltipProvider delayDuration={300}>
       <div className={cn('space-y-1', className)}>
-        {/* Header: label + value readout */}
+        {/* Header: label + value readout (click to edit) */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
             <span className="section-label" style={{ color: c.text }}>{label}</span>
+            {defaultValue != null && (
+              <ResetDefault current={sliderValue} defaultValue={defaultValue} onReset={onChange} tolerance={step / 2} />
+            )}
             {tooltip && showTooltip && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -120,11 +137,35 @@ export const ConsoleSlider = memo(function ConsoleSlider({
               </Tooltip>
             )}
           </div>
-          <span className="console-readout" style={{ color: c.text, textShadow: `0 0 8px ${c.thumbBorder}40` }}>{value}</span>
+          {editing ? (
+            <input
+              autoFocus
+              type="text"
+              defaultValue={String(sliderValue)}
+              className="console-readout bg-input border border-primary rounded px-1 text-right w-16 focus-visible:outline-none"
+              style={{ color: c.text }}
+              onBlur={(e) => commitEdit(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitEdit((e.target as HTMLInputElement).value)
+                if (e.key === 'Escape') setEditing(false)
+              }}
+            />
+          ) : (
+            <button
+              onClick={() => setEditing(true)}
+              className="console-readout cursor-text hover:opacity-80 transition-opacity"
+              style={{ color: c.text, textShadow: `0 0 8px ${c.thumbBorder}40` }}
+              title="Click to type a value"
+              aria-label={`${label}: ${value}. Click to edit.`}
+            >
+              {value}
+            </button>
+          )}
         </div>
 
         {/* Slider track */}
         <SliderPrimitive.Root
+          ref={sliderRef}
           value={[sliderValue]}
           onValueChange={([v]) => onChange(v)}
           onPointerDown={handlePointerDown}
