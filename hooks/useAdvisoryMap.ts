@@ -149,12 +149,15 @@ export function useAdvisoryMap(
     wasFrozenRef.current = currentlyFrozen
   })
 
+  // frozenRef is a stable RefObject — read imperatively, not as a dependency.
+  // Including it caused variable-length dep arrays when frozenRef is undefined vs defined.
   useEffect(() => {
     if (mapRef.current.size === 0) return
     dirtyRef.current = true
     if (frozenRef?.current ?? false) return
     setAdvisories(buildSorted())
-  }, [buildSorted, frozenRef])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- frozenRef is a stable ref, read imperatively
+  }, [buildSorted])
 
   const clearMap = useCallback(() => {
     mapRef.current.clear()
