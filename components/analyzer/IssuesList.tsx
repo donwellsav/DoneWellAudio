@@ -242,42 +242,48 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center flex-1 min-h-[80px] py-6 gap-2">
-            {isLowSignal ? (
-              <>
-                {/* Low signal: blue — system/scope state, not a detection */}
-                <div className="relative flex items-center justify-center flex-shrink-0" style={{ width: 44, height: 44 }}>
-                  <div className="radar-ring" />
-                  <div className="radar-ring" style={{ animationDelay: '1.4s' }} />
-                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-[var(--console-blue)]/50" />
-                </div>
-                <div className="font-mono text-[10px] font-bold tracking-[0.25em] uppercase text-[var(--console-blue)]/70">
-                  Low Signal
-                </div>
-                <div className="flex items-center gap-1.5 motion-safe:animate-pulse">
-                  <span className="text-[var(--console-blue)]/60 text-xs leading-none">▲</span>
-                  <span className="font-mono text-[9px] text-[var(--console-blue)]/50 tracking-wider uppercase">Increase gain</span>
-                </div>
-              </>
-            ) : (
-              <>
-                {/* All-clear: green — no feedback detected */}
-                <div className="relative flex items-center justify-center flex-shrink-0" style={{ width: 56, height: 56 }}>
-                  <div className="radar-ring-green" />
-                  <div className="radar-ring-green" style={{ animationDelay: '1.75s' }} />
-                  <div
-                    className="w-3 h-3 rounded-full flex-shrink-0 bg-emerald-500/60"
-                    style={{ boxShadow: '0 0 10px rgba(16, 185, 129, 0.55)' }}
-                  />
-                </div>
-                <div className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase text-emerald-500/80">
-                  No Feedback
-                </div>
-                <div className="font-mono text-[9px] tracking-[0.18em] uppercase text-emerald-500/50">
-                  Detected
-                </div>
-              </>
-            )}
+          <div className="relative flex flex-col items-center justify-center flex-1 min-h-[80px] py-6 gap-2">
+            {/* Both states rendered — crossfade via opacity transition */}
+            <div
+              className="absolute inset-0 flex flex-col items-center justify-center gap-2 transition-opacity duration-[2000ms] ease-in-out"
+              style={{ opacity: isLowSignal ? 1 : 0, pointerEvents: isLowSignal ? 'auto' : 'none' }}
+              aria-hidden={!isLowSignal}
+            >
+              {/* Low signal: blue — system/scope state, not a detection */}
+              <div className="relative flex items-center justify-center flex-shrink-0" style={{ width: 44, height: 44 }}>
+                <div className="radar-ring" />
+                <div className="radar-ring" style={{ animationDelay: '1.4s' }} />
+                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-[var(--console-blue)]/50" />
+              </div>
+              <div className="font-mono text-[10px] font-bold tracking-[0.25em] uppercase text-[var(--console-blue)]/70">
+                Low Signal
+              </div>
+              <div className="flex items-center gap-1.5 motion-safe:animate-pulse">
+                <span className="text-[var(--console-blue)]/60 text-xs leading-none">▲</span>
+                <span className="font-mono text-[9px] text-[var(--console-blue)]/50 tracking-wider uppercase">Increase gain</span>
+              </div>
+            </div>
+            <div
+              className="absolute inset-0 flex flex-col items-center justify-center gap-2 transition-opacity duration-[2000ms] ease-in-out"
+              style={{ opacity: isLowSignal ? 0 : 1, pointerEvents: isLowSignal ? 'none' : 'auto' }}
+              aria-hidden={isLowSignal}
+            >
+              {/* All-clear: green — no feedback detected */}
+              <div className="relative flex items-center justify-center flex-shrink-0" style={{ width: 56, height: 56 }}>
+                <div className="radar-ring-green" />
+                <div className="radar-ring-green" style={{ animationDelay: '1.75s' }} />
+                <div
+                  className="w-3 h-3 rounded-full flex-shrink-0 bg-emerald-500/60"
+                  style={{ boxShadow: '0 0 10px rgba(16, 185, 129, 0.55)' }}
+                />
+              </div>
+              <div className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase text-emerald-500/80">
+                No Feedback
+              </div>
+              <div className="font-mono text-[9px] tracking-[0.18em] uppercase text-emerald-500/50">
+                Detected
+              </div>
+            </div>
           </div>
         )
       ) : (

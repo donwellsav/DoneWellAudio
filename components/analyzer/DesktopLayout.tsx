@@ -23,6 +23,7 @@ import type { usePanelRef } from '@/components/ui/resizable'
 import type { DetectorSettings } from '@/types/advisory'
 import type { CalibrationTabProps } from './settings/CalibrationTab'
 import { useThresholdChange } from '@/hooks/useThresholdChange'
+import { useLowSignal } from '@/hooks/useLowSignal'
 import { useRoomModes } from '@/hooks/useRoomModes'
 
 interface DesktopLayoutProps {
@@ -71,6 +72,7 @@ export const DesktopLayout = memo(function DesktopLayout({
     session.diagnostics.mainsHumGateOverride !== undefined
   ))
   const { spectrumRef, spectrumStatus, noiseFloorDb, inputLevel, isAutoGain, autoGainDb, autoGainLocked } = useMetering()
+  const isLowSignal = useLowSignal(isRunning, inputLevel)
 
   const { isFrozen, toggleFreeze, layoutKey, rtaContainerRef, isRtaFullscreen, toggleRtaFullscreen } = useUI()
 
@@ -210,7 +212,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                             falsePositiveIds={falsePositiveIds}
                             onConfirmFeedback={onConfirmFeedback}
                             confirmedIds={confirmedIds}
-                            isLowSignal={isRunning && inputLevel < -45}
+                            isLowSignal={isLowSignal}
                             swipeLabeling={settings.swipeLabeling}
                             showAlgorithmScores={settings.showAlgorithmScores}
                             showPeqDetails={settings.showPeqDetails}
@@ -303,7 +305,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                     falsePositiveIds={falsePositiveIds}
                     onConfirmFeedback={onConfirmFeedback}
                     confirmedIds={confirmedIds}
-                    isLowSignal={isRunning && inputLevel < -45}
+                    isLowSignal={isLowSignal}
                     swipeLabeling={settings.swipeLabeling}
                     showAlgorithmScores={settings.showAlgorithmScores}
                     onStartRingOut={onStartRingOut}
@@ -357,7 +359,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                   </div>
                   <div className="flex-1 min-h-0">
                     <ErrorBoundary>
-                      <SpectrumCanvas spectrumRef={spectrumRef} advisories={advisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} onStart={!isRunning && !isStarting ? start : undefined} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} showFreqZones={settings.showFreqZones} showRoomModeLines={settings.showRoomModeLines} roomModes={roomModes} spectrumWarmMode={settings.spectrumWarmMode} onThresholdChange={handleThresholdChange} />
+                      <SpectrumCanvas spectrumRef={spectrumRef} advisories={advisories} isRunning={isRunning} isStarting={isStarting} error={error} onStart={!isRunning && !isStarting ? start : undefined} earlyWarning={earlyWarning} clearedIds={rtaClearedIds} isFrozen={isFrozen} roomModes={roomModes} display={{ graphFontSize: settings.graphFontSize, rtaDbMin: settings.rtaDbMin, rtaDbMax: settings.rtaDbMax, spectrumLineWidth: settings.spectrumLineWidth, canvasTargetFps: settings.canvasTargetFps, showFreqZones: settings.showFreqZones, showRoomModeLines: settings.showRoomModeLines, showThresholdLine: settings.showThresholdLine, spectrumWarmMode: settings.spectrumWarmMode }} range={{ minFrequency: settings.minFrequency, maxFrequency: settings.maxFrequency, feedbackThresholdDb: settings.feedbackThresholdDb }} onFreqRangeChange={handleFreqRangeChange} onThresholdChange={handleThresholdChange} />
                     </ErrorBoundary>
                   </div>
                 </div>

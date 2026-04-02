@@ -22,6 +22,7 @@ import type { DetectorSettings } from '@/types/advisory'
 import type { CalibrationTabProps } from './settings/CalibrationTab'
 import { MOBILE_MAX_DISPLAYED_ISSUES } from '@/lib/dsp/constants'
 import { useThresholdChange } from '@/hooks/useThresholdChange'
+import { useLowSignal } from '@/hooks/useLowSignal'
 import { useRoomModes } from '@/hooks/useRoomModes'
 
 const TAB_ORDER = ['issues', 'settings'] as const
@@ -48,6 +49,7 @@ export const MobileLayout = memo(function MobileLayout({
   const { isRunning, isStarting, error, start, stop } = useEngine()
   const { settings, handleModeChange, resetSettings, handleFreqRangeChange, setInputGain, setAutoGain, updateDisplay, setSensitivityOffset, session } = useSettings()
   const { spectrumRef, inputLevel, isAutoGain, autoGainDb, autoGainLocked, noiseFloorDb } = useMetering()
+  const isLowSignal = useLowSignal(isRunning, inputLevel)
 
   const { isFrozen, toggleFreeze, mobileTab, setMobileTab, rtaContainerRef, isRtaFullscreen, toggleRtaFullscreen } = useUI()
 
@@ -67,6 +69,19 @@ export const MobileLayout = memo(function MobileLayout({
   }, [mobileFaderMode, handleThresholdChange, isAutoGain, setAutoGain, setInputGain])
 
   const roomModes = useRoomModes(settings)
+
+  // Memoized config objects for SpectrumCanvas — avoids creating new objects on every render
+  const spectrumDisplay = useMemo(() => ({
+    graphFontSize: settings.graphFontSize, rtaDbMin: settings.rtaDbMin, rtaDbMax: settings.rtaDbMax,
+    spectrumLineWidth: settings.spectrumLineWidth, canvasTargetFps: settings.canvasTargetFps,
+    showFreqZones: settings.showFreqZones, showRoomModeLines: settings.showRoomModeLines,
+    showThresholdLine: settings.showThresholdLine, spectrumWarmMode: settings.spectrumWarmMode,
+  }), [settings.graphFontSize, settings.rtaDbMin, settings.rtaDbMax, settings.spectrumLineWidth, settings.canvasTargetFps, settings.showFreqZones, settings.showRoomModeLines, settings.showThresholdLine, settings.spectrumWarmMode])
+
+  const spectrumRange = useMemo(() => ({
+    minFrequency: settings.minFrequency, maxFrequency: settings.maxFrequency,
+    feedbackThresholdDb: settings.feedbackThresholdDb,
+  }), [settings.minFrequency, settings.maxFrequency, settings.feedbackThresholdDb])
 
   const {
     advisories, activeAdvisoryCount, earlyWarning,
@@ -278,7 +293,7 @@ export const MobileLayout = memo(function MobileLayout({
               {inlineGraphMode === 'rta' ? (
                 <div ref={rtaContainerRef} className="w-full h-full">
                   <ErrorBoundary>
-                    <SpectrumCanvas spectrumRef={spectrumRef} advisories={mobileAdvisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} showFreqZones={settings.showFreqZones} showRoomModeLines={settings.showRoomModeLines} roomModes={roomModes} spectrumWarmMode={settings.spectrumWarmMode} onThresholdChange={handleThresholdChange} />
+                    <SpectrumCanvas spectrumRef={spectrumRef} advisories={mobileAdvisories} isRunning={isRunning} isStarting={isStarting} error={error} earlyWarning={earlyWarning} clearedIds={rtaClearedIds} isFrozen={isFrozen} roomModes={roomModes} display={spectrumDisplay} range={spectrumRange} onFreqRangeChange={handleFreqRangeChange} onThresholdChange={handleThresholdChange} />
                   </ErrorBoundary>
                 </div>
               ) : (
@@ -325,7 +340,7 @@ export const MobileLayout = memo(function MobileLayout({
                       falsePositiveIds={falsePositiveIds}
                       onConfirmFeedback={onConfirmFeedback}
                       confirmedIds={confirmedIds}
-                      isLowSignal={isRunning && inputLevel < -45}
+                      isLowSignal={isLowSignal}
                       swipeLabeling
                       showAlgorithmScores={settings.showAlgorithmScores}
                       showPeqDetails={settings.showPeqDetails}
@@ -422,7 +437,7 @@ export const MobileLayout = memo(function MobileLayout({
           </div>
           <div className="flex-1 min-h-0 flex flex-col gap-0.5 p-0.5">
             <div className="flex-1 min-h-0 bg-card/40 rounded border border-border/40 overflow-hidden">
-              <SpectrumCanvas spectrumRef={spectrumRef} advisories={mobileAdvisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} showFreqZones={settings.showFreqZones} showRoomModeLines={settings.showRoomModeLines} roomModes={roomModes} spectrumWarmMode={settings.spectrumWarmMode} onThresholdChange={handleThresholdChange} />
+              <SpectrumCanvas spectrumRef={spectrumRef} advisories={mobileAdvisories} isRunning={isRunning} isStarting={isStarting} error={error} earlyWarning={earlyWarning} clearedIds={rtaClearedIds} isFrozen={isFrozen} roomModes={roomModes} display={spectrumDisplay} range={spectrumRange} onFreqRangeChange={handleFreqRangeChange} onThresholdChange={handleThresholdChange} />
             </div>
             <div className="flex-1 min-h-0 bg-card/40 rounded border border-border/40 overflow-hidden">
               <GEQBarView advisories={mobileAdvisories} graphFontSize={settings.graphFontSize} clearedIds={geqClearedIds} />
@@ -471,7 +486,7 @@ export const MobileLayout = memo(function MobileLayout({
                 falsePositiveIds={falsePositiveIds}
                 onConfirmFeedback={onConfirmFeedback}
                 confirmedIds={confirmedIds}
-                isLowSignal={isRunning && inputLevel < -45}
+                isLowSignal={isLowSignal}
                 swipeLabeling
                 showAlgorithmScores={settings.showAlgorithmScores}
                 showPeqDetails={settings.showPeqDetails}
@@ -517,7 +532,7 @@ export const MobileLayout = memo(function MobileLayout({
                 Clear
               </button>
             )}
-            <SpectrumCanvas spectrumRef={spectrumRef} advisories={mobileAdvisories} isRunning={isRunning} isStarting={isStarting} error={error} graphFontSize={settings.graphFontSize} onStart={!isRunning && !isStarting ? start : undefined} earlyWarning={earlyWarning} rtaDbMin={settings.rtaDbMin} rtaDbMax={settings.rtaDbMax} spectrumLineWidth={settings.spectrumLineWidth} clearedIds={rtaClearedIds} minFrequency={settings.minFrequency} maxFrequency={settings.maxFrequency} onFreqRangeChange={handleFreqRangeChange} showThresholdLine={settings.showThresholdLine} feedbackThresholdDb={settings.feedbackThresholdDb} isFrozen={isFrozen} canvasTargetFps={settings.canvasTargetFps} showFreqZones={settings.showFreqZones} showRoomModeLines={settings.showRoomModeLines} roomModes={roomModes} spectrumWarmMode={settings.spectrumWarmMode} onThresholdChange={handleThresholdChange} />
+            <SpectrumCanvas spectrumRef={spectrumRef} advisories={mobileAdvisories} isRunning={isRunning} isStarting={isStarting} error={error} onStart={!isRunning && !isStarting ? start : undefined} earlyWarning={earlyWarning} clearedIds={rtaClearedIds} isFrozen={isFrozen} roomModes={roomModes} display={spectrumDisplay} range={spectrumRange} onFreqRangeChange={handleFreqRangeChange} onThresholdChange={handleThresholdChange} />
           </div>
           {/* GEQ — bottom half */}
           <div className="flex-1 min-h-0 bg-card/40 rounded border border-border/40 overflow-hidden relative">

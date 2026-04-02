@@ -20,6 +20,26 @@ import {
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 
+/** Visual display settings — typically derived from DetectorSettings.display */
+export interface SpectrumDisplayConfig {
+  graphFontSize?: number
+  rtaDbMin?: number
+  rtaDbMax?: number
+  spectrumLineWidth?: number
+  canvasTargetFps?: number
+  showFreqZones?: boolean
+  showRoomModeLines?: boolean
+  showThresholdLine?: boolean
+  spectrumWarmMode?: boolean
+}
+
+/** Frequency range and threshold settings */
+export interface SpectrumRangeConfig {
+  minFrequency?: number
+  maxFrequency?: number
+  feedbackThresholdDb?: number
+}
+
 interface SpectrumCanvasProps {
   spectrumRef: React.RefObject<SpectrumData | null>
   advisories: Advisory[]  // Keep as prop — changes infrequently, drives markers
@@ -27,30 +47,24 @@ interface SpectrumCanvasProps {
   /** True while awaiting mic permission / stream acquisition */
   isStarting?: boolean
   error?: string | null
-  graphFontSize?: number
   onStart?: () => void
   earlyWarning?: EarlyWarning | null
-  rtaDbMin?: number
-  rtaDbMax?: number
-  spectrumLineWidth?: number
   clearedIds?: Set<string>
-  minFrequency?: number
-  maxFrequency?: number
-  onFreqRangeChange?: (min: number, max: number) => void
-  showThresholdLine?: boolean
-  feedbackThresholdDb?: number
   isFrozen?: boolean
-  canvasTargetFps?: number
-  showFreqZones?: boolean
-  showRoomModeLines?: boolean
   roomModes?: RoomMode[] | null
-  spectrumWarmMode?: boolean
+  /** Grouped visual display settings */
+  display?: SpectrumDisplayConfig
+  /** Grouped frequency range / threshold settings */
+  range?: SpectrumRangeConfig
+  onFreqRangeChange?: (min: number, max: number) => void
   onThresholdChange?: (db: number) => void
 }
 
 const GRAB_THRESHOLD_PX = 22 // 44px total touch target per line
 
-export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, advisories, isRunning, isStarting = false, error, graphFontSize = 11, onStart, earlyWarning, rtaDbMin: rtaDbMinProp, rtaDbMax: rtaDbMaxProp, spectrumLineWidth: spectrumLineWidthProp, clearedIds, minFrequency = 20, maxFrequency = 20000, onFreqRangeChange, showThresholdLine = false, feedbackThresholdDb, isFrozen = false, canvasTargetFps, showFreqZones = false, showRoomModeLines = false, roomModes, spectrumWarmMode = false, onThresholdChange }: SpectrumCanvasProps) {
+export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, advisories, isRunning, isStarting = false, error, onStart, earlyWarning, clearedIds, isFrozen = false, roomModes, display = {}, range = {}, onFreqRangeChange, onThresholdChange }: SpectrumCanvasProps) {
+  const { graphFontSize = 11, rtaDbMin: rtaDbMinProp, rtaDbMax: rtaDbMaxProp, spectrumLineWidth: spectrumLineWidthProp, canvasTargetFps, showFreqZones = false, showRoomModeLines = false, showThresholdLine = false, spectrumWarmMode = false } = display
+  const { minFrequency = 20, maxFrequency = 20000, feedbackThresholdDb } = range
   const { resolvedTheme } = useTheme()
   const canvasThemeRef = useRef<CanvasTheme>(DARK_CANVAS_THEME)
   canvasThemeRef.current = resolvedTheme === 'dark' ? DARK_CANVAS_THEME : LIGHT_CANVAS_THEME

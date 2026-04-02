@@ -523,8 +523,18 @@ html {
     }
   }
 
+  /* ── Severity-graded card entrance — RUNAWAY = instant (no class), all others = slow fade ── */
   .animate-issue-enter {
     animation: issue-enter 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  /* Slow variant: pure opacity fade — no glow flash, no slide, no strobe */
+  @keyframes issue-enter-slow {
+    0%   { opacity: 0; }
+    100% { opacity: 1; }
+  }
+  .animate-issue-enter-slow {
+    animation: issue-enter-slow 5s ease-out forwards;
   }
 
   /* ── Severity accent strip flash on card enter ─────────────────────────── */
@@ -536,6 +546,15 @@ html {
 
   .animate-strip-flash {
     animation: strip-flash 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  /* Slow variant: gentle brightness rise — no spike */
+  @keyframes strip-fade-in {
+    0%   { filter: brightness(0.3); opacity: 0; }
+    100% { filter: brightness(1); opacity: 1; }
+  }
+  .animate-strip-flash-slow {
+    animation: strip-fade-in 5s ease-out forwards;
   }
 
   /* ── Interactive button glow on hover + press ──────────────────────────── */

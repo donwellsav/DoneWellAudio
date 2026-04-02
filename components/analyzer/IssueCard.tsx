@@ -17,6 +17,26 @@ import { IssueCardActions } from './IssueCardActions'
 const RUNAWAY_VELOCITY_THRESHOLD = 15 // dB/s
 const WARNING_VELOCITY_THRESHOLD = 10 // dB/s
 
+/** Severity-graded card entrance animation — RUNAWAY = instant, all others = slow 5s fade */
+const SEVERITY_ENTER_CLASS: Record<string, string> = {
+  RUNAWAY: '',
+  GROWING: 'animate-issue-enter-slow',
+  RESONANCE: 'animate-issue-enter-slow',
+  POSSIBLE_RING: 'animate-issue-enter-slow',
+  WHISTLE: 'animate-issue-enter-slow',
+  INSTRUMENT: 'animate-issue-enter-slow',
+}
+
+/** Matching strip flash speed per severity — RUNAWAY instant, all others 5s */
+const SEVERITY_STRIP_CLASS: Record<string, string> = {
+  RUNAWAY: '',
+  GROWING: 'animate-strip-flash-slow',
+  RESONANCE: 'animate-strip-flash-slow',
+  POSSIBLE_RING: 'animate-strip-flash-slow',
+  WHISTLE: 'animate-strip-flash-slow',
+  INSTRUMENT: 'animate-strip-flash-slow',
+}
+
 // ── Types ────────────────────────────────────────────────────────────
 
 export interface IssueCardProps {
@@ -155,7 +175,7 @@ export const IssueCard = memo(function IssueCard({
   // ── Render ───────────────────────────────────────────────────────
   return (
     <div
-      className={`relative flex flex-col rounded glass-card animate-issue-enter overflow-hidden ${
+      className={`relative flex flex-col rounded glass-card ${SEVERITY_ENTER_CLASS[advisory.severity] ?? 'animate-issue-enter'} overflow-hidden ${
         isFalsePositive
           ? 'border-red-500/30 opacity-50'
           : isResolved
@@ -200,7 +220,7 @@ export const IssueCard = memo(function IssueCard({
 
       {/* Left severity accent — glowing strip, wider + brighter for RUNAWAY */}
       <div
-        className={`absolute left-0 top-0 bottom-0 animate-strip-flash ${isRunaway ? 'severity-accent-strip-runaway' : 'severity-accent-strip'}`}
+        className={`absolute left-0 top-0 bottom-0 ${SEVERITY_STRIP_CLASS[advisory.severity] ?? 'animate-strip-flash'} ${isRunaway ? 'severity-accent-strip-runaway' : 'severity-accent-strip'}`}
         style={{
           backgroundColor: isResolved ? 'hsl(var(--muted))' : severityColor,
           boxShadow: isResolved ? 'none' : isRunaway
