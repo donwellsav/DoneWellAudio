@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useCallback, useState, memo } from 'react'
 import { useTheme } from 'next-themes'
+import { useWheelStep } from '@/hooks/useWheelStep'
 
 interface InputMeterSliderProps {
   value: number
@@ -34,6 +35,7 @@ export const InputMeterSlider = memo(function InputMeterSlider({
   const isDark = resolvedTheme !== 'light'
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const sliderRef = useRef<HTMLDivElement>(null)
+  const readoutRef = useRef<HTMLButtonElement>(null)
   const isDragging = useRef(false)
   const [editing, setEditing] = useState(false)
   const dimensionsRef = useRef({ width: 0, height: 0 })
@@ -49,6 +51,10 @@ export const InputMeterSlider = memo(function InputMeterSlider({
   const rafIdRef = useRef(0)
 
   const normalizedLevel = Math.max(0, Math.min(1, (level + 60) / 60))
+
+  // Focus-gated scroll-wheel on track and readout (native listener, passive:false)
+  useWheelStep(sliderRef, { value, min, max, step: 1, onChange })
+  useWheelStep(readoutRef, { value, min, max, step: 1, onChange })
 
   // Display value: when auto-gain is active, show the auto-computed gain
   const displayValue = autoGainEnabled && autoGainDb != null ? autoGainDb : value
@@ -354,15 +360,11 @@ export const InputMeterSlider = memo(function InputMeterSlider({
         />
       ) : (
         <button
+          ref={readoutRef}
           className={`font-mono text-right transition-colors cursor-text flex-shrink-0 tabular-nums ${compact ? 'text-xs w-9' : 'text-sm w-12'} ${
             autoGainEnabled ? 'text-[var(--console-green)] hover:text-[var(--console-green)]/80' : 'text-[var(--console-amber)] hover:text-[var(--console-amber)]/80'
           }`}
           onClick={() => setEditing(true)}
-          onWheel={(e) => {
-            e.preventDefault()
-            if (autoGainEnabled && onAutoGainToggle) onAutoGainToggle(false)
-            onChange(e.deltaY < 0 ? Math.min(max, value + 1) : Math.max(min, value - 1))
-          }}
           title={autoGainEnabled ? (autoGainLocked ? 'Gain locked — click to edit (switches to manual)' : 'Calibrating — click to edit (switches to manual)') : 'Click to type, scroll to step ±1dB'}
           aria-label={`Input gain ${valueLabel}${autoGainEnabled ? (autoGainLocked ? ' (locked)' : ' (calibrating)') : ''}, click to edit`}
         >

@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useCallback, useState, memo } from 'react'
 import { useTheme } from 'next-themes'
+import { useWheelStep } from '@/hooks/useWheelStep'
 
 /**
  * Guidance hint for the sensitivity fader — computed by the parent
@@ -56,6 +57,7 @@ export const SingleFader = memo(function SingleFader({
   const isDark = resolvedTheme !== 'light'
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
+  const readoutRef = useRef<HTMLButtonElement>(null)
   const isDragging = useRef(false)
   const [editing, setEditing] = useState(false)
   const dimensionsRef = useRef({ width: 0, height: 0 })
@@ -94,6 +96,10 @@ export const SingleFader = memo(function SingleFader({
   // Sensitivity mode: effective min/max for the inverted range
   const effectiveMin = isSensitivity ? 2 : min
   const effectiveMax = isSensitivity ? 50 : max
+
+  // Focus-gated scroll-wheel on track and readout (native listener, passive:false)
+  useWheelStep(trackRef, { value, min: effectiveMin, max: effectiveMax, step: 1, onChange, inverted: isSensitivity })
+  useWheelStep(readoutRef, { value, min: effectiveMin, max: effectiveMax, step: 1, onChange, inverted: isSensitivity })
 
   // Guidance arrow colors
   const arrowColors = guidance?.urgency === 'warning'
@@ -431,16 +437,13 @@ export const SingleFader = memo(function SingleFader({
         />
       ) : (
         <button
+          ref={readoutRef}
           className={`fader-readout font-mono text-center transition-colors cursor-text flex-shrink-0 tabular-nums text-sm font-bold leading-tight ${
             isSensitivity
               ? 'text-blue-400 hover:text-blue-300'
               : 'text-[var(--console-amber)] hover:text-[var(--console-amber)]/80'
           }`}
           onClick={() => setEditing(true)}
-          onWheel={(e) => {
-            e.preventDefault()
-            handleKeyStep(e.deltaY < 0 ? 1 : -1)
-          }}
           title={
             isSensitivity
               ? `Sensitivity: ${value}dB threshold — click to type`

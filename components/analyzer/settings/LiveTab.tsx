@@ -69,6 +69,7 @@ export const LiveTab = memo(function LiveTab({ settings }: LiveTabProps) {
         min={2} max={50} step={1}
         sliderValue={52 - settings.feedbackThresholdDb}
         onChange={handleSensitivityChange}
+        defaultValue={52 - MODE_BASELINES[ctx.session.modeId].feedbackThresholdDb}
       />
 
       {/* Section divider */}

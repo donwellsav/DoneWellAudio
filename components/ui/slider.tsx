@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import * as SliderPrimitive from '@radix-ui/react-slider'
+import { useWheelStep } from '@/hooks/useWheelStep'
 
 import { cn } from '@/lib/utils'
 
@@ -13,6 +14,16 @@ function Slider({
   max = 100,
   ...props
 }: React.ComponentProps<typeof SliderPrimitive.Root>) {
+  const step = (props.step as number) ?? 1
+  const currentValue = Array.isArray(value) ? value[0] : Array.isArray(defaultValue) ? defaultValue[0] : min
+  const sliderRef = React.useRef<HTMLSpanElement>(null)
+  useWheelStep(sliderRef, {
+    value: currentValue,
+    min,
+    max,
+    step,
+    onChange: (v) => props.onValueChange?.([v]),
+  })
   const _values = React.useMemo(
     () =>
       Array.isArray(value)
@@ -25,6 +36,7 @@ function Slider({
 
   return (
     <SliderPrimitive.Root
+      ref={sliderRef}
       data-slot="slider"
       defaultValue={defaultValue}
       value={value}
