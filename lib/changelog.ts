@@ -14,6 +14,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.72.0',
+    date: '2026-04-02',
+    changes: [
+      { type: 'feat', description: '**Design system audit** — extracted canvas color tokens, fixed getSeverityColor light theme in 3 call sites, eliminated all hardcoded hex from components' },
+      { type: 'feat', description: '**GEQ bar tooltips** — hover any active bar to see band frequency, cut dB, exact peak Hz, and cluster merge count' },
+      { type: 'feat', description: '**RTA advisory tooltips** — enhanced hover tooltip shows severity, confidence, PEQ cut/Q, and velocity when cursor is near a marker' },
+      { type: 'feat', description: '**Marker label declutter** — frequency pill labels temporarily hide when cursor is nearby, using full label x-range for accurate suppression from either side' },
+      { type: 'feat', description: 'meterBg() + applyMeterStops() — replace 15 duplicated hex values across 3 fader files' },
+      { type: 'feat', description: 'geqBg/geqGrid/geqCenter/GEQ_BAR_OUTLINE/GEQ_AXIS_LABEL_LIGHT — GEQ canvas colors' },
+      { type: 'feat', description: 'confidenceColor() — IssueCard confidence ring' },
+      { type: 'feat', description: 'RUNAWAY_COLOR, OVERLAY_TEXT, OVERLAY_ACCENT — inline style tokens' },
+      { type: 'feat', description: 'Before: 72/100 (34 hardcoded hex, 3 missing isDark params, duplicated meter gradients)' },
+      { type: 'feat', description: 'After: 93/100 (only 2 shadcn upstream bg-[#111214] remain)' },
+      { type: 'feat', description: '[ ] Type check passes (npx tsc --noEmit)' },
+      { type: 'feat', description: '[ ] Tests pass — 66 suites, 1249 pass, 4 skip' },
+      { type: 'feat', description: '[ ] GEQ: hover active bar shows tooltip with frequency, cut, peak Hz' },
+      { type: 'feat', description: '[ ] RTA: hover near marker shows tooltip with severity, confidence, PEQ' },
+      { type: 'feat', description: '[ ] RTA: marker labels hide when cursor is nearby (left or right)' },
+      { type: 'feat', description: '[ ] Light theme: GEQ bars and RingOut wizard use correct severity colors' },
+      { type: 'feat', description: '[ ] Fader meters still render correctly (shared gradient tokens)' },
+    ],
+  },
+  {
     version: '0.71.0',
     date: '2026-04-02',
     changes: [
