@@ -33,14 +33,16 @@ export function loadConsent(): ConsentState {
 
     const stored: ConsentState = JSON.parse(raw)
 
-    // Version bump → migrate in-place (preserve status, add jurisdiction: null)
-    // Do NOT reset to default — EU users are re-prompted by version mismatch in
-    // useDataCollection, not by wiping their consent state.
+    // Version bump → reset to 'not_asked' so useDataCollection re-prompts.
+    // Preserve the original version so callers can detect outdated consent.
+    // Collection is blocked until the user re-accepts under the new version.
     if (stored.version < CONSENT_VERSION) {
       return {
         ...stored,
-        version: CONSENT_VERSION,
+        status: 'not_asked' as ConsentState['status'],
         jurisdiction: stored.jurisdiction ?? null,
+        // Keep stored.version — do NOT overwrite with CONSENT_VERSION.
+        // isConsentPending() checks status === 'not_asked' to trigger re-prompt.
       }
     }
 

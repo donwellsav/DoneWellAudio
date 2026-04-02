@@ -299,6 +299,13 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
     if (now - lastAutoSendRef.current < autoSendIntervalMs) return
     lastAutoSendRef.current = now
 
+    // ⚠️ CONTROL BOUNDARY: Below this point, auto-send writes to external hardware
+    // (PA2 GEQ/PEQ/mute). This is explicitly opt-in via Settings → PA2 → Auto-Send,
+    // separate from the analysis-only core. The operator must enable auto-send AND
+    // connect PA2 before any hardware writes occur. See CLAUDE.md § "Do not modify
+    // audio output" — this applies to DoneWell's own signal path, not to the
+    // user-consented PA2 companion integration which routes through a separate device.
+
     // Panic mute: if any advisory is RUNAWAY and panic is enabled, mute immediately
     if (panicMuteEnabled) {
       const hasRunaway = advisories.some(a => !a.resolved && a.severity === 'RUNAWAY')
@@ -402,11 +409,16 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
       }
       const peqPayload = filterNewOrWorsened(peqPayloadRaw, sentPEQRef.current)
 
-      const totalCount = Object.keys(geqCorrections).length + peqPayload.length
-      if (Object.keys(geqCorrections).length > 0 && state.geq && geqFresh) {
-        const merged = mergeGEQCorrections(state.geq.bands, geqCorrections)
+      // Dedup GEQ: skip bands already applied at the same depth (prevents accumulation)
+      const newGEQ: Record<string, number> = {}
+      for (const [band, gain] of Object.entries(geqCorrections)) {
+        if (appliedGEQRef.current[band] !== gain) newGEQ[band] = gain
+      }
+      const totalCount = Object.keys(newGEQ).length + peqPayload.length
+      if (Object.keys(newGEQ).length > 0 && state.geq && geqFresh) {
+        const merged = mergeGEQCorrections(state.geq.bands, newGEQ)
         client.setGEQBands(merged)
-          .then(() => recordAutoSendSuccess('both', totalCount))
+          .then(() => { Object.assign(appliedGEQRef.current, newGEQ); recordAutoSendSuccess('both', totalCount) })
           .catch(recordAutoSendError)
       }
       if (peqPayload.length > 0) {
@@ -440,12 +452,18 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
       }
       const peqPayload = filterNewOrWorsened(peqPayloadRaw, sentPEQRef.current)
 
-      // Send GEQ corrections for broad advisories
+      // Dedup GEQ: skip bands already applied at the same depth (prevents accumulation)
+      const newBothGEQ: Record<string, number> = {}
+      for (const [band, gain] of Object.entries(geqCorrections)) {
+        if (appliedGEQRef.current[band] !== gain) newBothGEQ[band] = gain
+      }
       let geqCount = 0
-      if (Object.keys(geqCorrections).length > 0 && state.geq && geqFresh) {
-        const merged = mergeGEQCorrections(state.geq.bands, geqCorrections)
-        geqCount = Object.keys(geqCorrections).length
-        client.setGEQBands(merged).catch(recordAutoSendError)
+      if (Object.keys(newBothGEQ).length > 0 && state.geq && geqFresh) {
+        const merged = mergeGEQCorrections(state.geq.bands, newBothGEQ)
+        geqCount = Object.keys(newBothGEQ).length
+        client.setGEQBands(merged)
+          .then(() => { Object.assign(appliedGEQRef.current, newBothGEQ) })
+          .catch(recordAutoSendError)
       }
       // Send PEQ detections for narrow/urgent advisories
       if (peqPayload.length > 0) {
@@ -524,9 +542,10 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
       // Find the advisory for this clientId
       const adv = advisories.find(a => a.id === clientId && !a.resolved)
       if (!adv) { delete notchVerifyTimersRef.current[clientId]; continue }
-      // Check PA2 RTA at this frequency
-      const validated = crossValidateWithPA2RTA(adv.trueFrequencyHz, 1.0, state.rta)
-      if (validated > 0.85) {
+      // Check PA2 RTA at this frequency — use the advisory's own confidence,
+      // not 1.0 (which makes crossValidate always return 1.0 for any non-silent band)
+      const validated = crossValidateWithPA2RTA(adv.trueFrequencyHz, adv.confidence, state.rta)
+      if (validated > adv.confidence * 0.85) {
         // PA2 RTA still shows a peak — notch wasn't effective enough, re-send with boosted confidence
         const deeperPayload = [{
           hz: Math.round(adv.trueFrequencyHz),
@@ -554,10 +573,11 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
     }
   }, [state.lastAutoSendResult, advisories, autoSendMinConfidence])
 
-  // ── Predictive pre-notching: detect rising RTA bands before they become feedback ──
+  // ── Predictive pre-notching: detect rising RTA bands corroborated by early warnings ──
 
   const rtaHistoryRef = useRef<number[][]>([])
   const lastPreNotchRef = useRef<number>(0)
+  const preNotchRollbackRef = useRef<Record<string, number>>({}) // band → pre-cut value for rollback
 
   useEffect(() => {
     if (autoSend === 'off' || !clientRef.current || state.status !== 'connected' || !state.pa2Connected) return
@@ -571,27 +591,40 @@ export function usePA2Bridge(config: UsePA2BridgeConfig): UsePA2BridgeReturn {
     const now = Date.now()
     if (now - lastPreNotchRef.current < 5000) return // max one pre-notch every 5s
 
-    // Check each band for rising trend (>2dB/10s = heading toward feedback)
+    // Auto-release pre-notches after 15s if band is no longer rising
     const history = rtaHistoryRef.current
     const oldest = history[0]
     const newest = history[history.length - 1]
     const GEQ_FREQS = PA2_RTA_FREQS
 
+    for (const [bandNum, preCutDb] of Object.entries(preNotchRollbackRef.current)) {
+      const i = parseInt(bandNum) - 1
+      if (i < 0 || i >= 31) continue
+      const rise = newest[i] - oldest[i]
+      if (rise <= 0) {
+        // Band is no longer rising — rollback pre-notch
+        clientRef.current?.setGEQBands({ [bandNum]: preCutDb }).catch(() => {})
+        delete preNotchRollbackRef.current[bandNum]
+      }
+    }
+
+    // Only pre-notch bands that have a corroborating advisory (early warning or active)
     for (let i = 0; i < 31; i++) {
       const rise = newest[i] - oldest[i]
       if (rise > 2 && newest[i] > -50) { // rising >2dB and above noise floor
-        // Check this isn't already being handled by an active advisory
         const freqHz = GEQ_FREQS[i]
-        const alreadyDetected = advisories.some(a =>
+        // Require a confirmed advisory within 200 cents — don't cut on RTA slope alone
+        const hasAdvisory = advisories.some(a =>
           !a.resolved && Math.abs(1200 * Math.log2(a.trueFrequencyHz / freqHz)) < 200
         )
-        if (alreadyDetected) continue
+        if (!hasAdvisory) continue
 
-        // Send preemptive shallow GEQ cut (-2dB) before it becomes real feedback
         if (state.geq) {
           const bandNum = String(i + 1)
           const current = state.geq.bands[bandNum] ?? 0
-          if (current > -6) { // don't pre-notch if already cut
+          if (current > -6 && !preNotchRollbackRef.current[bandNum]) {
+            // Record pre-cut state for rollback
+            preNotchRollbackRef.current[bandNum] = current
             clientRef.current.setGEQBands({ [bandNum]: Math.max(-12, current - 2) }).catch(() => {})
             lastPreNotchRef.current = now
             break // one pre-notch at a time

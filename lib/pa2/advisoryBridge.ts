@@ -229,7 +229,8 @@ export function advisoriesToDetectPayload(
           confidence: maxConf,
           type: 'feedback',
           q: wideQ,
-          clientId: cluster[0].clientId, // use first advisory's ID
+          clientId: cluster[0].clientId, // primary ID for dedup
+          sourceIds: cluster.map(d => d.clientId).filter(Boolean) as string[], // all IDs for lifecycle tracking
         })
         i = j
       } else {

@@ -89,27 +89,29 @@ describe('consent state machine', () => {
 })
 
 describe('version migration', () => {
-  it('preserves status when migrating from older version', () => {
+  it('resets status to not_asked when migrating from older version (forces re-consent)', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       status: 'accepted',
       version: 1, // Older than current CONSENT_VERSION
       respondedAt: '2025-01-01T00:00:00Z',
     }))
     const state = loadConsent()
-    // Status preserved — EU users are re-prompted by hook version check, not by wiping state
-    expect(state.status).toBe('accepted')
-    expect(state.version).toBe(CONSENT_VERSION)
+    // Status reset to not_asked — user must re-consent under new version
+    expect(state.status).toBe('not_asked')
+    // Original version preserved so callers can detect outdated consent
+    expect(state.version).toBe(1)
     expect(state.jurisdiction).toBeNull()
   })
 
-  it('preserves declined status when migrating from older version', () => {
+  it('resets declined to not_asked when migrating from older version', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       status: 'declined',
       version: 1,
       respondedAt: '2025-01-01T00:00:00Z',
     }))
     const state = loadConsent()
-    expect(state.status).toBe('declined')
+    // Even previously-declined users get re-prompted on version bump
+    expect(state.status).toBe('not_asked')
     expect(state.jurisdiction).toBeNull()
   })
 
@@ -161,13 +163,14 @@ describe('jurisdiction', () => {
     expect(state.jurisdiction).toBeNull()
   })
 
-  it('isConsentGiven still true after v1 accepted migration', () => {
+  it('isConsentGiven false after v1 accepted migration (requires re-consent)', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       status: 'accepted',
       version: 1,
       respondedAt: '2025-01-01T00:00:00Z',
     }))
-    expect(isConsentGiven()).toBe(true)
+    // v1→v2 migration resets to pending, so consent is no longer given
+    expect(isConsentGiven()).toBe(false)
   })
 
   it('isConsentPending true for v1 not_asked state', () => {
@@ -176,6 +179,7 @@ describe('jurisdiction', () => {
       version: 1,
       respondedAt: null,
     }))
+    // not_asked at v1 → pending after migration
     expect(isConsentPending()).toBe(true)
   })
 

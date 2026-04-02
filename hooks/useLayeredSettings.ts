@@ -79,14 +79,16 @@ export interface UseLayeredSettingsReturn {
 
 export function useLayeredSettings(initialSettings: Partial<DetectorSettings> = {}): UseLayeredSettingsReturn {
   const [initialState] = useState<{ session: DwaSessionState; display: DisplayPrefs }>(() => {
-    const storedSession = sessionStorageV2.load()
+    const rawSession = sessionStorageV2.load()
     const storedDisplay = displayStorageV2.load()
+    // Validate nested branches — malformed localStorage can have null/non-object values
+    const storedSession = rawSession && typeof rawSession === 'object' ? rawSession : {} as Partial<DwaSessionState>
     const baseSession: DwaSessionState = {
       ...DEFAULT_SESSION_STATE,
       ...storedSession,
-      environment: { ...DEFAULT_ENVIRONMENT, ...storedSession.environment },
-      liveOverrides: { ...DEFAULT_LIVE_OVERRIDES, ...storedSession.liveOverrides },
-      diagnostics: { ...DEFAULT_DIAGNOSTICS, ...storedSession.diagnostics },
+      environment: { ...DEFAULT_ENVIRONMENT, ...(storedSession.environment && typeof storedSession.environment === 'object' ? storedSession.environment : {}) },
+      liveOverrides: { ...DEFAULT_LIVE_OVERRIDES, ...(storedSession.liveOverrides && typeof storedSession.liveOverrides === 'object' ? storedSession.liveOverrides : {}) },
+      diagnostics: { ...DEFAULT_DIAGNOSTICS, ...(storedSession.diagnostics && typeof storedSession.diagnostics === 'object' ? storedSession.diagnostics : {}) },
     }
     const baseDisplay: DisplayPrefs = {
       ...DEFAULT_DISPLAY_PREFS,

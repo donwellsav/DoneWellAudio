@@ -133,6 +133,8 @@ export interface PA2DetectFrequency {
   readonly q?: number
   /** Advisory ID for notch tracking and release */
   readonly clientId?: string
+  /** All source advisory IDs when cluster-consolidated (for lifecycle tracking) */
+  readonly sourceIds?: readonly string[]
 }
 
 export interface PA2DetectRequest {

@@ -52,11 +52,26 @@ export function resolveEnvironmentSelection(
   return merged
 }
 
+/**
+ * Map legacy algorithm modes to the v2 layered system.
+ * Each legacy mode gets an explicit mapping rather than silently collapsing to 'auto',
+ * so saved rigs don't lose their detection strategy on first load.
+ */
 function normalizeAlgorithmMode(
   mode: DetectorSettings['algorithmMode'] | undefined,
 ): DiagnosticsProfile['algorithmMode'] | undefined {
   if (mode === undefined) return undefined
-  return mode === 'custom' ? 'custom' : 'auto'
+  switch (mode) {
+    case 'auto': return 'auto'
+    case 'custom': return 'custom'
+    // Legacy modes that mapped to specific algorithm subsets — preserve as custom
+    // so the user's enabledAlgorithms array (if present) is respected
+    case 'msd': return 'custom'
+    case 'phase': return 'custom'
+    case 'combined': return 'custom'
+    case 'all': return 'auto' // 'all' is equivalent to 'auto' (all algorithms enabled)
+    default: return 'auto'
+  }
 }
 
 export function applyInitialDetectorSettings(
