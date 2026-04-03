@@ -312,6 +312,8 @@ export const IssueCard = memo(function IssueCard({
             {advisory.confidence != null && (
               <span
                 className="inline-flex items-center gap-0.5 text-[9px] font-mono leading-none"
+                role="img"
+                aria-label={`${Math.round(advisory.confidence * 100)}% confidence`}
                 title={`${Math.round(advisory.confidence * 100)}% confidence`}
               >
                 <svg width="12" height="12" viewBox="0 0 18 18" className="flex-shrink-0" aria-hidden>

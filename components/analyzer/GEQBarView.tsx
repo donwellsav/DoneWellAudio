@@ -391,6 +391,15 @@ export const GEQBarView = memo(function GEQBarView({ advisories, graphFontSize =
 
   const hasRecommendations = bandRecommendations.size > 0
 
+  // Screen reader label: list actual cuts so keyboard users get equivalent info to the visual canvas
+  const geqAriaLabel = useMemo(() => {
+    if (bandRecommendations.size === 0) return 'Graphic equalizer: no active cuts'
+    const cuts = Array.from(bandRecommendations.entries())
+      .map(([i, rec]) => `${GEQ_BAND_LABELS[i]} Hz ${rec.suggestedDb}dB`)
+      .join(', ')
+    return `Graphic equalizer: ${bandRecommendations.size} active cuts. ${cuts}`
+  }, [bandRecommendations])
+
   // Mouse move → hit-test which band the cursor is over
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = containerRef.current?.getBoundingClientRect()
@@ -415,7 +424,7 @@ export const GEQBarView = memo(function GEQBarView({ advisories, graphFontSize =
 
   return (
     <div ref={containerRef} className="relative w-full h-full" onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
-      <canvas ref={canvasRef} className="w-full h-full focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring rounded-sm" tabIndex={0} role="img" aria-label={`Graphic equalizer: ${bandRecommendations.size > 0 ? `${bandRecommendations.size} active cuts` : 'no active cuts'}`} />
+      <canvas ref={canvasRef} className="w-full h-full focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring rounded-sm" tabIndex={0} role="img" aria-label={geqAriaLabel} />
       {/* Hover tooltip for GEQ bars */}
       {hoverRec && hoverLabel && (
         <div
