@@ -5,7 +5,7 @@ import { formatFrequency, formatFrequencyRange, formatPitch } from '@/lib/utils/
 import { getSeverityColor } from '@/lib/dsp/eqAdvisor'
 import { confidenceColor, RUNAWAY_COLOR } from '@/lib/canvas/canvasTokens'
 import { getSeverityText } from '@/lib/dsp/classifier'
-import { AlertTriangle, TrendingUp } from 'lucide-react'
+import { AlertTriangle, TrendingUp, Zap, ArrowUpRight, Radio, CircleDot, Music, Waves } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import type { Advisory } from '@/types/advisory'
@@ -26,6 +26,16 @@ const SEVERITY_ENTER_CLASS: Record<string, string> = {
   POSSIBLE_RING: 'animate-issue-enter-slow',
   WHISTLE: 'animate-issue-enter-slow',
   INSTRUMENT: 'animate-issue-enter-slow',
+}
+
+/** Severity → icon: distinct shapes that communicate type at a glance */
+export const SEVERITY_ICON: Record<string, typeof Zap> = {
+  RUNAWAY: Zap,           // ⚡ lightning — immediate danger
+  GROWING: ArrowUpRight,  // ↗ rising — building toward feedback
+  RESONANCE: Radio,       // 📡 resonance — sustained ring
+  POSSIBLE_RING: CircleDot, // ◎ ring — possible feedback
+  WHISTLE: Waves,         // 〰 waves — tonal whistle
+  INSTRUMENT: Music,      // ♪ music — harmonic content (not feedback)
 }
 
 /** Matching strip flash speed per severity — RUNAWAY instant, all others 5s */
@@ -231,7 +241,7 @@ export const IssueCard = memo(function IssueCard({
       />
 
       <div
-        className="flex flex-col relative z-10 @container"
+        className="flex flex-col relative z-10 @container pl-2.5"
         style={swipeLabeling && swiping ? {
           transform: `translateX(${swipeX}px)`,
           transition: swiping ? 'none' : 'transform 200ms ease-out',
@@ -322,12 +332,25 @@ export const IssueCard = memo(function IssueCard({
 
             {/* Row 2: classification — severity, confidence */}
             <div className="flex items-center gap-1 justify-end">
-              <span
-                className="severity-pill"
-                style={{ backgroundColor: `${severityColor}20`, color: severityColor, border: `1px solid ${severityColor}40` }}
-              >
-                {getSeverityText(advisory.severity)}
-              </span>
+              {(() => {
+                const Icon = SEVERITY_ICON[advisory.severity]
+                return Icon ? (
+                  <span
+                    className="severity-pill inline-flex items-center justify-center"
+                    style={{ backgroundColor: `${severityColor}20`, color: severityColor, border: `1px solid ${severityColor}40`, padding: '2px 5px' }}
+                    title={getSeverityText(advisory.severity)}
+                  >
+                    <Icon className="w-3 h-3" />
+                  </span>
+                ) : (
+                  <span
+                    className="severity-pill"
+                    style={{ backgroundColor: `${severityColor}20`, color: severityColor, border: `1px solid ${severityColor}40` }}
+                  >
+                    {getSeverityText(advisory.severity)}
+                  </span>
+                )
+              })()}
 
               {advisory.confidence != null && (
                 <span

@@ -50,9 +50,10 @@ describe('IssueCard', () => {
     expect(el).toBeDefined()
   })
 
-  it('renders severity pill', () => {
+  it('renders severity icon pill', () => {
     render(<IssueCard advisory={makeAdvisory({ severity: 'GROWING' as SeverityLevel })} occurrenceCount={1} />)
-    expect(screen.getByText(/growing/i)).toBeDefined()
+    // Severity is now an icon with title text, not visible text
+    expect(screen.getByTitle(/growing/i)).toBeDefined()
   })
 
   it('renders confidence badge', () => {

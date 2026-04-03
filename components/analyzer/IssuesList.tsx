@@ -3,6 +3,7 @@
 import { useMemo, useState, useCallback, useRef, useEffect, memo } from 'react'
 import { formatFrequency, formatFreqLabel } from '@/lib/utils/pitchUtils'
 import { getSeverityText } from '@/lib/dsp/classifier'
+import { getSeverityColor } from '@/lib/dsp/eqAdvisor'
 import { getFeedbackHistory } from '@/lib/dsp/feedbackHistory'
 import { ArrowLeft, ArrowRight, Timer } from 'lucide-react'
 import { DwaLogo } from './DwaLogo'
@@ -11,7 +12,7 @@ import type { Advisory } from '@/types/advisory'
 import { useCompanion } from '@/hooks/useCompanion'
 import { usePA2 } from '@/contexts/PA2Context'
 import { useSettings } from '@/contexts/SettingsContext'
-import { IssueCard } from './IssueCard'
+import { IssueCard, SEVERITY_ICON } from './IssueCard'
 
 /** Minimum time (ms) issue cards stay in place before the list re-sorts */
 const MIN_DISPLAY_MS = 3000
@@ -331,8 +332,31 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
               pa2Connected={pa2.settings.enabled && pa2.status === 'connected'}
             />
           ))}
+          {/* Icon legend — compact key for severity icons */}
+          <SeverityLegend />
         </>
       )}
+    </div>
+  )
+})
+
+// ── Severity icon legend ─────────────────────────────────────────────────────
+const LEGEND_SEVERITIES = ['RUNAWAY', 'GROWING', 'RESONANCE', 'POSSIBLE_RING', 'WHISTLE', 'INSTRUMENT'] as const
+
+const SeverityLegend = memo(function SeverityLegend() {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-2 pb-0.5 border-t border-border/30 mt-1">
+      {LEGEND_SEVERITIES.map(sev => {
+        const Icon = SEVERITY_ICON[sev]
+        const color = getSeverityColor(sev)
+        if (!Icon) return null
+        return (
+          <span key={sev} className="inline-flex items-center gap-1 text-[10px] font-mono tracking-wide leading-none" style={{ color }}>
+            <Icon className="w-2.5 h-2.5" />
+            {getSeverityText(sev)}
+          </span>
+        )
+      })}
     </div>
   )
 })
