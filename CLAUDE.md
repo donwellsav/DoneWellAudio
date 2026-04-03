@@ -1,7 +1,7 @@
 # CLAUDE.md — DoneWell Audio Project Intelligence
 
-> **Last updated March 2026. 278 TypeScript/TSX files, 1100 tests (1096 pass, 4 skip), 54 suites. Version 0.54.1.**
-> Signal-responsive console tint. GDPR disclosures. Amber sidecar theme. Three-color operator vocabulary. Help accordion system. Fader UI overhaul. Adaptive phase skip. Performance-optimized fusion loop + canvas rendering. SSRF-hardened companion proxy. Health endpoint. Frontend design polish (7 improvements).
+> **Last updated April 2026. 483 TypeScript/TSX files, 1257 tests (1257 pass, 4 skip), 66 suites. Version 0.61.0.**
+> Signal tint toggle. Severity-graded fade. Issue card redesign (frequency hero, severity icons, icon legend). GEQ/RTA hover tooltips. Low signal hysteresis. Canvas color token system. Design system audit (93/100). 5 rounds Codex adversarial fixes. Scroll-wheel settings. Click-to-edit controls. 33+ codebase improvements.
 
 ## CRITICAL RULES
 
@@ -121,7 +121,7 @@ When the user asks to cut a release or "update the usuals":
 | DSP Offload | Web Worker (dspWorker.ts, ~458 lines) |
 | Visualization | HTML5 Canvas at 30fps |
 | State | React 19 hooks + 4 context providers (no external state library) |
-| Testing | Vitest (1142 tests, 57 suites, under 12s) |
+| Testing | Vitest (1257 tests, 66 suites, under 20s) |
 | Error Reporting | Sentry (browser + server + worker runtimes) |
 | PWA | Serwist (service worker, offline caching, installable) |
 | Package Manager | pnpm |
@@ -133,7 +133,7 @@ pnpm dev              # Dev server on :3000 (Turbopack, no SW)
 pnpm build            # Production build (webpack, generates SW)
 pnpm start            # Production server
 pnpm lint             # ESLint (flat config)
-pnpm test             # Vitest (1142 tests: 1138 pass + 4 skip)
+pnpm test             # Vitest (1257 tests: 1257 pass + 4 skip)
 pnpm test:watch       # Vitest watch mode
 pnpm test:coverage    # Vitest with V8 coverage
 npx tsc --noEmit      # Type-check (run BEFORE pnpm build)
@@ -244,10 +244,18 @@ contexts/ (9 files)           # React context providers
   AdvisoryContext (205)       #   Advisory state, dismiss/clear/FP, derived booleans
   UIContext (162)             #   Mobile tab, freeze, fullscreen, RTA fullscreen, layout reset
   PortalContainerContext (23) #   Portal mount for mobile overlays
-hooks/ (18 files)             # Custom hooks
-  useSignalTint.ts (85)       #   Signal-responsive tint: severity → CSS vars on <html>
+hooks/ (21 files)             # Custom hooks
+  useSignalTint.ts (85)       #   Signal-responsive tint: severity → CSS vars on <html>, reads signalTintEnabled
   useDSPWorker.ts (363)       #   Worker lifecycle, crash recovery, userFeedback
+  useRoomModes.ts (23)        #   Memoized axial room modes from settings (extracted from Desktop/MobileLayout)
+  useLowSignal.ts (52)        #   Debounced low-signal indicator with 3.5s/5s hysteresis
+  useThresholdChange.ts (22)  #   Converts absolute dB threshold to sensitivity offset delta
+  useWheelStep.ts (77)        #   Focus-gated scroll-wheel step adjustment (native passive:false)
 lib/
+  api/
+    rateLimit.ts (60)         # Shared rate limiter factory (createRateLimiter) for API routes
+  canvas/
+    canvasTokens.ts (69)      # Shared canvas color tokens: meterBg, applyMeterStops, geqBg/Grid/Center, confidenceColor
   dsp/ (22 modules)           # DSP engine + ML inference:
     feedbackDetector.ts (1527)#   Core: peak detection, MSD pool, auto-gain, persistence
     constants/ (6 files)      #   All tuning constants, split by domain:
@@ -592,7 +600,34 @@ Then when user says "PR":
 - **Auto-persist:** All 47 settings fields saved to localStorage on every change via `dwaStorage.ts`. Loaded on mount with `DEFAULT_SETTINGS` as fallback.
 - **Custom presets:** Save/load named presets (up to 5). Mode selector + saved presets in Detect accordion.
 
+### Issue Card Design
+- **Frequency hero:** `text-3xl` (4xl for RUNAWAY), `font-black`, severity-colored with LED glow text-shadow. The most important element in the app — readable from across the room.
+- **Severity icons:** Lucide icons replace text labels — `Zap` (RUNAWAY), `ArrowUpRight` (GROWING), `Radio` (RESONANCE), `CircleDot` (POSSIBLE_RING), `Waves` (WHISTLE), `Music` (INSTRUMENT). Exported as `SEVERITY_ICON` from `IssueCard.tsx`.
+- **2-row layout:** Row 1: severity icon + frequency + pitch + badges. Row 2: PEQ rec + velocity + actions (single horizontal row).
+- **Icon legend:** `SeverityLegend` component at bottom of IssuesList, shows all 6 icons with labels and colors.
+- **CONFIRM FEEDBACK:** Two-line button label — "CONFIRM" with "FEEDBACK" subscript (7px, 60% opacity) for clarity.
+- **Severity-graded fade:** RUNAWAY = instant (no animation), all others = 5s opacity fade via `issue-enter-slow` keyframes. Strip accent uses matching `strip-fade-in`.
+
+### Signal Tint
+- **Signal Tint toggle:** `signalTintEnabled` in Display settings (default: true). When off, console stays neutral slate gray — colors only appear when they mean something.
+- **Low signal hysteresis:** `useLowSignal` hook debounces the green↔blue empty state transition. 3.5s enter delay, 5s exit delay, 2s CSS opacity crossfade. Both states always rendered (no mount/unmount flicker).
+
+### Hover Tooltips
+- **GEQ bar tooltips:** HTML overlay on hover — shows band frequency, cut dB, exact peak Hz, cluster merge count. Hit-tests against cached bar layout.
+- **RTA advisory tooltips:** Enhanced canvas tooltip when cursor is within 100 cents of a marker — shows severity, confidence, PEQ cut/Q, velocity. Severity accent strip on tooltip left edge. Falls back to basic freq+dB readout when no marker nearby.
+- **Marker label suppression:** Frequency pill labels temporarily hide when cursor is nearby (uses full label x-range, not just center). Dots and vertical lines remain for spatial context.
+
+### Canvas Token System
+- **`lib/canvas/canvasTokens.ts`:** Shared canvas color constants — `meterBg()`, `applyMeterStops()`, `geqBg/geqGrid/geqCenter()`, `confidenceColor()`, `RUNAWAY_COLOR`, `OVERLAY_TEXT`, `OVERLAY_ACCENT`, `GEQ_AXIS_LABEL_LIGHT`.
+- **Design system score:** 93/100 — only 2 shadcn upstream `bg-[#111214]` remain as hardcoded hex.
+
+### Scroll-Wheel & Click-to-Edit Controls
+- **`useWheelStep` hook:** Focus-gated scroll-wheel step adjustment via native `addEventListener('wheel', handler, { passive: false })`. Click to focus, scroll to adjust, click away to release. Hold Shift for fine-stepping (step/10).
+- **ConsoleSlider click-to-edit:** Click value readout → text input → Enter commits, Escape cancels. Supports locale comma decimal separators.
+- **ResetDefault component:** `RotateCcw` icon, only renders when value ≠ default. Per-setting reset-to-default across all tabs.
+
 ### Other
 - **Permanent Clear All:** Trash icon in header, calls `onClearAll()` + `onClearGEQ()` + `onClearRTA()`.
 - **Auto MEMS calibration:** Smartphone MEMS mic profile auto-applied on mobile.
 - **onnxruntime-web warning suppressed (v0.150.0):** String-concatenated dynamic import avoids Turbopack static analysis. No functional change.
+- **Brand logos:** 24 DoneWell brand PNGs in `public/logos/` (DW-audio, DW-av, DW-video, DW-master variants in black/white/transparent).
