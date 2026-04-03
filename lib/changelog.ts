@@ -14,6 +14,36 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.75.0',
+    date: '2026-04-03',
+    changes: [
+      { type: 'feat', description: '**typedStorage** rejects null and non-object primitives on load' },
+      { type: 'feat', description: '**Companion bridge** cached by pairing code (no singleton mutation)' },
+      { type: 'feat', description: '**PA2 detect** enforces minConfidence parameter' },
+      { type: 'feat', description: '**Mode sync** returns ModeSyncResult with step tracking for partial failure' },
+      { type: 'feat', description: '**Snapshot collector** searches recently-extracted events for late feedback' },
+      { type: 'feat', description: '**Snapshot extraction** peeks before dequeue (no silent drops)' },
+      { type: 'feat', description: '**feedbackHistory** flushes on pagehide for tab close durability' },
+      { type: 'feat', description: '**markCutApplied** accepts timestampMs for consistent clock source' },
+      { type: 'feat', description: '**Consent** resets to not_asked on version bump (forces re-consent)' },
+      { type: 'feat', description: '**useLayeredSettings** validates nested localStorage branches' },
+      { type: 'feat', description: '**GEQ merge** uses absolute target semantics (no additive ratcheting)' },
+      { type: 'feat', description: '**PA2 client** Content-Type text/plain → application/json' },
+      { type: 'feat', description: '**mergeAbortSignals** cleanup in finally block (no listener leak)' },
+      { type: 'feat', description: '**Companion** sendResolve/sendDismiss/sendModeChange surface errors' },
+      { type: 'feat', description: '**canvasTargetFps** default 15 → 30 (aligns with DSP constants)' },
+      { type: 'feat', description: '**feedbackHistory** quota recovery recomputes hotspots from retained events' },
+      { type: 'feat', description: '**trackManager** getActiveTracks returns fresh array (not mutable pool)' },
+      { type: 'feat', description: '**advisoryManager** clearByFrequency finds nearest by cents distance' },
+      { type: 'feat', description: '**sessionHistoryStorage** defensive copy on load' },
+      { type: 'feat', description: '[ ] Tests pass — 66 suites, 1251 pass, 4 skip' },
+      { type: 'feat', description: '[ ] PA2 GEQ: same advisories on repeated polls don\'t accumulate cuts' },
+      { type: 'feat', description: '[ ] Consent: v1 accepted → loads as not_asked (re-prompt)' },
+      { type: 'feat', description: '[ ] Companion: pairing code change doesn\'t reroute in-flight messages' },
+      { type: 'feat', description: '[ ] feedbackHistory survives tab close (pagehide flush)' },
+    ],
+  },
+  {
     version: '0.74.0',
     date: '2026-04-02',
     changes: [
