@@ -117,15 +117,15 @@ export function createPA2Client(config: PA2ConnectionConfig): PA2Client {
   async function request<T>(path: string, options?: FetchOptions): Promise<T> {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
-    const signal = options?.signal
+    const merged = options?.signal
       ? mergeAbortSignals(options.signal, controller.signal)
-      : controller.signal
+      : null
+    const signal = merged?.signal ?? controller.signal
 
     // Strip trailing slash from baseUrl to avoid double-slash
     const cleanBase = baseUrl.replace(/\/+$/, '')
 
-    // Use text/plain to prevent Companion from auto-parsing JSON body
-    const headers: Record<string, string> = { 'Content-Type': 'text/plain' }
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
     if (apiKey) headers['X-Api-Key'] = apiKey
 
     try {
@@ -148,6 +148,7 @@ export function createPA2Client(config: PA2ConnectionConfig): PA2Client {
       return (await response.json()) as T
     } finally {
       clearTimeout(timeoutId)
+      merged?.cleanup()
     }
   }
 
@@ -218,22 +219,25 @@ export class PA2ClientError extends Error {
  * Merges two AbortSignals — the combined signal aborts when either input aborts.
  * Used to combine the caller's signal (component unmount) with the timeout signal.
  */
-function mergeAbortSignals(a: AbortSignal, b: AbortSignal): AbortSignal {
+function mergeAbortSignals(a: AbortSignal, b: AbortSignal): { signal: AbortSignal; cleanup: () => void } {
   // Use native API when available (Chrome 116+, Firefox 124+, Safari 17.4+)
-  if (typeof AbortSignal.any === 'function') return AbortSignal.any([a, b])
+  if (typeof AbortSignal.any === 'function') return { signal: AbortSignal.any([a, b]), cleanup: () => {} }
 
-  if (a.aborted) return a
-  if (b.aborted) return b
+  if (a.aborted) return { signal: a, cleanup: () => {} }
+  if (b.aborted) return { signal: b, cleanup: () => {} }
 
   const controller = new AbortController()
   const onAbort = () => {
     controller.abort()
+    cleanup()
+  }
+  const cleanup = () => {
     a.removeEventListener('abort', onAbort)
     b.removeEventListener('abort', onAbort)
   }
 
-  a.addEventListener('abort', onAbort, { once: true })
-  b.addEventListener('abort', onAbort, { once: true })
+  a.addEventListener('abort', onAbort)
+  b.addEventListener('abort', onAbort)
 
-  return controller.signal
+  return { signal: controller.signal, cleanup }
 }

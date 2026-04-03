@@ -49,7 +49,12 @@ export function typedStorage<T>(key: string, fallback: T): TypedStorage<T> {
       try {
         const raw = localStorage.getItem(key)
         if (raw === null) return fallback
-        return JSON.parse(raw) as T
+        const parsed = JSON.parse(raw)
+        // Reject null and non-object primitives when fallback is an object —
+        // prevents malformed localStorage from bypassing type safety
+        if (parsed === null || parsed === undefined) return fallback
+        if (typeof fallback === 'object' && typeof parsed !== 'object') return fallback
+        return parsed as T
       } catch {
         return fallback
       }

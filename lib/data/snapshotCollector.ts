@@ -208,12 +208,23 @@ export class SnapshotCollector {
    * Returns null if no pending events.
    */
   extractBatch(): SnapshotBatch | null {
-    const event = this._pendingEvents.shift()
-    if (!event) return null
+    if (this._pendingEvents.length === 0) return null
 
-    // Find tagged snapshots in the window
+    // Peek first — only dequeue after confirming snapshots exist
+    const event = this._pendingEvents[0]
     const windowSnapshots = this._getWindowSnapshots(event.relativeMs)
-    if (windowSnapshots.length === 0) return null
+    if (windowSnapshots.length === 0) {
+      // Ring buffer rolled past this event — drop it but track as lost
+      this._pendingEvents.shift()
+      return null
+    }
+
+    // Snapshots confirmed — now dequeue and track for late feedback
+    this._pendingEvents.shift()
+    this._recentlyExtracted.push(event)
+    if (this._recentlyExtracted.length > SnapshotCollector.MAX_RECENT_EXTRACTED) {
+      this._recentlyExtracted.shift()
+    }
 
     const encoded: EncodedSnapshot[] = windowSnapshots.map(snap => ({
       t: snap.relativeMs,
@@ -232,12 +243,18 @@ export class SnapshotCollector {
     }
   }
 
+  /** Recently extracted events — kept for feedback that arrives after extraction */
+  private _recentlyExtracted: FeedbackMarker[] = []
+  private static readonly MAX_RECENT_EXTRACTED = 50
+
   /**
-   * Apply user feedback to a pending event by frequency.
-   * Matches the most recent pending marker within ±10 Hz of the given frequency.
+   * Apply user feedback to a pending or recently-extracted event.
+   * Matches the most recent marker within ±10 Hz of the given frequency.
+   * Checks pending events first, then recently-extracted events so feedback
+   * that arrives after batch extraction still reaches the correct event.
    */
   applyUserFeedback(frequencyHz: number, feedback: UserFeedback): boolean {
-    // Search backwards (most recent first) for a matching event
+    // Search pending events backwards (most recent first)
     for (let i = this._pendingEvents.length - 1; i >= 0; i--) {
       if (Math.abs(this._pendingEvents[i].frequencyHz - frequencyHz) <= 10) {
         // Update label balance counters
@@ -251,6 +268,13 @@ export class SnapshotCollector {
         if (feedback === 'confirmed_feedback') this._labelCounts.confirmed++
         else if (feedback === 'false_positive') this._labelCounts.falsePositive++
         else this._labelCounts.unlabeled++
+        return true
+      }
+    }
+    // Fallback: search recently-extracted events (feedback arrived after extraction)
+    for (let i = this._recentlyExtracted.length - 1; i >= 0; i--) {
+      if (Math.abs(this._recentlyExtracted[i].frequencyHz - frequencyHz) <= 10) {
+        this._recentlyExtracted[i].userFeedback = feedback
         return true
       }
     }

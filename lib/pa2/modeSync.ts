@@ -81,19 +81,42 @@ const MODE_PA2_CONFIG: Record<OperationMode, PA2ModeConfig> = {
  * Apply DoneWell mode configuration to PA2.
  * Sends AFS and compressor settings via the Companion /command endpoint.
  */
-export async function syncModeToPA2(client: PA2Client, mode: OperationMode): Promise<void> {
-  const config = MODE_PA2_CONFIG[mode]
-  if (!config) return
+export type ModeSyncResult = {
+  ok: boolean
+  /** Which steps completed before failure */
+  completedSteps: string[]
+  /** Which step failed (null if all succeeded) */
+  failedStep: string | null
+  error?: unknown
+}
 
-  // Set AFS content mode
-  await client.sendAction('afs_content', { content: config.afsContent })
-  // Set AFS filter mode
-  await client.sendAction('afs_mode', { mode: config.afsMode })
-  // Enable/disable compressor
-  await client.sendAction('comp_enable', { value: config.compEnabled })
-  // Set compressor threshold (only if enabled)
-  if (config.compEnabled) {
-    await client.sendAction('comp_threshold', { value: config.compThresholdDb })
+export async function syncModeToPA2(client: PA2Client, mode: OperationMode): Promise<ModeSyncResult> {
+  const config = MODE_PA2_CONFIG[mode]
+  if (!config) return { ok: true, completedSteps: [], failedStep: null }
+
+  const completed: string[] = []
+
+  try {
+    await client.sendAction('afs_content', { content: config.afsContent })
+    completed.push('afs_content')
+
+    await client.sendAction('afs_mode', { mode: config.afsMode })
+    completed.push('afs_mode')
+
+    await client.sendAction('comp_enable', { value: config.compEnabled })
+    completed.push('comp_enable')
+
+    if (config.compEnabled) {
+      await client.sendAction('comp_threshold', { value: config.compThresholdDb })
+      completed.push('comp_threshold')
+    }
+
+    return { ok: true, completedSteps: completed, failedStep: null }
+  } catch (error) {
+    const nextStep = ['afs_content', 'afs_mode', 'comp_enable', 'comp_threshold']
+      .find(s => !completed.includes(s)) ?? 'unknown'
+    console.warn(`[modeSync] Partial failure at step '${nextStep}' — completed: [${completed.join(', ')}]`)
+    return { ok: false, completedSteps: completed, failedStep: nextStep, error }
   }
 }
 

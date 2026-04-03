@@ -96,18 +96,31 @@ export class AdvisoryManager {
    * Also sets the band cooldown to prevent re-triggering.
    */
   clearByFrequency(frequencyHz: number, timestamp: number): string | null {
+    // Find the nearest advisory within tolerance — not just the first match
+    let bestTrackId: string | null = null
+    let bestAdvisoryId: string | null = null
+    let bestCents = Infinity
+
     for (const [trackId, advisoryId] of this.trackToAdvisoryId.entries()) {
       const advisory = this.advisories.get(advisoryId)
-      const cents = advisory ? Math.abs(1200 * Math.log2(advisory.trueFrequencyHz / frequencyHz)) : Infinity
-      if (advisory && cents <= CLEAR_PEAK_TOLERANCE_CENTS) {
-        if (advisory.advisory?.geq?.bandIndex != null) {
-          this.bandClearedAt.set(advisory.advisory.geq.bandIndex, timestamp)
-          this.advisoriesByBand.delete(advisory.advisory.geq.bandIndex)
-        }
-        this.advisories.delete(advisoryId)
-        this.trackToAdvisoryId.delete(trackId)
-        return advisoryId
+      if (!advisory) continue
+      const cents = Math.abs(1200 * Math.log2(advisory.trueFrequencyHz / frequencyHz))
+      if (cents <= CLEAR_PEAK_TOLERANCE_CENTS && cents < bestCents) {
+        bestCents = cents
+        bestTrackId = trackId
+        bestAdvisoryId = advisoryId
       }
+    }
+
+    if (bestAdvisoryId && bestTrackId) {
+      const advisory = this.advisories.get(bestAdvisoryId)!
+      if (advisory.advisory?.geq?.bandIndex != null) {
+        this.bandClearedAt.set(advisory.advisory.geq.bandIndex, timestamp)
+        this.advisoriesByBand.delete(advisory.advisory.geq.bandIndex)
+      }
+      this.advisories.delete(bestAdvisoryId)
+      this.trackToAdvisoryId.delete(bestTrackId)
+      return bestAdvisoryId
     }
     return null
   }

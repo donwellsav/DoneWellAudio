@@ -125,13 +125,18 @@ export class FeedbackHistory {
    * Mark that an EQ cut was applied at a given frequency.
    * Sets a short post-cut cooldown (POST_CUT_COOLDOWN_MS) for the matching
    * hotspot so the system can quickly re-detect if the cut was insufficient.
+   *
+   * @param frequencyHz - Center frequency of the applied cut
+   * @param timestampMs - Event timestamp of the cut (default: Date.now()).
+   *   Uses event time rather than wall clock so cooldown comparisons in
+   *   recordEvent() stay on the same clock source.
    */
-  markCutApplied(frequencyHz: number): void {
+  markCutApplied(frequencyHz: number, timestampMs: number = Date.now()): void {
     for (const [key, hotspot] of this.hotspots.entries()) {
       const cents = Math.abs(hzToCents(frequencyHz, hotspot.centerFrequencyHz))
       if (cents <= FREQUENCY_GROUPING_CENTS) {
-        // Store expiry time: events arriving after this time revert to normal cooldown
-        this._postCutCooldowns.set(key, Date.now() + POST_CUT_COOLDOWN_MS)
+        // Store expiry time on the same clock as event.timestamp
+        this._postCutCooldowns.set(key, timestampMs + POST_CUT_COOLDOWN_MS)
         return
       }
     }
@@ -413,6 +418,8 @@ export class FeedbackHistory {
 
   private _saveTimer: ReturnType<typeof setTimeout> | null = null
 
+  private _pagehideHandler: (() => void) | null = null
+
   private saveToStorage(): void {
     if (typeof window === 'undefined') return
     // Debounce writes — batch to once per second instead of every detection
@@ -421,6 +428,18 @@ export class FeedbackHistory {
       this._saveTimer = null
       this._flushToStorage()
     }, 1000)
+
+    // Register pagehide flush once — ensures pending data survives tab close/reload
+    if (!this._pagehideHandler) {
+      this._pagehideHandler = () => {
+        if (this._saveTimer) {
+          clearTimeout(this._saveTimer)
+          this._saveTimer = null
+        }
+        this._flushToStorage()
+      }
+      window.addEventListener('pagehide', this._pagehideHandler)
+    }
   }
 
   private _flushToStorage(): void {
@@ -433,11 +452,16 @@ export class FeedbackHistory {
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
     } catch (e) {
-      // QuotaExceeded — prune oldest 50% of events and retry
+      // QuotaExceeded — prune oldest 50% of events and recompute hotspots
       if (e instanceof DOMException && e.name === 'QuotaExceededError') {
         const half = Math.floor(this.events.length / 2)
         if (half > 0) {
           this.events = this.events.slice(half)
+          // Recompute hotspots from retained events so they stay consistent
+          this.hotspots.clear()
+          for (const event of this.events) {
+            this.updateHotspot(event)
+          }
           try {
             const data = {
               sessionId: this.sessionId,

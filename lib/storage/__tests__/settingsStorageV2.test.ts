@@ -96,13 +96,13 @@ describe('sessionStorageV2', () => {
     expect(sessionStorageV2.load()).toEqual(DEFAULT_SESSION_STATE)
   })
 
-  it('returns default when stored value is null JSON', () => {
+  it('returns fallback default when stored value is null JSON', () => {
     localStorage.setItem('dwa-v2-session', 'null')
-    // JSON.parse('null') === null; typedStorage returns it as-is (null is valid JSON)
-    // This is the actual behavior — load() returns null, not the default
+    // JSON.parse('null') === null; typedStorage now rejects null and returns fallback
+    // This prevents malformed localStorage from corrupting app state
     const loaded = sessionStorageV2.load()
-    // Null is a valid parsed value, so the store returns it
-    expect(loaded).toBeNull()
+    expect(loaded).not.toBeNull()
+    expect(loaded).toHaveProperty('modeId')
   })
 
   it('handles localStorage.getItem throwing', () => {
