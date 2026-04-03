@@ -146,24 +146,35 @@ describe('advisoriesToGEQCorrections', () => {
 // ═══ mergeGEQCorrections ═══
 
 describe('mergeGEQCorrections', () => {
-  it('adds correction to current band value', () => {
+  it('uses absolute target: picks deeper of current vs correction', () => {
     const current = { '18': -2 }
     const corrections = { '18': -3 }
     const result = mergeGEQCorrections(current, corrections)
-    expect(result['18']).toBe(-5) // -2 + -3
+    // Absolute target: min(-2, -3) = -3 (correction is deeper)
+    expect(result['18']).toBe(-3)
   })
 
-  it('clamps to -12dB minimum', () => {
+  it('does not raise a band that is already deeper than correction', () => {
     const current = { '18': -10 }
     const corrections = { '18': -6 }
     const result = mergeGEQCorrections(current, corrections)
-    expect(result['18']).toBe(-12) // max(-12, -10 + -6) = -12
+    // Absolute target: min(-10, -6) = -10 (current is already deeper)
+    expect(result['18']).toBe(-10)
+  })
+
+  it('clamps to -12dB minimum', () => {
+    const current = { '18': -8 }
+    const corrections = { '18': -14 }
+    const result = mergeGEQCorrections(current, corrections)
+    // max(-12, min(-8, -14)) = max(-12, -14) = -12
+    expect(result['18']).toBe(-12)
   })
 
   it('treats missing current band as 0dB', () => {
     const current = {}
     const corrections = { '18': -4 }
     const result = mergeGEQCorrections(current, corrections)
+    // min(0, -4) = -4
     expect(result['18']).toBe(-4)
   })
 

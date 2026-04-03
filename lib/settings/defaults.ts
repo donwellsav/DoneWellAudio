@@ -57,7 +57,7 @@ export const DEFAULT_DISPLAY_PREFS: DisplayPrefs = {
   rtaDbMax: 0,
   spectrumLineWidth: 0.5,
   showThresholdLine: true,
-  canvasTargetFps: 15,
+  canvasTargetFps: 30,
   faderMode: 'sensitivity',
   faderLinkMode: 'unlinked',
   faderLinkRatio: 1.0,

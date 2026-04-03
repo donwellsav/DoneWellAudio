@@ -13,7 +13,10 @@ const storage = typedStorage<ArchivedSession[]>('dwa-session-history', [])
 
 /** Prepend a session to the archive, trimming oldest if over limit. Synchronous. */
 export function archiveSession(session: ArchivedSession): void {
-  const sessions = storage.load()
+  // Defensive copy — storage.load() may return the fallback array by reference,
+  // so mutating it in-place could leave in-memory state looking updated even
+  // when the subsequent save fails or storage is unavailable.
+  const sessions = [...storage.load()]
   sessions.unshift(session)
   if (sessions.length > MAX_ARCHIVED_SESSIONS) {
     sessions.length = MAX_ARCHIVED_SESSIONS

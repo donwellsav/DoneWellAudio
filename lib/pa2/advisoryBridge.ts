@@ -146,11 +146,12 @@ export function advisoriesToGEQCorrections(
 /**
  * Merges advisory-driven corrections with the current GEQ state.
  *
- * This is additive: if the GEQ band is already at -4dB and the advisory
- * recommends -3dB, the result is -7dB (clamped to -12dB max).
+ * Uses absolute target semantics: corrections are desired band positions,
+ * not deltas. Only applies if the correction is deeper than the current
+ * band gain (never raises a band, never accumulates on repeated calls).
  *
  * @param currentBands - Current GEQ band gains from PA2 (from GET /geq)
- * @param corrections - Advisory-driven corrections (from advisoriesToGEQCorrections)
+ * @param corrections - Advisory-driven target gains (from advisoriesToGEQCorrections)
  * @returns Merged band gains ready for POST /geq
  */
 export function mergeGEQCorrections(
@@ -161,7 +162,8 @@ export function mergeGEQCorrections(
 
   for (const [band, correction] of Object.entries(corrections)) {
     const current = currentBands[band] ?? 0
-    merged[band] = Math.max(-12, current + correction)
+    // Only deepen — never raise a band, never accumulate on repeated calls
+    merged[band] = Math.max(-12, Math.min(current, correction))
   }
 
   return merged

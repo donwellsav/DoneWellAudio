@@ -109,15 +109,17 @@ export class TrackManager {
   }
 
   /**
-   * Get all active tracks as TrackedPeak objects for UI consumption
+   * Get all active tracks as TrackedPeak objects for UI consumption.
+   * Returns a fresh array snapshot (not the internal pool) so callers
+   * can safely store, memoize, or compare by reference.
    */
   getActiveTracks(): TrackedPeak[] {
     const cache = this._activeTracksCache
-    this._activePeaksPool.length = cache.length
+    const result: TrackedPeak[] = new Array(cache.length)
     for (let i = 0; i < cache.length; i++) {
-      this._activePeaksPool[i] = this.trackToTrackedPeak(cache[i])
+      result[i] = this.trackToTrackedPeak(cache[i])
     }
-    return this._activePeaksPool
+    return result
   }
 
   /**

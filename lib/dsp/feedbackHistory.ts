@@ -452,11 +452,16 @@ export class FeedbackHistory {
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
     } catch (e) {
-      // QuotaExceeded — prune oldest 50% of events and retry
+      // QuotaExceeded — prune oldest 50% of events and recompute hotspots
       if (e instanceof DOMException && e.name === 'QuotaExceededError') {
         const half = Math.floor(this.events.length / 2)
         if (half > 0) {
           this.events = this.events.slice(half)
+          // Recompute hotspots from retained events so they stay consistent
+          this.hotspots.clear()
+          for (const event of this.events) {
+            this.updateHotspot(event)
+          }
           try {
             const data = {
               sessionId: this.sessionId,

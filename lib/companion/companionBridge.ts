@@ -119,7 +119,7 @@ export class CompanionBridge {
   }
 
   /** Notify relay that an advisory was resolved (feedback stopped) */
-  async sendResolve(advisoryId: string): Promise<void> {
+  async sendResolve(advisoryId: string): Promise<boolean> {
     try {
       await fetch(this.relayUrl(), {
         method: 'POST',
@@ -127,13 +127,16 @@ export class CompanionBridge {
         body: JSON.stringify({ type: 'resolve', advisoryId }),
         signal: AbortSignal.timeout(3000),
       })
-    } catch {
-      // Best effort — don't fail on resolve notification
+      return true
+    } catch (err) {
+      this._connected = false
+      this._lastError = err instanceof Error ? err.message : 'Resolve failed'
+      return false
     }
   }
 
   /** Notify relay that an advisory was dismissed by the user */
-  async sendDismiss(advisoryId: string): Promise<void> {
+  async sendDismiss(advisoryId: string): Promise<boolean> {
     try {
       await fetch(this.relayUrl(), {
         method: 'POST',
@@ -141,13 +144,16 @@ export class CompanionBridge {
         body: JSON.stringify({ type: 'dismiss', advisoryId }),
         signal: AbortSignal.timeout(3000),
       })
-    } catch {
-      // Best effort
+      return true
+    } catch (err) {
+      this._connected = false
+      this._lastError = err instanceof Error ? err.message : 'Dismiss failed'
+      return false
     }
   }
 
   /** Notify relay of a mode change so Companion can reconfigure the mixer */
-  async sendModeChange(mode: string): Promise<void> {
+  async sendModeChange(mode: string): Promise<boolean> {
     try {
       await fetch(this.relayUrl(), {
         method: 'POST',
@@ -155,8 +161,11 @@ export class CompanionBridge {
         body: JSON.stringify({ type: 'mode_change', mode }),
         signal: AbortSignal.timeout(3000),
       })
-    } catch {
-      // Best effort
+      return true
+    } catch (err) {
+      this._connected = false
+      this._lastError = err instanceof Error ? err.message : 'Mode change failed'
+      return false
     }
   }
 
