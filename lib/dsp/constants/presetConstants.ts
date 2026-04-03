@@ -261,6 +261,7 @@ export const DEFAULT_SETTINGS: DetectorSettings = {
   faderLinkCenterGainDb: 0,
   faderLinkCenterSensDb: 25,
   swipeLabeling: false,
+  signalTintEnabled: true,
 }
 
 // ── Room Presets ─────────────────────────────────────────────────────────────

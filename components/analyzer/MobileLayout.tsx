@@ -83,6 +83,15 @@ export const MobileLayout = memo(function MobileLayout({
     feedbackThresholdDb: settings.feedbackThresholdDb,
   }), [settings.minFrequency, settings.maxFrequency, settings.feedbackThresholdDb])
 
+  const spectrumLifecycle = useMemo(() => ({
+    isRunning, isStarting, error,
+  }), [isRunning, isStarting, error])
+
+  const spectrumLifecycleWithStart = useMemo(() => ({
+    isRunning, isStarting, error,
+    onStart: !isRunning && !isStarting ? start : undefined,
+  }), [isRunning, isStarting, error, start])
+
   const {
     advisories, activeAdvisoryCount, earlyWarning,
     dismissedIds, onDismiss, onClearAll, onClearResolved,
@@ -293,7 +302,7 @@ export const MobileLayout = memo(function MobileLayout({
               {inlineGraphMode === 'rta' ? (
                 <div ref={rtaContainerRef} className="w-full h-full">
                   <ErrorBoundary>
-                    <SpectrumCanvas spectrumRef={spectrumRef} advisories={mobileAdvisories} isRunning={isRunning} isStarting={isStarting} error={error} earlyWarning={earlyWarning} clearedIds={rtaClearedIds} isFrozen={isFrozen} roomModes={roomModes} display={spectrumDisplay} range={spectrumRange} onFreqRangeChange={handleFreqRangeChange} onThresholdChange={handleThresholdChange} />
+                    <SpectrumCanvas spectrumRef={spectrumRef} advisories={mobileAdvisories} lifecycle={spectrumLifecycle} earlyWarning={earlyWarning} clearedIds={rtaClearedIds} isFrozen={isFrozen} roomModes={roomModes} display={spectrumDisplay} range={spectrumRange} onFreqRangeChange={handleFreqRangeChange} onThresholdChange={handleThresholdChange} />
                   </ErrorBoundary>
                 </div>
               ) : (
@@ -437,7 +446,7 @@ export const MobileLayout = memo(function MobileLayout({
           </div>
           <div className="flex-1 min-h-0 flex flex-col gap-0.5 p-0.5">
             <div className="flex-1 min-h-0 bg-card/40 rounded border border-border/40 overflow-hidden">
-              <SpectrumCanvas spectrumRef={spectrumRef} advisories={mobileAdvisories} isRunning={isRunning} isStarting={isStarting} error={error} earlyWarning={earlyWarning} clearedIds={rtaClearedIds} isFrozen={isFrozen} roomModes={roomModes} display={spectrumDisplay} range={spectrumRange} onFreqRangeChange={handleFreqRangeChange} onThresholdChange={handleThresholdChange} />
+              <SpectrumCanvas spectrumRef={spectrumRef} advisories={mobileAdvisories} lifecycle={spectrumLifecycle} earlyWarning={earlyWarning} clearedIds={rtaClearedIds} isFrozen={isFrozen} roomModes={roomModes} display={spectrumDisplay} range={spectrumRange} onFreqRangeChange={handleFreqRangeChange} onThresholdChange={handleThresholdChange} />
             </div>
             <div className="flex-1 min-h-0 bg-card/40 rounded border border-border/40 overflow-hidden">
               <GEQBarView advisories={mobileAdvisories} graphFontSize={settings.graphFontSize} clearedIds={geqClearedIds} />
@@ -532,7 +541,7 @@ export const MobileLayout = memo(function MobileLayout({
                 Clear
               </button>
             )}
-            <SpectrumCanvas spectrumRef={spectrumRef} advisories={mobileAdvisories} isRunning={isRunning} isStarting={isStarting} error={error} onStart={!isRunning && !isStarting ? start : undefined} earlyWarning={earlyWarning} clearedIds={rtaClearedIds} isFrozen={isFrozen} roomModes={roomModes} display={spectrumDisplay} range={spectrumRange} onFreqRangeChange={handleFreqRangeChange} onThresholdChange={handleThresholdChange} />
+            <SpectrumCanvas spectrumRef={spectrumRef} advisories={mobileAdvisories} lifecycle={spectrumLifecycleWithStart} earlyWarning={earlyWarning} clearedIds={rtaClearedIds} isFrozen={isFrozen} roomModes={roomModes} display={spectrumDisplay} range={spectrumRange} onFreqRangeChange={handleFreqRangeChange} onThresholdChange={handleThresholdChange} />
           </div>
           {/* GEQ — bottom half */}
           <div className="flex-1 min-h-0 bg-card/40 rounded border border-border/40 overflow-hidden relative">

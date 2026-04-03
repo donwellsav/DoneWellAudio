@@ -19,6 +19,7 @@ import { useMemo, useEffect, useState, useRef } from 'react'
 import { useAdvisories } from '@/contexts/AdvisoryContext'
 import { useEngine } from '@/contexts/EngineContext'
 import { useMetering } from '@/contexts/MeteringContext'
+import { useSettings } from '@/contexts/SettingsContext'
 import { getSeverityUrgency } from '@/lib/dsp/severityUtils'
 
 type RGB = [number, number, number]
@@ -56,6 +57,8 @@ export function useSignalTint(): void {
   const { advisories, dismissedIds } = useAdvisories()
   const { isRunning } = useEngine()
   const { inputLevel } = useMetering()
+  const { settings } = useSettings()
+  const enabled = settings.signalTintEnabled
   const isLowSignal = isRunning && inputLevel < LOW_SIGNAL_THRESHOLD_DB
 
   const rawUrgency = useMemo(() => {
@@ -92,8 +95,8 @@ export function useSignalTint(): void {
     }
   }, [rawUrgency, displayedUrgency])
 
-  const [r, g, b] = tintForUrgency(displayedUrgency, isRunning, isLowSignal)
-  const isRunaway = displayedUrgency >= 5
+  const [r, g, b] = enabled ? tintForUrgency(displayedUrgency, isRunning, isLowSignal) : TINT_IDLE
+  const isRunaway = enabled && displayedUrgency >= 5
 
   useEffect(() => {
     const root = document.documentElement
@@ -107,9 +110,9 @@ export function useSignalTint(): void {
       root.classList.remove('tint-runaway')
     }
     return () => {
-      root.style.setProperty('--tint-r', '245')
-      root.style.setProperty('--tint-g', '158')
-      root.style.setProperty('--tint-b', '11')
+      root.style.setProperty('--tint-r', String(TINT_IDLE[0]))
+      root.style.setProperty('--tint-g', String(TINT_IDLE[1]))
+      root.style.setProperty('--tint-b', String(TINT_IDLE[2]))
       root.classList.remove('tint-runaway')
     }
   }, [r, g, b, isRunaway])

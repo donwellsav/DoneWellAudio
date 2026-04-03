@@ -42,14 +42,19 @@ export interface SpectrumRangeConfig {
   feedbackThresholdDb?: number
 }
 
-interface SpectrumCanvasProps {
-  spectrumRef: React.RefObject<SpectrumData | null>
-  advisories: Advisory[]  // Keep as prop — changes infrequently, drives markers
+/** Engine lifecycle state — running/starting/error/onStart */
+export interface SpectrumLifecycle {
   isRunning: boolean
-  /** True while awaiting mic permission / stream acquisition */
   isStarting?: boolean
   error?: string | null
   onStart?: () => void
+}
+
+interface SpectrumCanvasProps {
+  spectrumRef: React.RefObject<SpectrumData | null>
+  advisories: Advisory[]  // Keep as prop — changes infrequently, drives markers
+  /** Engine lifecycle state */
+  lifecycle: SpectrumLifecycle
   earlyWarning?: EarlyWarning | null
   clearedIds?: Set<string>
   isFrozen?: boolean
@@ -64,7 +69,8 @@ interface SpectrumCanvasProps {
 
 const GRAB_THRESHOLD_PX = 22 // 44px total touch target per line
 
-export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, advisories, isRunning, isStarting = false, error, onStart, earlyWarning, clearedIds, isFrozen = false, roomModes, display = {}, range = {}, onFreqRangeChange, onThresholdChange }: SpectrumCanvasProps) {
+export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, advisories, lifecycle, earlyWarning, clearedIds, isFrozen = false, roomModes, display = {}, range = {}, onFreqRangeChange, onThresholdChange }: SpectrumCanvasProps) {
+  const { isRunning, isStarting = false, error, onStart } = lifecycle
   const { graphFontSize = 11, rtaDbMin: rtaDbMinProp, rtaDbMax: rtaDbMaxProp, spectrumLineWidth: spectrumLineWidthProp, canvasTargetFps, showFreqZones = false, showRoomModeLines = false, showThresholdLine = false, spectrumWarmMode = false } = display
   const { minFrequency = 20, maxFrequency = 20000, feedbackThresholdDb } = range
   const { resolvedTheme } = useTheme()
@@ -630,7 +636,17 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
       aria-valuetext={onFreqRangeChange ? `${minFrequency} Hz to ${maxFrequency} Hz` : undefined}
       onKeyDown={onFreqRangeChange ? handleKeyDown : undefined}
     >
-      <canvas ref={canvasRef} className="w-full h-full" role="img" aria-label="Real-time audio frequency spectrum display" />
+      <canvas ref={canvasRef} className="w-full h-full" role="img" aria-label="Real-time audio frequency spectrum display" aria-describedby="rta-screen-reader-desc" />
+      {/* Screen reader description — summarizes RTA state for assistive technology */}
+      <div id="rta-screen-reader-desc" className="sr-only">
+        {isRunning
+          ? `Spectrum analyzer active. Displaying frequencies from ${minFrequency} Hz to ${maxFrequency} Hz, ${rtaDbMinProp ?? -100} to ${rtaDbMaxProp ?? 0} dB range.${
+              advisories.length > 0
+                ? ` ${advisories.filter(a => !a.resolved).length} active feedback detections. Use the Issues panel for details and EQ recommendations.`
+                : ' No feedback detected.'
+            }${isFrozen ? ' Display is frozen.' : ''}`
+          : 'Spectrum analyzer stopped. Press Enter or click Start to begin analysis.'}
+      </div>
       {showPlaceholder && (
         <div className="absolute inset-0">
           <div

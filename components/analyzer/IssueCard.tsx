@@ -5,9 +5,9 @@ import { formatFrequency, formatFrequencyRange, formatPitch } from '@/lib/utils/
 import { getSeverityColor } from '@/lib/dsp/eqAdvisor'
 import { confidenceColor, RUNAWAY_COLOR } from '@/lib/canvas/canvasTokens'
 import { getSeverityText } from '@/lib/dsp/classifier'
-import { AlertTriangle, TrendingUp } from 'lucide-react'
+import { AlertTriangle, TrendingUp, Zap, ArrowUpRight, Radio, CircleDot, Music, Waves } from 'lucide-react'
 import { useTheme } from 'next-themes'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+// Tooltip imports removed — frequency hero tooltip was cluttering the card
 import type { Advisory } from '@/types/advisory'
 import { useSwipeGesture } from '@/hooks/useSwipeGesture'
 import { IssueCardActions } from './IssueCardActions'
@@ -26,6 +26,16 @@ const SEVERITY_ENTER_CLASS: Record<string, string> = {
   POSSIBLE_RING: 'animate-issue-enter-slow',
   WHISTLE: 'animate-issue-enter-slow',
   INSTRUMENT: 'animate-issue-enter-slow',
+}
+
+/** Severity → icon: distinct shapes that communicate type at a glance */
+export const SEVERITY_ICON: Record<string, typeof Zap> = {
+  RUNAWAY: Zap,           // ⚡ lightning — immediate danger
+  GROWING: ArrowUpRight,  // ↗ rising — building toward feedback
+  RESONANCE: Radio,       // 📡 resonance — sustained ring
+  POSSIBLE_RING: CircleDot, // ◎ ring — possible feedback
+  WHISTLE: Waves,         // 〰 waves — tonal whistle
+  INSTRUMENT: Music,      // ♪ music — harmonic content (not feedback)
 }
 
 /** Matching strip flash speed per severity — RUNAWAY instant, all others 5s */
@@ -231,170 +241,146 @@ export const IssueCard = memo(function IssueCard({
       />
 
       <div
-        className="flex flex-col relative z-10 @container"
+        className="flex flex-col gap-0.5 relative z-10 @container pl-3 pr-1 py-1"
         style={swipeLabeling && swiping ? {
           transform: `translateX(${swipeX}px)`,
           transition: swiping ? 'none' : 'transform 200ms ease-out',
         } : undefined}
       >
 
-        {/* Top section: frequency + badges + desktop actions */}
-        <div className="flex items-start justify-between gap-2">
-          {/* LEFT: Frequency hero + pitch/band */}
-          <div className="flex flex-col min-w-0">
-            <TooltipProvider delayDuration={300}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className={`font-mono font-bold leading-none tracking-wide cursor-default ${
-                    isRunaway ? 'text-3xl' : 'text-2xl'
-                  } ${
-                    isFalsePositive ? 'text-red-400/60 line-through' : 'text-foreground'
-                  }`}
-                    style={{
-                      fontVariantNumeric: 'tabular-nums slashed-zero',
-                      textShadow: isFalsePositive || isResolved ? 'none' : isRunaway
-                        ? `0 0 16px ${severityColor}80, 0 0 6px ${severityColor}40`
-                        : isWarning
-                          ? `0 0 10px ${severityColor}60, 0 0 4px ${severityColor}30`
-                          : `0 0 8px ${severityColor}40`,
-                    }}
-                  >
-                    {exactFreqStr}
-                  </span>
-                </TooltipTrigger>
-                {detailParts.length > 0 && (
-                  <TooltipContent side="top" className="text-sm space-y-0.5">
-                    {detailParts.map((d) => <div key={d}>{d}</div>)}
-                  </TooltipContent>
-                )}
-              </Tooltip>
-            </TooltipProvider>
-            <div className="flex items-baseline gap-x-2 gap-y-0.5 flex-wrap mt-0.5">
-              {pitchStr && (
-                <span className="text-sm font-mono text-muted-foreground leading-none">{pitchStr}</span>
-              )}
-              {!isResolved && (
-                <span className="text-sm text-muted-foreground leading-none font-mono">{ageStr}</span>
-              )}
-            </div>
-          </div>
-
-          {/* MIDDLE: Badges in 2 rows */}
-          <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-            {/* Row 1: status — repeat, cluster, resolved */}
-            <div className="flex items-center gap-1 justify-end">
-              {occurrenceCount >= 3 && (
-                <TooltipProvider delayDuration={300}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span
-                        className="inline-flex items-center gap-0.5 text-sm text-amber-400 bg-amber-500/20 px-1.5 py-0.5 rounded-sm leading-none border border-amber-500/30"
-                        aria-label={`Repeat offender: detected ${occurrenceCount} times`}
-                      >
-                        <TrendingUp className="w-2.5 h-2.5" />
-                        {occurrenceCount}×
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="text-sm">
-                      Repeat offender: detected {occurrenceCount} times
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-
-              {isClustered && (
-                <TooltipProvider delayDuration={300}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="inline-flex items-center text-sm text-sky-400 bg-sky-500/20 px-1.5 py-0.5 rounded-sm leading-none border border-sky-500/30">
-                        {advisory.clusterCount} peaks
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="text-sm">
-                      Merged cluster — Q widened to cover range.
-                      Center: {advisory.trueFrequencyHz != null ? formatFrequency(advisory.trueFrequencyHz) : '---'}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-
-            </div>
-
-            {/* Row 2: classification — severity, confidence */}
-            <div className="flex items-center gap-1 justify-end">
+        {/* ── Row 1: FREQUENCY HERO — the most important element in the app ── */}
+        <div className="flex items-baseline gap-1.5">
+          {/* Severity icon — small, left of frequency */}
+          {(() => {
+            const Icon = SEVERITY_ICON[advisory.severity]
+            return Icon ? (
               <span
-                className="severity-pill"
-                style={{ backgroundColor: `${severityColor}20`, color: severityColor, border: `1px solid ${severityColor}40` }}
+                className="flex-shrink-0 inline-flex items-center justify-center self-center"
+                style={{ color: severityColor, opacity: 0.7 }}
+                title={getSeverityText(advisory.severity)}
               >
-                {getSeverityText(advisory.severity)}
+                <Icon className="w-3.5 h-3.5" />
               </span>
+            ) : null
+          })()}
 
-              {advisory.confidence != null && (
-                <span
-                  className="inline-flex items-center gap-0.5 text-sm font-mono leading-none"
-                  title={`${Math.round(advisory.confidence * 100)}% confidence`}
-                >
-                  <svg width="18" height="18" viewBox="0 0 18 18" className="flex-shrink-0" aria-hidden>
-                    <circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" strokeWidth="1.5" opacity={0.1} />
-                    <circle cx="9" cy="9" r="7" fill="none"
-                      stroke={confidenceColor(advisory.confidence ?? 0)}
-                      strokeWidth="1.5" strokeLinecap="round"
-                      strokeDasharray={`${advisory.confidence * 44} 44`}
-                      transform="rotate(-90 9 9)"
-                    />
-                  </svg>
-                  <span className={
-                    advisory.confidence >= 0.85 ? 'text-emerald-400'
-                    : advisory.confidence >= 0.70 ? 'text-blue-400'
-                    : advisory.confidence >= 0.45 ? 'text-amber-400'
-                    : 'text-muted-foreground'
-                  }>{Math.round(advisory.confidence * 100)}%</span>
-                </span>
-              )}
-            </div>
+          {/* FREQUENCY — dominant, severity-tinted, LED-glow readout */}
+          {/* Frequency hero — no tooltip, keep it clean and unobstructed */}
+          <span className={`font-mono font-black leading-none tracking-tight cursor-default ${
+            isRunaway ? 'text-4xl' : 'text-3xl'
+          } ${
+            isFalsePositive ? 'line-through opacity-40' : ''
+          }`}
+            style={{
+              fontVariantNumeric: 'tabular-nums slashed-zero',
+              color: isFalsePositive ? undefined : isResolved ? 'hsl(var(--muted-foreground))' : severityColor,
+              textShadow: isFalsePositive || isResolved ? 'none' : isRunaway
+                ? `0 0 24px ${severityColor}90, 0 0 10px ${severityColor}60, 0 0 3px ${severityColor}40`
+                : isWarning
+                  ? `0 0 16px ${severityColor}70, 0 0 6px ${severityColor}40`
+                  : `0 0 12px ${severityColor}50, 0 0 4px ${severityColor}30`,
+              letterSpacing: '-0.02em',
+            }}
+          >
+            {exactFreqStr}
+          </span>
+
+          {/* Pitch — secondary, smaller, dimmer */}
+          {pitchStr && (
+            <span className="text-[11px] font-mono text-muted-foreground/50 leading-none self-end mb-0.5">{pitchStr}</span>
+          )}
+
+          {/* Right-aligned: badges + confidence — tertiary info */}
+          <div className="ml-auto flex items-center gap-1 flex-shrink-0 self-center">
+            {occurrenceCount >= 3 && (
+              <span
+                className="inline-flex items-center gap-0.5 text-[11px] font-bold text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded-sm leading-none border border-amber-500/30"
+                title={`Repeat offender: detected ${occurrenceCount} times`}
+              >
+                <TrendingUp className="w-2.5 h-2.5" />
+                {occurrenceCount}×
+              </span>
+            )}
+            {isClustered && (
+              <span
+                className="inline-flex items-center text-[9px] text-sky-400/80 bg-sky-500/10 px-1 py-0.5 rounded-sm leading-none border border-sky-500/20"
+                title={`Merged cluster — Q widened. Center: ${advisory.trueFrequencyHz != null ? formatFrequency(advisory.trueFrequencyHz) : '---'}`}
+              >
+                {advisory.clusterCount}pk
+              </span>
+            )}
+            {advisory.confidence != null && (
+              <span
+                className="inline-flex items-center gap-0.5 text-[9px] font-mono leading-none"
+                title={`${Math.round(advisory.confidence * 100)}% confidence`}
+              >
+                <svg width="12" height="12" viewBox="0 0 18 18" className="flex-shrink-0" aria-hidden>
+                  <circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" strokeWidth="1.5" opacity={0.06} />
+                  <circle cx="9" cy="9" r="7" fill="none"
+                    stroke={confidenceColor(advisory.confidence ?? 0)}
+                    strokeWidth="2" strokeLinecap="round"
+                    strokeDasharray={`${advisory.confidence * 44} 44`}
+                    transform="rotate(-90 9 9)"
+                  />
+                </svg>
+                <span className={`${
+                  advisory.confidence >= 0.85 ? 'text-emerald-400/70'
+                  : advisory.confidence >= 0.70 ? 'text-blue-400/70'
+                  : advisory.confidence >= 0.45 ? 'text-amber-400/70'
+                  : 'text-muted-foreground/40'
+                }`}>{Math.round(advisory.confidence * 100)}%</span>
+              </span>
+            )}
+            {!isResolved && (
+              <span className="text-[9px] text-muted-foreground/30 font-mono leading-none">{ageStr}</span>
+            )}
           </div>
+        </div>
 
-          {/* RIGHT: Desktop action buttons (or copy-only when swipe labeling) */}
+        {/* ── Row 2: EQ rec + velocity + actions — all on one line ── */}
+        <div className="flex items-center gap-1.5 text-[10px] font-mono leading-none">
+          {/* PEQ cut recommendation */}
+          {advisory.advisory?.peq && (
+            <span className="text-muted-foreground/60">
+              <span className="font-bold" style={{ color: severityColor, opacity: 0.8 }}>{advisory.advisory.peq.gainDb}dB</span>
+              {' '}Q:{advisory.advisory.peq.q.toFixed(1)}
+            </span>
+          )}
+          {/* Velocity indicator */}
+          {velocity > 0 && !isResolved && (
+            <span className={`flex items-center gap-0.5 ${
+              isRunaway ? 'text-red-400' : isWarning ? 'text-amber-400' : 'text-muted-foreground/40'
+            }`}>
+              {(isRunaway || isWarning) && <AlertTriangle className={`w-2 h-2 flex-shrink-0 ${isRunaway ? 'motion-safe:animate-pulse' : ''}`} />}
+              <span>+{velocity.toFixed(0)}dB/s</span>
+            </span>
+          )}
+          {/* Actions pushed right — same row as EQ rec */}
           {(actionsLayout === 'desktop' || actionsLayout === 'copy-only') && (
-            <IssueCardActions
-              advisoryId={advisory.id}
-              advisory={advisory}
-              exactFreqStr={exactFreqStr}
-              onFalsePositive={onFalsePositive}
-              isFalsePositive={isFalsePositive}
-              onConfirmFeedback={onConfirmFeedback}
-              isConfirmed={isConfirmed}
-              onDismiss={onDismiss}
-              onCopy={handleCopy}
-              copied={copied}
-              onSendToMixer={handleSendToMixer}
-              onSendToPA2={onSendToPA2}
-              pa2Connected={pa2Connected}
-              layout={actionsLayout}
-            />
+            <div className="ml-auto flex items-center">
+              <IssueCardActions
+                advisoryId={advisory.id}
+                advisory={advisory}
+                exactFreqStr={exactFreqStr}
+                onFalsePositive={onFalsePositive}
+                isFalsePositive={isFalsePositive}
+                onConfirmFeedback={onConfirmFeedback}
+                isConfirmed={isConfirmed}
+                onDismiss={onDismiss}
+                onCopy={handleCopy}
+                copied={copied}
+                onSendToMixer={handleSendToMixer}
+                onSendToPA2={onSendToPA2}
+                pa2Connected={pa2Connected}
+                layout={actionsLayout}
+              />
+            </div>
           )}
         </div>
 
-        {/* Velocity + age — full-width below */}
-        {velocity > 0 && !isResolved && (
-          <div className={`flex items-center gap-1 text-sm font-bold uppercase tracking-wide ${
-            isRunaway ? 'text-red-400' : isWarning ? 'text-amber-400' : 'text-muted-foreground'
-          }`}>
-            {(isRunaway || isWarning) ? (
-              <>
-                <AlertTriangle className={`w-2.5 h-2.5 flex-shrink-0 ${isRunaway ? 'motion-safe:animate-pulse' : ''}`} />
-                <span>{isRunaway ? 'Runaway feedback' : 'Growing — act now'}</span>
-                {timeToClipStr && <span className="font-mono opacity-80 ml-0.5">{timeToClipStr}</span>}
-              </>
-            ) : (
-              <span className="font-normal normal-case tracking-normal">↑ building</span>
-            )}
-            <span className="font-mono ml-auto opacity-60">+{velocity.toFixed(0)} dB/s</span>
-          </div>
-        )}
-        {/* Algorithm scores debug row */}
+        {/* ── Debug rows (opt-in via Display settings) ── */}
         {showAlgorithmScores && advisory.algorithmScores && (
-          <div className="text-[10px] font-mono text-muted-foreground/60 tracking-wide leading-none -mt-1">
+          <div className="text-[9px] font-mono text-muted-foreground/40 tracking-wide leading-none">
             {[
               advisory.algorithmScores.msd != null && `MSD:${advisory.algorithmScores.msd.toFixed(2)}`,
               advisory.algorithmScores.phase != null && `PH:${advisory.algorithmScores.phase.toFixed(2)}`,
@@ -407,13 +393,12 @@ export const IssueCard = memo(function IssueCard({
             {' → '}{advisory.algorithmScores.fusedProbability.toFixed(2)}
           </div>
         )}
-        {/* PEQ recommendation row — mini notch SVG + params */}
         {showPeqDetails && advisory.advisory?.peq && peqNotchSvgPath && (
-          <div className="flex items-center gap-1.5 -mt-1">
+          <div className="flex items-center gap-1.5">
             <svg width="40" height="14" viewBox="0 0 40 14" aria-hidden className="flex-shrink-0">
               <path d={peqNotchSvgPath} fill="none" stroke={severityColor} strokeWidth="1.2" strokeOpacity="0.5" />
             </svg>
-            <span className="text-[10px] font-mono text-muted-foreground/60 tracking-wide leading-none">
+            <span className="text-[9px] font-mono text-muted-foreground/40 tracking-wide leading-none">
               {advisory.advisory.peq.type} @ {advisory.advisory.peq.hz.toFixed(0)}Hz | Q:{advisory.advisory.peq.q.toFixed(1)} | {advisory.advisory.peq.gainDb}dB
               {advisory.advisory.peq.bandwidthHz != null && ` | BW:${advisory.advisory.peq.bandwidthHz.toFixed(0)}Hz`}
             </span>

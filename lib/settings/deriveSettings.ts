@@ -190,6 +190,7 @@ export function deriveDetectorSettings(
     faderLinkCenterGainDb: display.faderLinkCenterGainDb,
     faderLinkCenterSensDb: display.faderLinkCenterSensDb,
     swipeLabeling: display.swipeLabeling,
+    signalTintEnabled: display.signalTintEnabled,
   }
 }
 

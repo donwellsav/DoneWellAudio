@@ -188,3 +188,66 @@ describe('jurisdiction', () => {
     expect(state.jurisdiction).toBeNull()
   })
 })
+
+// ── Integration: consent re-prompt flow ─────────────────────────────────────
+// Exercises the full lifecycle: accept v1 → version bump → blocked → re-accept v2
+
+describe('consent re-prompt integration', () => {
+  it('blocks collection after version bump until user re-accepts', () => {
+    // 1. User accepted consent under version 1
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      status: 'accepted',
+      version: 1,
+      respondedAt: '2025-06-01T00:00:00Z',
+      jurisdiction: 'other',
+    }))
+
+    // 2. App loads with CONSENT_VERSION > 1 — version bump triggers re-prompt
+    const migrated = loadConsent()
+    expect(migrated.status).toBe('not_asked')
+    expect(migrated.version).toBe(1) // original version preserved
+
+    // 3. Collection is blocked — isConsentGiven must return false
+    expect(isConsentGiven()).toBe(false)
+    expect(isConsentPending()).toBe(true)
+
+    // 4. User re-accepts under new version
+    acceptConsent('other')
+    const reaccepted = loadConsent()
+    expect(reaccepted.status).toBe('accepted')
+    expect(reaccepted.version).toBe(CONSENT_VERSION)
+
+    // 5. Collection now allowed
+    expect(isConsentGiven()).toBe(true)
+    expect(isConsentPending()).toBe(false)
+  })
+
+  it('blocks collection after version bump even for declined users', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      status: 'declined',
+      version: 1,
+      respondedAt: '2025-06-01T00:00:00Z',
+    }))
+
+    // Version bump resets declined to not_asked — user must actively re-decline
+    const migrated = loadConsent()
+    expect(migrated.status).toBe('not_asked')
+    expect(isConsentGiven()).toBe(false)
+    expect(isConsentPending()).toBe(true)
+
+    // User declines again
+    declineConsent()
+    expect(isConsentGiven()).toBe(false)
+    expect(isConsentPending()).toBe(false)
+  })
+
+  it('does not re-prompt when version matches', () => {
+    // User accepted at current version — no re-prompt needed
+    acceptConsent('EU')
+    const state = loadConsent()
+    expect(state.status).toBe('accepted')
+    expect(state.version).toBe(CONSENT_VERSION)
+    expect(isConsentGiven()).toBe(true)
+    expect(isConsentPending()).toBe(false)
+  })
+})

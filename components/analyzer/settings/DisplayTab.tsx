@@ -62,6 +62,13 @@ export const DisplayTab = memo(function DisplayTab({
           tooltip={settings.showTooltips ? 'Switch RTA spectrum color to warm amber tones.' : undefined}
         />
         <LEDToggle
+          checked={settings.signalTintEnabled}
+          onChange={(checked) => setDisplay({ signalTintEnabled: checked })}
+          label="Signal Tint"
+          color="amber"
+          tooltip={settings.showTooltips ? 'Shift the console background color based on detection severity. Blue = listening, amber = detection, orange = growing, red = runaway. Disable for a static amber theme.' : undefined}
+        />
+        <LEDToggle
           checked={settings.swipeLabeling}
           onChange={(checked) => setDisplay({ swipeLabeling: checked })}
           label="Swipe to Label (Desktop)"

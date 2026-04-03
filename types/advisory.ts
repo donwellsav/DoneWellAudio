@@ -394,6 +394,7 @@ export interface DetectorSettings {
   faderLinkCenterGainDb: number
   faderLinkCenterSensDb: number
   swipeLabeling: boolean // Enable swipe-to-label on issue cards (left=false+, right=confirm). Hides buttons when on.
+  signalTintEnabled: boolean // Enable signal-responsive background tint (severity → console color shift)
   // Gate multiplier overrides — expert-only, undefined = use hardcoded default
   formantGateOverride?: number    // 0.65 default
   chromaticGateOverride?: number  // 0.60 default

@@ -28,6 +28,10 @@ vi.mock('@/contexts/MeteringContext', () => ({
   useMetering: () => ({ inputLevel: mockInputLevel }),
 }))
 
+vi.mock('@/contexts/SettingsContext', () => ({
+  useSettings: () => ({ settings: { signalTintEnabled: true } }),
+}))
+
 // Import after mocks are set up
 import { useSignalTint } from '../useSignalTint'
 
@@ -206,10 +210,10 @@ describe('useSignalTint', () => {
 
     unmount()
 
-    // Should reset to amber defaults
-    expect(getTint()[0]).toBe('245')
-    expect(getTint()[1]).toBe('158')
-    expect(getTint()[2]).toBe('11')
+    // Should reset to neutral slate (TINT_IDLE)
+    expect(getTint()[0]).toBe('100')
+    expect(getTint()[1]).toBe('116')
+    expect(getTint()[2]).toBe('139')
     expect(document.documentElement.classList.contains('tint-runaway')).toBe(false)
   })
 })

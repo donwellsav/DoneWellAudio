@@ -45,14 +45,15 @@ function makeAdvisory(overrides: Partial<Advisory> = {}): Advisory {
 describe('IssueCard', () => {
   it('renders frequency text', () => {
     render(<IssueCard advisory={makeAdvisory()} occurrenceCount={1} />)
-    // 1000 Hz renders as "1.00 kHz" or "1,000 Hz" depending on formatter
-    const el = screen.getByText(/1.*kHz|1.*000.*Hz/i)
-    expect(el).toBeDefined()
+    // Frequency may appear in hero + PEQ row — use getAllByText
+    const els = screen.getAllByText(/1.*kHz|1.*000.*Hz/i)
+    expect(els.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('renders severity pill', () => {
+  it('renders severity icon pill', () => {
     render(<IssueCard advisory={makeAdvisory({ severity: 'GROWING' as SeverityLevel })} occurrenceCount={1} />)
-    expect(screen.getByText(/growing/i)).toBeDefined()
+    // Severity is now an icon with title text, not visible text
+    expect(screen.getByTitle(/growing/i)).toBeDefined()
   })
 
   it('renders confidence badge', () => {
@@ -70,13 +71,14 @@ describe('IssueCard', () => {
     expect(container.textContent).not.toContain('×')
   })
 
-  it('renders RUNAWAY warning text', () => {
+  it('renders RUNAWAY velocity indicator', () => {
     render(<IssueCard advisory={makeAdvisory({
       severity: 'RUNAWAY' as SeverityLevel,
       isRunaway: true,
       velocityDbPerSec: 20,
     })} occurrenceCount={1} />)
-    expect(screen.getByText(/runaway feedback/i)).toBeDefined()
+    // Velocity row shows dB/s rate
+    expect(screen.getByText(/20.*dB\/s/i)).toBeDefined()
   })
 
   it('applies emergency-glow class for RUNAWAY', () => {
@@ -105,7 +107,9 @@ describe('IssueCard', () => {
       occurrenceCount={1}
       showPeqDetails
     />)
-    expect(screen.getByText(/Q:4\.0/)).toBeDefined()
+    // Q value appears in both promoted PEQ row and debug details row
+    const els = screen.getAllByText(/Q:4\.0/)
+    expect(els.length).toBeGreaterThanOrEqual(1)
   })
 
   it('renders notch SVG when PEQ details shown', () => {

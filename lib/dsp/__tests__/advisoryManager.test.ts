@@ -166,6 +166,7 @@ function makeSettings(overrides: Partial<DetectorSettings> = {}): DetectorSettin
     faderLinkCenterGainDb: 0,
     faderLinkCenterSensDb: 25,
     swipeLabeling: false,
+    signalTintEnabled: true,
     mainsHumEnabled: true,
     mainsHumFundamental: 'auto' as const,
     ...overrides,

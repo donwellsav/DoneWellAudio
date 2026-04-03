@@ -115,7 +115,8 @@ export function useAdvisoryMap(
 
     applyToMap(advisory)
     flushToReact()
-  }, [applyToMap, flushToReact, frozenRef])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- frozenRef is a stable ref, read imperatively
+  }, [applyToMap, flushToReact])
 
   const onAdvisoryCleared = useCallback((advisoryId: string) => {
     const existing = mapRef.current.get(advisoryId)
@@ -135,7 +136,8 @@ export function useAdvisoryMap(
     }
 
     setAdvisories(buildSortedRef.current())
-  }, [frozenRef])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- frozenRef is a stable ref, read imperatively
+  }, [])
 
   // frozenRef.current is imperative state, so this needs to run after every render.
   // eslint-disable-next-line react-hooks/exhaustive-deps

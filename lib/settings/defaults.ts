@@ -64,6 +64,7 @@ export const DEFAULT_DISPLAY_PREFS: DisplayPrefs = {
   faderLinkCenterGainDb: 0,
   faderLinkCenterSensDb: 25,
   swipeLabeling: false,
+  signalTintEnabled: true,
 }
 
 /** Default diagnostics profile: all algorithms on, no overrides */

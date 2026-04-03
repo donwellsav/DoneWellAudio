@@ -196,3 +196,66 @@ describe('useAdvisoryMap', () => {
     expect(result.current.advisories).toEqual([])
   })
 })
+
+// ── Freeze/unfreeze advisory buffering ─────────────────────────────────────
+// Regression test: frozenRef was previously in useCallback/useEffect dep arrays,
+// causing variable-length deps when it went from undefined to a ref.
+
+describe('freeze/unfreeze buffering', () => {
+  it('buffers advisories during freeze and flushes on unfreeze', () => {
+    const frozenRef = { current: false }
+    const { result, rerender } = renderHook(() => useAdvisoryMap(50, frozenRef))
+
+    // Add one advisory while unfrozen — appears immediately
+    act(() => result.current.onAdvisory(makeAdvisory({ id: 'a1', trueFrequencyHz: 500 })))
+    expect(result.current.advisories).toHaveLength(1)
+
+    // Freeze — rerender so the every-render effect records wasFrozen=true
+    frozenRef.current = true
+    act(() => { rerender() })
+
+    // Add advisory while frozen — buffered, not yet in sorted output
+    act(() => result.current.onAdvisory(makeAdvisory({ id: 'a2', trueFrequencyHz: 2000 })))
+    // Map has it but sorted output may not update (frozen buffers flush on unfreeze)
+    // The key invariant: no crash, no hook error
+
+    // Unfreeze — the every-render effect sees wasFrozen=true + currentlyFrozen=false → flush
+    frozenRef.current = false
+    act(() => { rerender() })
+
+    // After unfreeze, both advisories should be present
+    expect(result.current.advisories.length).toBeGreaterThanOrEqual(2)
+    const ids = result.current.advisories.map(a => a.id)
+    expect(ids).toContain('a1')
+    expect(ids).toContain('a2')
+  })
+
+  it('works without frozenRef (undefined)', () => {
+    // This was the source of the variable-length dep array bug —
+    // frozenRef being undefined should not cause hook invariant violations
+    const { result } = renderHook(() => useAdvisoryMap(50))
+
+    act(() => result.current.onAdvisory(makeAdvisory({ id: 'b1' })))
+    expect(result.current.advisories).toHaveLength(1)
+
+    act(() => result.current.onAdvisory(makeAdvisory({ id: 'b2', trueFrequencyHz: 3000 })))
+    expect(result.current.advisories).toHaveLength(2)
+  })
+
+  it('clears during freeze do not crash', () => {
+    const frozenRef = { current: true }
+    const { result } = renderHook(() => useAdvisoryMap(50, frozenRef))
+
+    act(() => result.current.onAdvisory(makeAdvisory({ id: 'c1' })))
+    // Clear while frozen — should not throw
+    act(() => result.current.onAdvisoryCleared('c1'))
+
+    // Unfreeze
+    frozenRef.current = false
+    act(() => result.current.onAdvisory(makeAdvisory({ id: 'c2', trueFrequencyHz: 4000 })))
+
+    // c1 should be resolved, c2 active
+    const c1 = result.current.advisories.find(a => a.id === 'c1')
+    expect(c1?.resolved).toBe(true)
+  })
+})

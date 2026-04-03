@@ -5,7 +5,7 @@ import { Copy, Check, X } from 'lucide-react'
 import type { Advisory } from '@/types/advisory'
 
 // ── Shared button class bases ────────────────────────────────────────
-const ACTION_BTN = 'rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1.5 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-8 min-w-[44px]'
+const ACTION_BTN = 'rounded text-[10px] font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-7 min-w-[36px]'
 const COPY_BTN = 'rounded btn-glow flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50'
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -65,78 +65,70 @@ export const IssueCardActions = memo(function IssueCardActions({
     )
   }
 
-  // ── Desktop mode (full action grid) ──────────────────────────────
+  // ── Desktop mode — single horizontal row ────────────────────────
   if (layout === 'desktop') {
     return (
-      <div className="flex flex-col items-end flex-shrink-0 self-center">
-        {/* Row 1: FALSE+ | X */}
-        <div className="flex items-center">
-          {onFalsePositive && (
-            <button
-              onClick={() => onFalsePositive(advisoryId)}
-              aria-label={`${isFalsePositive ? 'Unflag' : 'Flag'} ${exactFreqStr} as false positive`}
-              className={`${ACTION_BTN} ${
-                isFalsePositive ? 'text-red-400 bg-red-500/20 border border-red-500/40' : 'text-muted-foreground/50 hover:text-red-400 hover:bg-red-500/10 border border-transparent'
-              }`}
-            >
-              FALSE+
-            </button>
-          )}
-          {onDismiss && (
-            <button
-              onClick={() => onDismiss(advisoryId)}
-              aria-label={`Dismiss ${exactFreqStr}`}
-              className="rounded flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 text-muted-foreground/30 hover:text-muted-foreground hover:bg-muted/60 transition-colors min-h-[44px] min-w-[44px]"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-        {/* Row 2: CONFIRM | Copy */}
-        <div className="flex items-center">
-          {onConfirmFeedback && (
-            <button
-              onClick={() => onConfirmFeedback(advisoryId)}
-              aria-label={`${isConfirmed ? 'Unconfirm' : 'Confirm'} ${exactFreqStr} as real feedback`}
-              className={`${ACTION_BTN} ${
-                isConfirmed ? 'text-[var(--console-amber)] bg-[var(--console-amber)]/15 border border-[var(--console-amber)]/35' : 'text-muted-foreground/50 hover:text-[var(--console-amber)] hover:bg-[var(--console-amber)]/10 border border-transparent'
-              }`}
-            >
-              CONFIRM
-            </button>
-          )}
+      <div className="flex items-center gap-0.5 flex-shrink-0">
+        {onFalsePositive && (
           <button
-            onClick={onCopy}
-            aria-label={`Copy ${exactFreqStr} frequency info`}
-            className={`${COPY_BTN} h-8 w-8 min-w-[44px] min-h-[44px] ${
-              copied ? 'text-[var(--console-amber)]' : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60'
+            onClick={() => onFalsePositive(advisoryId)}
+            aria-label={`${isFalsePositive ? 'Unflag' : 'Flag'} ${exactFreqStr} as false positive`}
+            className={`${ACTION_BTN} ${
+              isFalsePositive ? 'text-red-400 bg-red-500/20 border border-red-500/40' : 'text-muted-foreground/40 hover:text-red-400 hover:bg-red-500/10 border border-transparent'
             }`}
           >
-            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            FALSE+
           </button>
-        </div>
-        {/* Row 3: Send to Mixer (Companion) / PA2 */}
-        {(onSendToMixer || (pa2Connected && onSendToPA2)) && (
-          <div className="flex items-center gap-1">
-            {onSendToMixer && (
-              <button
-                onClick={() => onSendToMixer(advisory)}
-                aria-label={`Send ${exactFreqStr} EQ recommendation to mixer via Companion`}
-                className={`${ACTION_BTN} text-blue-400/60 hover:text-blue-400 hover:bg-blue-500/10 border border-transparent`}
-              >
-                SEND
-              </button>
-            )}
-            {pa2Connected && onSendToPA2 && (
-              <button
-                onClick={() => onSendToPA2()}
-                aria-label={`Send ${exactFreqStr} to PA2 via Companion`}
-                className={`${ACTION_BTN} text-cyan-400/60 hover:text-cyan-400 hover:bg-cyan-500/10 border border-transparent`}
-              >
-                PA2
-              </button>
-            )}
-          </div>
+        )}
+        {onConfirmFeedback && (
+          <button
+            onClick={() => onConfirmFeedback(advisoryId)}
+            aria-label={`${isConfirmed ? 'Unconfirm' : 'Confirm'} ${exactFreqStr} as real feedback`}
+            className={`${ACTION_BTN} ${
+              isConfirmed ? 'text-[var(--console-amber)] bg-[var(--console-amber)]/15 border border-[var(--console-amber)]/35' : 'text-muted-foreground/40 hover:text-[var(--console-amber)] hover:bg-[var(--console-amber)]/10 border border-transparent'
+            }`}
+          >
+            <span className="flex flex-col items-center leading-[1.1]">
+              <span>CONFIRM</span>
+              <span className="text-[7px] tracking-wide opacity-60">FEEDBACK</span>
+            </span>
+          </button>
+        )}
+        {onDismiss && (
+          <button
+            onClick={() => onDismiss(advisoryId)}
+            aria-label={`Dismiss ${exactFreqStr}`}
+            className="rounded flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 text-muted-foreground/25 hover:text-muted-foreground hover:bg-muted/60 transition-colors min-h-[44px] min-w-[44px]"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        )}
+        <button
+          onClick={onCopy}
+          aria-label={`Copy ${exactFreqStr} frequency info`}
+          className={`${COPY_BTN} h-8 w-8 min-w-[44px] min-h-[44px] ${
+            copied ? 'text-[var(--console-amber)]' : 'text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/60'
+          }`}
+        >
+          {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+        </button>
+        {onSendToMixer && (
+          <button
+            onClick={() => onSendToMixer(advisory)}
+            aria-label={`Send ${exactFreqStr} EQ recommendation to mixer via Companion`}
+            className={`${ACTION_BTN} text-blue-400/50 hover:text-blue-400 hover:bg-blue-500/10 border border-transparent`}
+          >
+            SEND
+          </button>
+        )}
+        {pa2Connected && onSendToPA2 && (
+          <button
+            onClick={() => onSendToPA2()}
+            aria-label={`Send ${exactFreqStr} to PA2 via Companion`}
+            className={`${ACTION_BTN} text-cyan-400/50 hover:text-cyan-400 hover:bg-cyan-500/10 border border-transparent`}
+          >
+            PA2
+          </button>
         )}
         {copied && <span className="sr-only" role="status">Frequency info copied</span>}
       </div>
@@ -179,7 +171,10 @@ export const IssueCardActions = memo(function IssueCardActions({
               isConfirmed ? 'text-[var(--console-amber)] bg-[var(--console-amber)]/15 border border-[var(--console-amber)]/35' : 'text-muted-foreground/50 hover:text-[var(--console-amber)] hover:bg-[var(--console-amber)]/10 border border-transparent'
             }`}
           >
-            CONFIRM
+            <span className="flex flex-col items-center leading-[1.1]">
+              <span>CONFIRM</span>
+              <span className="text-[7px] tracking-wide opacity-60">FEEDBACK</span>
+            </span>
           </button>
         )}
         <button

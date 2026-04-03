@@ -163,6 +163,8 @@ export interface DisplayPrefs {
   faderLinkCenterGainDb: number // Home position for gain fader (default 0)
   faderLinkCenterSensDb: number // Home position for sensitivity fader (default 25)
   swipeLabeling: boolean
+  /** Enable signal-responsive background tint (severity → console color shift) */
+  signalTintEnabled: boolean
 }
 
 // ─── Diagnostics / Expert Policy ──────────────────────────────────────────────
