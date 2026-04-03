@@ -88,7 +88,10 @@ export const IssueCardActions = memo(function IssueCardActions({
               isConfirmed ? 'text-[var(--console-amber)] bg-[var(--console-amber)]/15 border border-[var(--console-amber)]/35' : 'text-muted-foreground/40 hover:text-[var(--console-amber)] hover:bg-[var(--console-amber)]/10 border border-transparent'
             }`}
           >
-            CONFIRM
+            <span className="flex flex-col items-center leading-[1.1]">
+              <span>CONFIRM</span>
+              <span className="text-[7px] tracking-wide opacity-60">FEEDBACK</span>
+            </span>
           </button>
         )}
         {onDismiss && (
@@ -168,7 +171,10 @@ export const IssueCardActions = memo(function IssueCardActions({
               isConfirmed ? 'text-[var(--console-amber)] bg-[var(--console-amber)]/15 border border-[var(--console-amber)]/35' : 'text-muted-foreground/50 hover:text-[var(--console-amber)] hover:bg-[var(--console-amber)]/10 border border-transparent'
             }`}
           >
-            CONFIRM
+            <span className="flex flex-col items-center leading-[1.1]">
+              <span>CONFIRM</span>
+              <span className="text-[7px] tracking-wide opacity-60">FEEDBACK</span>
+            </span>
           </button>
         )}
         <button
