@@ -17,6 +17,7 @@ import { MSDPool } from './msdPool'
 import { computeAWeightingTable, computeMicCalibrationTable, computeAnalysisDbBounds, aWeightingDb } from './calibrationTables'
 import { estimateQ as estimateQFn, calculatePHPR as calculatePHPRFn } from './frequencyAnalysis'
 import { PersistenceTracker } from './persistenceScoring'
+import { computeEffectiveThreshold, getMsdMinFramesForMode, classifyMsdResult, detectHarmonicRelationship } from './detectorUtils'
 
 const HOLD_DECAY_RATE_MULTIPLIER = 2
 
@@ -1211,64 +1212,17 @@ export class FeedbackDetector {
     const trueFrequencyHz = (i + delta) * hzPerBin
 
     // ── Harmonic detection ─────────────────────────────────────────
-    // Uses cents-based tolerance (musically uniform across the spectrum)
-    // instead of a flat percentage, which is too coarse in the high range
-    // and can miss harmonics in the low range.
+    // Delegated to extracted pure function (cents-based tolerance)
     let harmonicRootHz: number | null = null
     let isSubHarmonicRoot = false
 
     if (this.activeBins && this.activeHz && this.activeCount > 0) {
-      const maxHarmonic = HARMONIC_SETTINGS.MAX_HARMONIC
-      const tolCents = this.harmonicToleranceCents
-
-      // ── A: Overtone check ──────────────────────────────────────────
-      // Is this new peak an overtone (2nd–8th) of any active root?
-      for (let j = 0; j < this.activeCount; j++) {
-        const rootBin = this.activeBins[j]
-        const rootHz = this.activeHz[rootBin]
-        if (rootHz <= 0 || rootHz >= trueFrequencyHz) continue
-
-        const ratio = trueFrequencyHz / rootHz
-        const k = Math.round(ratio)
-        if (k < 2 || k > maxHarmonic) continue
-
-        const expectedHz = rootHz * k
-        // Convert frequency deviation to cents: 1200 * log2(actual/expected)
-        const cents = Math.abs(1200 * Math.log2(trueFrequencyHz / expectedHz))
-        if (cents <= tolCents) {
-          // Prefer the lowest matching root (closest to fundamental)
-          if (harmonicRootHz === null || rootHz < harmonicRootHz) {
-            harmonicRootHz = rootHz
-          }
-        }
-      }
-
-      // ── B: Sub-harmonic check ──────────────────────────────────────
-      // Is this new peak the FUNDAMENTAL of a partial that is already
-      // active? (e.g. the 2nd partial was detected first; now we see
-      // the root appear below it.)
-      if (HARMONIC_SETTINGS.CHECK_SUB_HARMONICS && harmonicRootHz === null) {
-        for (let j = 0; j < this.activeCount; j++) {
-          const partialBin = this.activeBins[j]
-          const partialHz = this.activeHz[partialBin]
-          if (partialHz <= 0 || partialHz <= trueFrequencyHz) continue
-
-          const ratio = partialHz / trueFrequencyHz
-          const k = Math.round(ratio)
-          if (k < 2 || k > maxHarmonic) continue
-
-          const expectedPartialHz = trueFrequencyHz * k
-          const cents = Math.abs(1200 * Math.log2(partialHz / expectedPartialHz))
-          if (cents <= tolCents) {
-            // This peak is the fundamental of a harmonic series already present.
-            // harmonicRootHz stays null (this IS the root) but we mark it so
-            // the classifier can boost harmonicity scoring appropriately.
-            harmonicRootHz = null // peak is the root, not an overtone
-            isSubHarmonicRoot = true
-            break
-          }
-        }
-      }
+      const result = detectHarmonicRelationship(
+        trueFrequencyHz, this.activeBins, this.activeHz,
+        this.activeCount, this.harmonicToleranceCents,
+      )
+      harmonicRootHz = result.harmonicRootHz
+      isSubHarmonicRoot = result.isSubHarmonicRoot
     }
 
     // Mark active
@@ -1367,23 +1321,7 @@ export class FeedbackDetector {
   }
 
   private computeEffectiveThresholdDb(): number {
-    const absT = this.config.thresholdDb
-
-    if (!this.config.noiseFloorEnabled || this.noiseFloorDb === null) {
-      return absT
-    }
-
-    const relT = this.noiseFloorDb + this.config.relativeThresholdDb
-    const result = (() => {
-      switch (this.config.thresholdMode) {
-        case 'absolute': return absT
-        case 'relative': return relT
-        case 'hybrid': return Math.max(absT, relT)
-        default: return Math.max(absT, relT)
-      }
-    })()
-
-    return result
+    return computeEffectiveThreshold(this.config, this.noiseFloorDb)
   }
 
   // ==================== MSD Algorithm (DAFx-16) ====================
@@ -1395,14 +1333,7 @@ export class FeedbackDetector {
    * Called from constructor and updateConfig/updateSettings when mode changes.
    */
   private updateMsdMinFrames(): void {
-    const mode = this.config.mode
-    if (mode === 'speech' || mode === 'broadcast') {
-      this.msdMinFrames = MSD_SETTINGS.MIN_FRAMES_SPEECH  // 7
-    } else if (mode === 'liveMusic' || mode === 'worship' || mode === 'outdoor') {
-      this.msdMinFrames = MSD_SETTINGS.MIN_FRAMES_MUSIC   // 13
-    } else {
-      this.msdMinFrames = MSD_SETTINGS.DEFAULT_MIN_FRAMES  // 12
-    }
+    this.msdMinFrames = getMsdMinFramesForMode(this.config.mode)
   }
 
   /**
@@ -1436,22 +1367,17 @@ export class FeedbackDetector {
       return { msd: -1, growthRate: 0, isHowl: false, fastConfirm: false }
     }
 
-    // Howl classification
-    const isHowl = raw.msd < MSD_SETTINGS.HOWL_THRESHOLD
-
-    // Fast confirmation: consecutive frames below fast-confirm threshold
-    let fastConfirm = false
-    if (raw.msd < MSD_SETTINGS.FAST_CONFIRM_THRESHOLD) {
-      const count = (this._fastConfirmCounts.get(binIndex) ?? 0) + 1
-      this._fastConfirmCounts.set(binIndex, count)
-      if (count >= MSD_SETTINGS.FAST_CONFIRM_FRAMES) {
-        fastConfirm = true
-      }
+    // Delegate howl/fast-confirm classification to extracted pure function
+    const { classification, newFastConfirmCount } = classifyMsdResult(
+      raw.msd, raw.growthRate, this._fastConfirmCounts.get(binIndex) ?? 0,
+    )
+    if (newFastConfirmCount > 0) {
+      this._fastConfirmCounts.set(binIndex, newFastConfirmCount)
     } else {
       this._fastConfirmCounts.delete(binIndex)
     }
 
-    return { msd: raw.msd, growthRate: raw.growthRate, isHowl, fastConfirm }
+    return classification
   }
   
   /**

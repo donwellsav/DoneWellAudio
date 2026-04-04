@@ -57,5 +57,13 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Bundle size
-        run: du -sh .next/static/chunks/ | tee bundle-size.txt
+      - name: Bundle size report
+        run: |
+          echo "## Bundle Size Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Total:** $(du -sh .next/static/chunks/ | cut -f1)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Largest chunks (>50KB)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          find .next/static/chunks -name '*.js' -size +50k -exec ls -lhS {} + 2>/dev/null | awk '{print $5, $NF}' | head -20 >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

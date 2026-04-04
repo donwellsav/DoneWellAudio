@@ -1,16 +1,18 @@
 /**
- * Advanced Feedback Detection Algorithms — Barrel Re-export
+ * DSP Algorithm Barrel — Re-exports from focused sub-modules
  *
- * All implementations live in focused sub-modules:
- *   - msdAnalysis.ts       — MSD algorithm (DAFx-16)
- *   - phaseCoherence.ts    — Phase coherence (KU Leuven 2025)
+ * This file is a barrel (re-export aggregator), not an implementation.
+ * All algorithm logic lives in the sub-modules listed below:
+ *   - msdPool.ts             — MSD algorithm (DAFx-16), sparse pooled allocation
+ *   - phaseCoherence.ts      — Phase coherence (KU Leuven 2025)
  *   - compressionDetection.ts — Spectral flatness, compression detection
- *   - algorithmFusion.ts   — Fusion engine, comb pattern, IHR, PTMR, MINDS
+ *   - combPattern.ts         — Comb filter detection (DBX)
+ *   - spectralAlgorithms.ts  — IHR, PTMR, content type detection
+ *   - fusionEngine.ts        — Algorithm fusion, MINDS, calibration
  *
- * This barrel preserves all existing import paths.
+ * 13 consumers import from this barrel. Preserved for backward compatibility.
  */
 
-export * from './msdAnalysis'
 export { MSDPool, type MSDRawResult } from './msdPool'
 export * from './phaseCoherence'
 export * from './compressionDetection'
