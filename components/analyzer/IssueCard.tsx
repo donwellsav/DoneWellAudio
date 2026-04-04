@@ -349,7 +349,7 @@ export const IssueCard = memo(function IssueCard({
           {advisory.advisory?.peq && (
             <span style={{ color: severityColor, opacity: 0.7 }}>
               <span className="font-bold">{advisory.advisory.peq.gainDb}dB</span>
-              {' '}Q:{advisory.advisory.peq.q.toFixed(1)} @ {advisory.advisory.peq.hz.toFixed(0)}Hz
+              {' '}Q:{Math.round(advisory.advisory.peq.q)}
             </span>
           )}
           {/* Velocity indicator */}
