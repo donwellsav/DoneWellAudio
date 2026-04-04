@@ -247,7 +247,7 @@ export const IssueCard = memo(function IssueCard({
       />
 
       <div
-        className="flex flex-col relative z-10 @container pl-3 pr-1"
+        className="flex flex-col relative z-10 @container pl-3 pr-1 pt-0.5"
         style={swipeLabeling && swiping ? {
           transform: `translateX(${swipeX}px)`,
           transition: swiping ? 'none' : 'transform 200ms ease-out',
