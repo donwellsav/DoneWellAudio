@@ -344,10 +344,10 @@ export const IssueCard = memo(function IssueCard({
         </div>
 
         {/* ── Row 2: EQ rec + velocity + actions — all on one line ── */}
-        <div className="flex items-center gap-1.5 text-[11px] font-mono leading-none">
+        <div className="flex items-center gap-1.5 text-xs font-mono leading-none">
           {/* PEQ cut recommendation — severity-tinted for scanability */}
           {advisory.advisory?.peq && (
-            <span style={{ color: severityColor, opacity: 0.7 }}>
+            <span style={{ color: severityColor, opacity: 0.8 }}>
               <span className="font-bold">{advisory.advisory.peq.gainDb}dB</span>
               {' '}Q:{Math.round(advisory.advisory.peq.q)}
             </span>
