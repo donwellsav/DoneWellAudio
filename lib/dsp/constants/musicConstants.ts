@@ -27,15 +27,5 @@ export const SEMITONES_PER_OCTAVE = 12
 export const LN10_OVER_10 = Math.LN10 / 10 // For dB to power conversion
 export const LOG10_E = Math.LOG10E // For power to dB conversion
 
-// Precomputed lookup table: dB → linear power for range [-100, +30] at 0.1 dB steps
-// Extended from [-100, 0] to handle A-weighting (+12dB) + mic calibration (+12dB)
-// extremes without clamp-induced quantization error.
-// Index formula: lutIdx = ((db + 100) * 10 + 0.5) | 0
-// 1301 entries × 4 bytes = 5.2KB — fits comfortably in L1 cache
-export const EXP_LUT = /* @__PURE__ */ (() => {
-  const table = new Float32Array(1301)
-  for (let i = 0; i <= 1300; i++) {
-    table[i] = Math.pow(10, (i / 10 - 100) / 10)
-  }
-  return table
-})()
+// Re-export from canonical home (shared by main thread + worker)
+export { EXP_LUT } from '../expLut'

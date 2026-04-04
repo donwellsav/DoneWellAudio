@@ -1,7 +1,7 @@
 # CLAUDE.md — DoneWell Audio Project Intelligence
 
-> **Last updated April 2026. 483 TypeScript/TSX files, 1261 tests (1257 pass, 4 skip), 66 suites. Version 0.79.0.**
-> Signal tint toggle. Severity-graded fade. Issue card redesign (frequency hero, severity icons, icon legend). GEQ/RTA hover tooltips. Low signal hysteresis. Canvas color token system. Design system audit (93/100). 5 rounds Codex adversarial fixes. Scroll-wheel settings. Click-to-edit controls. 33+ codebase improvements.
+> **Last updated April 2026. 472 TypeScript/TSX files, 1224 tests (1220 pass, 4 skip), 65 suites. Version 0.79.0.**
+> Architecture audit: 14 of 20 improvements implemented. 4 module splits (acousticUtils→7, spectrumDrawing→7, classifier helpers, feedbackDetector utils). EXP_LUT dedup. Dead code removal. CI bundle tracking. Worker pipeline integration tests. 71 docs archived. Signal tint toggle. Severity-graded fade. Issue card redesign. GEQ/RTA hover tooltips. Canvas color token system.
 
 ## CRITICAL RULES
 
@@ -133,7 +133,7 @@ pnpm dev              # Dev server on :3000 (Turbopack, no SW)
 pnpm build            # Production build (webpack, generates SW)
 pnpm start            # Production server
 pnpm lint             # ESLint (flat config)
-pnpm test             # Vitest (1261 tests: 1257 pass + 4 skip)
+pnpm test             # Vitest (1224 tests: 1220 pass + 4 skip)
 pnpm test:watch       # Vitest watch mode
 pnpm test:coverage    # Vitest with V8 coverage
 npx tsc --noEmit      # Type-check (run BEFORE pnpm build)
@@ -256,8 +256,8 @@ lib/
     rateLimit.ts (60)         # Shared rate limiter factory (createRateLimiter) for API routes
   canvas/
     canvasTokens.ts (69)      # Shared canvas color tokens: meterBg, applyMeterStops, geqBg/Grid/Center, confidenceColor
-  dsp/ (22 modules)           # DSP engine + ML inference:
-    feedbackDetector.ts (1527)#   Core: peak detection, MSD pool, auto-gain, persistence
+  dsp/ (26 modules)           # DSP engine + ML inference:
+    feedbackDetector.ts (1485)#   Core: peak detection, MSD pool, auto-gain, persistence
     constants/ (6 files)      #   All tuning constants, split by domain:
       musicConstants.ts       #     ISO bands, pitch ref, EXP_LUT
       acousticConstants.ts    #     Schroeder, frequency bands, room estimation
@@ -265,8 +265,17 @@ lib/
       detectionConstants.ts   #     MSD, persistence, severity, gates, algorithm settings
       presetConstants.ts      #     8 operation modes, DEFAULT_SETTINGS, room presets
       uiConstants.ts          #     Canvas, colors, EQ presets, ERB, mobile settings
-    acousticUtils.ts (1085)   #   Room modes, Schroeder, RT60, vibrato, cumulative growth
-    classifier.ts (850)       #   11-feature Bayesian classification + formant/chromatic gates
+    acousticUtils.ts (56)     #   Barrel re-export → 7 domain modules in acoustic/
+    acoustic/                 #   Domain-split acoustic utilities:
+      roomModes.ts            #     Room mode calculation, proximity penalty, dimension estimation
+      roomParameters.ts       #     Schroeder frequency, band classification, room parameter derivation
+      reverberation.ts        #     Eyring RT60, air absorption, Q adjustment
+      modalAnalysis.ts        #     Modal density/overlap, feedback adjustment, prominence
+      cumulativeGrowth.ts     #     Slow-building feedback growth tracking
+      vibratoDetection.ts     #     Vocal/whistle vibrato discrimination
+      confidenceCalibration.ts #    Calibrated confidence from probability inputs
+    classifier.ts (747)       #   11-feature Bayesian classification + formant/chromatic gates
+    classifierHelpers.ts (176) #  Extracted: normalizeTrackInput, countFormantBands, isChromaticallyQuantized, detectMainsHum
     fusionEngine.ts (~500)    #   Core fusion, MINDS, calibration, FUSION_WEIGHTS, AgreementPersistenceTracker
     spectralAlgorithms.ts(~250)#  IHR, PTMR, content type detection (speech/music/compressed)
     combPattern.ts (~300)     #   Comb filter detection (DBX), CombHistoryCache, CombStabilityTracker
@@ -277,14 +286,23 @@ lib/
     workerFft.ts (389)        #   Radix-2 FFT, AlgorithmEngine, phase extraction
     advisoryManager.ts (292)  #   3-layer dedup, band cooldown, memory bounds (max 200)
     msdPool.ts (267)          #   Consolidated MSD pool (sparse, LRU eviction, 64KB)
-    msdAnalysis.ts (170)      #   [DEPRECATED] Worker-side MSD + AmplitudeHistoryBuffer + PhaseHistoryBuffer
+    expLut.ts (30)            #   Shared EXP_LUT dB→linear table (single source of truth)
+    detectorUtils.ts (186)    #   Extracted: computeEffectiveThreshold, classifyMsdResult, detectHarmonicRelationship
     compressionDetection.ts(161)# Spectral flatness, crest factor, kurtosis
     phaseCoherence.ts (129)   #   Phase coherence via circular statistics
     decayAnalyzer.ts (86)     #   RT60 decay comparison for room mode suppression
     severityUtils.ts (18)     #   Severity urgency mapping
     mlInference.ts (~180)     #   ONNX Runtime Web ML inference, predictCached(), lazy model loading
-    advancedDetection.ts (16) #   Barrel re-export
-  canvas/spectrumDrawing.ts(1193)# Pure canvas drawing (no React), RTA label overlap suppression, theme-aware notch overlays (70% opacity), frequency zone bands, label range merging
+    advancedDetection.ts (19) #   DSP algorithm barrel re-export (13 consumers)
+  canvas/spectrumDrawing.ts(34) # Barrel re-export → 7 visual-layer modules in canvas/drawing/
+  canvas/drawing/             #   Domain-split canvas drawing:
+    canvasTypes.ts            #     CanvasTheme, DbRange, constants, calcPadding, cachedMeasureText
+    drawGrid.ts               #     Grid, freq zones, room mode lines, axis labels
+    drawSpectrum.ts           #     Spectrum rendering, freq range overlay
+    drawOverlays.ts           #     Markers, notch overlays, indicator lines (threshold, tooltip)
+    drawMeters.ts             #     Level meter, level glow
+    drawPlaceholder.ts        #     Idle/placeholder state animation
+    drawPA2.ts                #     PA2 companion device overlays
   export/ (3 files)           # PDF/TXT/CSV/JSON export
   calibration/ (3 files)      # Room profile, session recording, JSON export
   storage/dwaStorage.ts (183) # Typed localStorage abstraction
@@ -303,7 +321,8 @@ hooks/__tests__/ (7 files)    # Hook unit tests (useAdvisoryMap, useFpsMonitor, 
 contexts/__tests__/ (2 files) # Context unit tests (AdvisoryContext, UIContext)
 lib/storage/__tests__/ (1 file)  # dwaStorage unit tests
 lib/export/__tests__/ (3 files)  # Export module unit tests (txt, pdf, downloadFile)
-lib/dsp/__tests__/ (22 files)   # DSP unit tests (feedbackDetector, fusionEngine, combPattern, classifier, acousticUtils, decayAnalyzer, severityUtils, etc.)
+lib/dsp/__tests__/ (20 files)   # DSP unit tests (feedbackDetector, fusionEngine, combPattern, classifier, acousticUtils, decayAnalyzer, severityUtils, etc.)
+tests/integration/ (1 file)     # Worker pipeline integration tests (AlgorithmEngine → fusion → classifier)
 public/models/                  # ML model assets
   manifest.json                 #   Model registry (version, metrics, architecture)
   dwa-fp-filter-v1.onnx         #   Bootstrap ONNX model (929 params, 4KB)

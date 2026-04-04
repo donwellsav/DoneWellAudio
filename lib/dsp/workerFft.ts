@@ -16,31 +16,13 @@ import {
   analyzeInterHarmonicRatio,
   calculatePTMR,
   detectContentType,
-  MSD_CONSTANTS,
 } from './advancedDetection'
-import { TEMPORAL_ENVELOPE } from './constants'
-import type { MSDResult } from './advancedDetection'
+import { TEMPORAL_ENVELOPE, MSD_CONSTANTS, MSD_SETTINGS } from './constants'
 import type { AlgorithmScores } from './advancedDetection'
 import { MSDPool } from './msdPool'
-import { MSD_SETTINGS } from './constants'
 import { MLInferenceEngine } from './mlInference'
-import type { ContentType, DetectedPeak, Track } from '@/types/advisory'
-
-// ── dB-to-linear LUT (replaces Math.pow(10, db/10) in hot loops) ────────────
-// 1001-entry table: index = (db + 100) * 10, range [-100, 0] dB
-const EXP_LUT = /* @__PURE__ */ (() => {
-  const table = new Float32Array(1301)
-  for (let i = 0; i <= 1300; i++) {
-    table[i] = Math.pow(10, (i / 10 - 100) / 10)
-  }
-  return table
-})()
-
-/** Convert dB to linear power via LUT. ~3x faster than Math.pow(10, db/10). */
-function dbToLinear(db: number): number {
-  const idx = ((db + 100) * 10 + 0.5) | 0
-  return EXP_LUT[idx < 0 ? 0 : idx > 1300 ? 1300 : idx]
-}
+import { dbToLinearLut as dbToLinear } from './expLut'
+import type { ContentType, DetectedPeak, Track, MSDResult } from '@/types/advisory'
 
 // ── Extracted magic numbers ─────────────────────────────────────────────────
 

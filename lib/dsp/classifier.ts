@@ -3,14 +3,26 @@
 // Now integrates MSD, Phase Coherence, and Spectral Flatness from advancedDetection.ts
 
 import { CLASSIFIER_WEIGHTS, SEVERITY_THRESHOLDS, PHPR_SETTINGS, MAINS_HUM_GATE } from './constants'
-import type { 
-  Track, 
-  ClassificationResult, 
-  SeverityLevel, 
-  IssueLabel, 
-  TrackedPeak, 
+import type {
+  Track,
+  ClassificationResult,
+  SeverityLevel,
+  IssueLabel,
+  TrackedPeak,
   DetectorSettings,
 } from '@/types/advisory'
+import {
+  normalizeTrackInput,
+  belowSchroederWeight,
+  countFormantBands,
+  isChromaticallyQuantized,
+  detectMainsHum,
+  CHROMATIC_PHASE_THRESHOLD,
+  CHROMATIC_PHASE_REDUCTION,
+  MODE_PRESENCE_BONUS,
+  FORMANT_BANDS,
+} from './classifierHelpers'
+import type { TrackInput } from './classifierHelpers'
 import type { AlgorithmScores, FusedDetectionResult } from './advancedDetection'
 import {
   calculateSchroederFrequency,
@@ -39,36 +51,7 @@ const PRIOR_FEEDBACK = 0.45
 const PRIOR_WHISTLE = 0.27
 const PRIOR_INSTRUMENT = 0.27
 const CLUSTERING_BANDWIDTH_MULTIPLIER = 3
-const MODE_PRESENCE_BONUS = 0.12
 const MODE_ABSENCE_PENALTY = 0.05
-const SCHROEDER_TRANSITION_HZ = 12.5
-
-/** Sigmoid weight: ~1 below Schroeder, ~0 above. */
-function belowSchroederWeight(freq: number, schroederHz: number): number {
-  return 1 / (1 + Math.exp((freq - schroederHz) / SCHROEDER_TRANSITION_HZ))
-}
-
-/**
- * Formant gate constants — suppresses sustained vowel false positives.
- * Vocal formants (Fant 1960, "Acoustic Theory of Speech Production"):
- *   F1 ≈ 300–900 Hz (jaw height), F2 ≈ 800–2500 Hz (tongue position),
- *   F3 ≈ 2200–3500 Hz (lip rounding / nasal cavity).
- * Formant peaks have moderate Q (3–20) vs feedback Q (50+).
- * When 2+ active peaks fall in distinct formant bands with the current
- * peak also in a formant band, feedbackProbability is reduced.
- */
-/**
- * Chromatic quantization gate — suppresses Auto-Tune false positives.
- * Pitch-corrected audio snaps frequencies to the 12-TET semitone grid,
- * producing artificially high phase coherence that mimics feedback.
- * When a peak sits within ±5 cents of a semitone AND phase coherence
- * exceeds 0.80, the phase boost is scaled by 0.60 (40% reduction).
- * Ref: Bristow-Johnson (2001), "The Equivalence of Various Methods of
- * Computing Biquad Coefficients for Audio Parametric Equalizers".
- */
-const CHROMATIC_SNAP_CENTS = 5
-const CHROMATIC_PHASE_THRESHOLD = 0.80
-const CHROMATIC_PHASE_REDUCTION = 0.60
 
 /**
  * Maximum absolute delta that room-physics adjustments can cumulatively apply
@@ -78,154 +61,10 @@ const CHROMATIC_PHASE_REDUCTION = 0.60
  */
 const MAX_ROOM_DELTA = 0.30
 
-const FORMANT_BANDS = [
-  { min: 300, max: 900 },   // F1
-  { min: 800, max: 2500 },  // F2
-  { min: 2200, max: 3500 }, // F3
-] as const
 const FORMANT_Q_MIN = 3
 const FORMANT_Q_MAX = 20
 const FORMANT_MIN_MATCHES = 2     // Need peaks in at least 2 distinct bands
 const FORMANT_GATE_MULTIPLIER = 0.65
-
-// Type union for track input
-type TrackInput = Track | TrackedPeak
-
-// Helper to normalize input to common interface
-function normalizeTrackInput(input: TrackInput) {
-  // Check if it's a TrackedPeak (has 'frequency' field) or Track (has 'trueFrequencyHz')
-  if ('trueFrequencyHz' in input) {
-    return {
-      frequencyHz: input.trueFrequencyHz,
-      amplitudeDb: input.trueAmplitudeDb,
-      onsetDb: input.onsetDb,
-      onsetTime: input.onsetTime,
-      velocityDbPerSec: input.velocityDbPerSec,
-      stabilityCentsStd: input.features.stabilityCentsStd,
-      harmonicityScore: input.features.harmonicityScore,
-      modulationScore: input.features.modulationScore,
-      noiseSidebandScore: input.features.noiseSidebandScore,
-      maxVelocityDbPerSec: input.features.maxVelocityDbPerSec,
-      minQ: input.features.minQ,
-      persistenceMs: input.features.persistenceMs,
-      prominenceDb: input.prominenceDb,
-      phpr: input.phpr,
-    }
-  }
-  // TrackedPeak
-  return {
-    frequencyHz: input.frequency,
-    amplitudeDb: input.amplitude,
-    onsetDb: input.history[0]?.amplitude ?? input.amplitude,
-    onsetTime: input.onsetTime,
-    velocityDbPerSec: input.features.velocityDbPerSec,
-    stabilityCentsStd: input.features.stabilityCentsStd,
-    harmonicityScore: input.features.harmonicityScore,
-    modulationScore: input.features.modulationScore,
-    noiseSidebandScore: 0, // TrackedPeak doesn't have this
-    maxVelocityDbPerSec: Math.abs(input.features.velocityDbPerSec),
-    minQ: input.qEstimate,
-    persistenceMs: input.lastUpdateTime - input.onsetTime,
-    prominenceDb: input.prominenceDb,
-    phpr: undefined, // TrackedPeak doesn't carry PHPR
-  }
-}
-
-/**
- * Count how many distinct formant bands contain at least one frequency.
- * Returns the number of unique bands (0–3) that have a matching peak.
- * Ref: Fant (1960), "Acoustic Theory of Speech Production".
- */
-function countFormantBands(frequencies: number[]): number {
-  let count = 0
-  for (const band of FORMANT_BANDS) {
-    if (frequencies.some(f => f >= band.min && f <= band.max)) count++
-  }
-  return count
-}
-
-/**
- * Check if a frequency is quantized to the 12-TET semitone grid.
- * Returns true when the frequency is within ±CHROMATIC_SNAP_CENTS of
- * the nearest equal-tempered semitone (A4 = 440 Hz reference).
- * Pitch-corrected audio (Auto-Tune, Melodyne) snaps to this grid.
- */
-function isChromaticallyQuantized(frequencyHz: number): boolean {
-  if (frequencyHz <= 0) return false
-  // Semitones from A4: n = 12 * log2(f / 440)
-  const semitones = 12 * Math.log2(frequencyHz / 440)
-  // Distance to nearest semitone in cents (1 semitone = 100 cents)
-  const centsOffset = Math.abs((semitones - Math.round(semitones)) * 100)
-  return centsOffset <= CHROMATIC_SNAP_CENTS
-}
-
-/**
- * Detect if a frequency belongs to the AC mains electrical harmonic series.
- * Auto-detects 50 Hz (EU/Asia) vs 60 Hz (NA) by checking which fundamental
- * produces more matching harmonics among the active peaks.
- *
- * HVAC compressors, lighting dimmers, and transformers generate exact integer
- * multiples of the mains frequency (50n or 60n Hz). These persistent, narrow,
- * high-Q, phase-locked tones are indistinguishable from feedback to all six
- * detection algorithms. This gate requires corroborating evidence: the peak
- * must be on a mains harmonic AND 2+ other active peaks must match the same
- * series AND phase coherence must be high (AC-locked signal).
- *
- * @param frequencyHz - The peak frequency to evaluate
- * @param activeFrequencies - All currently active peak frequencies
- * @param phaseCoherence - Phase coherence score for this peak (0–1)
- * @returns Detection result with matched fundamental and corroboration count
- */
-function detectMainsHum(
-  frequencyHz: number,
-  activeFrequencies: number[],
-  phaseCoherence: number,
-  fundamentalSetting: 'auto' | 50 | 60 = 'auto'
-): { isHum: boolean; fundamental: number; matchCount: number } {
-  const noMatch = { isHum: false, fundamental: 0, matchCount: 0 }
-
-  // Phase coherence must be high — mains hum is AC-locked
-  if (phaseCoherence < MAINS_HUM_GATE.PHASE_COHERENCE_THRESHOLD) return noMatch
-
-  const tol = MAINS_HUM_GATE.TOLERANCE_HZ
-  let bestFundamental = 0
-  let bestCount = 0
-
-  // When user specifies 50 or 60 Hz, only check that fundamental.
-  // 'auto' checks both and picks the one with more corroboration.
-  const fundamentals = fundamentalSetting === 'auto'
-    ? MAINS_HUM_GATE.FUNDAMENTALS
-    : [fundamentalSetting]
-
-  for (const fund of fundamentals) {
-    // Check if the current peak is on this mains series
-    let onSeries = false
-    for (let n = 1; n <= MAINS_HUM_GATE.MAX_HARMONIC; n++) {
-      if (Math.abs(frequencyHz - fund * n) <= tol) { onSeries = true; break }
-    }
-    if (!onSeries) continue
-
-    // Count corroborating peaks (other active peaks also on this series)
-    let corroborating = 0
-    for (const af of activeFrequencies) {
-      if (Math.abs(af - frequencyHz) < 1) continue // skip self
-      for (let n = 1; n <= MAINS_HUM_GATE.MAX_HARMONIC; n++) {
-        if (Math.abs(af - fund * n) <= tol) { corroborating++; break }
-      }
-    }
-
-    if (corroborating > bestCount) {
-      bestCount = corroborating
-      bestFundamental = fund
-    }
-  }
-
-  return {
-    isHum: bestCount >= MAINS_HUM_GATE.MIN_CORROBORATING_PEAKS,
-    fundamental: bestFundamental,
-    matchCount: bestCount,
-  }
-}
 
 /**
  * Classify a track as feedback, whistle, or instrument
