@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.80.1',
+    date: '2026-04-04',
+    changes: [
+      { type: 'fix', description: 'Update CLAUDE.md: fix stale values, add architecture gotchas, deduplicate sections' },
+    ],
+  },
+  {
     version: '0.80.0',
     date: '2026-04-04',
     changes: [
