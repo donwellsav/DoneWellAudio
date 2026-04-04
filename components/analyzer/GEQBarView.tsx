@@ -448,10 +448,7 @@ export const GEQBarView = memo(function GEQBarView({ advisories, graphFontSize =
       {!hasRecommendations && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-1">
           <span className="font-mono text-xs text-muted-foreground/50 tracking-wide text-center px-4">
-            EQ recommendations appear here
-          </span>
-          <span className="font-mono text-[10px] text-muted-foreground/30 tracking-wide text-center px-4">
-            Start analysis to detect feedback
+            Engage to see cuts
           </span>
         </div>
       )}

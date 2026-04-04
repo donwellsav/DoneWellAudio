@@ -59,20 +59,20 @@ export const DisplayTab = memo(function DisplayTab({
           onChange={(checked) => setDisplay({ spectrumWarmMode: checked })}
           label="Warm Spectrum"
           color="amber"
-          tooltip={settings.showTooltips ? 'Switch RTA spectrum color to warm amber tones.' : undefined}
+          tooltip={settings.showTooltips ? 'Warm amber spectrum line.' : undefined}
         />
         <LEDToggle
           checked={settings.signalTintEnabled}
           onChange={(checked) => setDisplay({ signalTintEnabled: checked })}
           label="Signal Tint"
           color="amber"
-          tooltip={settings.showTooltips ? 'Shift the console background color based on detection severity. Blue = listening, amber = detection, orange = growing, red = runaway. Disable for a static amber theme.' : undefined}
+          tooltip={settings.showTooltips ? 'Tint console by severity. Off = neutral gray.' : undefined}
         />
         <LEDToggle
           checked={settings.swipeLabeling}
           onChange={(checked) => setDisplay({ swipeLabeling: checked })}
           label="Swipe to Label (Desktop)"
-          tooltip={settings.showTooltips ? 'Enable swipe gestures on desktop issue cards: left = dismiss, right = confirm, long-press = false positive. Mobile always uses swipe for space.' : undefined}
+          tooltip={settings.showTooltips ? 'Swipe cards: left = dismiss, right = confirm.' : undefined}
         />
         <LEDToggle
           checked={settings.showThresholdLine}

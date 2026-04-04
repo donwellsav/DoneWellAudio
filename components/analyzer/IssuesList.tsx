@@ -205,10 +205,7 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
               </div>
               <div className="flex flex-col items-center gap-0.5">
                 <span className="font-mono text-xs font-bold tracking-[0.15em] uppercase text-muted-foreground group-hover:text-foreground transition-colors">
-                  Press to Start
-                </span>
-                <span className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-muted-foreground/60 group-hover:text-muted-foreground transition-colors">
-                  Analysis
+                  Start Analysis
                 </span>
                 <span className="hidden tablet:block font-mono text-[8px] text-muted-foreground/30 mt-1">⏎ Enter</span>
               </div>
@@ -280,10 +277,7 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
                 />
               </div>
               <div className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase text-emerald-500/80">
-                No Feedback
-              </div>
-              <div className="font-mono text-[9px] tracking-[0.18em] uppercase text-emerald-500/50">
-                Detected
+                All Clear
               </div>
             </div>
           </div>
@@ -297,7 +291,7 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
                   onClick={onClearResolved}
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wide"
                 >
-                  Clear Resolved
+                  Clear Done
                 </button>
               )}
               {onClearAll && (
