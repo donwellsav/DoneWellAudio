@@ -101,7 +101,7 @@ export const IssueCardActions = memo(function IssueCardActions({
           <button
             onClick={() => onDismiss(advisoryId)}
             aria-label={`Dismiss ${exactFreqStr}`}
-            className="rounded flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 text-muted-foreground/25 hover:text-muted-foreground hover:bg-muted/60 transition-colors min-h-[44px] min-w-[44px]"
+            className="rounded flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 text-muted-foreground/25 hover:text-muted-foreground hover:bg-muted/60 transition-colors w-7 h-7"
           >
             <X className="w-3 h-3" />
           </button>
@@ -110,7 +110,7 @@ export const IssueCardActions = memo(function IssueCardActions({
           onClick={onCopy}
           aria-label={`Copy ${exactFreqStr} frequency info`}
           aria-pressed={copied}
-          className={`${COPY_BTN} h-8 w-8 min-w-[44px] min-h-[44px] ${
+          className={`${COPY_BTN} h-7 w-7 ${
             copied ? 'text-[var(--console-amber)]' : 'text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/60'
           }`}
         >
