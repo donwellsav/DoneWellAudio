@@ -141,7 +141,7 @@ function drawBars(
     } else {
       // Inactive — ghost bar with breathing opacity (indicates "GEQ waiting for data")
       const ghostHeight = (plotHeight - 10) * (0.08 + 0.04 * Math.sin(i * 0.7)) // vary per band
-      const breathe = 0.04 + 0.03 * Math.sin(Date.now() / 1500 + i * 0.5) // subtle breathing
+      const breathe = 0.07 + 0.05 * Math.sin(Date.now() / 1500 + i * 0.5) // gentle breathing
       ctx.fillStyle = `rgba(75, 146, 255, ${breathe})`
       const ghostY = centerY - ghostHeight / 2
       ctx.beginPath()
@@ -252,9 +252,10 @@ interface GEQBarViewProps {
   advisories: Advisory[]
   graphFontSize?: number
   clearedIds?: Set<string>
+  isRunning?: boolean
 }
 
-export const GEQBarView = memo(function GEQBarView({ advisories, graphFontSize = 11, clearedIds }: GEQBarViewProps) {
+export const GEQBarView = memo(function GEQBarView({ advisories, graphFontSize = 11, clearedIds, isRunning = false }: GEQBarViewProps) {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme !== 'light'
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -391,6 +392,15 @@ export const GEQBarView = memo(function GEQBarView({ advisories, graphFontSize =
 
   const hasRecommendations = bandRecommendations.size > 0
 
+  // Screen reader label: list actual cuts so keyboard users get equivalent info to the visual canvas
+  const geqAriaLabel = useMemo(() => {
+    if (bandRecommendations.size === 0) return 'Graphic equalizer: no active cuts'
+    const cuts = Array.from(bandRecommendations.entries())
+      .map(([i, rec]) => `${GEQ_BAND_LABELS[i]} Hz ${rec.suggestedDb}dB`)
+      .join(', ')
+    return `Graphic equalizer: ${bandRecommendations.size} active cuts. ${cuts}`
+  }, [bandRecommendations])
+
   // Mouse move → hit-test which band the cursor is over
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = containerRef.current?.getBoundingClientRect()
@@ -415,7 +425,7 @@ export const GEQBarView = memo(function GEQBarView({ advisories, graphFontSize =
 
   return (
     <div ref={containerRef} className="relative w-full h-full" onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
-      <canvas ref={canvasRef} className="w-full h-full" role="img" aria-label="Graphic equalizer band view with recommended cuts" />
+      <canvas ref={canvasRef} className="w-full h-full focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring rounded-sm" tabIndex={0} role="img" aria-label={geqAriaLabel} />
       {/* Hover tooltip for GEQ bars */}
       {hoverRec && hoverLabel && (
         <div
@@ -439,10 +449,7 @@ export const GEQBarView = memo(function GEQBarView({ advisories, graphFontSize =
       {!hasRecommendations && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-1">
           <span className="font-mono text-xs text-muted-foreground/50 tracking-wide text-center px-4">
-            EQ recommendations appear here
-          </span>
-          <span className="font-mono text-[10px] text-muted-foreground/30 tracking-wide text-center px-4">
-            Start analysis to detect feedback
+            {isRunning ? 'All clear — no cuts needed' : 'Engage to see cuts'}
           </span>
         </div>
       )}

@@ -5,7 +5,9 @@ import { Copy, Check, X } from 'lucide-react'
 import type { Advisory } from '@/types/advisory'
 
 // ── Shared button class bases ────────────────────────────────────────
-const ACTION_BTN = 'rounded text-[10px] font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-7 min-w-[36px]'
+// Desktop: 36px min-width (mouse pointer, compact). Mobile: 44px (WCAG 2.5.5 touch target)
+const ACTION_BTN_DESKTOP = 'rounded text-[10px] font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-7 min-w-[36px]'
+const ACTION_BTN_MOBILE = 'rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-2 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-8 min-w-[44px]'
 const COPY_BTN = 'rounded btn-glow flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50'
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -49,6 +51,7 @@ export const IssueCardActions = memo(function IssueCardActions({
   onSendToMixer, onSendToPA2, pa2Connected,
   layout,
 }: IssueCardActionsProps) {
+  const ACTION_BTN = layout === 'mobile' ? ACTION_BTN_MOBILE : ACTION_BTN_DESKTOP
 
   // ── Copy-only mode (desktop + swipe labeling) ────────────────────
   if (layout === 'copy-only') {
@@ -68,13 +71,13 @@ export const IssueCardActions = memo(function IssueCardActions({
   // ── Desktop mode — single horizontal row ────────────────────────
   if (layout === 'desktop') {
     return (
-      <div className="flex items-center gap-0.5 flex-shrink-0">
+      <div className="flex items-center gap-0.5 flex-shrink-0 flex-wrap">
         {onFalsePositive && (
           <button
             onClick={() => onFalsePositive(advisoryId)}
             aria-label={`${isFalsePositive ? 'Unflag' : 'Flag'} ${exactFreqStr} as false positive`}
             className={`${ACTION_BTN} ${
-              isFalsePositive ? 'text-red-400 bg-red-500/20 border border-red-500/40' : 'text-muted-foreground/40 hover:text-red-400 hover:bg-red-500/10 border border-transparent'
+              isFalsePositive ? 'text-red-400 bg-red-500/20 border border-red-500/40' : 'text-muted-foreground/50 hover:text-red-400 hover:bg-red-500/10 border border-transparent'
             }`}
           >
             FALSE+
@@ -85,7 +88,7 @@ export const IssueCardActions = memo(function IssueCardActions({
             onClick={() => onConfirmFeedback(advisoryId)}
             aria-label={`${isConfirmed ? 'Unconfirm' : 'Confirm'} ${exactFreqStr} as real feedback`}
             className={`${ACTION_BTN} ${
-              isConfirmed ? 'text-[var(--console-amber)] bg-[var(--console-amber)]/15 border border-[var(--console-amber)]/35' : 'text-muted-foreground/40 hover:text-[var(--console-amber)] hover:bg-[var(--console-amber)]/10 border border-transparent'
+              isConfirmed ? 'text-[var(--console-amber)] bg-[var(--console-amber)]/15 border border-[var(--console-amber)]/35' : 'text-muted-foreground/50 hover:text-[var(--console-amber)] hover:bg-[var(--console-amber)]/10 border border-transparent'
             }`}
           >
             <span className="flex flex-col items-center leading-[1.1]">
@@ -106,6 +109,7 @@ export const IssueCardActions = memo(function IssueCardActions({
         <button
           onClick={onCopy}
           aria-label={`Copy ${exactFreqStr} frequency info`}
+          aria-pressed={copied}
           className={`${COPY_BTN} h-8 w-8 min-w-[44px] min-h-[44px] ${
             copied ? 'text-[var(--console-amber)]' : 'text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/60'
           }`}
@@ -143,8 +147,8 @@ export const IssueCardActions = memo(function IssueCardActions({
         {onFalsePositive && (
           <button
             onClick={() => onFalsePositive(advisoryId)}
-            aria-label={`${isFalsePositive ? 'Unflag' : 'Flag'} false positive`}
-            className={`${ACTION_BTN} px-2 ${
+            aria-label={`${isFalsePositive ? 'Unflag' : 'Flag'} ${exactFreqStr} as false positive`}
+            className={`${ACTION_BTN} ${
               isFalsePositive ? 'text-red-400 bg-red-500/20 border border-red-500/40' : 'text-muted-foreground/50 hover:text-red-400 hover:bg-red-500/10 border border-transparent'
             }`}
           >
@@ -167,7 +171,7 @@ export const IssueCardActions = memo(function IssueCardActions({
           <button
             onClick={() => onConfirmFeedback(advisoryId)}
             aria-label={`${isConfirmed ? 'Unconfirm' : 'Confirm'} feedback`}
-            className={`${ACTION_BTN} px-2 ${
+            className={`${ACTION_BTN} ${
               isConfirmed ? 'text-[var(--console-amber)] bg-[var(--console-amber)]/15 border border-[var(--console-amber)]/35' : 'text-muted-foreground/50 hover:text-[var(--console-amber)] hover:bg-[var(--console-amber)]/10 border border-transparent'
             }`}
           >

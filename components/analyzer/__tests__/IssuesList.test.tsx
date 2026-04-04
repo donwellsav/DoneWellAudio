@@ -77,8 +77,7 @@ describe('IssuesList', () => {
   it('renders standby state with start button when not running', () => {
     const onStart = vi.fn()
     render(<IssuesList advisories={[]} isRunning={false} onStart={onStart} />)
-    expect(screen.getByText(/press to start/i)).toBeDefined()
-    expect(screen.getByText(/analysis/i)).toBeDefined()
+    expect(screen.getByText(/start analysis/i)).toBeDefined()
   })
 
   it('renders ring-out button when onStartRingOut provided', () => {
@@ -90,8 +89,7 @@ describe('IssuesList', () => {
 
   it('renders green all-clear state when running with no advisories', () => {
     render(<IssuesList advisories={[]} isRunning={true} />)
-    expect(screen.getByText(/no feedback/i)).toBeDefined()
-    expect(screen.getByText(/detected/i)).toBeDefined()
+    expect(screen.getByText(/all clear/i)).toBeDefined()
   })
 
   it('renders low-signal warning when isLowSignal', () => {

@@ -814,22 +814,30 @@ html {
   .tint-runaway .header-glow::after {
     background: linear-gradient(90deg, transparent 0%, rgba(var(--tint-r), var(--tint-g), var(--tint-b), 0.55) 50%, transparent 100%);
   }
-  /* ── Severity severity-accent-strip — glowing left edge for issue cards ── */
+  /* ── Severity accent strip — width varies by urgency ──────────────────── */
+  /* Default: RESONANCE, POSSIBLE_RING, WHISTLE, INSTRUMENT */
   .severity-accent-strip {
-    width: 3px;
+    width: 2px;
     border-radius: 0 2px 2px 0;
   }
   .light .severity-accent-strip {
-    width: 4px;
+    width: 3px;
   }
-
-  /* Wider strip for runaway feedback — extra visual urgency */
-  .severity-accent-strip-runaway {
+  /* GROWING — mid urgency */
+  .severity-accent-strip-growing {
+    width: 4px;
+    border-radius: 0 2px 2px 0;
+  }
+  .light .severity-accent-strip-growing {
     width: 5px;
+  }
+  /* RUNAWAY — maximum urgency */
+  .severity-accent-strip-runaway {
+    width: 6px;
     border-radius: 0 2px 2px 0;
   }
   .light .severity-accent-strip-runaway {
-    width: 6px;
+    width: 7px;
   }
 
   /* ── Severity pill badges ──────────────────────────────────────────────── */

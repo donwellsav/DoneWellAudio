@@ -183,10 +183,12 @@ export const IssueCard = memo(function IssueCard({
     [onSendToMixer, advisory],
   )
 
+  const SeverityIconEl = SEVERITY_ICON[advisory.severity] ?? null
+
   // ── Render ───────────────────────────────────────────────────────
   return (
     <div
-      className={`relative flex flex-col rounded glass-card ${SEVERITY_ENTER_CLASS[advisory.severity] ?? 'animate-issue-enter'} overflow-hidden ${
+      className={`group relative flex flex-col rounded glass-card ${SEVERITY_ENTER_CLASS[advisory.severity] ?? 'animate-issue-enter'} overflow-hidden ${
         isFalsePositive
           ? 'border-red-500/30 opacity-50'
           : isResolved
@@ -231,7 +233,11 @@ export const IssueCard = memo(function IssueCard({
 
       {/* Left severity accent — glowing strip, wider + brighter for RUNAWAY */}
       <div
-        className={`absolute left-0 top-0 bottom-0 ${SEVERITY_STRIP_CLASS[advisory.severity] ?? 'animate-strip-flash'} ${isRunaway ? 'severity-accent-strip-runaway' : 'severity-accent-strip'}`}
+        className={`absolute left-0 top-0 bottom-0 ${SEVERITY_STRIP_CLASS[advisory.severity] ?? 'animate-strip-flash'} ${
+          isRunaway ? 'severity-accent-strip-runaway'
+          : advisory.severity === 'GROWING' ? 'severity-accent-strip-growing'
+          : 'severity-accent-strip'
+        }`}
         style={{
           backgroundColor: isResolved ? 'hsl(var(--muted))' : severityColor,
           boxShadow: isResolved ? 'none' : isRunaway
@@ -251,25 +257,22 @@ export const IssueCard = memo(function IssueCard({
         {/* ── Row 1: FREQUENCY HERO — the most important element in the app ── */}
         <div className="flex items-baseline gap-1.5">
           {/* Severity icon — small, left of frequency */}
-          {(() => {
-            const Icon = SEVERITY_ICON[advisory.severity]
-            return Icon ? (
-              <span
-                className="flex-shrink-0 inline-flex items-center justify-center self-center"
-                style={{ color: severityColor, opacity: 0.7 }}
-                title={getSeverityText(advisory.severity)}
-              >
-                <Icon className="w-3.5 h-3.5" />
-              </span>
-            ) : null
-          })()}
+          {SeverityIconEl && (
+            <span
+              className="flex-shrink-0 inline-flex items-center justify-center self-center"
+              style={{ color: severityColor, opacity: 0.8 }}
+              title={getSeverityText(advisory.severity)}
+            >
+              <SeverityIconEl className="w-3.5 h-3.5" />
+            </span>
+          )}
 
           {/* FREQUENCY — dominant, severity-tinted, LED-glow readout */}
           {/* Frequency hero — no tooltip, keep it clean and unobstructed */}
           <span className={`font-mono font-black leading-none tracking-tight cursor-default ${
             isRunaway ? 'text-4xl' : 'text-3xl'
           } ${
-            isFalsePositive ? 'line-through opacity-40' : ''
+            isFalsePositive ? 'line-through opacity-50' : ''
           }`}
             style={{
               fontVariantNumeric: 'tabular-nums slashed-zero',
@@ -295,6 +298,7 @@ export const IssueCard = memo(function IssueCard({
             {occurrenceCount >= 3 && (
               <span
                 className="inline-flex items-center gap-0.5 text-[11px] font-bold text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded-sm leading-none border border-amber-500/30"
+                aria-label={`Repeat offender: detected ${occurrenceCount} times`}
                 title={`Repeat offender: detected ${occurrenceCount} times`}
               >
                 <TrendingUp className="w-2.5 h-2.5" />
@@ -312,6 +316,8 @@ export const IssueCard = memo(function IssueCard({
             {advisory.confidence != null && (
               <span
                 className="inline-flex items-center gap-0.5 text-[9px] font-mono leading-none"
+                role="img"
+                aria-label={`${Math.round(advisory.confidence * 100)}% confidence`}
                 title={`${Math.round(advisory.confidence * 100)}% confidence`}
               >
                 <svg width="12" height="12" viewBox="0 0 18 18" className="flex-shrink-0" aria-hidden>
@@ -338,12 +344,12 @@ export const IssueCard = memo(function IssueCard({
         </div>
 
         {/* ── Row 2: EQ rec + velocity + actions — all on one line ── */}
-        <div className="flex items-center gap-1.5 text-[10px] font-mono leading-none">
-          {/* PEQ cut recommendation */}
+        <div className="flex items-center gap-1.5 text-[11px] font-mono leading-none">
+          {/* PEQ cut recommendation — severity-tinted for scanability */}
           {advisory.advisory?.peq && (
-            <span className="text-muted-foreground/60">
-              <span className="font-bold" style={{ color: severityColor, opacity: 0.8 }}>{advisory.advisory.peq.gainDb}dB</span>
-              {' '}Q:{advisory.advisory.peq.q.toFixed(1)}
+            <span style={{ color: severityColor, opacity: 0.7 }}>
+              <span className="font-bold">{advisory.advisory.peq.gainDb}dB</span>
+              {' '}Q:{advisory.advisory.peq.q.toFixed(1)} @ {advisory.advisory.peq.hz.toFixed(0)}Hz
             </span>
           )}
           {/* Velocity indicator */}
@@ -355,9 +361,9 @@ export const IssueCard = memo(function IssueCard({
               <span>+{velocity.toFixed(0)}dB/s</span>
             </span>
           )}
-          {/* Actions pushed right — same row as EQ rec */}
+          {/* Actions — visible on card hover/focus only (desktop), always visible on mobile */}
           {(actionsLayout === 'desktop' || actionsLayout === 'copy-only') && (
-            <div className="ml-auto flex items-center">
+            <div className="ml-auto flex items-center opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150">
               <IssueCardActions
                 advisoryId={advisory.id}
                 advisory={advisory}

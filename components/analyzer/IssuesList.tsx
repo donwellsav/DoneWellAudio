@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState, useCallback, useRef, useEffect, memo } from 'react'
+import { useTheme } from 'next-themes'
 import { formatFrequency, formatFreqLabel } from '@/lib/utils/pitchUtils'
 import { getSeverityText } from '@/lib/dsp/classifier'
 import { getSeverityColor } from '@/lib/dsp/eqAdvisor'
@@ -204,10 +205,7 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
               </div>
               <div className="flex flex-col items-center gap-0.5">
                 <span className="font-mono text-xs font-bold tracking-[0.15em] uppercase text-muted-foreground group-hover:text-foreground transition-colors">
-                  Press to Start
-                </span>
-                <span className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-muted-foreground/60 group-hover:text-muted-foreground transition-colors">
-                  Analysis
+                  Start Analysis
                 </span>
                 <span className="hidden tablet:block font-mono text-[8px] text-muted-foreground/30 mt-1">⏎ Enter</span>
               </div>
@@ -243,10 +241,10 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
             </div>
           </div>
         ) : (
-          <div className="relative flex flex-col items-center justify-center flex-1 min-h-[80px] py-6 gap-2">
+          <div className="relative flex flex-col items-center justify-start flex-1 min-h-[80px] pt-10 gap-2">
             {/* Both states rendered — crossfade via opacity transition */}
             <div
-              className="absolute inset-0 flex flex-col items-center justify-center gap-2 transition-opacity duration-[2000ms] ease-in-out"
+              className="absolute inset-0 flex flex-col items-center justify-start pt-10 gap-2 transition-opacity duration-[2000ms] ease-in-out"
               style={{ opacity: isLowSignal ? 1 : 0, pointerEvents: isLowSignal ? 'auto' : 'none' }}
               aria-hidden={!isLowSignal}
             >
@@ -265,7 +263,7 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
               </div>
             </div>
             <div
-              className="absolute inset-0 flex flex-col items-center justify-center gap-2 transition-opacity duration-[2000ms] ease-in-out"
+              className="absolute inset-0 flex flex-col items-center justify-start pt-10 gap-2 transition-opacity duration-[2000ms] ease-in-out"
               style={{ opacity: isLowSignal ? 0 : 1, pointerEvents: isLowSignal ? 'none' : 'auto' }}
               aria-hidden={isLowSignal}
             >
@@ -279,10 +277,7 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
                 />
               </div>
               <div className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase text-emerald-500/80">
-                No Feedback
-              </div>
-              <div className="font-mono text-[9px] tracking-[0.18em] uppercase text-emerald-500/50">
-                Detected
+                All Clear
               </div>
             </div>
           </div>
@@ -296,7 +291,7 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
                   onClick={onClearResolved}
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wide"
                 >
-                  Clear Resolved
+                  Clear Done
                 </button>
               )}
               {onClearAll && (
@@ -344,11 +339,13 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
 const LEGEND_SEVERITIES = ['RUNAWAY', 'GROWING', 'RESONANCE', 'POSSIBLE_RING', 'WHISTLE', 'INSTRUMENT'] as const
 
 const SeverityLegend = memo(function SeverityLegend() {
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme !== 'light'
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-2 pb-0.5 border-t border-border/30 mt-1">
       {LEGEND_SEVERITIES.map(sev => {
         const Icon = SEVERITY_ICON[sev]
-        const color = getSeverityColor(sev)
+        const color = getSeverityColor(sev, isDark)
         if (!Icon) return null
         return (
           <span key={sev} className="inline-flex items-center gap-1 text-[10px] font-mono tracking-wide leading-none" style={{ color }}>
@@ -376,7 +373,7 @@ const SwipeHint = memo(function SwipeHint({ onDismiss }: { onDismiss: () => void
       role="button"
       tabIndex={0}
       onClick={onDismiss}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') onDismiss() }}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') { e.preventDefault(); onDismiss() } }}
       aria-label="Swipe gestures: left to dismiss, right to confirm, long-press for false positive. Press to close hint."
     >
       <span className="flex items-center gap-1">

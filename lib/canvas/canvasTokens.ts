@@ -67,6 +67,7 @@ export const OVERLAY_ACCENT = '#60a5fa'  // blue-400
 // ── Severity colors (for inline styles where CSS vars aren't available) ───────
 
 export const RUNAWAY_COLOR = '#ef4444'  // red-500 — matches VIZ_COLORS.RUNAWAY
+export const GROWING_COLOR = '#fb923c'  // orange-400 — matches VIZ_COLORS.GROWING
 
 // ── Confidence ring colors ───────────────────────────────────────────────────
 
