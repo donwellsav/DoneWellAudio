@@ -100,14 +100,14 @@ export const HeaderBar = memo(function HeaderBar() {
         )}
       </div>
 
-      {/* ── Center: Transport strip (ENGAGE/STOP + PAUSE) — hidden on mobile (logo tap + overflow menu cover these) ──── */}
-      <div className="hidden tablet:flex items-center gap-2 flex-shrink-0">
+      {/* ── Center: Transport strip (ENGAGE/STOP + PAUSE + CLEAR) ──── */}
+      <div className="flex items-center gap-1 tablet:gap-2 flex-shrink-0">
         <button
           onClick={isRunning ? stop : start}
           aria-label={isRunning ? 'Stop analysis' : 'Engage analysis'}
           className={`
-            relative min-w-[120px] h-11 px-5
-            font-mono text-xs font-bold uppercase tracking-[0.3em]
+            relative min-w-[70px] tablet:min-w-[120px] h-9 tablet:h-11 px-2.5 tablet:px-5
+            font-mono text-[10px] tablet:text-xs font-bold uppercase tracking-[0.2em] tablet:tracking-[0.3em]
             rounded-md cursor-pointer
             border transition-all duration-200
             focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary
@@ -126,8 +126,8 @@ export const HeaderBar = memo(function HeaderBar() {
             aria-label={isFrozen ? 'Unfreeze spectrum' : 'Freeze spectrum'}
             aria-pressed={isFrozen}
             className={`
-              relative min-w-[100px] h-11 px-4
-              font-mono text-xs font-bold uppercase tracking-[0.3em]
+              relative min-w-[60px] tablet:min-w-[100px] h-9 tablet:h-11 px-2 tablet:px-4
+              font-mono text-[10px] tablet:text-xs font-bold uppercase tracking-[0.2em] tablet:tracking-[0.3em]
               rounded-md cursor-pointer
               border transition-all duration-200
               focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary
@@ -146,8 +146,8 @@ export const HeaderBar = memo(function HeaderBar() {
           disabled={!hasClearableContent}
           aria-label="Clear all advisories, GEQ, and RTA markers"
           className={`
-            relative min-w-[90px] h-11 px-4
-            font-mono text-xs font-bold uppercase tracking-[0.3em]
+            relative min-w-[55px] tablet:min-w-[90px] h-9 tablet:h-11 px-2 tablet:px-4
+            font-mono text-[10px] tablet:text-xs font-bold uppercase tracking-[0.2em] tablet:tracking-[0.3em]
             rounded-md
             border transition-all duration-200
             focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary
