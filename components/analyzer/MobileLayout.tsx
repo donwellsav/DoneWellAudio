@@ -363,38 +363,43 @@ export const MobileLayout = memo(function MobileLayout({
             </div>
           </div>
 
-          {/* Settings panel */}
+          {/* Settings panel — graph on top for live visual feedback while adjusting */}
           <div
             id="mobile-tabpanel-settings"
-            className="w-full flex-shrink-0 h-full overflow-y-auto p-4 space-y-4 bg-background scroll-fade-bottom max-w-md mx-auto"
+            className="w-full flex-shrink-0 h-full flex flex-col overflow-hidden bg-background"
             role="tabpanel"
             aria-labelledby="mobile-tab-settings"
             aria-hidden={mobileTab !== 'settings'}
             inert={mobileTab !== 'settings' || undefined}
           >
-            <section className="rounded-lg border border-border/40 bg-card/30 p-3">
-              <h3 className="section-label mb-2">Input Gain</h3>
-              <InputMeterSlider
-                value={settings.inputGainDb}
-                onChange={(v) => setInputGain(v)}
-                level={inputLevel}
-                fullWidth
-                autoGainEnabled={isAutoGain}
-                autoGainDb={autoGainDb}
-                autoGainLocked={autoGainLocked}
-                onAutoGainToggle={(enabled) => setAutoGain(enabled)}
-              />
-            </section>
-            <div className="rounded-lg border border-border/40 bg-card/30 p-3">
-              <h3 className="section-label mb-2">Configuration</h3>
-              <SettingsPanel
-                settings={settings}
-                onModeChange={handleModeChange}
-
-                onReset={resetSettings}
-                calibration={calibration}
-                dataCollection={dataCollection}
-              />
+            {/* Compact RTA preview — see the effect of settings changes in real-time */}
+            <div className="flex-shrink-0 h-[18vh] min-h-[80px] bg-card/40 border-b border-border/40 overflow-hidden">
+              <SpectrumCanvas spectrumRef={spectrumRef} advisories={mobileAdvisories} lifecycle={spectrumLifecycle} earlyWarning={earlyWarning} clearedIds={rtaClearedIds} isFrozen={isFrozen} roomModes={roomModes} display={spectrumDisplay} range={spectrumRange} onFreqRangeChange={handleFreqRangeChange} onThresholdChange={handleThresholdChange} />
+            </div>
+            {/* Scrollable settings */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-3 scroll-fade-bottom">
+              <section className="rounded-lg border border-border/40 bg-card/30 p-3">
+                <h3 className="section-label mb-2">Input Gain</h3>
+                <InputMeterSlider
+                  value={settings.inputGainDb}
+                  onChange={(v) => setInputGain(v)}
+                  level={inputLevel}
+                  fullWidth
+                  autoGainEnabled={isAutoGain}
+                  autoGainDb={autoGainDb}
+                  autoGainLocked={autoGainLocked}
+                  onAutoGainToggle={(enabled) => setAutoGain(enabled)}
+                />
+              </section>
+              <div className="rounded-lg border border-border/40 bg-card/30 p-3">
+                <SettingsPanel
+                  settings={settings}
+                  onModeChange={handleModeChange}
+                  onReset={resetSettings}
+                  calibration={calibration}
+                  dataCollection={dataCollection}
+                />
+              </div>
             </div>
           </div>
         </div>
