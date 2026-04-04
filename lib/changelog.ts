@@ -14,6 +14,28 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.80.0',
+    date: '2026-04-04',
+    changes: [
+      { type: 'feat', description: '**4 module splits** reorganizing ~3400 lines of monolithic code into 20 focused sub-modules' },
+      { type: 'feat', description: '`acousticUtils.ts` (1085L) → 7 domain modules in `lib/dsp/acoustic/`' },
+      { type: 'feat', description: '`spectrumDrawing.ts` (1335L) → 7 visual-layer modules in `lib/canvas/drawing/`' },
+      { type: 'feat', description: '`classifier.ts` (908→747L) + `classifierHelpers.ts` (176L)' },
+      { type: 'feat', description: '`feedbackDetector.ts` (1559→1485L) + `detectorUtils.ts` (186L)' },
+      { type: 'feat', description: '**EXP_LUT deduplication** — shared `lib/dsp/expLut.ts` replaces two identical copies' },
+      { type: 'feat', description: '**Dead code removal** — deleted deprecated `msdAnalysis.ts` (154L) + 46 stale tests' },
+      { type: 'feat', description: '**CI bundle tracking** — per-chunk size reporting in GitHub Step Summary' },
+      { type: 'feat', description: '**9 new integration tests** — worker pipeline (AlgorithmEngine → fusion → classifier)' },
+      { type: 'feat', description: '**71 docs archived** — stale audits, plans, papers, aifightclub moved to `docs/archive/`' },
+      { type: 'feat', description: '**Transport button centering** — ENGAGE/STOP, PAUSE, CLEAR text now vertically centered' },
+      { type: 'feat', description: '**CLAUDE.md updated** — file counts, test counts, project structure' },
+      { type: 'feat', description: '[x] `npx tsc --noEmit` — zero errors' },
+      { type: 'feat', description: '[x] `pnpm test` — 65 suites, 1220 pass, 4 skip' },
+      { type: 'feat', description: '[x] Manual browser test — app loads, analyzer runs, FPS stable' },
+      { type: 'feat', description: '[ ] Verify CI passes on GitHub Actions' },
+    ],
+  },
+  {
     version: '0.79.0',
     date: '2026-04-04',
     highlights: 'Mobile overhaul, issue card redesign, design system 100/100, 5 Codex adversarial rounds',
