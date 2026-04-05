@@ -14,6 +14,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.81.0',
+    date: '2026-04-05',
+    changes: [
+      { type: 'feat', description: 'split the analyzer shell into smaller hooks and section components so layout, alerts, shortcuts, and provider wiring are not concentrated in a few files' },
+      { type: 'feat', description: 'break up mobile, desktop, header, issues, history, ring-out, graph, and fader UI into focused components with shared helpers where behavior was duplicated' },
+      { type: 'feat', description: 'clean up settings and PA2 integration seams, including shared runtime/settings helpers and targeted regression tests' },
+      { type: 'feat', description: 'behavior should stay the same from a user point of view' },
+      { type: 'feat', description: 'internal ownership is clearer, so future changes should be easier to make and review' },
+      { type: 'feat', description: 'targeted tests now cover the new seams directly instead of relying only on broad integration paths' },
+      { type: 'feat', description: 'pnpm test (97 test files passed, 1322 tests passed, 4 skipped)' },
+    ],
+  },
+  {
     version: '0.80.1',
     date: '2026-04-04',
     changes: [
