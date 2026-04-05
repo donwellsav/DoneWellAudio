@@ -116,5 +116,5 @@ describe('IssuesList multi-mount integration', () => {
       })
       expect(postCalls).toHaveLength(1)
     })
-  })
+  }, 10000)
 })

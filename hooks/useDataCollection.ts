@@ -54,8 +54,8 @@ export interface DataCollectionHandle extends DataCollectionState {
   handleSnapshotBatch: (batch: SnapshotBatch) => void
   /** Auto-enable collection when audio starts (unless opted out) */
   promptIfNeeded: (fftSize: number, sampleRate: number) => void
-  /** Mutable ref — set this to the DSP worker handle after useAudioAnalyzer initializes */
-  workerRef: React.MutableRefObject<DSPWorkerHandle | null>
+  /** Attach or detach the DSP worker that owns snapshot collection */
+  attachWorker: (worker: DSPWorkerHandle | null) => void
 }
 
 export function useDataCollection(): DataCollectionHandle {
@@ -74,6 +74,9 @@ export function useDataCollection(): DataCollectionHandle {
 
   // DSP worker handle — set externally by the consumer after useAudioAnalyzer
   const workerRef = useRef<DSPWorkerHandle | null>(null)
+  const attachWorker = useCallback((worker: DSPWorkerHandle | null) => {
+    workerRef.current = worker
+  }, [])
 
   // Audio params needed to enable collection
   const audioParamsRef = useRef<{ fftSize: number; sampleRate: number } | null>(null)
@@ -203,6 +206,6 @@ export function useDataCollection(): DataCollectionHandle {
     handleReEnable,
     handleSnapshotBatch,
     promptIfNeeded,
-    workerRef,
+    attachWorker,
   }
 }

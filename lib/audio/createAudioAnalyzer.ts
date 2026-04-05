@@ -8,10 +8,10 @@ import type {
   DetectedPeak,
   SpectrumData,
   TrackedPeak,
-  DetectorSettings,
 } from '@/types/advisory'
 import type { CombPatternResult } from '@/lib/dsp/advancedDetection'
 import { DEFAULT_SETTINGS } from '@/lib/dsp/constants'
+import type { AudioRuntimeSettings } from '@/lib/settings/runtimeSettings'
 
 export interface AudioAnalyzerCallbacks {
   onSpectrum?: (data: SpectrumData) => void
@@ -42,7 +42,7 @@ export interface AudioAnalyzerState {
 }
 
 export class AudioAnalyzer {
-  private settings: DetectorSettings
+  private settings: Partial<AudioRuntimeSettings>
   private callbacks: AudioAnalyzerCallbacks
   private detector: FeedbackDetector
   
@@ -57,7 +57,7 @@ export class AudioAnalyzer {
   private _error: string | null = null
 
   constructor(
-    settings: Partial<DetectorSettings> = {},
+    settings: Partial<AudioRuntimeSettings> = {},
     callbacks: AudioAnalyzerCallbacks = {}
   ) {
     this.settings = { ...DEFAULT_SETTINGS, ...settings }
@@ -124,7 +124,7 @@ export class AudioAnalyzer {
     this.callbacks.onStateChange?.(false)
   }
 
-  updateSettings(settings: Partial<DetectorSettings>): void {
+  updateSettings(settings: Partial<AudioRuntimeSettings>): void {
     Object.assign(this.settings, settings)
     this.detector.updateSettings(settings)
   }
@@ -223,7 +223,7 @@ export class AudioAnalyzer {
  * Factory function for creating an audio analyzer
  */
 export function createAudioAnalyzer(
-  settings?: Partial<DetectorSettings>,
+  settings?: Partial<AudioRuntimeSettings>,
   callbacks?: AudioAnalyzerCallbacks
 ): AudioAnalyzer {
   return new AudioAnalyzer(settings, callbacks)

@@ -1,10 +1,10 @@
 'use client'
 
-import { useRef, useEffect, useState, useMemo, useCallback, memo } from 'react'
+import { useCallback, memo } from 'react'
 import { SingleFader } from './SingleFader'
 import { useFaderLink } from '@/hooks/useFaderLink'
 import type { FaderLinkMode } from '@/hooks/useFaderLink'
-import type { FaderGuidance } from './SingleFader'
+import { useSensitivityGuidance } from '@/hooks/useSensitivityGuidance'
 
 interface DualFaderStripProps {
   gainDb: number
@@ -27,17 +27,16 @@ interface DualFaderStripProps {
 }
 
 const LINK_MODES: { mode: FaderLinkMode; icon: string; title: string }[] = [
-  { mode: 'unlinked', icon: '⊘', title: 'Unlinked — independent faders' },
-  { mode: 'linked', icon: '⛓', title: 'Linked — both move same direction' },
-  { mode: 'linked-reversed', icon: '⛓̸', title: 'Linked reversed — opposite directions' },
+  { mode: 'unlinked', icon: '⊘', title: 'Unlinked - independent faders' },
+  { mode: 'linked', icon: '⛓', title: 'Linked - both move same direction' },
+  { mode: 'linked-reversed', icon: '⛓̸', title: 'Linked reversed - opposite directions' },
 ]
 
 /**
- * Dual vertical fader strip: Gain (left) + Sensitivity (right) with optional linking.
+ * Dual vertical fader strip: Gain (left) and Sensitivity (right) with optional linking.
  *
- * Replaces the single-mode VerticalGainFader for desktop layout.
- * Link modes couple the two faders via visual-position-space math
- * (handled by useFaderLink hook).
+ * Link math stays in useFaderLink. Sensitivity guidance is shared with the
+ * mobile sidecar so both surfaces react the same way to silence and overload.
  */
 export const DualFaderStrip = memo(function DualFaderStrip({
   gainDb,
@@ -58,39 +57,13 @@ export const DualFaderStrip = memo(function DualFaderStrip({
   onLinkModeChange,
   isRunning,
 }: DualFaderStripProps) {
+  const guidance = useSensitivityGuidance({
+    isRunning,
+    inputLevel: level,
+    activeAdvisoryCount,
+    sensitivityDb,
+  })
 
-  // ── Sensitivity guidance computation (moved from VerticalGainFader) ────────
-  const noDetectionSecsRef = useRef(0)
-  const [prolongedSilence, setProlongedSilence] = useState(false)
-
-  useEffect(() => {
-    if (!isRunning) {
-      noDetectionSecsRef.current = 0
-      setProlongedSilence(false)
-      return
-    }
-    const id = setInterval(() => {
-      if (activeAdvisoryCount > 0 || level < -45) {
-        noDetectionSecsRef.current = 0
-        setProlongedSilence(prev => prev ? false : prev)
-      } else {
-        noDetectionSecsRef.current++
-        setProlongedSilence(prev => noDetectionSecsRef.current >= 2 && !prev ? true : prev)
-      }
-    }, 1000)
-    return () => clearInterval(id)
-  }, [isRunning, activeAdvisoryCount, level])
-
-  const guidance: FaderGuidance = useMemo(() => {
-    if (!isRunning) return { direction: 'none', urgency: 'none' }
-    if (activeAdvisoryCount >= 3) return { direction: 'down', urgency: 'warning' }
-    if (prolongedSilence && sensitivityDb > 20) return { direction: 'up', urgency: 'hint' }
-    if (sensitivityDb > 35) return { direction: 'up', urgency: sensitivityDb >= 42 ? 'warning' : 'hint' }
-    if (sensitivityDb < 10) return { direction: 'down', urgency: sensitivityDb <= 5 ? 'warning' : 'hint' }
-    return { direction: 'none', urgency: 'none' }
-  }, [isRunning, activeAdvisoryCount, prolongedSilence, sensitivityDb])
-
-  // ── Fader link coupling ────────────────────────────────────────────────────
   const { handleGainDrag, handleSensDrag, goHome } = useFaderLink({
     linkMode,
     linkRatio,
@@ -103,7 +76,6 @@ export const DualFaderStrip = memo(function DualFaderStrip({
     onAutoGainToggle,
   })
 
-  // Gain fader onChange: disable auto-gain on manual drag, then route through link
   const handleGainChange = useCallback((db: number) => {
     if (autoGainEnabled) onAutoGainToggle(false)
     handleGainDrag(db)
@@ -111,8 +83,6 @@ export const DualFaderStrip = memo(function DualFaderStrip({
 
   return (
     <div className="flex flex-col h-full items-center py-2 gap-1 select-none">
-
-      {/* Link mode buttons — segmented control */}
       <div className="flex-shrink-0 flex w-full rounded-md overflow-hidden border border-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.22)] bg-[rgba(0,0,0,0.15)]">
         {LINK_MODES.map(({ mode, icon, title }) => (
           <button
@@ -131,9 +101,7 @@ export const DualFaderStrip = memo(function DualFaderStrip({
         ))}
       </div>
 
-      {/* Home + Auto-gain row */}
       <div className="flex-shrink-0 flex w-full gap-0.5">
-        {/* Home button */}
         <button
           onClick={goHome}
           className="flex-1 py-1 rounded text-[10px] font-bold uppercase tracking-wider text-center transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.06)] text-[var(--console-amber)]/70 border border-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.18)] hover:bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.12)]"
@@ -143,7 +111,6 @@ export const DualFaderStrip = memo(function DualFaderStrip({
           Home
         </button>
 
-        {/* Auto/Manual toggle */}
         <button
           onClick={() => onAutoGainToggle(!autoGainEnabled)}
           className={`flex-1 py-1 rounded flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
@@ -156,13 +123,15 @@ export const DualFaderStrip = memo(function DualFaderStrip({
           title={
             autoGainEnabled
               ? autoGainLocked
-                ? `Gain locked at ${autoGainDb ?? 0}dB — click for manual`
-                : 'Calibrating auto-gain… click for manual'
-              : 'Manual gain — click for auto'
+                ? `Gain locked at ${autoGainDb ?? 0}dB - click for manual`
+                : 'Calibrating auto-gain... click for manual'
+              : 'Manual gain - click for auto'
           }
           aria-label={
             autoGainEnabled
-              ? autoGainLocked ? 'Auto gain locked, switch to manual' : 'Auto gain calibrating, switch to manual'
+              ? autoGainLocked
+                ? 'Auto gain locked, switch to manual'
+                : 'Auto gain calibrating, switch to manual'
               : 'Switch to auto gain'
           }
         >
@@ -177,10 +146,8 @@ export const DualFaderStrip = memo(function DualFaderStrip({
         </button>
       </div>
 
-      {/* Panel groove */}
       <div className="w-full flex-shrink-0 h-px bg-gradient-to-r from-transparent via-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.12)] to-transparent" />
 
-      {/* Two faders side by side */}
       <div className="flex-1 min-h-0 flex flex-row gap-0.5 w-full">
         <SingleFader
           mode="gain"

@@ -7,14 +7,13 @@ import { ConsoleSlider } from '@/components/ui/console-slider'
 import { LEDToggle } from '@/components/ui/led-toggle'
 import { ChannelSection } from '@/components/ui/channel-section'
 
+import type { DetectorSettings } from '@/types/advisory'
 import type { DisplayPrefs } from '@/types/settings'
 import { onboardingStorage } from '@/lib/storage/dwaStorage'
 
 // ── Legacy compat: still accept TabSettingsProps for transition period ────
-import type { TabSettingsProps } from './SettingsShared'
-
 interface DisplayTabProps {
-  settings: TabSettingsProps['settings']
+  settings: DetectorSettings
   /** Semantic action: update display preferences */
   updateDisplay: (partial: Partial<DisplayPrefs>) => void
 }

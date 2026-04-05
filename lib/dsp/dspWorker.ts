@@ -33,19 +33,20 @@ import type {
 import type { SnapshotWorkerInbound, SnapshotWorkerOutbound, MarkerAlgorithmScores, UserFeedback } from '@/types/data'
 import { SnapshotCollector } from '@/lib/data/snapshotCollector'
 import { DEFAULT_SETTINGS, MSD_SETTINGS } from './constants'
+import type { WorkerRuntimeSettings } from '@/lib/settings/runtimeSettings'
 
 // ─── Message types ──────────────────────────────────────────────────────────
 
 export type WorkerInboundMessage =
   | {
       type: 'init'
-      settings: DetectorSettings
+      settings: WorkerRuntimeSettings
       sampleRate: number
       fftSize: number
     }
   | {
       type: 'updateSettings'
-      settings: Partial<DetectorSettings>
+      settings: Partial<WorkerRuntimeSettings>
     }
   | {
       type: 'processPeak'

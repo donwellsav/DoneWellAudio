@@ -1,10 +1,9 @@
 'use client'
 
-import React, { useRef, useEffect, useCallback, useState, memo, useMemo, useId } from 'react'
+import React, { useRef, useEffect, useCallback, useState, memo, useId } from 'react'
 import { useTheme } from 'next-themes'
-import { Spinner } from '@/components/ui/spinner'
 import { useAnimationFrame } from '@/hooks/useAnimationFrame'
-import { freqToLogPosition, logPositionToFreq, roundFreqToNice, clamp } from '@/lib/utils/mathHelpers'
+import { logPositionToFreq, clamp } from '@/lib/utils/mathHelpers'
 import { formatFrequency } from '@/lib/utils/pitchUtils'
 import { CANVAS_SETTINGS } from '@/lib/dsp/constants'
 import { thresholdDraggedStorage } from '@/lib/storage/dwaStorage'
@@ -12,13 +11,15 @@ import { OVERLAY_TEXT, OVERLAY_ACCENT, GROWING_COLOR } from '@/lib/canvas/canvas
 import { getSeverityColor } from '@/lib/dsp/eqAdvisor'
 import type { SpectrumData, Advisory } from '@/types/advisory'
 import type { RoomMode } from '@/lib/dsp/acousticUtils'
-import type { EarlyWarning } from '@/hooks/useAudioAnalyzer'
+import type { EarlyWarning } from '@/hooks/audioAnalyzerTypes'
 import {
   type DbRange, type CanvasTheme, calcPadding, drawGrid, drawFreqZones, drawRoomModeLines, drawIndicatorLines, drawSpectrum,
   drawFreqRangeOverlay, drawNotchOverlays, drawMarkers, drawAxisLabels, drawPlaceholder,
   drawLevelMeter, drawLevelGlow,
   DARK_CANVAS_THEME, LIGHT_CANVAS_THEME,
 } from '@/lib/canvas/spectrumDrawing'
+import { useSpectrumCanvasInteractions } from '@/hooks/useSpectrumCanvasInteractions'
+import { SpectrumCanvasOverlay } from './SpectrumCanvasOverlay'
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 
@@ -67,12 +68,12 @@ interface SpectrumCanvasProps {
   onThresholdChange?: (db: number) => void
 }
 
-const GRAB_THRESHOLD_PX = 22 // 44px total touch target per line
-
 export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, advisories, lifecycle, earlyWarning, clearedIds, isFrozen = false, roomModes, display = {}, range = {}, onFreqRangeChange, onThresholdChange }: SpectrumCanvasProps) {
   const { isRunning, isStarting = false, error, onStart } = lifecycle
   const { graphFontSize = 11, rtaDbMin: rtaDbMinProp, rtaDbMax: rtaDbMaxProp, spectrumLineWidth: spectrumLineWidthProp, canvasTargetFps, showFreqZones = false, showRoomModeLines = false, showThresholdLine = false, spectrumWarmMode = false } = display
   const { minFrequency = 20, maxFrequency = 20000, feedbackThresholdDb } = range
+  const rtaDbMin = rtaDbMinProp ?? CANVAS_SETTINGS.RTA_DB_MIN
+  const rtaDbMax = rtaDbMaxProp ?? CANVAS_SETTINGS.RTA_DB_MAX
   const descId = useId()
   const { resolvedTheme } = useTheme()
   const canvasThemeRef = useRef<CanvasTheme>(DARK_CANVAS_THEME)
@@ -146,6 +147,25 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
 
   const showPlaceholder = !hasEverStarted
 
+  const handleKeyDown = useSpectrumCanvasInteractions({
+    canvasRef,
+    onFreqRangeChange,
+    onThresholdChange,
+    rtaDbMin,
+    rtaDbMax,
+    dragRef,
+    threshDragRef,
+    showDragHintRef,
+    paddingRef,
+    freqRangeRef,
+    onFreqRangeChangeRef,
+    onThresholdChangeRef,
+    feedbackThresholdDbRef,
+    effectiveThreshYRef,
+    hoverPosRef,
+    dirtyRef,
+  })
+
   // Handle resize
   useEffect(() => {
     const container = containerRef.current
@@ -173,7 +193,7 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
             canvas.height = Math.floor(height * dpr)
             canvas.style.width = `${width}px`
             canvas.style.height = `${height}px`
-            drawPlaceholder(canvas, graphFontSize, rtaDbMinProp, rtaDbMaxProp, canvasThemeRef.current)
+            drawPlaceholder(canvas, graphFontSize, rtaDbMin, rtaDbMax, canvasThemeRef.current)
           }
           // During analysis: the render callback syncs canvas dimensions
           // atomically with the redraw, preventing flash from observer clearing
@@ -193,7 +213,7 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
     const canvas = canvasRef.current
     if (!canvas) return
     if (!hasEverStarted) {
-      drawPlaceholder(canvas, graphFontSize, rtaDbMinProp, rtaDbMaxProp, canvasThemeRef.current)
+      drawPlaceholder(canvas, graphFontSize, rtaDbMin, rtaDbMax, canvasThemeRef.current)
     } else {
       gradientRef.current = null
       dirtyRef.current = true
@@ -251,8 +271,8 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
     const peakMarkerRadius = Math.max(4, Math.round(width * 0.005))
 
     const range: DbRange = {
-      dbMin: rtaDbMinProp ?? CANVAS_SETTINGS.RTA_DB_MIN,
-      dbMax: rtaDbMaxProp ?? CANVAS_SETTINGS.RTA_DB_MAX,
+      dbMin: rtaDbMin,
+      dbMax: rtaDbMax,
       freqMin: CANVAS_SETTINGS.RTA_FREQ_MIN,
       freqMax: CANVAS_SETTINGS.RTA_FREQ_MAX,
     }
@@ -398,231 +418,13 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
 
     drawAxisLabels(ctx, padding, plotWidth, plotHeight, range, fontSize, width, height, canvasThemeRef.current)
 
-  }, [spectrumRef, graphFontSize, earlyWarning, rtaDbMinProp, rtaDbMaxProp, spectrumLineWidthProp, showThresholdLine, feedbackThresholdDb, showFreqZones, showRoomModeLines, roomModes, spectrumWarmMode])
+  }, [spectrumRef, graphFontSize, earlyWarning, rtaDbMin, rtaDbMax, spectrumLineWidthProp, showThresholdLine, feedbackThresholdDb, showFreqZones, showRoomModeLines, roomModes, spectrumWarmMode])
 
   useAnimationFrame(render, isRunning || hasEverStarted, canvasTargetFps)
 
   // Mark dirty when display props change (triggers redraw on next rAF tick)
-  useEffect(() => { dirtyRef.current = true }, [graphFontSize, earlyWarning, rtaDbMinProp, rtaDbMaxProp, spectrumLineWidthProp, showThresholdLine, feedbackThresholdDb, showFreqZones, showRoomModeLines, roomModes, spectrumWarmMode])
+  useEffect(() => { dirtyRef.current = true }, [graphFontSize, earlyWarning, rtaDbMin, rtaDbMax, spectrumLineWidthProp, showThresholdLine, feedbackThresholdDb, showFreqZones, showRoomModeLines, roomModes, spectrumWarmMode])
   useEffect(() => { dirtyRef.current = true }, [advisories, clearedIds])
-
-  // Pointer event handlers for dragging frequency range lines + threshold line
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const hasFreqDrag = !!onFreqRangeChange
-    const { RTA_FREQ_MIN, RTA_FREQ_MAX } = CANVAS_SETTINGS
-
-    function clientXToFreq(clientX: number): number {
-      const rect = canvas!.getBoundingClientRect()
-      const { left: padLeft, plotWidth } = paddingRef.current
-      const canvasX = clientX - rect.left - padLeft
-      const pos = clamp(canvasX / plotWidth, 0, 1)
-      return roundFreqToNice(logPositionToFreq(pos, RTA_FREQ_MIN, RTA_FREQ_MAX))
-    }
-
-    function getLineDistances(clientX: number): { minDist: number; maxDist: number } {
-      const rect = canvas!.getBoundingClientRect()
-      const { left: padLeft, plotWidth } = paddingRef.current
-      const canvasX = clientX - rect.left - padLeft
-      const minX = freqToLogPosition(freqRangeRef.current.min, RTA_FREQ_MIN, RTA_FREQ_MAX) * plotWidth
-      const maxX = freqToLogPosition(freqRangeRef.current.max, RTA_FREQ_MIN, RTA_FREQ_MAX) * plotWidth
-      return { minDist: Math.abs(canvasX - minX), maxDist: Math.abs(canvasX - maxX) }
-    }
-
-    /** Distance from pointer to threshold line (vertical) */
-    function getThresholdDist(clientY: number): number {
-      if (effectiveThreshYRef.current == null) return Infinity
-      const rect = canvas!.getBoundingClientRect()
-      const { top: padTop } = paddingRef.current
-      const canvasY = clientY - rect.top - padTop
-      return Math.abs(canvasY - effectiveThreshYRef.current)
-    }
-
-    function onPointerDown(e: PointerEvent) {
-      // Check threshold line first (vertical drag)
-      const threshDist = getThresholdDist(e.clientY)
-      if (threshDist <= GRAB_THRESHOLD_PX && onThresholdChangeRef.current) {
-        e.preventDefault()
-        const rect = canvas!.getBoundingClientRect()
-        const startY = e.clientY - rect.top - paddingRef.current.top
-        threshDragRef.current = { active: true, startY, startDb: feedbackThresholdDbRef.current }
-        // Dismiss first-drag hint permanently
-        if (showDragHintRef.current) {
-          showDragHintRef.current = false
-          thresholdDraggedStorage.set()
-        }
-        canvas!.setPointerCapture(e.pointerId)
-        canvas!.style.cursor = 'ns-resize'
-        return
-      }
-
-      // Then freq range lines (horizontal drag)
-      if (!hasFreqDrag) return
-      const { minDist, maxDist } = getLineDistances(e.clientX)
-      const closest = minDist <= maxDist ? 'min' : 'max'
-      const dist = Math.min(minDist, maxDist)
-
-      if (dist > GRAB_THRESHOLD_PX) return
-
-      e.preventDefault()
-      dragRef.current = closest
-      canvas!.setPointerCapture(e.pointerId)
-      canvas!.style.cursor = 'ew-resize'
-    }
-
-    function onPointerMove(e: PointerEvent) {
-      // Threshold drag (vertical)
-      if (threshDragRef.current.active) {
-        const rect = canvas!.getBoundingClientRect()
-        const { top: padTop, plotHeight } = paddingRef.current
-        const currentY = e.clientY - rect.top - padTop
-        const dbSpan = (rtaDbMaxProp ?? CANVAS_SETTINGS.RTA_DB_MAX) - (rtaDbMinProp ?? CANVAS_SETTINGS.RTA_DB_MIN)
-        // Moving up (negative deltaY) = higher dB = more sensitive (lower threshold)
-        const deltaDb = ((threshDragRef.current.startY - currentY) / plotHeight) * dbSpan
-        const newDb = Math.round(clamp(threshDragRef.current.startDb - deltaDb, 2, 50))
-        onThresholdChangeRef.current?.(newDb)
-        dirtyRef.current = true
-        return
-      }
-
-      // Freq range drag (horizontal)
-      if (dragRef.current) {
-        const hz = clientXToFreq(e.clientX)
-        const range = freqRangeRef.current
-        dirtyRef.current = true
-
-        if (dragRef.current === 'min') {
-          const newMin = Math.min(hz, range.max - 50)
-          freqRangeRef.current = { min: newMin, max: range.max }
-          onFreqRangeChangeRef.current?.(newMin, range.max)
-        } else {
-          const newMax = Math.max(hz, range.min + 50)
-          freqRangeRef.current = { min: range.min, max: newMax }
-          onFreqRangeChangeRef.current?.(range.min, newMax)
-        }
-      } else {
-        // Hover cursor change
-        const threshNear = getThresholdDist(e.clientY) <= GRAB_THRESHOLD_PX && !!onThresholdChangeRef.current
-        if (threshNear) {
-          canvas!.style.cursor = 'ns-resize'
-        } else if (hasFreqDrag) {
-          const { minDist, maxDist } = getLineDistances(e.clientX)
-          const nearLine = Math.min(minDist, maxDist) <= GRAB_THRESHOLD_PX
-          canvas!.style.cursor = nearLine ? 'ew-resize' : 'default'
-        } else {
-          canvas!.style.cursor = 'default'
-        }
-      }
-    }
-
-    function onPointerUp(e: PointerEvent) {
-      if (threshDragRef.current.active) {
-        threshDragRef.current = { active: false, startY: 0, startDb: 0 }
-        canvas!.releasePointerCapture(e.pointerId)
-        canvas!.style.cursor = 'default'
-        return
-      }
-      if (dragRef.current) {
-        dragRef.current = null
-        canvas!.releasePointerCapture(e.pointerId)
-        canvas!.style.cursor = 'default'
-      }
-    }
-
-    function onPointerCancel(e: PointerEvent) {
-      if (threshDragRef.current.active) {
-        threshDragRef.current = { active: false, startY: 0, startDb: 0 }
-        canvas!.releasePointerCapture(e.pointerId)
-        canvas!.style.cursor = 'default'
-        return
-      }
-      if (dragRef.current) {
-        dragRef.current = null
-        canvas!.releasePointerCapture(e.pointerId)
-        canvas!.style.cursor = 'default'
-      }
-    }
-
-    canvas.addEventListener('pointerdown', onPointerDown)
-    canvas.addEventListener('pointermove', onPointerMove)
-    canvas.addEventListener('pointerup', onPointerUp)
-    canvas.addEventListener('pointercancel', onPointerCancel)
-
-    return () => {
-      canvas.removeEventListener('pointerdown', onPointerDown)
-      canvas.removeEventListener('pointermove', onPointerMove)
-      canvas.removeEventListener('pointerup', onPointerUp)
-      canvas.removeEventListener('pointercancel', onPointerCancel)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- refs used for latest values
-  }, [onFreqRangeChange, onThresholdChange])
-
-  // Hover tooltip: mousemove/mouseleave to track cursor for freq+dB readout
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    // Skip hover tooltip on touch-primary devices (interferes with touch interactions)
-    if (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches) return
-
-    function onMouseMove(e: MouseEvent) {
-      // Don't show tooltip while dragging freq range lines
-      if (dragRef.current) {
-        hoverPosRef.current = null
-        return
-      }
-      const rect = canvas!.getBoundingClientRect()
-      const { left: padLeft, top: padTop, plotWidth, plotHeight } = paddingRef.current
-      const x = e.clientX - rect.left - padLeft
-      const y = e.clientY - rect.top - padTop
-
-      // Only show tooltip within the plot area
-      if (x >= 0 && x <= plotWidth && y >= 0 && y <= plotHeight) {
-        hoverPosRef.current = { x, y }
-      } else {
-        hoverPosRef.current = null
-      }
-      dirtyRef.current = true
-    }
-
-    function onMouseLeave() {
-      hoverPosRef.current = null
-      dirtyRef.current = true
-    }
-
-    canvas.addEventListener('mousemove', onMouseMove)
-    canvas.addEventListener('mouseleave', onMouseLeave)
-    return () => {
-      canvas.removeEventListener('mousemove', onMouseMove)
-      canvas.removeEventListener('mouseleave', onMouseLeave)
-    }
-  }, [])
-
-  // Keyboard handler for freq range adjustment (a11y: arrow keys)
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (!onFreqRangeChangeRef.current) return
-    const step = 50 // Hz per keystroke
-    const range = freqRangeRef.current
-
-    // Arrow keys = low handle, Shift+Arrow = high handle
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-      e.preventDefault()
-      const delta = e.key === 'ArrowRight' ? step : -step
-
-      if (e.shiftKey) {
-        const newMax = clamp(range.max + delta, range.min + step, CANVAS_SETTINGS.RTA_FREQ_MAX)
-        freqRangeRef.current = { min: range.min, max: newMax }
-        onFreqRangeChangeRef.current(range.min, newMax)
-      } else {
-        const newMin = clamp(range.min + delta, CANVAS_SETTINGS.RTA_FREQ_MIN, range.max - step)
-        freqRangeRef.current = { min: newMin, max: range.max }
-        onFreqRangeChangeRef.current(newMin, range.max)
-      }
-      dirtyRef.current = true
-    }
-  }, [])
 
   return (
     <div
@@ -641,64 +443,22 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
       {/* Screen reader description — summarizes RTA state for assistive technology */}
       <div id={descId} className="sr-only">
         {isRunning
-          ? `Spectrum analyzer active. Displaying frequencies from ${minFrequency} Hz to ${maxFrequency} Hz, ${rtaDbMinProp ?? -100} to ${rtaDbMaxProp ?? 0} dB range.${
+          ? `Spectrum analyzer active. Displaying frequencies from ${minFrequency} Hz to ${maxFrequency} Hz, ${rtaDbMin} to ${rtaDbMax} dB range.${
               advisories.length > 0
                 ? ` ${advisories.filter(a => !a.resolved).length} active feedback detections. Use the Issues panel for details and EQ recommendations.`
                 : ' No feedback detected.'
             }${isFrozen ? ' Display is frozen.' : ''}`
           : 'Spectrum analyzer stopped. Press Enter or click Start to begin analysis.'}
       </div>
-      {showPlaceholder && (
-        <div className="absolute inset-0">
-          <div
-            className={`absolute inset-0 flex items-center justify-center ${onStart ? 'cursor-pointer' : 'pointer-events-none'}`}
-            onClick={onStart}
-            role={onStart ? 'button' : undefined}
-            aria-label={onStart ? (error ? 'Retry analysis' : 'Start analysis') : undefined}
-            tabIndex={onStart ? 0 : undefined}
-            onKeyDown={onStart ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onStart(); } } : undefined}
-          >
-            {isStarting ? (
-              <span className="flex items-center gap-2.5 px-5 py-3 rounded bg-card/80 backdrop-blur-sm pointer-events-none">
-                <Spinner className="size-5 text-[var(--console-amber)]" />
-                <span className="text-sm text-neutral-300 font-mono font-medium">Requesting microphone…</span>
-              </span>
-            ) : error ? (
-              <span className="flex flex-col items-center gap-1.5 px-5 py-3 rounded bg-card/80 backdrop-blur-sm pointer-events-none">
-                <span className="flex items-center gap-1.5 text-sm text-destructive font-mono font-medium">
-                  <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/>
-                  </svg>
-                  Mic unavailable
-                </span>
-                <span className="text-sm text-neutral-400 font-mono">Tap to retry</span>
-              </span>
-            ) : (
-              <span className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.20)] bg-card/90 text-sm text-foreground/90 font-mono font-bold tracking-wide backdrop-blur-md shadow-lg pointer-events-none animate-start-glow">
-                Press
-                {/* mini speaker button replica */}
-                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full border border-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.45)] bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.10)] flex-shrink-0">
-                  <svg className="w-3.5 h-3.5 text-[var(--console-amber)]" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.31-2.5-4.06v8.12c1.48-.75 2.5-2.29 2.5-4.06zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-                  </svg>
-                </span>
-                To Begin Analysis
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-      {/* Error overlay for post-start failures (canvas shows stale data underneath) */}
-      {!showPlaceholder && error && !isRunning && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-card/80 backdrop-blur-sm text-sm text-destructive font-mono font-medium">
-            <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/>
-            </svg>
-            Mic error — see banner above
-          </span>
-        </div>
-      )}
+      <SpectrumCanvasOverlay
+        showPlaceholder={showPlaceholder}
+        isStarting={isStarting}
+        error={error}
+        isRunning={isRunning}
+        onStart={onStart}
+      />
     </div>
   )
 })
+
+

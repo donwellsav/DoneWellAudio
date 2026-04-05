@@ -2,7 +2,7 @@
 
 import { createContext, useContext } from 'react'
 import type { Advisory } from '@/types/advisory'
-import type { EarlyWarning } from '@/hooks/useAudioAnalyzer'
+import type { EarlyWarning } from '@/hooks/audioAnalyzerTypes'
 
 // ── Context value ───────────────────────────────────────────────────────────
 

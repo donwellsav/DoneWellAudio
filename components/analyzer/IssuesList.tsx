@@ -1,22 +1,22 @@
 'use client'
 
-import { useMemo, useState, useCallback, useRef, useEffect, memo } from 'react'
+import { useCallback, useEffect, useMemo, memo } from 'react'
 import { useTheme } from 'next-themes'
-import { formatFrequency, formatFreqLabel } from '@/lib/utils/pitchUtils'
+import { ArrowLeft, ArrowRight, Timer } from 'lucide-react'
 import { getSeverityText } from '@/lib/dsp/classifier'
 import { getSeverityColor } from '@/lib/dsp/eqAdvisor'
-import { getFeedbackHistory } from '@/lib/dsp/feedbackHistory'
-import { ArrowLeft, ArrowRight, Timer } from 'lucide-react'
-import { DwaLogo } from './DwaLogo'
-import { swipeHintStorage } from '@/lib/storage/dwaStorage'
 import type { Advisory } from '@/types/advisory'
 import { useCompanion } from '@/hooks/useCompanion'
+import { useIssueAnnouncement } from '@/hooks/useIssueAnnouncement'
+import {
+  useIssuesListEntries,
+  useStableIssueEntries,
+} from '@/hooks/useIssuesListEntries'
+import { useSwipeHintState } from '@/hooks/useSwipeHintState'
 import { usePA2 } from '@/contexts/PA2Context'
-import { useSettings } from '@/contexts/SettingsContext'
-import { IssueCard, SEVERITY_ICON } from './IssueCard'
-
-/** Minimum time (ms) issue cards stay in place before the list re-sorts */
-const MIN_DISPLAY_MS = 3000
+import { IssueCard } from './IssueCard'
+import { IssuesEmptyState } from './IssuesEmptyState'
+import { SEVERITY_ICON } from '@/components/analyzer/issueCardConfig'
 
 interface IssuesListProps {
   advisories: Advisory[]
@@ -39,7 +39,26 @@ interface IssuesListProps {
   onDismiss?: (id: string) => void
 }
 
-export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10, dismissedIds, onClearAll, onClearResolved, touchFriendly, isRunning, onStart, onFalsePositive, falsePositiveIds, onConfirmFeedback, confirmedIds, isLowSignal, swipeLabeling, showAlgorithmScores, showPeqDetails, onStartRingOut, onDismiss }: IssuesListProps) {
+export const IssuesList = memo(function IssuesList({
+  advisories,
+  maxIssues = 10,
+  dismissedIds,
+  onClearAll,
+  onClearResolved,
+  touchFriendly,
+  isRunning,
+  onStart,
+  onFalsePositive,
+  falsePositiveIds,
+  onConfirmFeedback,
+  confirmedIds,
+  isLowSignal,
+  swipeLabeling,
+  showAlgorithmScores,
+  showPeqDetails,
+  onStartRingOut,
+  onDismiss,
+}: IssuesListProps) {
   const companion = useCompanion()
   const {
     settings: companionSettings,
@@ -47,7 +66,6 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
     autoSendAdvisories,
   } = companion
   const pa2 = usePA2()
-  const { settings } = useSettings()
 
   useEffect(() => {
     autoSendAdvisories(advisories)
@@ -60,255 +78,57 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
     companionSettings.pairingCode,
   ])
 
-  // Auto-send new advisories to PA2 when enabled (handled by usePA2Bridge internally)
-  // The hook's autoSend mode handles forwarding — no extra effect needed here
+  const latestEntries = useIssuesListEntries(advisories, dismissedIds, maxIssues)
+  const sortedEntries = useStableIssueEntries(latestEntries)
+  const liveAnnouncement = useIssueAnnouncement(sortedEntries)
+  const { showSwipeHint, dismissSwipeHint } = useSwipeHintState(!!swipeLabeling)
 
-  // Filter dismissed, sort repeat offenders to top by hit count, then slice to max.
-  // We attach occurrenceCount here so IssueCard doesn't need to re-query feedbackHistory.
-  const latestSorted = useMemo(() => {
-    const history = getFeedbackHistory()
-    return [...advisories]
-      .filter((a) => !dismissedIds?.has(a.id))
-      .map((a) => ({ advisory: a, occurrenceCount: history.getOccurrenceCount(a.trueFrequencyHz) }))
-      .sort((a, b) => {
-        // 1. Active before resolved
-        if (a.advisory.resolved !== b.advisory.resolved) return a.advisory.resolved ? 1 : -1
-        // 2. Repeat offenders (3+) float to top, sorted by count desc
-        const aRepeat = a.occurrenceCount >= 3
-        const bRepeat = b.occurrenceCount >= 3
-        if (aRepeat !== bRepeat) return aRepeat ? -1 : 1
-        if (aRepeat && bRepeat) return b.occurrenceCount - a.occurrenceCount
-        // 3. Non-repeaters: frequency ascending
-        return (a.advisory.trueFrequencyHz ?? 0) - (b.advisory.trueFrequencyHz ?? 0)
-      })
-      .slice(0, maxIssues)
-  }, [advisories, dismissedIds, maxIssues])
-
-  // Stabilize displayed list — hold card order for at least MIN_DISPLAY_MS so
-  // engineers can read them before they shuffle. Advisory data (severity, age,
-  // velocity) still updates in-place via IssueCard's own memos.
-  const stableRef = useRef(latestSorted)
-  const [initialSortTimestamp] = useState(() => Date.now())
-  const lastUpdateRef = useRef(initialSortTimestamp)
-  const [sorted, setSorted] = useState(latestSorted)
-  const pendingRef = useRef(false)
-
-  useEffect(() => {
-    const elapsed = Date.now() - lastUpdateRef.current
-
-    // Check if list identity changed (different IDs or different order)
-    const prevIds = stableRef.current.map(s => s.advisory.id).join(',')
-    const nextIds = latestSorted.map(s => s.advisory.id).join(',')
-    const orderChanged = prevIds !== nextIds
-
-    if (!orderChanged) {
-      // Same cards in same order — update advisory data in-place (no visual jump)
-      stableRef.current = latestSorted
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- this effect intentionally stages stable card order
-      setSorted(latestSorted)
-      return
-    }
-
-    if (elapsed >= MIN_DISPLAY_MS) {
-      // Enough time has passed — apply new order immediately
-      stableRef.current = latestSorted
-      lastUpdateRef.current = Date.now()
-      pendingRef.current = false
-      setSorted(latestSorted)
-    } else {
-      // Too soon — schedule deferred update
-      pendingRef.current = true
-      const remaining = MIN_DISPLAY_MS - elapsed
-      const timer = setTimeout(() => {
-        pendingRef.current = false
-        lastUpdateRef.current = Date.now()
-        // Use latest value at time of flush
-        stableRef.current = latestSorted
-        setSorted(latestSorted)
-      }, remaining)
-      return () => clearTimeout(timer)
-    }
-  }, [latestSorted])
-
-  const hasResolved = sorted.some(s => s.advisory.resolved)
-
-  // ── Swipe gesture onboarding hint (shown once per install) ──
-  const [showSwipeHint, setShowSwipeHint] = useState(() => {
-    if (!swipeLabeling) return false
-    return !swipeHintStorage.isSet()
-  })
-  const dismissSwipeHint = useCallback(() => {
-    setShowSwipeHint(false)
-    swipeHintStorage.set()
-  }, [])
-
-  // ── Accessibility: aria-live announcements for new advisories ──
-  const [liveAnnouncement, setLiveAnnouncement] = useState('')
-  const announcedIds = useRef(new Set<string>())
-  const lastAnnounceTime = useRef(0)
-
-  useEffect(() => {
-    const now = Date.now()
-    // Throttle to 1 announcement every 3 seconds
-    if (now - lastAnnounceTime.current < 3000) return
-
-    // Fix 11 (AI Fight Club): Prune announcedIds to prevent unbounded growth over multi-hour sessions
-    if (announcedIds.current.size > 200) {
-      const entries = [...announcedIds.current]
-      announcedIds.current = new Set(entries.slice(-100))
-    }
-
-    for (const { advisory: a } of sorted) {
-      if (!announcedIds.current.has(a.id) && !a.resolved) {
-        announcedIds.current.add(a.id)
-        lastAnnounceTime.current = now
-        const freq = a.trueFrequencyHz != null ? formatFrequency(a.trueFrequencyHz) : 'unknown'
-        const sev = getSeverityText(a.severity)
-        const cut = a.advisory?.peq ? `cut ${Math.abs(a.advisory.peq.gainDb).toFixed(0)} dB at Q ${a.advisory.peq.q.toFixed(0)}` : ''
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- aria-live announcements must be emitted after commit
-        setLiveAnnouncement(`Feedback detected at ${freq}, severity ${sev}${cut ? `, ${cut}` : ''}`)
-        break // One announcement at a time
-      }
-    }
-  }, [sorted])
+  const hasResolved = useMemo(
+    () => sortedEntries.some((entry) => entry.advisory.resolved),
+    [sortedEntries],
+  )
 
   return (
     <div className="flex flex-col gap-1.5">
-      {/* Screen reader live region for feedback announcements */}
       <div className="sr-only" aria-live="polite" aria-atomic="true" role="status">
         {liveAnnouncement}
       </div>
 
-      {sorted.length === 0 ? (
-        !isRunning && onStart ? (
-          <div className="flex flex-col items-center justify-center flex-1 min-h-[120px] py-6 gap-3">
-            {/* Standby status indicator */}
-            <span className="flex items-center gap-1.5 font-mono text-[10px] font-bold tracking-[0.3em] uppercase text-[var(--console-amber)]/70 mb-1">
-              <span className="inline-block w-1 h-1 rounded-full bg-[var(--console-amber)]/70 animate-led-pulse-amber flex-shrink-0" aria-hidden />
-              Standby
-            </span>
-            <button
-              onClick={onStart}
-              aria-label="Start analysis"
-              className="group relative flex flex-col items-center justify-center gap-3 w-full max-w-[220px] py-5 px-5 rounded-xl border border-primary/20 hover:border-primary/40 bg-primary/5 hover:bg-primary/10 active:scale-[0.97] transition-[color,background-color,border-color,box-shadow,transform] duration-300 cursor-pointer animate-start-glow focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary"
-              style={{ background: 'radial-gradient(ellipse 100% 80% at 50% 60%, rgba(75, 146, 255, 0.10) 0%, rgba(75, 146, 255, 0.03) 55%, transparent 100%)' }}
-            >
-              {/* Atmospheric radial pool behind logo */}
-              <div className="absolute inset-0 rounded-xl overflow-hidden pointer-events-none" aria-hidden>
-                <div className="absolute inset-0 rounded-xl" style={{ background: 'radial-gradient(ellipse 70% 60% at 50% 50%, rgba(75,146,255,0.07) 0%, transparent 70%)' }} />
-              </div>
-              <div className="relative flex items-center justify-center overflow-hidden rounded-full" style={{ width: 80, height: 80 }}>
-                <div className="standby-glow-ring" />
-                <div className="standby-glow-ring" style={{ animationDelay: '1.75s' }} />
-                <div className="standby-sweep" aria-hidden />
-                <DwaLogo className="relative z-10 w-20 h-20 text-foreground drop-shadow-[0_0_12px_rgba(37,99,235,0.3)] dark:drop-shadow-[0_0_14px_rgba(75,146,255,0.45)]" />
-              </div>
-              <div className="flex flex-col items-center gap-0.5">
-                <span className="font-mono text-xs font-bold tracking-[0.15em] uppercase text-muted-foreground group-hover:text-foreground transition-colors">
-                  Start Analysis
-                </span>
-                <span className="hidden tablet:block font-mono text-[8px] text-muted-foreground/30 mt-1">⏎ Enter</span>
-              </div>
-            </button>
-
-            {onStartRingOut && (
-              <>
-                <div className="w-full max-w-[220px] h-px bg-border/40" />
-
-                <button
-                  onClick={onStartRingOut}
-                  aria-label="Start ring-out wizard"
-                  className="group relative flex items-center justify-center gap-2 w-full max-w-[220px] min-h-[44px] py-2 px-4 rounded-lg border border-amber-500/15 hover:border-amber-500/30 bg-transparent hover:bg-amber-500/5 transition-[color,background-color,border-color] duration-300 cursor-pointer focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-amber-500"
-                >
-                  <span className="font-mono text-[11px] font-bold tracking-[0.12em] uppercase text-amber-500/70 dark:text-amber-400/70 group-hover:text-amber-400">
-                    Ring Out Room
-                  </span>
-                </button>
-              </>
-            )}
-            {/* System status readout — gives the panel substance while idle */}
-            <div className="flex flex-col items-center gap-1 mt-3 max-w-[220px]">
-              <div className="flex items-center gap-2 font-mono text-[9px] tracking-[0.12em] uppercase text-muted-foreground/65">
-                <span>{settings.mode}</span>
-                <span className="text-muted-foreground/25">·</span>
-                <span>{settings.fftSize} FFT</span>
-                <span className="text-muted-foreground/25">·</span>
-                <span>{formatFreqLabel(settings.minFrequency)}–{formatFreqLabel(settings.maxFrequency)}</span>
-              </div>
-              <p className="text-[10px] font-mono text-muted-foreground/40 text-center">
-                Adjust sensitivity with the fader or drag the threshold line on the spectrum
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="relative flex flex-col items-center justify-start flex-1 min-h-[80px] pt-10 gap-2">
-            {/* Both states rendered — crossfade via opacity transition */}
-            <div
-              className="absolute inset-0 flex flex-col items-center justify-start pt-10 gap-2 transition-opacity duration-[2000ms] ease-in-out"
-              style={{ opacity: isLowSignal ? 1 : 0, pointerEvents: isLowSignal ? 'auto' : 'none' }}
-              aria-hidden={!isLowSignal}
-            >
-              {/* Low signal: blue — system/scope state, not a detection */}
-              <div className="relative flex items-center justify-center flex-shrink-0" style={{ width: 44, height: 44 }}>
-                <div className="radar-ring" />
-                <div className="radar-ring" style={{ animationDelay: '1.4s' }} />
-                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-[var(--console-blue)]/50" />
-              </div>
-              <div className="font-mono text-[10px] font-bold tracking-[0.25em] uppercase text-[var(--console-blue)]/70">
-                Low Signal
-              </div>
-              <div className="flex items-center gap-1.5 motion-safe:animate-pulse">
-                <span className="text-[var(--console-blue)]/60 text-xs leading-none">▲</span>
-                <span className="font-mono text-[9px] text-[var(--console-blue)]/50 tracking-wider uppercase">Increase gain</span>
-              </div>
-            </div>
-            <div
-              className="absolute inset-0 flex flex-col items-center justify-start pt-10 gap-2 transition-opacity duration-[2000ms] ease-in-out"
-              style={{ opacity: isLowSignal ? 0 : 1, pointerEvents: isLowSignal ? 'none' : 'auto' }}
-              aria-hidden={isLowSignal}
-            >
-              {/* All-clear: green — no feedback detected */}
-              <div className="relative flex items-center justify-center flex-shrink-0" style={{ width: 56, height: 56 }}>
-                <div className="radar-ring-green" />
-                <div className="radar-ring-green" style={{ animationDelay: '1.75s' }} />
-                <div
-                  className="w-3 h-3 rounded-full flex-shrink-0 bg-emerald-500/60"
-                  style={{ boxShadow: '0 0 10px rgba(16, 185, 129, 0.55)' }}
-                />
-              </div>
-              <div className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase text-emerald-500/80">
-                All Clear
-              </div>
-            </div>
-          </div>
-        )
+      {sortedEntries.length === 0 ? (
+        <IssuesEmptyState
+          isRunning={isRunning}
+          isLowSignal={isLowSignal}
+          onStart={onStart}
+          onStartRingOut={onStartRingOut}
+        />
       ) : (
         <>
-          {sorted.length > 1 && (
+          {sortedEntries.length > 1 ? (
             <div className="flex items-center justify-end gap-2">
-              {onClearResolved && hasResolved && (
+              {onClearResolved && hasResolved ? (
                 <button
                   onClick={onClearResolved}
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wide"
                 >
                   Clear Done
                 </button>
-              )}
-              {onClearAll && (
+              ) : null}
+              {onClearAll ? (
                 <button
                   onClick={onClearAll}
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wide"
                 >
                   Clear All
                 </button>
-              )}
+              ) : null}
             </div>
-          )}
-          {/* Swipe gesture onboarding hint (first encounter on mobile) */}
-          {showSwipeHint && swipeLabeling && sorted.length > 0 && (
+          ) : null}
+
+          {showSwipeHint && swipeLabeling && sortedEntries.length > 0 ? (
             <SwipeHint onDismiss={dismissSwipeHint} />
-          )}
-          {sorted.map(({ advisory, occurrenceCount }) => (
+          ) : null}
+
+          {sortedEntries.map(({ advisory, occurrenceCount }) => (
             <IssueCard
               key={advisory.id}
               advisory={advisory}
@@ -323,11 +143,15 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
               showPeqDetails={showPeqDetails}
               onDismiss={onDismiss}
               onSendToMixer={companionSettings.enabled ? sendAdvisory : undefined}
-              onSendToPA2={pa2.settings.enabled && pa2.status === 'connected' ? pa2.sendDetections : undefined}
+              onSendToPA2={
+                pa2.settings.enabled && pa2.status === 'connected'
+                  ? pa2.sendDetections
+                  : undefined
+              }
               pa2Connected={pa2.settings.enabled && pa2.status === 'connected'}
             />
           ))}
-          {/* Icon legend — compact key for severity icons */}
+
           <SeverityLegend />
         </>
       )}
@@ -335,22 +159,34 @@ export const IssuesList = memo(function IssuesList({ advisories, maxIssues = 10,
   )
 })
 
-// ── Severity icon legend ─────────────────────────────────────────────────────
-const LEGEND_SEVERITIES = ['RUNAWAY', 'GROWING', 'RESONANCE', 'POSSIBLE_RING', 'WHISTLE', 'INSTRUMENT'] as const
+const LEGEND_SEVERITIES = [
+  'RUNAWAY',
+  'GROWING',
+  'RESONANCE',
+  'POSSIBLE_RING',
+  'WHISTLE',
+  'INSTRUMENT',
+] as const
 
 const SeverityLegend = memo(function SeverityLegend() {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme !== 'light'
+
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-2 pb-0.5 border-t border-border/30 mt-1">
-      {LEGEND_SEVERITIES.map(sev => {
-        const Icon = SEVERITY_ICON[sev]
-        const color = getSeverityColor(sev, isDark)
+      {LEGEND_SEVERITIES.map((severity) => {
+        const Icon = SEVERITY_ICON[severity]
+        const color = getSeverityColor(severity, isDark)
         if (!Icon) return null
+
         return (
-          <span key={sev} className="inline-flex items-center gap-1 text-[10px] font-mono tracking-wide leading-none" style={{ color }}>
+          <span
+            key={severity}
+            className="inline-flex items-center gap-1 text-[10px] font-mono tracking-wide leading-none"
+            style={{ color }}
+          >
             <Icon className="w-2.5 h-2.5" />
-            {getSeverityText(sev)}
+            {getSeverityText(severity)}
           </span>
         )
       })}
@@ -358,13 +194,19 @@ const SeverityLegend = memo(function SeverityLegend() {
   )
 })
 
-// ── Swipe gesture onboarding tooltip (shown once on first advisory encounter) ──
 const SWIPE_HINT_AUTO_DISMISS_MS = 8000
 
 const SwipeHint = memo(function SwipeHint({ onDismiss }: { onDismiss: () => void }) {
   useEffect(() => {
-    const timer = setTimeout(onDismiss, SWIPE_HINT_AUTO_DISMISS_MS)
-    return () => clearTimeout(timer)
+    const timerId = setTimeout(onDismiss, SWIPE_HINT_AUTO_DISMISS_MS)
+    return () => clearTimeout(timerId)
+  }, [onDismiss])
+
+  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ' || event.key === 'Escape') {
+      event.preventDefault()
+      onDismiss()
+    }
   }, [onDismiss])
 
   return (
@@ -373,7 +215,7 @@ const SwipeHint = memo(function SwipeHint({ onDismiss }: { onDismiss: () => void
       role="button"
       tabIndex={0}
       onClick={onDismiss}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') { e.preventDefault(); onDismiss() } }}
+      onKeyDown={handleKeyDown}
       aria-label="Swipe gesture guide. Press Enter to close."
     >
       <span className="flex items-center gap-1">

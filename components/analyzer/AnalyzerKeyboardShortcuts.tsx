@@ -1,0 +1,38 @@
+'use client'
+
+import { memo, useEffect } from 'react'
+import { useEngine } from '@/contexts/EngineContext'
+import { useUI } from '@/contexts/UIContext'
+
+export const AnalyzerKeyboardShortcuts = memo(function AnalyzerKeyboardShortcuts() {
+  const { isRunning, start, stop } = useEngine()
+  const { toggleFreeze } = useUI()
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return
+
+      switch (event.key) {
+        case ' ':
+          event.preventDefault()
+          if (isRunning) {
+            stop()
+          } else {
+            void start()
+          }
+          break
+        case 'p':
+        case 'P':
+          if (!isRunning) return
+          event.preventDefault()
+          toggleFreeze()
+          break
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isRunning, start, stop, toggleFreeze])
+
+  return null
+})

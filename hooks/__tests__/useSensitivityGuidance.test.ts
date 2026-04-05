@@ -1,0 +1,51 @@
+// @vitest-environment jsdom
+import { act, renderHook } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  deriveSensitivityGuidance,
+  useSensitivityGuidance,
+} from '@/hooks/useSensitivityGuidance'
+
+describe('useSensitivityGuidance', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  it('returns no guidance when disabled', () => {
+    expect(deriveSensitivityGuidance({
+      enabled: false,
+      isRunning: true,
+      activeAdvisoryCount: 0,
+      prolongedSilence: true,
+      sensitivityDb: 30,
+    })).toEqual({ direction: 'none', urgency: 'none' })
+  })
+
+  it('warns downward when advisories are piling up', () => {
+    expect(deriveSensitivityGuidance({
+      enabled: true,
+      isRunning: true,
+      activeAdvisoryCount: 3,
+      prolongedSilence: false,
+      sensitivityDb: 18,
+    })).toEqual({ direction: 'down', urgency: 'warning' })
+  })
+
+  it('raises upward guidance after prolonged silence', () => {
+    const { result } = renderHook(() => useSensitivityGuidance({
+      enabled: true,
+      isRunning: true,
+      inputLevel: -20,
+      activeAdvisoryCount: 0,
+      sensitivityDb: 26,
+    }))
+
+    expect(result.current).toEqual({ direction: 'none', urgency: 'none' })
+
+    act(() => {
+      vi.advanceTimersByTime(2000)
+    })
+
+    expect(result.current).toEqual({ direction: 'up', urgency: 'hint' })
+  })
+})

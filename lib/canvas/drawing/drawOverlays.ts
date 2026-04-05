@@ -10,7 +10,7 @@ import { getSeverityUrgency } from '@/lib/dsp/severityUtils'
 import { formatFrequency } from '@/lib/utils/pitchUtils'
 import { VIZ_COLORS } from '@/lib/dsp/constants'
 import type { SpectrumData, Advisory } from '@/types/advisory'
-import type { EarlyWarning } from '@/hooks/useAudioAnalyzer'
+import type { EarlyWarning } from '@/hooks/audioAnalyzerTypes'
 
 import {
   type CanvasTheme,

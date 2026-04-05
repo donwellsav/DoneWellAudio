@@ -1,51 +1,56 @@
 'use client'
 
-import { memo, useState, useEffect, useRef } from 'react'
+import { memo } from 'react'
 import { ChevronDown, ChevronRight, Radio } from 'lucide-react'
+import {
+  useEarlyWarningPanelState,
+  type EarlyWarningTone,
+} from '@/hooks/useEarlyWarningPanelState'
 import { formatFrequency } from '@/lib/utils/pitchUtils'
-import type { EarlyWarning } from '@/hooks/useAudioAnalyzer'
+import type { EarlyWarning } from '@/hooks/audioAnalyzerTypes'
 
 interface EarlyWarningPanelProps {
   earlyWarning: EarlyWarning | null
 }
 
+const ELAPSED_TONE_CLASSNAME: Record<EarlyWarningTone, string> = {
+  notice: 'text-amber-400',
+  warning: 'text-amber-300',
+  critical: 'text-red-400',
+}
+
+const PROGRESS_TONE_CLASSNAME: Record<EarlyWarningTone, string> = {
+  notice: 'bg-amber-400/40',
+  warning: 'bg-amber-400/70',
+  critical: 'bg-red-400/70',
+}
+
 export const EarlyWarningPanel = memo(function EarlyWarningPanel({ earlyWarning }: EarlyWarningPanelProps) {
-  const [isExpanded, setIsExpanded] = useState(true)
+  const {
+    isVisible,
+    isExpanded,
+    elapsedSec,
+    confidencePct,
+    progressPercent,
+    tone,
+    toggleExpanded,
+  } = useEarlyWarningPanelState(earlyWarning)
 
-  // Item 12: Elapsed time since early warning first detected
-  const [elapsedSec, setElapsedSec] = useState(0)
-  const timestampRef = useRef<number>(0)
+  if (!earlyWarning || !isVisible) return null
 
-  useEffect(() => {
-    if (!earlyWarning) { setElapsedSec(0); return }
-    timestampRef.current = earlyWarning.timestamp
-    // Immediately compute current elapsed
-    setElapsedSec(Math.round((Date.now() - earlyWarning.timestamp) / 1000))
-    const id = setInterval(() => {
-      setElapsedSec(Math.round((Date.now() - timestampRef.current) / 1000))
-    }, 1000)
-    return () => clearInterval(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when timestamp changes, not on earlyWarning object identity
-  }, [earlyWarning?.timestamp])
-
-  if (!earlyWarning || earlyWarning.predictedFrequencies.length === 0) return null
-
-  const { predictedFrequencies, fundamentalSpacing, estimatedPathLength, confidence } = earlyWarning
-  const confidencePct = Math.round(confidence * 100)
+  const { predictedFrequencies, fundamentalSpacing, estimatedPathLength } = earlyWarning
 
   return (
     <div className="mt-2 rounded border border-amber-500/20 bg-amber-500/5 overflow-hidden">
       <button
-        onClick={() => setIsExpanded(prev => !prev)}
+        onClick={toggleExpanded}
         className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-amber-400 font-medium uppercase tracking-wide hover:bg-amber-500/10 transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-amber-500/50"
         aria-expanded={isExpanded}
       >
         <Radio className="w-3 h-3" aria-hidden="true" />
         <span>Early Warning</span>
         {elapsedSec > 0 && (
-          <span className={`font-mono text-sm tabular-nums ${
-            elapsedSec >= 10 ? 'text-red-400' : elapsedSec >= 5 ? 'text-amber-300' : 'text-amber-400'
-          }`}>
+          <span className={`font-mono text-sm tabular-nums ${ELAPSED_TONE_CLASSNAME[tone]}`}>
             {elapsedSec}s
           </span>
         )}
@@ -84,10 +89,8 @@ export const EarlyWarningPanel = memo(function EarlyWarningPanel({ earlyWarning 
           {elapsedSec > 0 && (
             <div className="h-1 rounded-full bg-amber-500/10 overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all duration-500 ease-linear ${
-                  elapsedSec >= 10 ? 'bg-red-400/70' : elapsedSec >= 5 ? 'bg-amber-400/70' : 'bg-amber-400/40'
-                }`}
-                style={{ width: `${Math.min(100, (elapsedSec / 15) * 100)}%` }}
+                className={`h-full rounded-full transition-all duration-500 ease-linear ${PROGRESS_TONE_CLASSNAME[tone]}`}
+                style={{ width: `${progressPercent}%` }}
               />
             </div>
           )}

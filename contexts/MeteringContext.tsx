@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext } from 'react'
-import type { SpectrumStatus } from '@/hooks/useAudioAnalyzer'
+import type { SpectrumStatus } from '@/hooks/audioAnalyzerTypes'
 import type { SpectrumData, TrackedPeak } from '@/types/advisory'
 
 // ── Context value ───────────────────────────────────────────────────────────

@@ -14,8 +14,8 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.43.0-blue" alt="Version" />
-  <img src="https://img.shields.io/badge/tests-1080%20passing-brightgreen" alt="Tests" />
+  <img src="https://img.shields.io/badge/version-0.80.1-blue" alt="Version" />
+  <img src="https://img.shields.io/badge/tests-1322%20passing-brightgreen" alt="Tests" />
   <img src="https://img.shields.io/badge/algorithms-7-orange" alt="Algorithms" />
   <img src="https://img.shields.io/badge/license-proprietary-red" alt="License" />
 </p>
@@ -100,7 +100,7 @@ Mic → GainNode → AnalyserNode (8192 FFT, 50fps)
 | DSP | Web Worker (zero-copy Float32Array transfers) |
 | Canvas | HTML5 Canvas at 30fps |
 | State | React 19 hooks + 4 context providers |
-| Testing | Vitest (1080 tests, 52 suites, <10s) |
+| Testing | Vitest (1326 tests, 97 test files) |
 | Errors | Sentry (browser + server + worker) |
 | PWA | Serwist (service worker, offline) |
 | ML | ONNX Runtime Web (929-param MLP, 4KB) |
@@ -114,7 +114,7 @@ No external audio processing libraries. No environment variables required for lo
 ```bash
 pnpm dev              # Dev server on :3000 (Turbopack)
 pnpm build            # Production build (generates SW)
-pnpm test             # 1080 tests, 52 suites, <10s
+pnpm test             # 1322 pass, 4 skip across 97 test files
 pnpm lint             # ESLint (flat config, circular dep check)
 npx tsc --noEmit      # Type check (run before build)
 ```
@@ -239,7 +239,7 @@ app/
 └── api/geo/route.ts                  # GDPR geo detection
 
 components/
-├── analyzer/                         # 28 domain components
+├── analyzer/                         # Analyzer product UI
 │   ├── AudioAnalyzer.tsx             # Root orchestrator
 │   ├── HeaderBar.tsx                 # Header (useSignalTint)
 │   ├── IssueCard.tsx                 # Advisory card + swipe gestures
@@ -247,15 +247,15 @@ components/
 │   ├── RingOutWizard.tsx             # Guided calibration
 │   ├── settings/                     # 4 tabs: Live, Setup, Display, Advanced
 │   └── help/                         # 6 tabs: Guide, Modes, Algorithms, Reference, Companion, About
-└── ui/                               # shadcn/ui (24 files)
+└── ui/                               # shadcn/ui primitives
 
-hooks/                                # 18 custom hooks
+hooks/                                # Custom hooks
 ├── useSignalTint.ts                  # Severity → CSS vars
 ├── useDSPWorker.ts                   # Worker lifecycle
 ├── useSwipeGesture.ts                # Touch gestures
 └── useLayeredSettings.ts             # Settings composition
 
-lib/dsp/                              # 22 DSP modules
+lib/dsp/                              # DSP modules
 ├── feedbackDetector.ts               # Core peak detection (1527L)
 ├── fusionEngine.ts                   # Algorithm fusion + MINDS
 ├── combPattern.ts                    # Comb filter + stability
@@ -264,8 +264,8 @@ lib/dsp/                              # 22 DSP modules
 ├── constants/                        # 6 domain-specific constant files
 └── mlInference.ts                    # ONNX model inference
 
-contexts/                             # 9 React context providers
-tests/                                # 52 test suites, 1080 tests
+contexts/                             # React context providers
+tests/                                # Integration and DSP regression tests
 ```
 
 </details>

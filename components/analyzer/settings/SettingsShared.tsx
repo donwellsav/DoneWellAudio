@@ -9,16 +9,6 @@ import {
 } from '@/components/ui/tooltip'
 import { HelpCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { DetectorSettings } from '@/types/advisory'
-
-// ── Shared prop types ────────────────────────────────────────────────────────
-
-export interface TabSettingsProps {
-  settings: DetectorSettings
-  onSettingsChange: (settings: Partial<DetectorSettings>) => void
-}
-
-// ── Two-column grid wrapper for flat tabs ────────────────────────────────────
 
 export const SettingsGrid = memo(function SettingsGrid({ children, className }: {
   children: React.ReactNode
@@ -31,9 +21,8 @@ export const SettingsGrid = memo(function SettingsGrid({ children, className }: 
   )
 })
 
-// ── Section (flat, uniform) ──────────────────────────────────────────────────
-
 type SectionColor = 'amber' | 'blue' | 'green'
+
 const COLOR_VAR: Record<SectionColor, string> = {
   amber: 'var(--console-amber)',
   blue: 'var(--console-blue)',
@@ -45,11 +34,11 @@ export const Section = memo(function Section({ title, tooltip, showTooltip = tru
   tooltip?: string
   showTooltip?: boolean
   fullWidth?: boolean
-  /** Operator color group — overrides amber cascade for this section header */
   color?: SectionColor
   children: React.ReactNode
 }) {
   const labelStyle = color ? { color: COLOR_VAR[color] } : undefined
+
   return (
     <TooltipProvider delayDuration={300}>
       <div className={cn('space-y-2', fullWidth && 'sm:col-span-full')}>
@@ -71,8 +60,6 @@ export const Section = memo(function Section({ title, tooltip, showTooltip = tru
     </TooltipProvider>
   )
 })
-
-// ── SectionGroup (static header, two-column grid of children) ────────────────
 
 export const SectionGroup = memo(function SectionGroup({ title, children }: {
   title: string
