@@ -10,7 +10,7 @@ import { SettingsPanel, SETTINGS_TABS, type DataCollectionTabProps } from './set
 import { useUI } from '@/contexts/UIContext'
 import { Button } from '@/components/ui/button'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
-import type { ImperativePanelHandle } from '@/components/ui/resizable'
+import type { usePanelRef } from '@/components/ui/resizable'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { CalibrationTabProps } from './settings/CalibrationTab'
 import { useAnalyzerLayoutState } from '@/hooks/useAnalyzerLayoutState'
@@ -18,7 +18,7 @@ import { useDesktopLayoutState } from '@/hooks/useDesktopLayoutState'
 
 interface DesktopLayoutProps {
   issuesPanelOpen: boolean
-  issuesPanelRef: React.RefObject<ImperativePanelHandle | null>
+  issuesPanelRef: ReturnType<typeof usePanelRef>
   activeSidebarTab: 'issues' | 'controls'
   setActiveSidebarTab: (tab: 'issues' | 'controls') => void
   openIssuesPanel: () => void
@@ -121,8 +121,8 @@ export const DesktopLayout = memo(function DesktopLayout({
 
   return (
     <div className="hidden lg:flex lg:landscape:hidden md:landscape:flex flex-1 overflow-hidden">
-      <ResizablePanelGroup key={layoutKey} direction="horizontal">
-        <ResizablePanel defaultSize={20} minSize={8} maxSize={30} collapsible>
+      <ResizablePanelGroup key={layoutKey} orientation="horizontal">
+        <ResizablePanel defaultSize="20%" minSize="8%" maxSize="30%" collapsible>
           <div className="flex flex-col h-full amber-sidecar overflow-hidden">
             <div className="flex-shrink-0 amber-panel-header p-2 panel-groove">
               <AlgorithmStatusBar
@@ -271,14 +271,14 @@ export const DesktopLayout = memo(function DesktopLayout({
         {issuesPanelOpen ? <ResizableHandle withHandle /> : null}
 
         <ResizablePanel
-          ref={issuesPanelRef}
-          defaultSize={25}
-          collapsedSize={0}
-          minSize={10}
-          maxSize={35}
+          panelRef={issuesPanelRef}
+          defaultSize="25%"
+          collapsedSize="0%"
+          minSize="10%"
+          maxSize="35%"
           collapsible
-          onResize={(size) => {
-            setIssuesPanelOpen(size > 0)
+          onResize={(panelSize) => {
+            setIssuesPanelOpen(panelSize.asPercentage > 0)
           }}
         >
           <div className="flex flex-col h-full amber-sidecar overflow-hidden">
