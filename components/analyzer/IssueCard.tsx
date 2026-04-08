@@ -3,7 +3,7 @@
 import { memo } from 'react'
 import { AlertTriangle, TrendingUp } from 'lucide-react'
 import { confidenceColor, RUNAWAY_COLOR } from '@/lib/canvas/canvasTokens'
-import { getSeverityText } from '@/lib/dsp/classifier'
+import { getSeverityText } from '@/lib/utils/advisoryDisplay'
 import { IssueCardActions } from './IssueCardActions'
 import {
   SEVERITY_ENTER_CLASS,

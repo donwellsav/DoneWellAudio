@@ -131,6 +131,10 @@ const combStabilityTracker = new CombStabilityTracker()
  *  Avoids per-call heap allocation (~500 calls/sec). Max 7 algorithms + 1 spare. */
 const _effScores = new Float64Array(8)
 
+/** Pre-allocated mutable weights object — avoids object spread per fusion call (~500/sec).
+ *  Only read within the synchronous fuseAlgorithmResults(); no concurrent access in Worker. */
+const _weights = { msd: 0, phase: 0, spectral: 0, comb: 0, ihr: 0, ptmr: 0, ml: 0 }
+
 // ── Fusion Weights ──────────────────────────────────────────────────────────
 
 // Three-model consensus (Claude+Gemini+ChatGPT): 'existing' was a legacy
@@ -224,21 +228,33 @@ export function fuseAlgorithmResults(
   const reasons: string[] = []
   const contributingAlgorithms: string[] = []
 
-  let weights: { msd: number; phase: number; spectral: number; comb: number; ihr: number; ptmr: number; ml: number }
-  if (scores.compression?.isCompressed) {
-    weights = { ...FUSION_WEIGHTS.COMPRESSED }
-    reasons.push(`Compression detected (ratio ~${scores.compression.estimatedRatio.toFixed(1)}:1)`)
-  } else if (contentType === 'speech') {
-    weights = { ...FUSION_WEIGHTS.SPEECH }
-  } else if (contentType === 'music') {
-    weights = { ...FUSION_WEIGHTS.MUSIC }
-  } else {
-    weights = { ...FUSION_WEIGHTS.DEFAULT }
-  }
+  // Zero-allocation: copy preset fields into module-level _weights object
+  // instead of object spread (~500 calls/sec). Synchronous — no concurrent access risk.
+  const preset = scores.compression?.isCompressed
+    ? (reasons.push(`Compression detected (ratio ~${scores.compression.estimatedRatio.toFixed(1)}:1)`), FUSION_WEIGHTS.COMPRESSED)
+    : contentType === 'speech' ? FUSION_WEIGHTS.SPEECH
+    : contentType === 'music' ? FUSION_WEIGHTS.MUSIC
+    : FUSION_WEIGHTS.DEFAULT
+  _weights.msd = preset.msd
+  _weights.phase = preset.phase
+  _weights.spectral = preset.spectral
+  _weights.comb = preset.comb
+  _weights.ihr = preset.ihr
+  _weights.ptmr = preset.ptmr
+  _weights.ml = preset.ml
 
   if (config.customWeights) {
-    weights = { ...weights, ...config.customWeights }
+    const cw = config.customWeights
+    if (cw.msd !== undefined) _weights.msd = cw.msd
+    if (cw.phase !== undefined) _weights.phase = cw.phase
+    if (cw.spectral !== undefined) _weights.spectral = cw.spectral
+    if (cw.comb !== undefined) _weights.comb = cw.comb
+    if (cw.ihr !== undefined) _weights.ihr = cw.ihr
+    if (cw.ptmr !== undefined) _weights.ptmr = cw.ptmr
+    if (cw.ml !== undefined) _weights.ml = cw.ml
   }
+
+  const weights = _weights
 
   let activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml']
   switch (config.mode) {

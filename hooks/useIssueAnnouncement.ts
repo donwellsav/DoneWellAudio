@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { getSeverityText } from '@/lib/dsp/classifier'
+import { getSeverityText } from '@/lib/utils/advisoryDisplay'
 import { formatFrequency } from '@/lib/utils/pitchUtils'
 import type { Advisory } from '@/types/advisory'
 import type { IssueListEntry } from '@/hooks/useIssuesListEntries'

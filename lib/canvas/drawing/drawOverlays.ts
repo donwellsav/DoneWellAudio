@@ -5,7 +5,7 @@
  */
 
 import { freqToLogPosition, clamp } from '@/lib/utils/mathHelpers'
-import { getSeverityColor } from '@/lib/dsp/eqAdvisor'
+import { getSeverityColor } from '@/lib/utils/advisoryDisplay'
 import { getSeverityUrgency } from '@/lib/dsp/severityUtils'
 import { formatFrequency } from '@/lib/utils/pitchUtils'
 import { VIZ_COLORS } from '@/lib/dsp/constants'

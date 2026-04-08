@@ -134,7 +134,7 @@ importers:
         version: 4.0.1
       serwist:
         specifier: ^9.5.7
-        version: 9.5.7(browserslist@4.28.2)(typescript@5.7.3)
+        version: 9.5.7(browserslist@4.28.1)(typescript@5.7.3)
       sharp:
         specifier: ^0.34.5
         version: 0.34.5
@@ -6598,10 +6598,6 @@ snapshots:
     optionalDependencies:
       browserslist: 4.28.1
 
-  '@serwist/utils@9.5.7(browserslist@4.28.2)':
-    optionalDependencies:
-      browserslist: 4.28.2
-
   '@serwist/webpack-plugin@9.5.7(browserslist@4.28.1)(typescript@5.7.3)(webpack@5.105.4)':
     dependencies:
       '@serwist/build': 9.5.7(browserslist@4.28.1)(typescript@5.7.3)
@@ -9173,15 +9169,6 @@ snapshots:
   serwist@9.5.7(browserslist@4.28.1)(typescript@5.7.3):
     dependencies:
       '@serwist/utils': 9.5.7(browserslist@4.28.1)
-      idb: 8.0.3
-    optionalDependencies:
-      typescript: 5.7.3
-    transitivePeerDependencies:
-      - browserslist
-
-  serwist@9.5.7(browserslist@4.28.2)(typescript@5.7.3):
-    dependencies:
-      '@serwist/utils': 9.5.7(browserslist@4.28.2)
       idb: 8.0.3
     optionalDependencies:
       typescript: 5.7.3
