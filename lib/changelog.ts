@@ -14,6 +14,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.85.0',
+    date: '2026-04-08',
+    changes: [
+      { type: 'feat', description: '**DSP hot path**: Eliminate ~2000+ heap allocations/sec in Web Worker by replacing array allocs with pre-allocated scratch buffers, quickselect median (O(n) vs O(n log n) sort), dbToLinearLut for merged spectrum passes, single-pass kurtosis, and mutable weights objects' },
+      { type: 'feat', description: '**React rendering**: Convert useSignalTint from useState to useRef (output is CSS vars only — no React re-renders needed)' },
+      { type: 'feat', description: '**Architecture**: Extract getSeverityColor/getSeverityText from DSP modules to lib/utils/advisoryDisplay.ts, decoupling 8 UI-layer imports from algorithm code' },
+      { type: 'feat', description: '**Sentry**: Reduce tracesSampleRate from 1.0 to 0.1 (errors still 100%, traces sampled at 10%)' },
+      { type: 'feat', description: '**Fix**: Migrate react-resizable-panels to v2.1 API (Group→PanelGroup, Separator→PanelResizeHandle, string %→numbers, orientation→direction) — resolves all 16 pre-existing tsc errors' },
+      { type: 'feat', description: '**Fix**: Install missing eslint-plugin-import-x dependency' },
+      { type: 'feat', description: '[x] `npx tsc --noEmit` — 0 errors (was 16 before this PR)' },
+      { type: 'feat', description: '[x] `pnpm test` — 1352 passed, 0 failed, 4 skipped' },
+      { type: 'feat', description: '[x] `pnpm lint` — 0 errors' },
+      { type: 'feat', description: '[x] Dev server runs clean (no console errors)' },
+      { type: 'feat', description: '[ ] Verify desktop resizable panels still resize/collapse correctly in browser' },
+      { type: 'feat', description: '[ ] Verify advisory cards render with correct severity colors' },
+    ],
+  },
+  {
     version: '0.82.0',
     date: '2026-04-08',
     changes: [
