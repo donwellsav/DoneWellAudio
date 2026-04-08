@@ -41,9 +41,9 @@ export const DesktopGraphPanels = memo(function DesktopGraphPanels({
   geqBarViewProps,
 }: DesktopGraphPanelsProps) {
   return (
-    <ResizablePanel defaultSize={50}>
-      <ResizablePanelGroup direction="vertical">
-        <ResizablePanel defaultSize={60} minSize={20} collapsible>
+    <ResizablePanel defaultSize="50%">
+      <ResizablePanelGroup orientation="vertical">
+        <ResizablePanel defaultSize="60%" minSize="20%" collapsible>
           <DesktopRtaPanel
             rtaContainerRef={rtaContainerRef}
             isRunning={isRunning}
@@ -60,7 +60,7 @@ export const DesktopGraphPanels = memo(function DesktopGraphPanels({
 
         <ResizableHandle withHandle />
 
-        <ResizablePanel defaultSize={40} minSize={15} collapsible>
+        <ResizablePanel defaultSize="40%" minSize="15%" collapsible>
           <DesktopGeqPanel
             isRunning={isRunning}
             onClearGEQ={onClearGEQ}
