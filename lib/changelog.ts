@@ -14,6 +14,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.82.0',
+    date: '2026-04-08',
+    changes: [
+      { type: 'feat', description: '`@dependabot rebase` will rebase this PR' },
+      { type: 'feat', description: '`@dependabot recreate` will recreate this PR, overwriting any edits that have been made to it' },
+      { type: 'feat', description: '`@dependabot show <dependency name> ignore conditions` will show all of the ignore conditions of the specified dependency' },
+      { type: 'feat', description: '`@dependabot ignore <dependency name> major version` will close this group update PR and stop Dependabot creating any more for the specific dependency\'s major version (unless you unignore this specific dependency\'s major version or upgrade to it yourself)' },
+      { type: 'feat', description: '`@dependabot ignore <dependency name> minor version` will close this group update PR and stop Dependabot creating any more for the specific dependency\'s minor version (unless you unignore this specific dependency\'s minor version or upgrade to it yourself)' },
+      { type: 'feat', description: '`@dependabot ignore <dependency name>` will close this group update PR and stop Dependabot creating any more for the specific dependency (unless you unignore this specific dependency or upgrade to it yourself)' },
+      { type: 'feat', description: '`@dependabot unignore <dependency name>` will remove all of the ignore conditions of the specified dependency' },
+      { type: 'feat', description: '`@dependabot unignore <dependency name> <ignore condition>` will remove the ignore condition of the specified dependency and ignore conditions' },
+    ],
+  },
+  {
     version: '0.81.0',
     date: '2026-04-05',
     changes: [
