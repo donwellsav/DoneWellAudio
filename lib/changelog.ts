@@ -14,6 +14,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.86.0',
+    date: '2026-04-08',
+    changes: [
+      { type: 'feat', description: 'Reduced EQ preset Q values to match real-world hardware PEQ range (DBX DriveRack, Yamaha, Allen & Heath)' },
+      { type: 'feat', description: 'Surgical preset: runawayQ 60→8, defaultQ 30→5. Heavy preset: runawayQ 30→3, defaultQ 16→2' },
+      { type: 'feat', description: 'Q clamp range narrowed from [2, 120] to [0.3, 16] — matches the full range of professional PEQ processors' },
+      { type: 'feat', description: 'Added 1.5x baseQ cap on SNR-adaptive blend so measurement can\'t override preset intent' },
+      { type: 'feat', description: '[x] `npx tsc --noEmit` — type check clean' },
+      { type: 'feat', description: '[x] `pnpm test` — 1352 pass, 4 skip' },
+      { type: 'feat', description: '[x] Dev server loads without errors' },
+      { type: 'feat', description: '[ ] Manual test: trigger feedback detection and verify Q values on advisory cards are in [0.3, 16] range' },
+    ],
+  },
+  {
     version: '0.85.0',
     date: '2026-04-08',
     changes: [
