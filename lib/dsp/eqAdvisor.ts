@@ -178,10 +178,10 @@ export function calculateQ(severity: SeverityLevel, preset: Preset, trackQ: numb
   let baseQ: number
   switch (severity) {
     case 'RUNAWAY':
-      baseQ = presetConfig.runawayQ // 60 or 30
+      baseQ = presetConfig.runawayQ // 8 or 3
       break
     case 'GROWING':
-      baseQ = presetConfig.defaultQ // 30 or 16
+      baseQ = presetConfig.defaultQ // 5 or 2
       break
     default:
       baseQ = presetConfig.defaultQ * 0.75
@@ -189,12 +189,14 @@ export function calculateQ(severity: SeverityLevel, preset: Preset, trackQ: numb
 
   // SNR-adaptive blend: trust measured Q when signal is clean, favor preset when noisy.
   // α = SNR / (SNR + 20): high SNR (50dB) → α≈0.71, low SNR (10dB) → α≈0.33
-  const measuredQ = clamp(trackQ, 2, 120)
+  // Capped at 1.5× baseQ so measurement can't override preset intent.
+  const measuredQ = clamp(trackQ, 0.3, 16)
   const snr = snrDb !== undefined ? Math.max(0, snrDb) : 20 // default 20dB if unknown
   const alpha = snr / (snr + 20)
   const blendedQ = baseQ * (1 - alpha) + measuredQ * alpha
+  const cappedQ = Math.min(blendedQ, baseQ * 1.5)
 
-  return clamp(blendedQ, 2, 120)
+  return clamp(cappedQ, 0.3, 16)
 }
 
 /**
@@ -234,7 +236,7 @@ export function clusterAwareQ(
   if (!clusterMinHz || !clusterMaxHz || clusterMinHz >= clusterMaxHz) return baseQ
   const spanHz = clusterMaxHz - clusterMinHz
   const coverageQ = centerHz / (spanHz * 1.5) // 1.5× margin
-  return Math.max(Math.min(baseQ, coverageQ), 2) // floor at Q=2
+  return Math.max(Math.min(baseQ, coverageQ), 0.3) // floor at Q=0.3
 }
 
 /**

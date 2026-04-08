@@ -37,15 +37,15 @@ export const CANVAS_SETTINGS = {
 // EQ recommendation presets
 export const EQ_PRESETS = {
   surgical: {
-    defaultQ: 30,
-    runawayQ: 60,
+    defaultQ: 5,
+    runawayQ: 8,
     maxCut: -18,
     moderateCut: -9,
     lightCut: -4,
   },
   heavy: {
-    defaultQ: 16,
-    runawayQ: 30,
+    defaultQ: 2,
+    runawayQ: 3,
     maxCut: -12,
     moderateCut: -6,
     lightCut: -3,
