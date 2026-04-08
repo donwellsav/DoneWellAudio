@@ -12,9 +12,17 @@
 import type { ContentType } from '@/types/advisory'
 import { COMPRESSION_SETTINGS, TEMPORAL_ENVELOPE } from './constants'
 import { COMPRESSION_CONSTANTS } from './compressionDetection'
+import { medianInPlace } from '@/lib/utils/mathHelpers'
+import { dbToLinearLut } from './expLut'
 
 // Re-export for barrel compatibility
 export type { ContentType } from '@/types/advisory'
+
+// ── Pre-allocated Scratch Buffers ───────────────────────────────────────────
+// PTMR: halfWidth=20, excluding ±2 bins around peak → max ~37 values. 64 for safety.
+const _ptmrScratch = new Float32Array(64)
+// Content type detection: power cache for merged spectrum passes (8192 FFT / 2 + 1)
+const _powerCache = new Float64Array(4097)
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -153,22 +161,19 @@ export function calculatePTMR(
   const start = Math.max(0, peakBin - halfWidth)
   const end = Math.min(n - 1, peakBin + halfWidth)
 
-  const values: number[] = []
+  // Zero-allocation: copy into pre-allocated scratch buffer, use quickselect median
+  let count = 0
   for (let i = start; i <= end; i++) {
     if (Math.abs(i - peakBin) > 2) {
-      values.push(spectrum[i])
+      _ptmrScratch[count++] = spectrum[i]
     }
   }
 
-  if (values.length < 4) {
+  if (count < 4) {
     return { ptmrDb: 0, isFeedbackLike: false, feedbackScore: 0 }
   }
 
-  values.sort((a, b) => a - b)
-  const mid = values.length >> 1
-  const median = (values.length & 1)
-    ? values[mid]
-    : (values[mid - 1] + values[mid]) / 2
+  const median = medianInPlace(_ptmrScratch.subarray(0, count))
 
   const ptmrDb = spectrum[peakBin] - median
   const isFeedbackLike = ptmrDb > 15
@@ -209,12 +214,18 @@ export function detectContentType(
   }
 
   // ── Compute global spectral features from full spectrum ─────────────
+  // Single pass: cache power values via LUT, compute centroid + flatness + rolloff together.
+  // Eliminates redundant Math.pow(10, db/10) second pass and uses dbToLinearLut (~3× faster).
   let totalPower = 0
   let weightedSum = 0
   let logSum = 0  // for geometric mean (global flatness)
   let validBins = 0
-  for (let i = 0; i < spectrum.length; i++) {
-    const power = Math.pow(10, spectrum[i] / 10)
+  const len = spectrum.length
+  for (let i = 0; i < len; i++) {
+    // Guard: LUT clamps -Infinity to EXP_LUT[0] (~1e-10). Treat sub-range dB as zero power.
+    const db = spectrum[i]
+    const power = db <= -100 ? 0 : dbToLinearLut(db)
+    _powerCache[i] = power
     if (power > 0) {
       totalPower += power
       weightedSum += i * power
@@ -224,25 +235,25 @@ export function detectContentType(
   }
   if (totalPower <= 0 || validBins === 0) return 'unknown'
 
-  const centroidNormalized = weightedSum / totalPower / spectrum.length
+  const centroidNormalized = weightedSum / totalPower / len
 
   // Global spectral flatness: geometric mean / arithmetic mean
   const arithmeticMean = totalPower / validBins
   const geometricMean = Math.exp(logSum / validBins)
   const globalFlatness = arithmeticMean > 0 ? geometricMean / arithmeticMean : 0
 
-  // Spectral rolloff: bin where 85% of energy is reached
+  // Spectral rolloff: bin where 85% of energy is reached — read from cached power values
   const rolloffThreshold = totalPower * 0.85
   let cumulative = 0
-  let rolloffBin = spectrum.length - 1
-  for (let i = 0; i < spectrum.length; i++) {
-    cumulative += Math.pow(10, spectrum[i] / 10)
+  let rolloffBin = len - 1
+  for (let i = 0; i < len; i++) {
+    cumulative += _powerCache[i]
     if (cumulative >= rolloffThreshold) {
       rolloffBin = i
       break
     }
   }
-  const rolloffNormalized = rolloffBin / spectrum.length
+  const rolloffNormalized = rolloffBin / len
 
   // ── Multi-feature scoring ──────────────────────────────────────────
   const hasTemporal = temporalMetrics !== undefined

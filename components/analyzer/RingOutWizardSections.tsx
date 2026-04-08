@@ -9,7 +9,7 @@ import {
   SkipForward,
   X,
 } from 'lucide-react'
-import { getSeverityColor } from '@/lib/dsp/eqAdvisor'
+import { getSeverityColor } from '@/lib/utils/advisoryDisplay'
 import { formatFrequency } from '@/lib/utils/pitchUtils'
 import type { RoomMode } from '@/lib/dsp/acousticUtils'
 import type { Advisory } from '@/types/advisory'

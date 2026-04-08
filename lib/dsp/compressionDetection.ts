@@ -9,6 +9,12 @@ import {
   SPECTRAL_FLATNESS_SETTINGS,
   COMPRESSION_SETTINGS,
 } from './constants'
+import { medianInPlace64 } from '@/lib/utils/mathHelpers'
+
+// ── Pre-allocated Scratch Buffers ───────────────────────────────────────────
+// Spectral flatness: max bandwidth=10 → max 21 bins. Sized at 21.
+const _regionScratch = new Float64Array(21)
+const _regionDbScratch = new Float64Array(21)
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -69,26 +75,34 @@ export function calculateSpectralFlatness(
   const bw = bandwidth ?? 5
   const startBin = Math.max(0, peakBin - bw)
   const endBin   = Math.min(spectrum.length - 1, peakBin + bw)
-  const region: number[] = []
-  const regionDb: number[] = []
+
+  // Zero-allocation: use pre-allocated scratch buffers instead of number[] arrays.
+  // Single pass computes logSum + linearSum + peakDb + copies values.
+  let count = 0
+  let logSum = 0
+  let linearSum = 0
+  let peakDb = -Infinity
 
   for (let i = startBin; i <= endBin; i++) {
     const linear = Math.pow(10, spectrum[i] / 10)
     if (linear > 0) {
-      region.push(linear)
-      regionDb.push(spectrum[i])
+      _regionScratch[count] = linear
+      _regionDbScratch[count] = spectrum[i]
+      logSum += Math.log(linear)
+      linearSum += linear
+      if (spectrum[i] > peakDb) peakDb = spectrum[i]
+      count++
     }
   }
 
-  if (region.length === 0) {
+  if (count === 0) {
     return { flatness: 1, kurtosis: 0, feedbackScore: 0, isFeedbackLikely: false }
   }
 
   // Raw geometric/arithmetic flatness
-  const logSum        = region.reduce((sum, x) => sum + Math.log(x), 0)
-  const geometricMean = Math.exp(logSum / region.length)
-  const arithmeticMean = region.reduce((a, b) => a + b, 0) / region.length
-  let flatness        = arithmeticMean > 0 ? geometricMean / arithmeticMean : 1
+  const geometricMean = Math.exp(logSum / count)
+  const arithmeticMean = linearSum / count
+  let flatness = arithmeticMean > 0 ? geometricMean / arithmeticMean : 1
 
   // F7: Width-adjusted flatness — count bins within 10 dB of the peak.
   // Only applies when raw flatness is low (< MUSIC_FLATNESS), meaning the
@@ -98,25 +112,32 @@ export function calculateSpectralFlatness(
   // Broad resonances: many elevated bins → flatness boosted toward music range.
   if (flatness < SPECTRAL_CONSTANTS.MUSIC_FLATNESS) {
     const ELEVATION_THRESHOLD_DB = 10
-    const peakDb = Math.max(...regionDb)
     let elevatedCount = 0
-    for (let i = 0; i < regionDb.length; i++) {
-      if (peakDb - regionDb[i] <= ELEVATION_THRESHOLD_DB) {
+    for (let i = 0; i < count; i++) {
+      if (peakDb - _regionDbScratch[i] <= ELEVATION_THRESHOLD_DB) {
         elevatedCount++
       }
     }
-    const totalBins = region.length
     // elevatedRatio: 0 when only peak bin elevated, ~1 when all bins elevated
-    const elevatedRatio = totalBins > 1 ? (elevatedCount - 1) / (totalBins - 1) : 0
+    const elevatedRatio = count > 1 ? (elevatedCount - 1) / (count - 1) : 0
     // Blend raw flatness toward music-like value when many bins are elevated.
     // For narrow peaks (elevatedRatio ~0): no change.
     // For broad peaks (elevatedRatio ~1): flatness pulled toward MUSIC_FLATNESS.
     flatness = flatness + elevatedRatio * (SPECTRAL_CONSTANTS.MUSIC_FLATNESS - flatness)
   }
 
-  const mean    = arithmeticMean
-  const m2      = region.reduce((sum, x) => sum + Math.pow(x - mean, 2), 0) / region.length
-  const m4      = region.reduce((sum, x) => sum + Math.pow(x - mean, 4), 0) / region.length
+  // Single-pass m2/m4 computation using multiply instead of Math.pow()
+  const mean = arithmeticMean
+  let m2Sum = 0
+  let m4Sum = 0
+  for (let i = 0; i < count; i++) {
+    const d = _regionScratch[i] - mean
+    const d2 = d * d
+    m2Sum += d2
+    m4Sum += d2 * d2
+  }
+  const m2 = m2Sum / count
+  const m4 = m4Sum / count
   const kurtosis = m2 > 0 ? m4 / (m2 * m2) - 3 : 0
 
   const flatnessScore  = 1 - Math.min(flatness / SPECTRAL_CONSTANTS.MUSIC_FLATNESS, 1)
@@ -195,11 +216,8 @@ export class AmplitudeHistoryBuffer {
     // The old metric (maxPeak - minRms) mixed values from different frames,
     // overstating range for signals with alternating loud/quiet frames.
     // Median per-frame crest reflects the typical frame's peak-to-RMS gap.
-    const sorted = Array.from(crestValues).sort((a, b) => a - b)
-    const mid = Math.floor(this.count / 2)
-    const dynamicRange = this.count % 2 === 1
-      ? sorted[mid]
-      : (sorted[mid - 1] + sorted[mid]) / 2
+    // Zero-allocation: in-place quickselect on the local Float64Array (safe — not reused after).
+    const dynamicRange = medianInPlace64(crestValues.subarray(0, this.count))
 
     const normalCrest    = COMPRESSION_CONSTANTS.NORMAL_CREST_FACTOR
     const estimatedRatio = normalCrest / Math.max(crestFactor, 1)

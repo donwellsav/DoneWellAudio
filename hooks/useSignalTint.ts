@@ -13,9 +13,13 @@
  *   Low severity (WHISTLE/INSTRUMENT/POSSIBLE_RING) → console amber
  *   Mid severity (RESONANCE/GROWING) → orange
  *   RUNAWAY → red
+ *
+ * Performance: Uses refs instead of state for urgency tracking — this hook only
+ * writes CSS custom properties (DOM mutation), so React re-renders are unnecessary.
+ * The component hosting this hook won't re-render from urgency changes.
  */
 
-import { useMemo, useEffect, useState, useRef } from 'react'
+import { useMemo, useEffect, useRef, useCallback } from 'react'
 import { useAdvisories } from '@/contexts/AdvisoryContext'
 import { useEngine } from '@/contexts/EngineContext'
 import { useMetering } from '@/contexts/MeteringContext'
@@ -46,6 +50,19 @@ function tintForUrgency(urgency: number, running: boolean, isLowSignal: boolean)
   return TINT_RED
 }
 
+/** Apply tint CSS vars + runaway class directly to the DOM (no React re-render). */
+function applyTint(rgb: RGB, isRunaway: boolean): void {
+  const root = document.documentElement
+  root.style.setProperty('--tint-r', String(rgb[0]))
+  root.style.setProperty('--tint-g', String(rgb[1]))
+  root.style.setProperty('--tint-b', String(rgb[2]))
+  if (isRunaway) {
+    root.classList.add('tint-runaway')
+  } else {
+    root.classList.remove('tint-runaway')
+  }
+}
+
 /**
  * Must be called inside AdvisoryProvider + EngineContext.
  * Reads advisories and engine state from context directly.
@@ -72,48 +89,51 @@ export function useSignalTint(): void {
     return worst
   }, [isRunning, advisories, dismissedIds])
 
-  // Hysteresis: upgrades instant, downgrades delayed
-  const [displayedUrgency, setDisplayedUrgency] = useState(0)
+  // Ref-based hysteresis: upgrades instant, downgrades delayed.
+  // No useState — this hook only writes CSS vars, so React re-renders are wasteful.
+  const displayedUrgencyRef = useRef(0)
   const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Stable callback to apply current tint to DOM
+  const applyCurrentTint = useCallback(() => {
+    const urgency = displayedUrgencyRef.current
+    const rgb = enabled ? tintForUrgency(urgency, isRunning, isLowSignal) : TINT_IDLE
+    const isRunaway = enabled && urgency >= 5
+    applyTint(rgb, isRunaway)
+  }, [enabled, isRunning, isLowSignal])
+
+  // Hysteresis logic — writes to ref + applies DOM directly
   useEffect(() => {
-    if (rawUrgency >= displayedUrgency) {
+    const current = displayedUrgencyRef.current
+    if (rawUrgency >= current) {
       // Upgrade or same — apply immediately
       if (holdTimerRef.current) { clearTimeout(holdTimerRef.current); holdTimerRef.current = null }
-      setDisplayedUrgency(rawUrgency)
+      displayedUrgencyRef.current = rawUrgency
+      applyCurrentTint()
     } else {
       // Downgrade — hold for HOLD_MS before applying
       if (!holdTimerRef.current) {
         holdTimerRef.current = setTimeout(() => {
           holdTimerRef.current = null
-          setDisplayedUrgency(rawUrgency)
+          displayedUrgencyRef.current = rawUrgency
+          applyCurrentTint()
         }, HOLD_MS)
       }
     }
     return () => {
       if (holdTimerRef.current) { clearTimeout(holdTimerRef.current); holdTimerRef.current = null }
     }
-  }, [rawUrgency, displayedUrgency])
+  }, [rawUrgency, applyCurrentTint])
 
-  const [r, g, b] = enabled ? tintForUrgency(displayedUrgency, isRunning, isLowSignal) : TINT_IDLE
-  const isRunaway = enabled && displayedUrgency >= 5
-
+  // Re-apply tint when enabled/running/lowSignal changes (these are low-frequency)
   useEffect(() => {
-    const root = document.documentElement
-    root.style.setProperty('--tint-r', String(r))
-    root.style.setProperty('--tint-g', String(g))
-    root.style.setProperty('--tint-b', String(b))
-    // Boost alpha for RUNAWAY — makes red actually visible at low tint alphas
-    if (isRunaway) {
-      root.classList.add('tint-runaway')
-    } else {
-      root.classList.remove('tint-runaway')
-    }
+    applyCurrentTint()
+  }, [applyCurrentTint])
+
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
-      root.style.setProperty('--tint-r', String(TINT_IDLE[0]))
-      root.style.setProperty('--tint-g', String(TINT_IDLE[1]))
-      root.style.setProperty('--tint-b', String(TINT_IDLE[2]))
-      root.classList.remove('tint-runaway')
+      applyTint(TINT_IDLE, false)
     }
-  }, [r, g, b, isRunaway])
+  }, [])
 }

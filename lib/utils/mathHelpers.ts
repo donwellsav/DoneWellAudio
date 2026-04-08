@@ -119,6 +119,86 @@ export function medianInPlace(arr: Float32Array): number {
   return 0.5 * (a + b)
 }
 
+// ── Float64Array Variants ───────────────────────────────────────────────────
+
+/**
+ * In-place quickselect for Float64Array — k-th smallest element.
+ * Same algorithm as Float32Array variant; duplicated to avoid union overhead
+ * on the hot path (~500 calls/sec in compression detection).
+ */
+export function quickselect64(arr: Float64Array, k: number): number {
+  if (arr.length === 0) return NaN
+  let left = 0
+  let right = arr.length - 1
+
+  while (right > left) {
+    const mid = (left + right) >> 1
+    const a = arr[left]
+    const b = arr[mid]
+    const c = arr[right]
+
+    let pivotIndex: number
+    if (a < b) {
+      if (b < c) pivotIndex = mid
+      else pivotIndex = a < c ? right : left
+    } else {
+      if (a < c) pivotIndex = left
+      else pivotIndex = b < c ? right : mid
+    }
+
+    const pivotNewIndex = partition64(arr, left, right, pivotIndex)
+
+    if (k === pivotNewIndex) return arr[k]
+    if (k < pivotNewIndex) right = pivotNewIndex - 1
+    else left = pivotNewIndex + 1
+  }
+
+  return arr[left]
+}
+
+function partition64(arr: Float64Array, left: number, right: number, pivotIndex: number): number {
+  const pivotValue = arr[pivotIndex]
+
+  let tmp = arr[pivotIndex]
+  arr[pivotIndex] = arr[right]
+  arr[right] = tmp
+
+  let storeIndex = left
+
+  for (let i = left; i < right; i++) {
+    if (arr[i] < pivotValue) {
+      tmp = arr[storeIndex]
+      arr[storeIndex] = arr[i]
+      arr[i] = tmp
+      storeIndex++
+    }
+  }
+
+  tmp = arr[right]
+  arr[right] = arr[storeIndex]
+  arr[storeIndex] = tmp
+
+  return storeIndex
+}
+
+/**
+ * Zero-allocation in-place median for Float64Array using quickselect.
+ * Note: Modifies array order.
+ */
+export function medianInPlace64(arr: Float64Array): number {
+  const len = arr.length
+  if (len === 0) return -Infinity
+  const mid = len >> 1
+
+  if (len & 1) {
+    return quickselect64(arr, mid)
+  }
+
+  const a = quickselect64(arr, mid - 1)
+  const b = quickselect64(arr, mid)
+  return 0.5 * (a + b)
+}
+
 /**
  * Build prefix sum array for O(1) range queries
  * Output array has length n+1, with prefix[0] = 0

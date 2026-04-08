@@ -2,7 +2,7 @@
 
 import { useTheme } from 'next-themes'
 import { useCallback, useMemo, useState } from 'react'
-import { getSeverityColor } from '@/lib/dsp/eqAdvisor'
+import { getSeverityColor } from '@/lib/utils/advisoryDisplay'
 import {
   formatFrequency,
   formatFrequencyRange,

@@ -1,4 +1,4 @@
-import { getSeverityColor } from '@/lib/dsp/eqAdvisor'
+import { getSeverityColor } from '@/lib/utils/advisoryDisplay'
 import type { Advisory } from '@/types/advisory'
 
 export const GEQ_BAND_LABELS = [
