@@ -28,6 +28,8 @@ export interface IssueCardProps {
   onSendToMixer?: (advisory: Advisory) => void
   onSendToPA2?: () => Promise<void>
   pa2Connected?: boolean
+  /** When true, animate a brief peek revealing swipe overlays (first card only, one-time). */
+  peekSwipe?: boolean
 }
 
 export const IssueCard = memo(function IssueCard({
@@ -45,6 +47,7 @@ export const IssueCard = memo(function IssueCard({
   onSendToMixer,
   onSendToPA2,
   pa2Connected,
+  peekSwipe,
 }: IssueCardProps) {
   const {
     pitchStr,
@@ -96,6 +99,29 @@ export const IssueCard = memo(function IssueCard({
       onTouchMove={handlers.onTouchMove}
       onTouchEnd={handlers.onTouchEnd}
     >
+      {/* Swipe peek: static dual overlay shown during one-time peek animation */}
+      {swipeLabeling && peekSwipe && !swiping ? (
+        <div className="absolute inset-0 flex items-center z-0 pointer-events-none" aria-hidden>
+          <div
+            className="absolute inset-0 flex items-center justify-end pr-4 rounded"
+            style={{ backgroundColor: 'rgba(120, 120, 130, 0.12)' }}
+          >
+            <span className="text-xs font-mono font-bold text-muted-foreground uppercase tracking-wider opacity-60">
+              DISMISS
+            </span>
+          </div>
+          <div
+            className="absolute inset-0 flex items-center justify-start pl-4 rounded"
+            style={{ backgroundColor: 'rgba(245, 158, 11, 0.12)' }}
+          >
+            <span className="text-xs font-mono font-bold text-[var(--console-amber)] uppercase tracking-wider opacity-60">
+              CONFIRM
+            </span>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Active swipe: dynamic overlay follows finger */}
       {swipeLabeling && swiping ? (
         <div className="absolute inset-0 flex items-center z-0" aria-hidden>
           {swipeDirection === 'left' ? (
@@ -146,7 +172,7 @@ export const IssueCard = memo(function IssueCard({
       />
 
       <div
-        className="flex flex-col relative z-10 @container pl-3 pr-1 pt-0.5"
+        className={`flex flex-col relative z-10 @container pl-3 pr-1 pt-0.5${swipeLabeling && peekSwipe && !swiping ? ' animate-swipe-peek' : ''}`}
         style={
           swipeLabeling && swiping
             ? {

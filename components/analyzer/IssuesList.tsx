@@ -1,8 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, memo } from 'react'
+import { useEffect, useMemo, memo } from 'react'
 import { useTheme } from 'next-themes'
-import { ArrowLeft, ArrowRight, Timer } from 'lucide-react'
 import { getSeverityText, getSeverityColor } from '@/lib/utils/advisoryDisplay'
 import type { Advisory } from '@/types/advisory'
 import { useCompanion } from '@/hooks/useCompanion'
@@ -82,6 +81,13 @@ export const IssuesList = memo(function IssuesList({
   const liveAnnouncement = useIssueAnnouncement(sortedEntries)
   const { showSwipeHint, dismissSwipeHint } = useSwipeHintState(!!swipeLabeling)
 
+  // Auto-dismiss swipe peek after animation completes (0.6s delay + 1.2s animation ≈ 2s)
+  useEffect(() => {
+    if (!showSwipeHint || !swipeLabeling || sortedEntries.length === 0) return
+    const timerId = setTimeout(dismissSwipeHint, 2000)
+    return () => clearTimeout(timerId)
+  }, [showSwipeHint, swipeLabeling, sortedEntries.length, dismissSwipeHint])
+
   const hasResolved = useMemo(
     () => sortedEntries.some((entry) => entry.advisory.resolved),
     [sortedEntries],
@@ -123,11 +129,7 @@ export const IssuesList = memo(function IssuesList({
             </div>
           ) : null}
 
-          {showSwipeHint && swipeLabeling && sortedEntries.length > 0 ? (
-            <SwipeHint onDismiss={dismissSwipeHint} />
-          ) : null}
-
-          {sortedEntries.map(({ advisory, occurrenceCount }) => (
+          {sortedEntries.map(({ advisory, occurrenceCount }, index) => (
             <IssueCard
               key={advisory.id}
               advisory={advisory}
@@ -148,6 +150,7 @@ export const IssuesList = memo(function IssuesList({
                   : undefined
               }
               pa2Connected={pa2.settings.enabled && pa2.status === 'connected'}
+              peekSwipe={index === 0 && showSwipeHint && !!swipeLabeling}
             />
           ))}
 
@@ -193,42 +196,3 @@ const SeverityLegend = memo(function SeverityLegend() {
   )
 })
 
-const SWIPE_HINT_AUTO_DISMISS_MS = 8000
-
-const SwipeHint = memo(function SwipeHint({ onDismiss }: { onDismiss: () => void }) {
-  useEffect(() => {
-    const timerId = setTimeout(onDismiss, SWIPE_HINT_AUTO_DISMISS_MS)
-    return () => clearTimeout(timerId)
-  }, [onDismiss])
-
-  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Enter' || event.key === ' ' || event.key === 'Escape') {
-      event.preventDefault()
-      onDismiss()
-    }
-  }, [onDismiss])
-
-  return (
-    <div
-      className="flex items-center justify-center gap-4 px-3 py-2 rounded-md bg-primary/10 border border-primary/20 text-xs font-mono text-muted-foreground animate-issue-enter cursor-pointer"
-      role="button"
-      tabIndex={0}
-      onClick={onDismiss}
-      onKeyDown={handleKeyDown}
-      aria-label="Swipe gesture guide. Press Enter to close."
-    >
-      <span className="flex items-center gap-1">
-        <ArrowLeft className="w-3 h-3 text-muted-foreground" />
-        Dismiss
-      </span>
-      <span className="flex items-center gap-1">
-        <ArrowRight className="w-3 h-3 text-emerald-400" />
-        Confirm
-      </span>
-      <span className="flex items-center gap-1">
-        <Timer className="w-3 h-3 text-red-400" />
-        False+
-      </span>
-    </div>
-  )
-})

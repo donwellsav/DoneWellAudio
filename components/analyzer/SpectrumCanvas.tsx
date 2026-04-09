@@ -285,7 +285,7 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
     drawLevelGlow(ctx, plotWidth, plotHeight, spectrum, canvasThemeRef.current === DARK_CANVAS_THEME)
     drawFreqZones(ctx, plotWidth, plotHeight, range, showFreqZones, canvasThemeRef.current)
     drawRoomModeLines(ctx, plotWidth, plotHeight, range, roomModes ?? null, showRoomModeLines, canvasThemeRef.current)
-    drawIndicatorLines(ctx, plotWidth, plotHeight, range, spectrum, showThresholdLine, feedbackThresholdDb, fontSize, showDragHintRef.current)
+    drawIndicatorLines(ctx, plotWidth, plotHeight, range, spectrum, showThresholdLine, feedbackThresholdDb, fontSize, showDragHintRef.current, canvasThemeRef.current)
 
     // Track threshold line Y for drag detection (in canvas coords relative to plot area)
     if (showThresholdLine && spectrum?.effectiveThresholdDb != null) {

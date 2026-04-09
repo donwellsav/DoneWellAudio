@@ -11,7 +11,22 @@
   --breakpoint-lg: 1024px;
 }
 
-/* Kill The Ring - Pro Audio Instrument Theme */
+/* ── DWA Font Size Scale ─────────────────────────────────────────────────────
+ * Canonical 4-stop scale for consistent typography across the analyzer UI.
+ * Migration mapping (old → new):
+ *   text-[7px], text-[8px], text-[9px]  → --text-dwa-xs  (11px)  captions, badges, scores
+ *   text-[10px], text-[11px], text-xs   → --text-dwa-sm  (13px)  secondary text, labels
+ *   text-[13px], text-sm                → --text-dwa-base (15px) primary text, readouts
+ *   text-base, text-lg                  → --text-dwa-lg  (18px)  hero, emphasis
+ * Full migration deferred to a separate PR (171+ instances across 34 files).
+ */
+:root {
+  --text-dwa-xs: 11px;
+  --text-dwa-sm: 13px;
+  --text-dwa-base: 15px;
+  --text-dwa-lg: 18px;
+}
+
 /* Kill The Ring - Pro Audio Instrument Theme */
 /* :root = dark (default) — Tailwind v4 @theme inline bakes these at build time */
 :root {
@@ -540,6 +555,18 @@ html {
   }
   .animate-issue-enter-slow {
     animation: issue-enter-slow 5s ease-out forwards;
+  }
+
+  /* ── Swipe peek — reveals DISMISS/CONFIRM overlays on first card ──────── */
+  @keyframes swipe-peek {
+    0%   { transform: translateX(0); }
+    25%  { transform: translateX(-20px); }
+    50%  { transform: translateX(20px); }
+    75%  { transform: translateX(0); }
+    100% { transform: translateX(0); }
+  }
+  .animate-swipe-peek {
+    animation: swipe-peek 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.6s both;
   }
 
   /* ── Severity accent strip flash on card enter ─────────────────────────── */

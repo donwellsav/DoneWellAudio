@@ -29,6 +29,7 @@ export function drawIndicatorLines(
   feedbackThresholdDb: number | undefined,
   fontSize: number,
   showDragHint: boolean = false,
+  theme: CanvasTheme = DARK_CANVAS_THEME,
 ) {
   // Noise floor
   if (spectrum?.noiseFloorDb !== null && spectrum?.noiseFloorDb !== undefined) {
@@ -92,7 +93,8 @@ export function drawIndicatorLines(
     handlePath.roundRect(handleX, handleY, handleW, handleH, 4)
     ctx.fill(handlePath)
     // Inner notch lines (3 horizontal lines to indicate drag affordance)
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)'
+    // Light theme needs stronger opacity to contrast against lighter handle fill
+    ctx.strokeStyle = theme === DARK_CANVAS_THEME ? 'rgba(0, 0, 0, 0.4)' : 'rgba(0, 0, 0, 0.6)'
     ctx.lineWidth = 1
     ctx.globalAlpha = 1
     for (let i = -1; i <= 1; i++) {
