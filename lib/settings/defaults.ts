@@ -78,7 +78,7 @@ export const DEFAULT_DIAGNOSTICS: DiagnosticsProfile = {
   maxTracks: 64,
   trackTimeoutMs: 'mode-default' as const,
   harmonicToleranceCents: 200,
-  peakMergeCents: 100,
+  peakMergeCents: 200,
 }
 
 /** Default mic calibration profile */
