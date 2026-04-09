@@ -1,7 +1,7 @@
 # CLAUDE.md — DoneWell Audio Project Intelligence
 
-> **Last updated April 2026. 472 TypeScript/TSX files, 1224 tests (1220 pass, 4 skip), 65 suites. Version 0.79.0.**
-> Architecture audit: 14 of 20 improvements implemented. 4 module splits (acousticUtils→7, spectrumDrawing→7, classifier helpers, feedbackDetector utils). EXP_LUT dedup. Dead code removal. CI bundle tracking. Worker pipeline integration tests. 71 docs archived. Signal tint toggle. Severity-graded fade. Issue card redesign. GEQ/RTA hover tooltips. Canvas color token system.
+> **Last updated April 2026. 623 TypeScript/TSX files, 1373 tests (1369 pass, 4 skip), 100 suites. Version 0.88.0.**
+> Architecture audit: 14 of 20 improvements implemented. 4 module splits (acousticUtils→7, spectrumDrawing→7, classifier helpers, feedbackDetector utils). EXP_LUT dedup. Dead code removal. CI bundle tracking. Worker pipeline integration tests. 71 docs archived. Signal tint toggle. Severity-graded fade. Issue card redesign. GEQ/RTA hover tooltips. Canvas color token system. Hotspot bucket index (O(1) lookup). useMemo clear state. FeedbackHistory IndexedDB migration. Swipe peek animation. Light theme canvas fixes. Font size scale tokens (`--text-dwa-xs/sm/base/lg`). Skip link a11y fix.
 
 ## CRITICAL RULES
 

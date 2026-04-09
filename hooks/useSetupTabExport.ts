@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { getFeedbackHistory } from '@/lib/dsp/feedbackHistory'
+import { getFeedbackHistory, whenFeedbackHistoryReady } from '@/lib/dsp/feedbackHistory'
 import { downloadFile } from '@/lib/export/downloadFile'
 import { generateTxtReport } from '@/lib/export/exportTxt'
 import { typedStorage } from '@/lib/storage/dwaStorage'
@@ -17,9 +17,9 @@ export interface UseSetupTabExportReturn {
   metadata: ExportMetadata
   isExporting: boolean
   updateMetadata: (patch: Partial<ExportMetadata>) => void
-  handleExportTxt: () => void
-  handleExportCSV: () => void
-  handleExportJSON: () => void
+  handleExportTxt: () => Promise<void>
+  handleExportCSV: () => Promise<void>
+  handleExportJSON: () => Promise<void>
   handleExportPdf: () => Promise<void>
 }
 
@@ -35,18 +35,21 @@ export function useSetupTabExport(): UseSetupTabExportReturn {
     })
   }, [])
 
-  const handleExportTxt = useCallback(() => {
+  const handleExportTxt = useCallback(async () => {
+    await whenFeedbackHistoryReady()
     const history = getFeedbackHistory()
     const txt = generateTxtReport(history.getSessionSummary(), history.getHotspots(), metadata)
     downloadFile(new Blob([txt], { type: 'text/plain' }), `feedback-report-${dateSlug()}.txt`)
   }, [metadata])
 
-  const handleExportCSV = useCallback(() => {
+  const handleExportCSV = useCallback(async () => {
+    await whenFeedbackHistoryReady()
     const csv = getFeedbackHistory().exportToCSV()
     downloadFile(new Blob([csv], { type: 'text/csv' }), `feedback-history-${dateSlug()}.csv`)
   }, [])
 
-  const handleExportJSON = useCallback(() => {
+  const handleExportJSON = useCallback(async () => {
+    await whenFeedbackHistoryReady()
     const json = getFeedbackHistory().exportToJSON()
     downloadFile(new Blob([json], { type: 'application/json' }), `feedback-history-${dateSlug()}.json`)
   }, [])
@@ -54,6 +57,7 @@ export function useSetupTabExport(): UseSetupTabExportReturn {
   const handleExportPdf = useCallback(async () => {
     setIsExporting(true)
     try {
+      await whenFeedbackHistoryReady()
       const { generatePdfReport } = await import('@/lib/export/exportPdf')
       const history = getFeedbackHistory()
       const blob = await generatePdfReport(history.getSessionSummary(), history.getHotspots(), metadata)

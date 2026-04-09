@@ -635,6 +635,17 @@ export function getFeedbackHistory(): FeedbackHistory {
 }
 
 /**
+ * Await the singleton's initial IndexedDB hydration.
+ * Callers that need persisted data before interacting (e.g. export, history panel)
+ * should `await whenFeedbackHistoryReady()` first.
+ *
+ * Safe to call multiple times — resolves immediately after the first load completes.
+ */
+export function whenFeedbackHistoryReady(): Promise<void> {
+  return getFeedbackHistory().whenReady()
+}
+
+/**
  * Record a feedback event from an Advisory
  */
 export function recordFeedbackFromAdvisory(advisory: {
