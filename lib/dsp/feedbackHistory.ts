@@ -6,12 +6,19 @@
  * - Records all detected feedback events
  * - Groups by frequency (within tolerance)
  * - Tracks repeat offenders
- * - Persists to localStorage for session continuity
+ * - Persists to IndexedDB for session continuity (localStorage fallback on pagehide)
  * - Exports to CSV/JSON for post-show analysis
  */
 
 import { hzToCents } from '@/lib/utils/pitchUtils'
 import { HOTSPOT_COOLDOWN_MS, HOTSPOT_COOLDOWN_BY_MODE, POST_CUT_COOLDOWN_MS } from '@/lib/dsp/constants'
+import {
+  loadStoredFeedbackHistory,
+  saveStoredFeedbackHistory,
+  clearStoredFeedbackHistory,
+  savePendingFeedbackHistory,
+  type StoredFeedbackHistory,
+} from '@/lib/dsp/feedbackHistoryStorage'
 
 // ============================================================================
 // TYPES
@@ -72,7 +79,6 @@ export interface SessionSummary {
 // CONSTANTS
 // ============================================================================
 
-const STORAGE_KEY = 'doneWellAudio_feedbackHistory'
 const FREQUENCY_GROUPING_CENTS = 100 // Group frequencies within 100 cents (match track association tolerance)
 const REPEAT_OFFENDER_THRESHOLD = 3 // 3+ occurrences = repeat offender
 const MAX_EVENTS_PER_SESSION = 500 // Limit memory usage
@@ -92,11 +98,20 @@ export class FeedbackHistory {
   private _mode: string = 'speech'
   /** Per-hotspot post-cut cooldown override expiry timestamps (keyed by hotspot map key) */
   private _postCutCooldowns: Map<string, number> = new Map()
+  private readonly _readyPromise: Promise<void>
 
   constructor() {
     this.sessionId = this.generateSessionId()
     this.startTime = Date.now()
-    this.loadFromStorage()
+    this._readyPromise = this.loadFromStorage()
+  }
+
+  /**
+   * Await initial IndexedDB hydration. Resolves immediately after first load.
+   * Callers that need data before interacting (e.g. export) should await this.
+   */
+  whenReady(): Promise<void> {
+    return this._readyPromise
   }
 
   /**
@@ -313,7 +328,7 @@ export class FeedbackHistory {
     this._postCutCooldowns.clear()
     this.sessionId = this.generateSessionId()
     this.startTime = Date.now()
-    this.saveToStorage()
+    clearStoredFeedbackHistory().catch(() => { /* handled internally */ })
   }
 
   /**
@@ -511,101 +526,97 @@ export class FeedbackHistory {
     if (this._saveTimer) return
     this._saveTimer = setTimeout(() => {
       this._saveTimer = null
-      this._flushToStorage()
+      this._flushToStorageAsync().catch(() => { /* handled internally */ })
     }, 1000)
 
-    // Register pagehide flush once — ensures pending data survives tab close/reload
+    // Register pagehide flush once — ensures pending data survives tab close/reload.
+    // Uses synchronous localStorage write because async IDB transactions may be
+    // killed by the browser on unload (especially Safari).
     if (!this._pagehideHandler) {
       this._pagehideHandler = () => {
         if (this._saveTimer) {
           clearTimeout(this._saveTimer)
           this._saveTimer = null
         }
-        this._flushToStorage()
+        this._flushToStorageSync()
       }
       window.addEventListener('pagehide', this._pagehideHandler)
     }
   }
 
-  private _flushToStorage(): void {
+  /** Serialize current state for storage. */
+  private _getStorageData(): StoredFeedbackHistory {
+    return {
+      sessionId: this.sessionId,
+      startTime: this.startTime,
+      events: this.events,
+      hotspots: Array.from(this.hotspots.entries()),
+    }
+  }
+
+  /** Async write to IndexedDB — used during normal operation. */
+  private async _flushToStorageAsync(): Promise<void> {
     try {
-      const data = {
-        sessionId: this.sessionId,
-        startTime: this.startTime,
-        events: this.events,
-        hotspots: Array.from(this.hotspots.entries()),
-      }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+      await saveStoredFeedbackHistory(this._getStorageData())
     } catch (e) {
-      // QuotaExceeded — prune oldest 50% of events and recompute hotspots
-      if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-        const half = Math.floor(this.events.length / 2)
-        if (half > 0) {
-          this.events = this.events.slice(half)
-          // Recompute hotspots from retained events so they stay consistent
-          this.hotspots.clear()
-          this.hotspotBucketIndex.clear()
-          for (const event of this.events) {
-            this.updateHotspot(event)
-          }
-          try {
-            const data = {
-              sessionId: this.sessionId,
-              startTime: this.startTime,
-              events: this.events,
-              hotspots: Array.from(this.hotspots.entries()),
-            }
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-            return
-          } catch (retryErr) {
-            console.warn('[FeedbackHistory] Retry after prune also failed:', retryErr)
-          }
-        }
-      }
-      console.warn('[FeedbackHistory] Failed to save to localStorage:', e)
+      console.warn('[FeedbackHistory] Failed to save to IndexedDB:', e)
     }
   }
 
   /**
-   * Force an immediate synchronous write to localStorage.
-   * Cancels any pending debounced save. Use in endSession / beforeunload
-   * where we cannot rely on the 1s debounce completing.
+   * Synchronous write to localStorage — used ONLY in pagehide handler.
+   * Next load will merge this pending data into IndexedDB.
    */
-  flush(): void {
+  private _flushToStorageSync(): void {
+    savePendingFeedbackHistory(this._getStorageData())
+  }
+
+  /**
+   * Force an immediate async write to IndexedDB.
+   * Cancels any pending debounced save. Use in endSession where we
+   * need to ensure data is persisted before archiving the session.
+   */
+  async flush(): Promise<void> {
     if (this._saveTimer) {
       clearTimeout(this._saveTimer)
       this._saveTimer = null
     }
-    this._flushToStorage()
+    await this._flushToStorageAsync()
   }
 
-  private loadFromStorage(): void {
+  /**
+   * Force an immediate synchronous write to localStorage.
+   * Use only in contexts where async is not possible (pagehide, beforeunload).
+   */
+  flushSync(): void {
+    if (this._saveTimer) {
+      clearTimeout(this._saveTimer)
+      this._saveTimer = null
+    }
+    this._flushToStorageSync()
+  }
+
+  /**
+   * Load persisted session data from IndexedDB (primary) with localStorage
+   * pending fallback merge. Handles one-time migration from legacy localStorage.
+   */
+  private async loadFromStorage(): Promise<void> {
     if (typeof window === 'undefined') return
 
     try {
-      const stored = localStorage.getItem(STORAGE_KEY)
-      if (stored) {
-        const data = JSON.parse(stored)
-        // Validate structure before trusting parsed data
-        if (typeof data !== 'object' || data === null) return
-        if (typeof data.sessionId === 'string') this.sessionId = data.sessionId
-        if (typeof data.startTime === 'number') this.startTime = data.startTime
-        // Validate events array — check first element has expected shape
-        if (Array.isArray(data.events)) {
-          if (data.events.length === 0 || (typeof data.events[0].frequencyHz === 'number' && typeof data.events[0].timestamp === 'number')) {
-            this.events = data.events
-          }
-        }
-        // Reconstruct hotspots Map — validate it's array of [key, value] pairs
-        if (Array.isArray(data.hotspots) && (data.hotspots.length === 0 || (Array.isArray(data.hotspots[0]) && data.hotspots[0].length === 2))) {
-          this.hotspots = new Map(data.hotspots)
-          this.rebuildHotspotIndex()
-        }
+      const data = await loadStoredFeedbackHistory()
+      if (!data) return
+
+      if (typeof data.sessionId === 'string') this.sessionId = data.sessionId
+      if (typeof data.startTime === 'number') this.startTime = data.startTime
+      if (Array.isArray(data.events)) this.events = data.events
+      if (Array.isArray(data.hotspots)) {
+        this.hotspots = new Map(data.hotspots)
+        this.rebuildHotspotIndex()
       }
     } catch (e) {
-      // Invalid/corrupt data — start fresh, remove bad entry
-      console.warn('[FeedbackHistory] Corrupt localStorage data, starting fresh:', e)
-      try { localStorage.removeItem(STORAGE_KEY) } catch { /* ignore */ }
+      // Invalid/corrupt data — start fresh
+      console.warn('[FeedbackHistory] Failed to load from storage, starting fresh:', e)
     }
   }
 }
