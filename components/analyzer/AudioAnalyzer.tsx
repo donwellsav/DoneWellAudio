@@ -31,7 +31,7 @@ export const AudioAnalyzer = memo(function AudioAnalyzerComponent() {
   }, [])
 
   return (
-    <div ref={rootCallbackRef} className="flex flex-col h-screen bg-background">
+    <div id="main" ref={rootCallbackRef} className="flex flex-col h-screen bg-background">
       <AudioAnalyzerProvider dataCollection={dataCollection} frozenRef={frozenRef}>
         <AudioAnalyzerInner
           dataCollection={dataCollection}
