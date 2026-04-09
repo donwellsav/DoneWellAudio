@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Advisory } from '@/types/advisory'
 
 export interface AdvisoryClearState {
@@ -39,14 +39,21 @@ function makeAdvisoryIdSet(advisories: readonly Advisory[]): Set<string> {
   return new Set(advisories.map((advisory) => advisory.id))
 }
 
+/**
+ * Prune IDs not in liveIds. Returns the SAME Set reference if nothing
+ * was removed (stable identity for downstream memo deps).
+ */
 function pruneIds(ids: ReadonlySet<string>, liveIds: ReadonlySet<string>): Set<string> {
+  let anyRemoved = false
   const next = new Set<string>()
   ids.forEach((id) => {
     if (liveIds.has(id)) {
       next.add(id)
+    } else {
+      anyRemoved = true
     }
   })
-  return next
+  return anyRemoved ? next : (ids as Set<string>)
 }
 
 export function useAdvisoryClearState(
@@ -54,27 +61,61 @@ export function useAdvisoryClearState(
 ): AdvisoryClearStateHandle {
   const [clearState, setClearState] = useState<AdvisoryClearState>(createEmptyClearState)
 
+  // Derive pruned clear state via useMemo instead of useEffect+setState.
+  // This eliminates a render→effect→setState→re-render cycle: the pruned
+  // sets are computed synchronously during render with no wasted frame.
+  // pruneIds returns the same Set reference when nothing was removed,
+  // so downstream memos only recompute when contents actually change.
+  const liveIds = useMemo(() => makeAdvisoryIdSet(advisories), [advisories])
+  const effectiveClearState = useMemo<AdvisoryClearState>(() => ({
+    dismissed: pruneIds(clearState.dismissed, liveIds),
+    geqCleared: pruneIds(clearState.geqCleared, liveIds),
+    rtaCleared: pruneIds(clearState.rtaCleared, liveIds),
+  }), [clearState.dismissed, clearState.geqCleared, clearState.rtaCleared, liveIds])
+
+  // Periodically flush dead IDs from the backing state so they don't
+  // accumulate in long-running sessions. Runs in useEffect (commit phase)
+  // to avoid render-phase state updates that conflict with React 19
+  // concurrent rendering. Fires at most once per 100 liveIds changes.
+  const pruneCounterRef = useRef(0)
+  useEffect(() => {
+    if (++pruneCounterRef.current < 100) return
+    pruneCounterRef.current = 0
+    setClearState((prev) => {
+      if (prev.dismissed.size === 0 && prev.geqCleared.size === 0 && prev.rtaCleared.size === 0) {
+        return prev
+      }
+      const dismissed = pruneIds(prev.dismissed, liveIds)
+      const geqCleared = pruneIds(prev.geqCleared, liveIds)
+      const rtaCleared = pruneIds(prev.rtaCleared, liveIds)
+      if (dismissed === prev.dismissed && geqCleared === prev.geqCleared && rtaCleared === prev.rtaCleared) {
+        return prev
+      }
+      return { dismissed, geqCleared, rtaCleared }
+    })
+  }, [liveIds])
+
   const activeAdvisoryCount = useMemo(
     () =>
       advisories.filter(
         (advisory) =>
-          !advisory.resolved && !clearState.dismissed.has(advisory.id),
+          !advisory.resolved && !effectiveClearState.dismissed.has(advisory.id),
       ).length,
-    [advisories, clearState.dismissed],
+    [advisories, effectiveClearState.dismissed],
   )
 
   const hasActiveGEQBars = useMemo(
     () =>
       advisories.some(
         (advisory) =>
-          !clearState.geqCleared.has(advisory.id) && Boolean(advisory.advisory?.geq),
+          !effectiveClearState.geqCleared.has(advisory.id) && Boolean(advisory.advisory?.geq),
       ),
-    [advisories, clearState.geqCleared],
+    [advisories, effectiveClearState.geqCleared],
   )
 
   const hasActiveRTAMarkers = useMemo(
-    () => advisories.some((advisory) => !clearState.rtaCleared.has(advisory.id)),
-    [advisories, clearState.rtaCleared],
+    () => advisories.some((advisory) => !effectiveClearState.rtaCleared.has(advisory.id)),
+    [advisories, effectiveClearState.rtaCleared],
   )
 
   const onDismiss = useCallback((id: string) => {
@@ -117,35 +158,8 @@ export function useAdvisoryClearState(
     }))
   }, [advisories])
 
-  useEffect(() => {
-    setClearState((prev) => {
-      if (
-        prev.dismissed.size === 0 &&
-        prev.geqCleared.size === 0 &&
-        prev.rtaCleared.size === 0
-      ) {
-        return prev
-      }
-
-      const liveIds = makeAdvisoryIdSet(advisories)
-      const dismissed = pruneIds(prev.dismissed, liveIds)
-      const geqCleared = pruneIds(prev.geqCleared, liveIds)
-      const rtaCleared = pruneIds(prev.rtaCleared, liveIds)
-
-      if (
-        dismissed.size === prev.dismissed.size &&
-        geqCleared.size === prev.geqCleared.size &&
-        rtaCleared.size === prev.rtaCleared.size
-      ) {
-        return prev
-      }
-
-      return { dismissed, geqCleared, rtaCleared }
-    })
-  }, [advisories])
-
   return {
-    clearState,
+    clearState: effectiveClearState,
     activeAdvisoryCount,
     hasActiveGEQBars,
     hasActiveRTAMarkers,
