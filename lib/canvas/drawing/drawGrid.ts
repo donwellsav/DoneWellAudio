@@ -45,13 +45,15 @@ export function drawGrid(
   ctx.fillStyle = vg
   ctx.fillRect(0, 0, plotWidth, plotHeight)
 
-  // Instrument backlight — diffuse blue-white glow centered where spectrum data lives
+  // Instrument backlight — diffuse glow centered where spectrum data lives.
+  // Dark: cool blue-white. Light: warm amber tint matching amber-sidecar palette.
+  const isDark = theme === DARK_CANVAS_THEME
   const backlight = ctx.createRadialGradient(
     plotWidth * 0.5, plotHeight * 0.3, 0,
     plotWidth * 0.5, plotHeight * 0.5, plotWidth * 0.52,
   )
-  backlight.addColorStop(0, 'rgba(20, 45, 90, 0.28)')
-  backlight.addColorStop(1, 'rgba(0, 0, 0, 0)')
+  backlight.addColorStop(0, isDark ? 'rgba(20, 45, 90, 0.28)' : 'rgba(180, 140, 60, 0.18)')
+  backlight.addColorStop(1, isDark ? 'rgba(0, 0, 0, 0)' : 'rgba(0, 0, 0, 0)')
   ctx.fillStyle = backlight
   ctx.fillRect(0, 0, plotWidth, plotHeight)
 
