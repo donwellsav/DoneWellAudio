@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useEffect, useState, useCallback } from 'react'
+import { memo, useEffect, useRef, useState, useCallback } from 'react'
 import { X } from 'lucide-react'
 
 const SHORTCUTS = [
@@ -14,26 +14,81 @@ const SHORTCUTS = [
 /**
  * Keyboard shortcuts modal — opens on `?` keypress, closes on Esc or backdrop click.
  * Renders as a centered overlay with all available keyboard shortcuts.
+ *
+ * Uses ref-based open check to avoid stale closures in the keydown listener.
+ * Manages focus: autofocus on close button when opened, restore focus on close.
  */
 export const KeyboardShortcutsModal = memo(function KeyboardShortcutsModal() {
   const [open, setOpen] = useState(false)
+  const openRef = useRef(open)
+  openRef.current = open
 
-  const handleClose = useCallback(() => setOpen(false), [])
+  /** Element that had focus before modal opened — restored on close */
+  const previousFocusRef = useRef<HTMLElement | null>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
 
+  const handleClose = useCallback(() => {
+    setOpen(false)
+    // Restore focus to the element that was focused before the modal opened
+    previousFocusRef.current?.focus()
+    previousFocusRef.current = null
+  }, [])
+
+  // Single stable keydown listener — no dependency on `open` state
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+
       if (e.key === '?' || (e.shiftKey && e.key === '/')) {
         e.preventDefault()
+        if (!openRef.current) {
+          // Save current focus before opening
+          previousFocusRef.current = document.activeElement as HTMLElement | null
+        }
         setOpen(prev => !prev)
+        return
       }
-      if (e.key === 'Escape' && open) {
+      if (e.key === 'Escape' && openRef.current) {
         e.preventDefault()
         setOpen(false)
+        previousFocusRef.current?.focus()
+        previousFocusRef.current = null
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  // Autofocus close button when modal opens
+  useEffect(() => {
+    if (open) {
+      // Small delay to ensure DOM is rendered
+      requestAnimationFrame(() => closeButtonRef.current?.focus())
+    }
+  }, [open])
+
+  // Focus trap: keep Tab cycling within the modal
+  useEffect(() => {
+    if (!open) return
+    function handleTab(e: KeyboardEvent) {
+      if (e.key !== 'Tab' || !dialogRef.current) return
+      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      )
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+    window.addEventListener('keydown', handleTab)
+    return () => window.removeEventListener('keydown', handleTab)
   }, [open])
 
   if (!open) return null
@@ -47,6 +102,7 @@ export const KeyboardShortcutsModal = memo(function KeyboardShortcutsModal() {
       aria-label="Keyboard shortcuts"
     >
       <div
+        ref={dialogRef}
         className="relative glass-card rounded-lg shadow-2xl max-w-xs w-full mx-4 p-5 animate-issue-enter"
         onClick={e => e.stopPropagation()}
       >
@@ -55,8 +111,9 @@ export const KeyboardShortcutsModal = memo(function KeyboardShortcutsModal() {
             Keyboard Shortcuts
           </h2>
           <button
+            ref={closeButtonRef}
             onClick={handleClose}
-            className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none rounded"
             aria-label="Close shortcuts"
           >
             <X className="w-4 h-4" />

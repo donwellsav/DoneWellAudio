@@ -84,6 +84,9 @@ export function useDataCollection(): DataCollectionHandle {
   // Lazy uploader — only instantiated when collecting
   const uploaderRef = useRef<import('@/lib/data/uploader').SnapshotUploader | null>(null)
 
+  // Queue for batches that arrive before the uploader finishes dynamic import
+  const pendingBatchesRef = useRef<SnapshotBatch[]>([])
+
   // Session ID — stable per page load
   const sessionIdRef = useRef<string>(crypto.randomUUID())
 
@@ -104,6 +107,15 @@ export function useDataCollection(): DataCollectionHandle {
         const { SnapshotUploader } = await import('@/lib/data/uploader')
         uploaderRef.current = new SnapshotUploader()
         console.debug('[DataCollection] Uploader created')
+        // Flush any batches that arrived during dynamic import
+        if (pendingBatchesRef.current.length > 0) {
+          const queued = pendingBatchesRef.current
+          pendingBatchesRef.current = []
+          for (const batch of queued) {
+            uploaderRef.current.enqueue(batch)
+          }
+          console.debug(`[DataCollection] Flushed ${queued.length} queued batch(es)`)
+        }
         // Retry any batches from previous sessions
         uploaderRef.current.retryQueued().catch(() => {})
       } catch (err) {
@@ -181,7 +193,8 @@ export function useDataCollection(): DataCollectionHandle {
 
   const handleSnapshotBatch = useCallback((batch: SnapshotBatch) => {
     if (!uploaderRef.current) {
-      console.warn('[DataCollection] handleSnapshotBatch called but uploader not ready — batch dropped')
+      // Queue instead of dropping — flushed once uploader initializes
+      pendingBatchesRef.current.push(batch)
       return
     }
     uploaderRef.current.enqueue(batch)

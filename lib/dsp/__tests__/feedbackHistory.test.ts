@@ -3,6 +3,16 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+
+// Mock the IndexedDB storage adapter so FeedbackHistory hydrates instantly
+vi.mock('@/lib/dsp/feedbackHistoryStorage', () => ({
+  loadStoredFeedbackHistory: vi.fn().mockResolvedValue(null),
+  saveStoredFeedbackHistory: vi.fn().mockResolvedValue(undefined),
+  clearStoredFeedbackHistory: vi.fn().mockResolvedValue(undefined),
+  savePendingFeedbackHistory: vi.fn(),
+  clearPendingFeedbackHistory: vi.fn(),
+}))
+
 import { FeedbackHistory } from '@/lib/dsp/feedbackHistory'
 import type { FeedbackEvent } from '@/lib/dsp/feedbackHistory'
 import {
@@ -46,9 +56,11 @@ function makeEvent(
 describe('FeedbackHistory — mode and cooldown', () => {
   let history: FeedbackHistory
 
-  beforeEach(() => {
+  beforeEach(async () => {
     localStorageMock.clear()
     history = new FeedbackHistory()
+    // Flush the async hydration — mock resolves as microtask
+    await history.whenReady()
   })
 
   it('defaults to speech mode', () => {

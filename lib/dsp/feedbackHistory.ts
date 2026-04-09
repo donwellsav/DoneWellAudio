@@ -99,6 +99,10 @@ export class FeedbackHistory {
   /** Per-hotspot post-cut cooldown override expiry timestamps (keyed by hotspot map key) */
   private _postCutCooldowns: Map<string, number> = new Map()
   private readonly _readyPromise: Promise<void>
+  /** True once loadFromStorage() resolves — guards against event loss during hydration */
+  private _hydrated = false
+  /** Events queued during async hydration — flushed once loadFromStorage completes */
+  private _pendingEvents: Array<Omit<FeedbackEvent, 'id'>> = []
 
   constructor() {
     this.sessionId = this.generateSessionId()
@@ -157,12 +161,22 @@ export class FeedbackHistory {
   }
 
   /**
-   * Record a new feedback event
+   * Record a new feedback event.
+   * If IndexedDB hydration hasn't completed yet, the event is queued and
+   * replayed once loadFromStorage() resolves — preventing data loss when
+   * analysis starts before persisted state is loaded.
    */
   recordEvent(event: Omit<FeedbackEvent, 'id'>): FeedbackEvent {
+    // Queue events until hydration completes to avoid overwriting loaded state
+    if (!this._hydrated) {
+      this._pendingEvents.push(event)
+      // Return a stub event — the real one is created during flush
+      return { id: `evt_pending_${this._pendingEvents.length}`, ...event }
+    }
+
     const id = `evt_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
     const fullEvent: FeedbackEvent = { id, ...event }
-    
+
     // Add to events array
     this.events.push(fullEvent)
     
@@ -601,7 +615,11 @@ export class FeedbackHistory {
    * pending fallback merge. Handles one-time migration from legacy localStorage.
    */
   private async loadFromStorage(): Promise<void> {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined') {
+      // SSR / test environment — no storage, mark hydrated immediately
+      this._hydrated = true
+      return
+    }
 
     try {
       const data = await loadStoredFeedbackHistory()
@@ -617,6 +635,31 @@ export class FeedbackHistory {
     } catch (e) {
       // Invalid/corrupt data — start fresh
       console.warn('[FeedbackHistory] Failed to load from storage, starting fresh:', e)
+    } finally {
+      // Mark hydrated and replay any events that arrived during async load
+      this._hydrated = true
+      if (this._pendingEvents.length > 0) {
+        const queued = this._pendingEvents
+        this._pendingEvents = []
+        for (const event of queued) {
+          this.recordEvent(event)
+        }
+      }
+    }
+  }
+
+  /**
+   * Remove the pagehide listener and clear timers.
+   * Call in test teardown to prevent listener accumulation across instances.
+   */
+  dispose(): void {
+    if (this._saveTimer) {
+      clearTimeout(this._saveTimer)
+      this._saveTimer = null
+    }
+    if (this._pagehideHandler && typeof window !== 'undefined') {
+      window.removeEventListener('pagehide', this._pagehideHandler)
+      this._pagehideHandler = null
     }
   }
 }
