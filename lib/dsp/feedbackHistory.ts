@@ -87,6 +87,8 @@ export class FeedbackHistory {
   private startTime: number
   private events: FeedbackEvent[] = []
   private hotspots: Map<string, FrequencyHotspot> = new Map()
+  /** Cents-based spatial index for O(1) hotspot lookups by frequency */
+  private hotspotBucketIndex: Map<number, Set<string>> = new Map()
   private _mode: string = 'speech'
   /** Per-hotspot post-cut cooldown override expiry timestamps (keyed by hotspot map key) */
   private _postCutCooldowns: Map<string, number> = new Map()
@@ -132,13 +134,10 @@ export class FeedbackHistory {
    *   recordEvent() stay on the same clock source.
    */
   markCutApplied(frequencyHz: number, timestampMs: number = Date.now()): void {
-    for (const [key, hotspot] of this.hotspots.entries()) {
-      const cents = Math.abs(hzToCents(frequencyHz, hotspot.centerFrequencyHz))
-      if (cents <= FREQUENCY_GROUPING_CENTS) {
-        // Store expiry time on the same clock as event.timestamp
-        this._postCutCooldowns.set(key, timestampMs + POST_CUT_COOLDOWN_MS)
-        return
-      }
+    const hotspotKey = this.findHotspotKey(frequencyHz)
+    if (hotspotKey) {
+      // Store expiry time on the same clock as event.timestamp
+      this._postCutCooldowns.set(hotspotKey, timestampMs + POST_CUT_COOLDOWN_MS)
     }
   }
 
@@ -207,6 +206,18 @@ export class FeedbackHistory {
   getOccurrenceCount(frequencyHz: number): number {
     const hotspot = this.findHotspotForFrequency(frequencyHz)
     return hotspot?.occurrences ?? 0
+  }
+
+  /**
+   * Get occurrence counts for a batch of frequencies.
+   * Uses the bucket index so callers can avoid repeated hotspot scans.
+   */
+  getOccurrenceCounts(frequenciesHz: readonly number[]): Map<number, number> {
+    const counts = new Map<number, number>()
+    for (const frequencyHz of frequenciesHz) {
+      counts.set(frequencyHz, this.getOccurrenceCount(frequencyHz))
+    }
+    return counts
   }
 
   /**
@@ -298,6 +309,7 @@ export class FeedbackHistory {
   clear(): void {
     this.events = []
     this.hotspots.clear()
+    this.hotspotBucketIndex.clear()
     this._postCutCooldowns.clear()
     this.sessionId = this.generateSessionId()
     this.startTime = Date.now()
@@ -321,33 +333,89 @@ export class FeedbackHistory {
     return `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
   }
 
-  private findHotspotForFrequency(frequencyHz: number): FrequencyHotspot | undefined {
-    for (const hotspot of this.hotspots.values()) {
-      const cents = Math.abs(hzToCents(frequencyHz, hotspot.centerFrequencyHz))
-      if (cents <= FREQUENCY_GROUPING_CENTS) {
-        return hotspot
-      }
+  // ── Bucket index helpers ──────────────────────────────────────────────
+  // Cents-based spatial hashing: each bucket covers FREQUENCY_GROUPING_CENTS
+  // (100 cents). Lookups check ±1 neighbor bucket for O(1) amortized access
+  // instead of scanning every hotspot.
+
+  private getFrequencyBucket(frequencyHz: number): number {
+    return Math.floor((1200 * Math.log2(frequencyHz)) / FREQUENCY_GROUPING_CENTS)
+  }
+
+  private addHotspotToIndex(hotspotKey: string, centerFrequencyHz: number): void {
+    const bucket = this.getFrequencyBucket(centerFrequencyHz)
+    const entries = this.hotspotBucketIndex.get(bucket)
+    if (entries) {
+      entries.add(hotspotKey)
+    } else {
+      this.hotspotBucketIndex.set(bucket, new Set([hotspotKey]))
     }
-    return undefined
+  }
+
+  private removeHotspotFromIndex(hotspotKey: string, centerFrequencyHz: number): void {
+    const bucket = this.getFrequencyBucket(centerFrequencyHz)
+    const entries = this.hotspotBucketIndex.get(bucket)
+    if (!entries) return
+    entries.delete(hotspotKey)
+    if (entries.size === 0) {
+      this.hotspotBucketIndex.delete(bucket)
+    }
+  }
+
+  private updateHotspotIndex(hotspotKey: string, previousCenterHz: number, nextCenterHz: number): void {
+    const prevBucket = this.getFrequencyBucket(previousCenterHz)
+    const nextBucket = this.getFrequencyBucket(nextCenterHz)
+    if (prevBucket === nextBucket) return
+    this.removeHotspotFromIndex(hotspotKey, previousCenterHz)
+    this.addHotspotToIndex(hotspotKey, nextCenterHz)
+  }
+
+  private rebuildHotspotIndex(): void {
+    this.hotspotBucketIndex.clear()
+    for (const [key, hotspot] of this.hotspots.entries()) {
+      this.addHotspotToIndex(key, hotspot.centerFrequencyHz)
+    }
+  }
+
+  // ── Indexed lookups ─────────────────────────────────────────────────
+
+  private findHotspotForFrequency(frequencyHz: number): FrequencyHotspot | undefined {
+    const key = this.findHotspotKey(frequencyHz)
+    return key ? this.hotspots.get(key) : undefined
   }
 
   /**
    * Find the Map key for the hotspot matching a frequency.
-   * Used internally for post-cut cooldown lookups.
+   * Uses bucket index with ±1 neighbor search for O(1) amortized lookup.
    */
   private findHotspotKey(frequencyHz: number): string | undefined {
-    for (const [key, hotspot] of this.hotspots.entries()) {
-      const cents = Math.abs(hzToCents(frequencyHz, hotspot.centerFrequencyHz))
-      if (cents <= FREQUENCY_GROUPING_CENTS) {
-        return key
+    const bucket = this.getFrequencyBucket(frequencyHz)
+    let bestMatch: { key: string; cents: number } | null = null
+
+    for (const candidateBucket of [bucket - 1, bucket, bucket + 1]) {
+      const candidateKeys = this.hotspotBucketIndex.get(candidateBucket)
+      if (!candidateKeys) continue
+
+      for (const key of candidateKeys) {
+        const hotspot = this.hotspots.get(key)
+        if (!hotspot) continue
+
+        const cents = Math.abs(hzToCents(frequencyHz, hotspot.centerFrequencyHz))
+        if (cents > FREQUENCY_GROUPING_CENTS) continue
+
+        if (!bestMatch || cents < bestMatch.cents) {
+          bestMatch = { key, cents }
+        }
       }
     }
-    return undefined
+
+    return bestMatch?.key
   }
 
   private updateHotspot(event: FeedbackEvent): void {
     // Find existing hotspot or create new one
-    let hotspot = this.findHotspotForFrequency(event.frequencyHz)
+    let hotspotKey = this.findHotspotKey(event.frequencyHz)
+    let hotspot = hotspotKey ? this.hotspots.get(hotspotKey) : undefined
 
     if (!hotspot) {
       // Create new hotspot
@@ -365,16 +433,20 @@ export class FeedbackHistory {
         lastEventTime: 0,
       }
       // Use unique ID as key to avoid collision when centerFrequencyHz drifts across 10Hz boundaries
-      const key = `hs_${event.timestamp}_${Math.round(event.frequencyHz)}`
-      this.hotspots.set(key, hotspot)
+      hotspotKey = `hs_${event.timestamp}_${Math.round(event.frequencyHz)}`
+      this.hotspots.set(hotspotKey, hotspot)
+      this.addHotspotToIndex(hotspotKey, hotspot.centerFrequencyHz)
     }
+
+    // After this point both hotspot and hotspotKey are guaranteed defined
+    // (either found or just created). Guard satisfies TypeScript narrowing.
+    if (!hotspotKey) return
 
     // Cooldown — skip if same hotspot fired too recently (prevents inflated counts).
     // Uses per-mode cooldown from HOTSPOT_COOLDOWN_BY_MODE, with a shorter
     // POST_CUT_COOLDOWN_MS override when a cut was recently applied.
     if (hotspot.lastEventTime > 0) {
-      const hotspotKey = this.findHotspotKey(event.frequencyHz)
-      const postCutExpiry = hotspotKey ? this._postCutCooldowns.get(hotspotKey) : undefined
+      const postCutExpiry = this._postCutCooldowns.get(hotspotKey)
       const cooldown = (postCutExpiry !== undefined && event.timestamp < postCutExpiry)
         ? POST_CUT_COOLDOWN_MS
         : this.getEffectiveCooldown()
@@ -382,12 +454,13 @@ export class FeedbackHistory {
         return
       }
       // Clean up expired post-cut cooldown
-      if (hotspotKey && postCutExpiry !== undefined && event.timestamp >= postCutExpiry) {
+      if (postCutExpiry !== undefined && event.timestamp >= postCutExpiry) {
         this._postCutCooldowns.delete(hotspotKey)
       }
     }
 
     // Update hotspot statistics
+    const previousCenterHz = hotspot.centerFrequencyHz
     hotspot.occurrences++
     hotspot.lastEventTime = event.timestamp
     hotspot.events.push(event)
@@ -398,21 +471,33 @@ export class FeedbackHistory {
     hotspot.lastSeen = event.timestamp
     hotspot.maxAmplitudeDb = Math.max(hotspot.maxAmplitudeDb, event.amplitudeDb)
     hotspot.isRepeatOffender = hotspot.occurrences >= REPEAT_OFFENDER_THRESHOLD
-    
-    // Recalculate averages
-    const allAmps = hotspot.events.map(e => e.amplitudeDb)
-    hotspot.avgAmplitudeDb = allAmps.reduce((a, b) => a + b, 0) / allAmps.length
-    
-    const allConf = hotspot.events.map(e => e.confidence)
-    hotspot.avgConfidence = allConf.reduce((a, b) => a + b, 0) / allConf.length
-    
+    this.recomputeHotspotStats(hotspot)
+    // Center frequency may have drifted — update bucket index if needed
+    this.updateHotspotIndex(hotspotKey, previousCenterHz, hotspot.centerFrequencyHz)
+  }
+
+  /**
+   * Single-pass recomputation of hotspot averages and suggested cut.
+   * Replaces scattered .map().reduce() chains with one loop.
+   */
+  private recomputeHotspotStats(hotspot: FrequencyHotspot): void {
+    let amplitudeSum = 0
+    let confidenceSum = 0
+    let frequencySum = 0
+    let maxProminence = 0
+
+    for (const e of hotspot.events) {
+      amplitudeSum += e.amplitudeDb
+      confidenceSum += e.confidence
+      frequencySum += e.frequencyHz
+      if (e.prominenceDb > maxProminence) maxProminence = e.prominenceDb
+    }
+
+    const count = hotspot.events.length
+    hotspot.avgAmplitudeDb = amplitudeSum / count
+    hotspot.avgConfidence = confidenceSum / count
     // Update center frequency (weighted average) — key is stable (ID-based), no re-keying needed
-    const allFreqs = hotspot.events.map(e => e.frequencyHz)
-    hotspot.centerFrequencyHz = allFreqs.reduce((a, b) => a + b, 0) / allFreqs.length
-    
-    // Update suggested cut based on history
-    const allProminence = hotspot.events.map(e => e.prominenceDb)
-    const maxProminence = Math.max(...allProminence)
+    hotspot.centerFrequencyHz = frequencySum / count
     hotspot.suggestedCutDb = Math.min(maxProminence * 1.5 + (hotspot.occurrences - 1) * 0.5, 12)
   }
 
@@ -459,6 +544,7 @@ export class FeedbackHistory {
           this.events = this.events.slice(half)
           // Recompute hotspots from retained events so they stay consistent
           this.hotspots.clear()
+          this.hotspotBucketIndex.clear()
           for (const event of this.events) {
             this.updateHotspot(event)
           }
@@ -513,6 +599,7 @@ export class FeedbackHistory {
         // Reconstruct hotspots Map — validate it's array of [key, value] pairs
         if (Array.isArray(data.hotspots) && (data.hotspots.length === 0 || (Array.isArray(data.hotspots[0]) && data.hotspots[0].length === 2))) {
           this.hotspots = new Map(data.hotspots)
+          this.rebuildHotspotIndex()
         }
       }
     } catch (e) {
