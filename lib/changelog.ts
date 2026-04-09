@@ -14,6 +14,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.88.0',
+    date: '2026-04-09',
+    changes: [
+      { type: 'feat', description: '**a11y: skip link target** — Add `id="main"` to AudioAnalyzer root div so the skip link in `layout.tsx` actually works (WCAG 2.4.1)' },
+      { type: 'feat', description: '**ui: swipe peek animation** — Replace static SwipeHint text banner with CSS peek animation on first issue card. Card slides 20px left→right→center, revealing DISMISS/CONFIRM overlays. Auto-dismisses after 2s. Respects `prefers-reduced-motion`.' },
+      { type: 'feat', description: '**ui: light theme canvas fixes** — Fix 2 hardcoded dark-theme canvas colors: backlight gradient (warm amber on light, was invisible) and threshold handle grip lines (stronger contrast on light)' },
+      { type: 'feat', description: '**ui: font size tokens** — Define 4-stop canonical scale (`--text-dwa-xs/sm/base/lg`). Migration of 171+ instances deferred to separate PR.' },
+      { type: 'feat', description: '[x] `npx tsc --noEmit` — clean' },
+      { type: 'feat', description: '[x] `pnpm test` — 1352 pass, 4 skip' },
+      { type: 'feat', description: '[ ] Visual verification: light theme canvas, swipe peek on mobile, dark theme regression' },
+    ],
+  },
+  {
     version: '0.87.0',
     date: '2026-04-09',
     changes: [
