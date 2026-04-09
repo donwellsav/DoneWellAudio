@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.87.0',
+    date: '2026-04-09',
+    changes: [
+      { type: 'feat', description: '**useAdvisoryClearState**: Replace `useEffect→setState` prune cycle with `useMemo` derivation — eliminates one wasted render per advisory change. `pruneIds` returns same Set reference when nothing removed (stable identity). Periodic backing-state flush via `useEffect` every 100 advisory updates prevents dead-ID accumulation.' },
+      { type: 'feat', description: '**FeedbackHistory**: Add cents-based bucket index (100-cent buckets, ±1 neighbor) for O(1) amortized hotspot lookups. Single-pass `recomputeHotspotStats` replaces 4× `.map().reduce()` chains. Batch `getOccurrenceCounts` API added.' },
+      { type: 'feat', description: '[x] `npx tsc --noEmit` — clean' },
+      { type: 'feat', description: '[x] `pnpm test` — 1352 pass, 4 skip' },
+      { type: 'feat', description: '[x] Two rounds of Codex adversarial review — both findings addressed' },
+      { type: 'feat', description: '[ ] Visual verification in browser (localhost:3000)' },
+    ],
+  },
+  {
     version: '0.86.0',
     date: '2026-04-08',
     changes: [
