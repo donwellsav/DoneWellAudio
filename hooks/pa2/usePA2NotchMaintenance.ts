@@ -71,7 +71,7 @@ export function usePA2NotchMaintenance({
         void clientRef.current.detect({
           frequencies: deeperPayload,
           source: 'donewellaudio-verify',
-        }).catch(() => {})
+        }).catch((e) => { console.warn('[PA2 Notch] command failed:', e) })
       }
 
       delete notchVerifyTimersRef.current[clientId]
@@ -115,7 +115,7 @@ export function usePA2NotchMaintenance({
 
       const rise = newest[index] - oldest[index]
       if (rise <= 0) {
-        void clientRef.current.setGEQBands({ [bandNumber]: preCutValue }).catch(() => {})
+        void clientRef.current.setGEQBands({ [bandNumber]: preCutValue }).catch((e) => { console.warn('[PA2 Notch] command failed:', e) })
         delete preNotchRollbackRef.current[bandNumber]
       }
     }
@@ -138,7 +138,7 @@ export function usePA2NotchMaintenance({
       preNotchRollbackRef.current[bandNumber] = currentValue
       void clientRef.current.setGEQBands({
         [bandNumber]: Math.max(-12, currentValue - 2),
-      }).catch(() => {})
+      }).catch((e) => { console.warn('[PA2 Notch] command failed:', e) })
       lastPreNotchRef.current = now
       break
     }

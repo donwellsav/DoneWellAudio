@@ -151,6 +151,10 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
         message: `Worker init: mode=${settings.mode} fft=${fftSize} sr=${sampleRate}`,
         level: 'info',
       })
+      Sentry.setTag('dsp.mode', settings.mode)
+      Sentry.setTag('dsp.fftSize', String(fftSize))
+      Sentry.setTag('dsp.sampleRate', String(sampleRate))
+      Sentry.setContext('audio', { mode: settings.mode, fftSize, sampleRate })
 
       permanentlyDeadRef.current = false
       if (!workerRef.current) {

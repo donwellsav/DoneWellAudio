@@ -69,7 +69,7 @@ export function useDataCollection(): DataCollectionHandle {
     fetch('/api/geo')
       .then(r => r.json())
       .then(({ isEU: eu }: { isEU: boolean }) => setIsEU(eu))
-      .catch(() => {})
+      .catch((e) => { console.warn('[DataCollection] Geo fetch failed (failing open):', e) })
   }, [])
 
   // DSP worker handle — set externally by the consumer after useAudioAnalyzer
@@ -117,7 +117,7 @@ export function useDataCollection(): DataCollectionHandle {
           console.debug(`[DataCollection] Flushed ${queued.length} queued batch(es)`)
         }
         // Retry any batches from previous sessions
-        uploaderRef.current.retryQueued().catch(() => {})
+        uploaderRef.current.retryQueued().catch((e) => { console.warn('[DataCollection] retryQueued failed:', e) })
       } catch (err) {
         console.error('[DataCollection] Failed to load uploader — aborting collection:', err)
         return

@@ -18,10 +18,12 @@ import { useDataCollection } from '@/hooks/useDataCollection'
 import { AudioAnalyzerProvider } from '@/contexts/AudioAnalyzerContext'
 import { AdvisoryProvider } from '@/contexts/AdvisoryContext'
 import { UIProvider, useUI } from '@/contexts/UIContext'
+import { useServiceWorkerUpdate } from '@/hooks/useServiceWorkerUpdate'
 
 export const AudioAnalyzer = memo(function AudioAnalyzerComponent() {
   const dataCollection = useDataCollection()
   const frozenRef = useRef(false)
+  const { updateAvailable, applyUpdate } = useServiceWorkerUpdate()
 
   const rootRef = useRef<HTMLDivElement>(null)
   const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null)
@@ -46,6 +48,18 @@ export const AudioAnalyzer = memo(function AudioAnalyzerComponent() {
       </Suspense>
 
       <AudioAnalyzerFooter />
+
+      {updateAvailable ? (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-2.5 rounded-lg glass-card border border-primary/30 shadow-lg animate-issue-enter">
+          <span className="text-sm font-mono text-foreground">New version available</span>
+          <button
+            onClick={applyUpdate}
+            className="px-3 py-1 text-xs font-mono font-bold uppercase tracking-wider rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            Update
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 })
