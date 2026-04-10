@@ -99,7 +99,7 @@ describe('relay route', () => {
 
     const badControl = await POST(makeRequest('POST', { type: 'reboot_everything' }), validParams)
     expect(badControl.status).toBe(400)
-    expect(await badControl.json()).toEqual({ error: 'Unknown control type: reboot_everything' })
+    expect(await badControl.json()).toEqual({ error: 'Unknown type: reboot_everything' })
   })
 
   it('rate limits repeated polls from the same IP', async () => {

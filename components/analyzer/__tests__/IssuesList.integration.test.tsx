@@ -8,22 +8,24 @@ vi.mock('next-themes', () => ({
   useTheme: () => ({ resolvedTheme: 'dark' }),
 }))
 
-vi.mock('@/contexts/PA2Context', () => ({
-  usePA2: () => ({
-    settings: { enabled: false, autoSendMode: 'off' },
-    status: 'disconnected',
-    sendDetections: vi.fn(),
-  }),
-}))
-
 vi.mock('@/contexts/SettingsContext', () => ({
   useSettings: () => ({
     settings: { mode: 'speech', fftSize: 8192, minFrequency: 200, maxFrequency: 8000 },
   }),
 }))
 
+vi.mock('@/contexts/AdvisoryContext', () => ({
+  useAdvisories: () => ({ companionState: new Map() }),
+}))
+
 vi.mock('@/lib/dsp/feedbackHistory', () => ({
-  getFeedbackHistory: () => ({ getOccurrenceCount: () => 1, getHotspots: () => [] }),
+  getFeedbackHistory: () => ({
+    getOccurrenceCount: () => 1,
+    getHotspots: () => [],
+    shouldRetryCompanionCut: () => null,
+    markCompanionApplied: () => {},
+    reapCompanionCuts: () => {},
+  }),
 }))
 
 vi.mock('@/lib/storage/dwaStorage', async () => {

@@ -25,16 +25,18 @@ vi.mock('@/hooks/useCompanion', () => ({
   }),
 }))
 
-vi.mock('@/contexts/PA2Context', () => ({
-  usePA2: () => ({
-    settings: { enabled: false, autoSendMode: 'off' },
-    status: 'disconnected',
-    sendToPA2: vi.fn(),
-  }),
+vi.mock('@/contexts/AdvisoryContext', () => ({
+  useAdvisories: () => ({ companionState: new Map() }),
 }))
 
 vi.mock('@/lib/dsp/feedbackHistory', () => ({
-  getFeedbackHistory: () => ({ getOccurrenceCount: () => 1, getHotspots: () => [] }),
+  getFeedbackHistory: () => ({
+    getOccurrenceCount: () => 1,
+    getHotspots: () => [],
+    shouldRetryCompanionCut: () => null,
+    markCompanionApplied: () => {},
+    reapCompanionCuts: () => {},
+  }),
 }))
 
 vi.mock('@/lib/storage/dwaStorage', () => ({

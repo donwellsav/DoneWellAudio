@@ -44,6 +44,14 @@ export interface FeedbackEvent {
   geqSuggestedDb?: number // GEQ cut recommendation (negative = cut)
   peqQ?: number // PEQ Q factor
   peqGainDb?: number // PEQ gain recommendation (negative = cut)
+  /** Cut applied by Companion module (closed-loop tracking) */
+  cutAppliedByCompanion?: {
+    gainDb: number
+    bandIndex: number
+    at: number
+    /** True if no recurrence within VERIFICATION_WINDOW_MS, false if feedback re-triggered */
+    worked?: boolean
+  }
 }
 
 export interface FrequencyHotspot {
@@ -58,6 +66,10 @@ export interface FrequencyHotspot {
   suggestedCutDb: number
   isRepeatOffender: boolean // 3+ occurrences
   lastEventTime: number // Timestamp of last event (for cooldown)
+  /** Average "working" cut depth for this hotspot (learned over time) */
+  learnedCutDb?: number
+  /** Number of successful Companion cuts recorded against this hotspot */
+  successfulCutCount?: number
 }
 
 export interface SessionSummary {
@@ -84,6 +96,15 @@ const REPEAT_OFFENDER_THRESHOLD = 3 // 3+ occurrences = repeat offender
 const MAX_EVENTS_PER_SESSION = 500 // Limit memory usage
 const MAX_EVENTS_PER_HOTSPOT = 50 // Rolling window for per-hotspot stats
 
+/** How long we monitor for feedback recurrence after a Companion cut (ms) */
+export const COMPANION_VERIFICATION_WINDOW_MS = 2000
+/** Wait this long after VERIFICATION_WINDOW to declare a cut "worked" (ms) */
+export const COMPANION_SUCCESS_WINDOW_MS = 5000
+/** Max consecutive retry cuts per frequency before marking as persistent */
+export const COMPANION_MAX_RETRIES = 3
+/** How much deeper to cut on each retry (dB) */
+export const COMPANION_RETRY_STEP_DB = 3
+
 // ============================================================================
 // FEEDBACK HISTORY CLASS
 // ============================================================================
@@ -98,6 +119,17 @@ export class FeedbackHistory {
   private _mode: string = 'speech'
   /** Per-hotspot post-cut cooldown override expiry timestamps (keyed by hotspot map key) */
   private _postCutCooldowns: Map<string, number> = new Map()
+  /**
+   * Open Companion cuts awaiting verification.
+   * Key: hotspot key. Value: { appliedAt, gainDb, bandIndex, retryCount, advisoryId }
+   */
+  private _companionPendingCuts: Map<string, {
+    appliedAt: number
+    gainDb: number
+    bandIndex: number
+    retryCount: number
+    advisoryId: string
+  }> = new Map()
   private readonly _readyPromise: Promise<void>
   /** True once loadFromStorage() resolves — guards against event loss during hydration */
   private _hydrated = false
@@ -157,6 +189,127 @@ export class FeedbackHistory {
     if (hotspotKey) {
       // Store expiry time on the same clock as event.timestamp
       this._postCutCooldowns.set(hotspotKey, timestampMs + POST_CUT_COOLDOWN_MS)
+    }
+  }
+
+  /**
+   * Mark that the Companion module applied a cut at a given frequency.
+   * Starts the verification window — if feedback re-triggers at this frequency
+   * within COMPANION_VERIFICATION_WINDOW_MS, the cut is considered insufficient
+   * and `shouldRetryCompanionCut()` will return true.
+   *
+   * Also attaches cut metadata to the most recent event for this frequency so
+   * exports can show what the module did.
+   */
+  markCompanionApplied(
+    args: { frequencyHz: number; gainDb: number; bandIndex: number; advisoryId: string; at?: number },
+  ): void {
+    const { frequencyHz, gainDb, bandIndex, advisoryId } = args
+    const appliedAt = args.at ?? Date.now()
+    const hotspotKey = this.findHotspotKey(frequencyHz)
+    if (!hotspotKey) return
+
+    const existing = this._companionPendingCuts.get(hotspotKey)
+    this._companionPendingCuts.set(hotspotKey, {
+      appliedAt,
+      gainDb,
+      bandIndex,
+      retryCount: existing?.retryCount ?? 0,
+      advisoryId,
+    })
+
+    // Also attach to the most recent matching event (for export/history)
+    for (let i = this.events.length - 1; i >= 0; i--) {
+      const event = this.events[i]
+      const cents = Math.abs(hzToCents(event.frequencyHz, frequencyHz))
+      if (cents <= FREQUENCY_GROUPING_CENTS) {
+        event.cutAppliedByCompanion = { gainDb, bandIndex, at: appliedAt }
+        event.wasActedOn = true
+        event.cutAppliedDb = gainDb
+        break
+      }
+    }
+    // Persist
+    this.saveToStorage()
+  }
+
+  /**
+   * Check whether a new detection at this frequency indicates the last Companion
+   * cut failed and a deeper retry is warranted.
+   *
+   * Returns an object describing the retry if conditions are met, else null.
+   * Conditions:
+   *   - Pending cut exists within VERIFICATION_WINDOW_MS
+   *   - Retry count is below COMPANION_MAX_RETRIES
+   *   - Calculated deeper cut does not exceed -12dB safety clamp
+   */
+  shouldRetryCompanionCut(frequencyHz: number, now: number = Date.now()): {
+    nextGainDb: number
+    retryCount: number
+    advisoryId: string
+    bandIndex: number
+  } | null {
+    const hotspotKey = this.findHotspotKey(frequencyHz)
+    if (!hotspotKey) return null
+
+    const pending = this._companionPendingCuts.get(hotspotKey)
+    if (!pending) return null
+
+    const elapsed = now - pending.appliedAt
+    // Outside verification window — cut is either "working" or too old to chain a retry
+    if (elapsed > COMPANION_VERIFICATION_WINDOW_MS) return null
+
+    // Already retried max times — stop the loop
+    if (pending.retryCount >= COMPANION_MAX_RETRIES) return null
+
+    // Deeper cut — clamp to safety floor
+    const nextGainDb = Math.max(pending.gainDb - COMPANION_RETRY_STEP_DB, -12)
+    if (nextGainDb >= pending.gainDb) return null // no room to go deeper
+
+    // Record that we're initiating a retry
+    this._companionPendingCuts.set(hotspotKey, {
+      ...pending,
+      retryCount: pending.retryCount + 1,
+      gainDb: nextGainDb,
+      appliedAt: now,
+    })
+
+    return {
+      nextGainDb,
+      retryCount: pending.retryCount + 1,
+      advisoryId: pending.advisoryId,
+      bandIndex: pending.bandIndex,
+    }
+  }
+
+  /**
+   * Promote pending cuts to "worked" state once the success window expires.
+   * Updates the hotspot's learnedCutDb as a rolling average over successful cuts.
+   * Call periodically (e.g. from a ticker hook).
+   */
+  reapCompanionCuts(now: number = Date.now()): void {
+    for (const [key, pending] of this._companionPendingCuts) {
+      if (now - pending.appliedAt < COMPANION_SUCCESS_WINDOW_MS) continue
+
+      // The cut survived the success window — mark as "worked"
+      const hotspot = this.hotspots.get(key)
+      if (hotspot) {
+        const prevCount = hotspot.successfulCutCount ?? 0
+        const prevLearned = hotspot.learnedCutDb ?? pending.gainDb
+        // Rolling average: blend the new cut with the existing learned depth
+        hotspot.learnedCutDb = (prevLearned * prevCount + pending.gainDb) / (prevCount + 1)
+        hotspot.successfulCutCount = prevCount + 1
+
+        // Mark the most recent event for this hotspot as worked
+        for (let i = hotspot.events.length - 1; i >= 0; i--) {
+          const e = hotspot.events[i]
+          if (e.cutAppliedByCompanion && e.cutAppliedByCompanion.worked === undefined) {
+            e.cutAppliedByCompanion.worked = true
+            break
+          }
+        }
+      }
+      this._companionPendingCuts.delete(key)
     }
   }
 
@@ -340,6 +493,7 @@ export class FeedbackHistory {
     this.hotspots.clear()
     this.hotspotBucketIndex.clear()
     this._postCutCooldowns.clear()
+    this._companionPendingCuts.clear()
     this.sessionId = this.generateSessionId()
     this.startTime = Date.now()
     clearStoredFeedbackHistory().catch(() => { /* handled internally */ })

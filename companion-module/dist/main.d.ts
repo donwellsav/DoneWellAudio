@@ -32,7 +32,7 @@ export declare class ModuleInstance extends InstanceBase<ModuleConfig> {
     init(config: ModuleConfig): Promise<void>;
     configUpdated(config: ModuleConfig): Promise<void>;
     destroy(): Promise<void>;
-    getConfigFields(): import("@companion-module/base").SomeCompanionConfigField[];
+    getConfigFields(): SomeCompanionConfigField[];
     private startPolling;
     private stopPolling;
     private processAdvisory;

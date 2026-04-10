@@ -6,7 +6,6 @@ import { ConsoleSlider } from '@/components/ui/console-slider'
 import { ChannelSection } from '@/components/ui/channel-section'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { CalibrationTab } from './CalibrationTab'
-import { PA2BridgeSection } from './PA2BridgeSection'
 import { RigPresetsSection } from './RigPresetsSection'
 import { RoomTab } from './RoomTab'
 import { SessionExportSection } from './SessionExportSection'
@@ -155,8 +154,6 @@ export const SetupTab = memo(function SetupTab({
           <CalibrationTab settings={settings} {...calibration} />
         </ChannelSection>
       )}
-
-      <PA2BridgeSection />
 
       <RigPresetsSection
         customPresets={customPresets}

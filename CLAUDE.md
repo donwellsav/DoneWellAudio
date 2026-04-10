@@ -1,6 +1,6 @@
 # CLAUDE.md — DoneWell Audio Project Intelligence
 
-> **Last updated April 2026. 623 TypeScript/TSX files, 1373 tests (1369 pass, 4 skip), 100 suites. Version 0.88.0.**
+> **Last updated April 2026. 597 TypeScript/TSX files, 1347 tests (1343 pass, 4 skip), 95 suites. Version 0.89.0.**
 > Architecture audit: 14 of 20 improvements implemented. 4 module splits (acousticUtils→7, spectrumDrawing→7, classifier helpers, feedbackDetector utils). EXP_LUT dedup. Dead code removal. CI bundle tracking. Worker pipeline integration tests. 71 docs archived. Signal tint toggle. Severity-graded fade. Issue card redesign. GEQ/RTA hover tooltips. Canvas color token system. Hotspot bucket index (O(1) lookup). useMemo clear state. FeedbackHistory IndexedDB migration. Swipe peek animation. Light theme canvas fixes. Font size scale tokens (`--text-dwa-xs/sm/base/lg`). Skip link a11y fix.
 
 ## CRITICAL RULES
@@ -121,7 +121,7 @@ When the user asks to cut a release or "update the usuals":
 | DSP Offload | Web Worker (dspWorker.ts, ~745 lines) |
 | Visualization | HTML5 Canvas at 30fps |
 | State | React 19 hooks + 4 context providers (no external state library) |
-| Testing | Vitest (1220 tests, 65 suites, under 25s) |
+| Testing | Vitest (1376 tests, 100 suites, under 25s) |
 | Error Reporting | Sentry (browser + server + worker runtimes) |
 | PWA | Serwist (service worker, offline caching, installable) |
 | Package Manager | pnpm |
@@ -133,7 +133,7 @@ pnpm dev              # Dev server on :3000 (Turbopack, no SW)
 pnpm build            # Production build (webpack, generates SW)
 pnpm start            # Production server
 pnpm lint             # ESLint (flat config)
-pnpm test             # Vitest (1224 tests: 1220 pass + 4 skip)
+pnpm test             # Vitest (1376 tests: 1372 pass + 4 skip)
 pnpm test:watch       # Vitest watch mode
 pnpm test:coverage    # Vitest with V8 coverage
 npx tsc --noEmit      # Type-check (run BEFORE pnpm build)
@@ -279,7 +279,8 @@ lib/
     fusionEngine.ts (~500)    #   Core fusion, MINDS, calibration, FUSION_WEIGHTS, AgreementPersistenceTracker
     spectralAlgorithms.ts(~250)#  IHR, PTMR, content type detection (speech/music/compressed)
     combPattern.ts (~300)     #   Comb filter detection (DBX), CombHistoryCache, CombStabilityTracker
-    feedbackHistory.ts (467)  #   Session history, repeat offenders, hotspot tracking
+    feedbackHistory.ts (467)  #   Session history, repeat offenders, hotspot tracking (IndexedDB + localStorage fallback)
+    feedbackHistoryStorage.ts (159)# Async IDB load/save adapter, pending fallback, legacy migration
     trackManager.ts (466)     #   Track lifecycle, cents-based association (100-cent tolerance)
     dspWorker.ts (745)        #   Worker orchestrator, temporal smoothing, ML score extraction
     eqAdvisor.ts (402)        #   GEQ/PEQ/shelf recs, ERB scaling, MINDS depth
@@ -302,10 +303,10 @@ lib/
     drawOverlays.ts           #     Markers, notch overlays, indicator lines (threshold, tooltip)
     drawMeters.ts             #     Level meter, level glow
     drawPlaceholder.ts        #     Idle/placeholder state animation
-    drawPA2.ts                #     PA2 companion device overlays
   export/ (3 files)           # PDF/TXT/CSV/JSON export
   calibration/ (3 files)      # Room profile, session recording, JSON export
   storage/dwaStorage.ts (183) # Typed localStorage abstraction
+  storage/indexedDb.ts (121)  # Generic IndexedDB key-value helpers (get/set/delete, connection cache)
   data/ (4 files)             # Anonymous spectral collection (opt-in, v1.1 with algo scores)
     snapshotCollector.ts (343)#   Batch collection, algorithm score enrichment, user feedback, label balance tracking
   utils/ (2 files)            # Math helpers, pitch utilities
@@ -318,10 +319,11 @@ tests/
   vitest.config.ts            # Legacy test configuration (root vitest.config.ts is primary)
   helpers/                    # Mock algorithm score builders
 hooks/__tests__/ (7 files)    # Hook unit tests (useAdvisoryMap, useFpsMonitor, useAdvisoryLogging, useIsMobile, useLayeredSettings, useRigPresets, useDSPWorker)
+  useServiceWorkerUpdate.ts   #   Detects waiting SW, exposes updateAvailable + applyUpdate()
 contexts/__tests__/ (2 files) # Context unit tests (AdvisoryContext, UIContext)
-lib/storage/__tests__/ (1 file)  # dwaStorage unit tests
+lib/storage/__tests__/ (2 files) # dwaStorage + indexedDb unit tests
 lib/export/__tests__/ (3 files)  # Export module unit tests (txt, pdf, downloadFile)
-lib/dsp/__tests__/ (20 files)   # DSP unit tests (feedbackDetector, fusionEngine, combPattern, classifier, acousticUtils, decayAnalyzer, severityUtils, etc.)
+lib/dsp/__tests__/ (21 files)   # DSP unit tests (feedbackDetector, fusionEngine, combPattern, classifier, acousticUtils, decayAnalyzer, severityUtils, feedbackHistoryStorage, etc.)
 tests/integration/ (1 file)     # Worker pipeline integration tests (AlgorithmEngine → fusion → classifier)
 public/models/                  # ML model assets
   manifest.json                 #   Model registry (version, metrics, architecture)
@@ -533,7 +535,7 @@ Then when user says "PR":
 - **API:** Ingest endpoint validates v1.0/v1.1/v1.2 schema, dual rate-limiting (IP-based 30/60s primary + session-based 6/60s secondary), actual body size enforcement (512KB), strips IP, error messages not leaked
 - **Worker:** Inbound messages type-validated via `WorkerOutboundMessage` switch; outbound postMessage lacks compile-time Set validation (minor gap)
 - **localStorage:** 37 touchpoints, all via dwaStorage.ts abstraction with try/catch
-- **Companion proxy:** SSRF-hardened public HTTP proxy (`app/api/companion/proxy/route.ts`): Origin header check (defense-in-depth, spoofable by non-browser clients — not a true auth boundary), HTTP-only (HTTPS blocked), 13 IPv4 special-use ranges blocked (RFC 1918, loopback, link-local, CGNAT, TEST-NETs, benchmarking, reserved; does NOT cover multicast 224/4 or 6to4 relay 192.88.99/24), all-IPv6 blocked, DNS resolution via OS resolver with 2s timeout, IP pinning (TOCTOU-safe for HTTP), dual-stack IPv4 filtering, manual redirect re-validation per hop, 307/308 method preservation, 1MB response cap, rate limiting (30 req/60s per IP via `x-forwarded-for` — trusted on Vercel, spoofable elsewhere), redirect exhaustion → 502, distinct error codes (403/429/504/502). **Known gaps:** no unforgeable auth (Origin is spoofable), IP-based rate limiting depends on platform-sanitized headers. Public HTTP endpoints only — LAN Companion uses relay.
+- **Companion proxy:** SSRF-hardened public HTTP proxy (`app/api/companion/proxy/route.ts`): Origin header check (defense-in-depth, spoofable by non-browser clients — not a true auth boundary), HTTP-only (HTTPS blocked), 15 IPv4 special-use ranges blocked (RFC 1918, loopback, link-local, CGNAT, TEST-NETs, benchmarking, multicast 224/4, 6to4 relay 192.88.99/24, reserved), all-IPv6 blocked, DNS resolution via OS resolver with 2s timeout, IP pinning (TOCTOU-safe for HTTP), dual-stack IPv4 filtering, manual redirect re-validation per hop, 307/308 method preservation, 1MB response cap, rate limiting (30 req/60s per IP via `x-forwarded-for` — trusted on Vercel, spoofable elsewhere), redirect exhaustion → 502, distinct error codes (403/429/504/502). **Known gaps:** no unforgeable auth (Origin is spoofable), IP-based rate limiting depends on platform-sanitized headers. Public HTTP endpoints only — LAN Companion uses relay.
 - **Companion relay:** Rate-limited (30 req/min per IP, amortized Map pruning), payload shape validated before storage (`app/api/companion/relay/[code]/route.ts`)
 - **Pairing codes:** `crypto.getRandomValues()` (not Math.random()), 6-char alphanumeric (`lib/companion/companionBridge.ts`)
 
@@ -553,7 +555,7 @@ Then when user says "PR":
 - **Analysis:** All audio processing runs locally in the browser. No audio is transmitted.
 - **Data collection:** Anonymous spectral snapshots (opt-in). No PII. Random session UUIDs. IP stripped server-side.
 - **Consent:** Opt-in model — user must tap "Share Data" before collection begins. EU/EEA/UK users see full GDPR disclosures (Article 6(1)(a) legal basis, 24-month retention, data subject rights, Supabase storage location). `ConsentJurisdiction` tracked in localStorage. Geo detection via `/api/geo` (Vercel `x-vercel-ip-country` header, fail-open). `CONSENT_VERSION=2`; v1→v2 migration preserves existing consent status.
-- **Storage:** Settings and history in localStorage only. Never transmitted unless user explicitly exports.
+- **Storage:** Settings in localStorage. FeedbackHistory in IndexedDB (primary) with synchronous localStorage fallback on pagehide for unload safety. Never transmitted unless user explicitly exports.
 
 ## ML Data Pipeline (v0.106.0+)
 

@@ -9,6 +9,7 @@
  * @see companion-module/src/main.ts for the polling side
  */
 import type { Advisory } from '@/types/advisory'
+import type { ModuleToAppMessage } from '@/types/companion'
 
 interface SendResult {
   accepted: boolean
@@ -169,10 +170,72 @@ export class CompanionBridge {
     }
   }
 
-  /** Check if the relay is reachable (always works — same origin) */
-  async checkStatus(): Promise<{ ok: boolean; pendingCount: number } | null> {
+  /**
+   * Send an auto-apply directive for a RUNAWAY advisory.
+   * The module will apply the EQ cut immediately, regardless of its autoApply config.
+   */
+  async sendAutoApply(advisory: Advisory): Promise<SendResult> {
+    const payload = { type: 'auto_apply' as const, ...toPayload(advisory) }
+
     try {
       const response = await fetch(this.relayUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(3000),
+      })
+
+      if (!response.ok) {
+        this._connected = false
+        this._lastError = `HTTP ${response.status}`
+        return { accepted: false, error: this._lastError }
+      }
+
+      this._connected = true
+      this._lastError = null
+      return (await response.json()) as SendResult
+    } catch (err) {
+      this._connected = false
+      this._lastError = err instanceof Error ? err.message : 'Auto-apply failed'
+      return { accepted: false, error: this._lastError }
+    }
+  }
+
+  /**
+   * Drain the module → app queue. Called by useCompanionInbound on a polling loop.
+   * Returns an empty array on error (caller decides retry cadence).
+   */
+  async pollInbound(): Promise<ModuleToAppMessage[]> {
+    try {
+      const response = await fetch(`${this.relayUrl()}?direction=app`, {
+        signal: AbortSignal.timeout(3000),
+      })
+
+      if (!response.ok) {
+        this._connected = false
+        this._lastError = `HTTP ${response.status}`
+        return []
+      }
+
+      this._connected = true
+      this._lastError = null
+      const data = await response.json() as { ok: boolean; messages: ModuleToAppMessage[]; pendingCount: number }
+      return Array.isArray(data.messages) ? data.messages : []
+    } catch (err) {
+      this._connected = false
+      this._lastError = err instanceof Error ? err.message : 'Poll failed'
+      return []
+    }
+  }
+
+  /**
+   * Check if the relay is reachable without draining any queue.
+   * Uses HEAD request so no advisory data is consumed.
+   */
+  async checkStatus(): Promise<{ ok: boolean } | null> {
+    try {
+      const response = await fetch(this.relayUrl(), {
+        method: 'HEAD',
         signal: AbortSignal.timeout(3000),
       })
 
@@ -184,7 +247,7 @@ export class CompanionBridge {
 
       this._connected = true
       this._lastError = null
-      return (await response.json()) as { ok: boolean; pendingCount: number }
+      return { ok: true }
     } catch {
       this._connected = false
       this._lastError = 'Relay not reachable'

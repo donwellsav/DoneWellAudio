@@ -18,6 +18,7 @@ import { useDataCollection } from '@/hooks/useDataCollection'
 import { AudioAnalyzerProvider } from '@/contexts/AudioAnalyzerContext'
 import { AdvisoryProvider } from '@/contexts/AdvisoryContext'
 import { UIProvider, useUI } from '@/contexts/UIContext'
+import { CompanionCommandBridge } from '@/components/analyzer/CompanionCommandBridge'
 import { useServiceWorkerUpdate } from '@/hooks/useServiceWorkerUpdate'
 
 export const AudioAnalyzer = memo(function AudioAnalyzerComponent() {
@@ -108,6 +109,7 @@ const AudioAnalyzerInner = memo(function AudioAnalyzerInner({
     >
       <UIProvider rootRef={rootRef}>
         <FrozenSync frozenRef={frozenRef} />
+        <CompanionCommandBridge />
         <FullscreenPortalGate rootEl={rootEl}>
           <AnalyzerKeyboardShortcuts />
           <Suspense fallback={null}>

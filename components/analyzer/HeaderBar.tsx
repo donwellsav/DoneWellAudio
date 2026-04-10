@@ -19,11 +19,6 @@ export const HeaderBar = memo(function HeaderBar() {
     isFrozen,
     isFullscreen,
     resolvedTheme,
-    pa2Enabled,
-    pa2Status,
-    pa2Error,
-    notchSlotsUsed,
-    notchSlotsAvailable,
     hasClearableContent,
     handleToggleAnalysis,
     handleClearDisplays,
@@ -61,11 +56,6 @@ export const HeaderBar = memo(function HeaderBar() {
       />
 
       <HeaderBarRightControls
-        pa2Enabled={pa2Enabled}
-        pa2Status={pa2Status}
-        pa2Error={pa2Error}
-        notchSlotsUsed={notchSlotsUsed}
-        notchSlotsAvailable={notchSlotsAvailable}
         isRunning={isRunning}
         isFrozen={isFrozen}
         hasClearableContent={hasClearableContent}

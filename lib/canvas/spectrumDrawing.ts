@@ -29,6 +29,3 @@ export { drawLevelMeter, drawLevelGlow } from './drawing/drawMeters'
 
 // ─── Placeholder ───────────────────────────────────────────────────────────────
 export { drawPlaceholder } from './drawing/drawPlaceholder'
-
-// ─── PA2 Companion ─────────────────────────────────────────────────────────────
-export { drawPA2RTATrace, drawPA2GEQOverlay, drawPA2SlotIndicator } from './drawing/drawPA2'
