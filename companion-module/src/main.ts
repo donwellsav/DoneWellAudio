@@ -15,6 +15,8 @@ import { MixerOutput } from './mixerOutput.js'
 
 /** Advisory payload received from the cloud relay */
 interface DwaAdvisory {
+  /** Optional type marker — 'auto_apply' = apply immediately regardless of config */
+  type?: 'auto_apply'
   id: string
   trueFrequencyHz: number
   severity: string
@@ -23,6 +25,26 @@ interface DwaAdvisory {
   geq: { bandHz: number; bandIndex: number; suggestedDb: number }
   pitch: { note: string; octave: number; cents: number; midi: number }
 }
+
+/** Messages sent from module back to DWA via POST ?direction=app */
+type ModuleToAppMessage =
+  | { type: 'ack'; advisoryId: string; timestamp: number }
+  | {
+      type: 'applied'
+      advisoryId: string
+      bandIndex: number
+      appliedGainDb: number
+      frequencyHz: number
+      slotIndex: number
+      timestamp: number
+    }
+  | { type: 'apply_failed'; advisoryId: string; reason: string; timestamp: number }
+  | { type: 'cleared'; advisoryId: string; slotIndex: number; timestamp: number }
+  | {
+      type: 'command'
+      action: string
+      timestamp: number
+    }
 
 export class ModuleInstance extends InstanceBase<ModuleConfig> {
   config: ModuleConfig = {
@@ -75,6 +97,36 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
     return GetConfigFields()
   }
 
+  // ── Outbound (module → app) ─────────────────────────────────────
+  //
+  // The relay endpoint accepts POST with ?direction=app for module-initiated
+  // messages. Fire-and-forget: failures are logged but don't block processing.
+
+  /** Build the relay URL with the app-direction query parameter. */
+  private relayUrlForApp(): string {
+    return `${this.config.siteUrl.replace(/\/$/, '')}/api/companion/relay/${this.config.pairingCode}?direction=app`
+  }
+
+  /** POST a message to the toApp queue so DWA can pick it up on its next poll. */
+  async sendToApp(message: ModuleToAppMessage): Promise<void> {
+    if (!this.config.siteUrl || !this.config.pairingCode) return
+
+    try {
+      const response = await fetch(this.relayUrlForApp(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(message),
+        signal: AbortSignal.timeout(3000),
+      })
+      if (!response.ok) {
+        this.log('warn', `sendToApp (${message.type}) returned HTTP ${response.status}`)
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'sendToApp failed'
+      this.log('warn', `sendToApp (${message.type}) failed: ${msg}`)
+    }
+  }
+
   // ── Polling ──────────────────────────────────────────────────
 
   private startPolling(): void {
@@ -117,15 +169,26 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
         if (data.events && data.events.length > 0) {
           for (const event of data.events) {
             if ((event.type === 'resolve' || event.type === 'dismiss') && event.advisoryId && this.mixerOutput) {
-              this.mixerOutput.clearByAdvisoryId(event.advisoryId).then((cleared) => {
+              const advisoryId = event.advisoryId
+              // Find the slot BEFORE clearing so we can report its index back
+              const summary = this.mixerOutput.getSlotSummary()
+              const slotMatch = summary.slots.find((s) => s.advisoryId === advisoryId)
+              this.mixerOutput.clearByAdvisoryId(advisoryId).then((cleared) => {
                 if (cleared) {
-                  const summary = this.mixerOutput!.getSlotSummary()
-                  this.setVariableValues({ slots_used: String(summary.used) })
-                  this.log('info', `Cleared slot for ${event.type}d advisory ${event.advisoryId}`)
+                  const after = this.mixerOutput!.getSlotSummary()
+                  this.setVariableValues({ slots_used: String(after.used) })
+                  this.log('info', `Cleared slot for ${event.type}d advisory ${advisoryId}`)
+                  // Echo the cleared state back to DWA
+                  void this.sendToApp({
+                    type: 'cleared',
+                    advisoryId,
+                    slotIndex: slotMatch?.band ?? 0,
+                    timestamp: Date.now(),
+                  })
                 }
               })
               // Remove from pending
-              this.pendingAdvisories = this.pendingAdvisories.filter(a => a.id !== event.advisoryId)
+              this.pendingAdvisories = this.pendingAdvisories.filter(a => a.id !== advisoryId)
             }
           }
           this.refreshState()
@@ -152,6 +215,9 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
     // Add to queue
     this.pendingAdvisories.push(advisory)
 
+    // Send ack immediately so DWA knows the module received it
+    void this.sendToApp({ type: 'ack', advisoryId: advisory.id, timestamp: Date.now() })
+
     // Update Companion variables with latest advisory data
     const pitchStr = `${advisory.pitch.note}${advisory.pitch.octave}${advisory.pitch.cents >= 0 ? '+' : ''}${advisory.pitch.cents}c`
     this.setVariableValues({
@@ -174,8 +240,15 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 
     this.log('info', `Advisory: ${Math.round(advisory.peq.hz)}Hz ${advisory.severity} (${advisory.peq.gainDb}dB)`)
 
-    // Auto-apply EQ to mixer if configured (uses outputMode: peq/geq/both)
-    if (this.config.autoApply && this.config.mixerModel !== ('none' as string) && this.mixerOutput) {
+    // Auto-apply conditions:
+    //  - `autoApply: true` in module config (full auto), OR
+    //  - message has `type: 'auto_apply'` (DWA forced it — used for RUNAWAY hybrid)
+    const shouldAutoApply =
+      (this.config.autoApply || advisory.type === 'auto_apply') &&
+      this.config.mixerModel !== ('none' as string) &&
+      this.mixerOutput !== null
+
+    if (shouldAutoApply && this.mixerOutput) {
       this.mixerOutput.applyWithMode(advisory).then((slot) => {
         if (slot) {
           const summary = this.mixerOutput!.getSlotSummary()
@@ -183,10 +256,34 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
             slots_used: String(summary.used),
             slots_total: String(summary.total),
           })
+          // Notify DWA that the cut was sent to the mixer
+          void this.sendToApp({
+            type: 'applied',
+            advisoryId: advisory.id,
+            bandIndex: advisory.geq.bandIndex,
+            appliedGainDb: advisory.peq.gainDb,
+            frequencyHz: advisory.peq.hz,
+            slotIndex: slot.band,
+            timestamp: Date.now(),
+          })
+        } else {
+          // applyWithMode returned null — slot allocation failed
+          void this.sendToApp({
+            type: 'apply_failed',
+            advisoryId: advisory.id,
+            reason: 'No slot available',
+            timestamp: Date.now(),
+          })
         }
       }).catch((err) => {
         const msg = err instanceof Error ? err.message : 'Apply failed'
         this.log('error', `Auto-apply failed: ${msg}`)
+        void this.sendToApp({
+          type: 'apply_failed',
+          advisoryId: advisory.id,
+          reason: msg,
+          timestamp: Date.now(),
+        })
       })
     }
   }

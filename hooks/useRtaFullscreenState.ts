@@ -39,7 +39,7 @@ export function useRtaFullscreenState(): RtaFullscreenState {
 
     for (const element of rtaContainerRefs.current) {
       if (element.offsetParent !== null && element.requestFullscreen) {
-        element.requestFullscreen().catch(() => {})
+        element.requestFullscreen().catch((e) => { console.warn('[RTA Fullscreen] requestFullscreen failed:', e) })
         break
       }
     }

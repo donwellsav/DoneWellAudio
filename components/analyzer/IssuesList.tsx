@@ -5,13 +5,13 @@ import { useTheme } from 'next-themes'
 import { getSeverityText, getSeverityColor } from '@/lib/utils/advisoryDisplay'
 import type { Advisory } from '@/types/advisory'
 import { useCompanion } from '@/hooks/useCompanion'
+import { useAdvisories } from '@/contexts/AdvisoryContext'
 import { useIssueAnnouncement } from '@/hooks/useIssueAnnouncement'
 import {
   useIssuesListEntries,
   useStableIssueEntries,
 } from '@/hooks/useIssuesListEntries'
 import { useSwipeHintState } from '@/hooks/useSwipeHintState'
-import { usePA2 } from '@/contexts/PA2Context'
 import { IssueCard } from './IssueCard'
 import { IssuesEmptyState } from './IssuesEmptyState'
 import { SEVERITY_ICON } from '@/components/analyzer/issueCardConfig'
@@ -63,7 +63,7 @@ export const IssuesList = memo(function IssuesList({
     sendAdvisory,
     autoSendAdvisories,
   } = companion
-  const pa2 = usePA2()
+  const { companionState } = useAdvisories()
 
   useEffect(() => {
     autoSendAdvisories(advisories)
@@ -144,12 +144,7 @@ export const IssuesList = memo(function IssuesList({
               showPeqDetails={showPeqDetails}
               onDismiss={onDismiss}
               onSendToMixer={companionSettings.enabled ? sendAdvisory : undefined}
-              onSendToPA2={
-                pa2.settings.enabled && pa2.status === 'connected'
-                  ? pa2.sendDetections
-                  : undefined
-              }
-              pa2Connected={pa2.settings.enabled && pa2.status === 'connected'}
+              companionState={companionState.get(advisory.id)}
               peekSwipe={index === 0 && showSwipeHint && !!swipeLabeling}
             />
           ))}

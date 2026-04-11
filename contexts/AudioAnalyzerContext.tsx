@@ -12,8 +12,6 @@ import { MeteringContext, useMetering } from '@/contexts/MeteringContext'
 import type { MeteringContextValue } from '@/contexts/MeteringContext'
 import { DetectionContext, useDetection } from '@/contexts/DetectionContext'
 import type { DetectionContextValue } from '@/contexts/DetectionContext'
-import { PA2Provider, usePA2 } from '@/contexts/PA2Context'
-import type { PA2ContextValue } from '@/contexts/PA2Context'
 import {
   createDetectionContextValue,
   createEngineContextValue,
@@ -21,14 +19,13 @@ import {
   createSettingsContextValue,
 } from '@/contexts/audioAnalyzerContextValues'
 
-export { useEngine, useSettings, useMetering, useDetection, usePA2 }
+export { useEngine, useSettings, useMetering, useDetection }
 
 export type {
   EngineContextValue,
   SettingsContextValue,
   MeteringContextValue,
   DetectionContextValue,
-  PA2ContextValue,
 }
 
 /**
@@ -211,9 +208,7 @@ export function AudioAnalyzerProvider({
       <SettingsContext.Provider value={settingsValue}>
         <DetectionContext.Provider value={detectionValue}>
           <MeteringContext.Provider value={meteringValue}>
-            <PA2Provider advisories={advisories}>
-              {children}
-            </PA2Provider>
+            {children}
           </MeteringContext.Provider>
         </DetectionContext.Provider>
       </SettingsContext.Provider>

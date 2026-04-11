@@ -14,6 +14,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.89.0',
+    date: '2026-04-09',
+    highlights: 'Bidirectional Companion protocol + PA2 bridge removal — closed-loop feedback control, Stream Deck remote, consolidated to single Companion path',
+    changes: [
+      { type: 'refactor', description: '**BREAKING: PA2 Bridge removed.** The dedicated dbx DriveRack PA2 integration path (4,500+ lines of DWA code + 13,000 lines of vendored `companion-module-dbx-driverack-pa2/`) is gone. Users who want PA2 control install the generic DoneWell Audio Companion module and select "dbx DriveRack PA2" from the Mixer Model dropdown — the generic module already supports PA2 via TCP port 19272 with 8 PEQ bands.' },
+      { type: 'refactor', description: 'Deleted: `companion-module-dbx-driverack-pa2/`, `types/pa2.ts`, `contexts/PA2Context.tsx`, `hooks/usePA2*`, `hooks/pa2/`, `lib/pa2/`, all PA2 UI components (HeaderBarPA2Status, PA2Bridge*), `lib/canvas/drawing/drawPA2.ts`, 7 PA2 test files' },
+      { type: 'feat', description: '**Bidirectional relay**: dual-queue cloud relay (`toModule` + `toApp`) with `?direction=app` parameter. The Companion module POSTs acks/applied/failed/commands back to DWA. Backward compatible with v0.3.0 module polling.' },
+      { type: 'feat', description: '**Closed-loop feedback control**: DWA shows ✓ badge when Companion applies a cut and ⚠ when it fails. Cut metadata (gain, slot, bandIndex) captured in FeedbackHistory.' },
+      { type: 'feat', description: '**Hybrid auto-apply**: RUNAWAY severities auto-apply without human click (module honors `auto_apply` directive regardless of its own config). GROWING and lower still require SEND button or `autoSend` setting.' },
+      { type: 'feat', description: '**Closed-loop retry**: if feedback re-triggers within 2s of a Companion cut, DWA sends a 3dB-deeper cut (up to 3 retries, floor at -12dB).' },
+      { type: 'feat', description: '**Learning**: `FrequencyHotspot.learnedCutDb` tracks a rolling average of "working" cut depths per frequency, persisted in IndexedDB across sessions.' },
+      { type: 'feat', description: '**Stream Deck remote control**: 8 new Companion actions — start/stop analysis, clear all, freeze/unfreeze, switch mode (dropdown with 8 presets), start/stop ring-out wizard. DWA subscribes via inbound polling.' },
+      { type: 'fix', description: '**Latent bug in `checkStatus()`**: previously drained the same relay queue the module polls — if DWA clicked "Test" after sending, advisories were lost. Now uses HEAD request.' },
+      { type: 'fix', description: '**No `events` array ever populated**: module expected lifecycle events but the relay never emitted them. Dual-queue now allows arbitrary control messages.' },
+      { type: 'refactor', description: 'Net impact: -17,531 lines, +1,607 lines, 99 files changed. 95 test suites, 1,343 passing tests. Removes two parallel architectures, eliminates Yarn 4 + CommonJS dependency, simplifies the mental model.' },
+    ],
+  },
+  {
     version: '0.88.0',
     date: '2026-04-09',
     changes: [

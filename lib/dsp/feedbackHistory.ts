@@ -6,12 +6,19 @@
  * - Records all detected feedback events
  * - Groups by frequency (within tolerance)
  * - Tracks repeat offenders
- * - Persists to localStorage for session continuity
+ * - Persists to IndexedDB for session continuity (localStorage fallback on pagehide)
  * - Exports to CSV/JSON for post-show analysis
  */
 
 import { hzToCents } from '@/lib/utils/pitchUtils'
 import { HOTSPOT_COOLDOWN_MS, HOTSPOT_COOLDOWN_BY_MODE, POST_CUT_COOLDOWN_MS } from '@/lib/dsp/constants'
+import {
+  loadStoredFeedbackHistory,
+  saveStoredFeedbackHistory,
+  clearStoredFeedbackHistory,
+  savePendingFeedbackHistory,
+  type StoredFeedbackHistory,
+} from '@/lib/dsp/feedbackHistoryStorage'
 
 // ============================================================================
 // TYPES
@@ -37,6 +44,14 @@ export interface FeedbackEvent {
   geqSuggestedDb?: number // GEQ cut recommendation (negative = cut)
   peqQ?: number // PEQ Q factor
   peqGainDb?: number // PEQ gain recommendation (negative = cut)
+  /** Cut applied by Companion module (closed-loop tracking) */
+  cutAppliedByCompanion?: {
+    gainDb: number
+    bandIndex: number
+    at: number
+    /** True if no recurrence within VERIFICATION_WINDOW_MS, false if feedback re-triggered */
+    worked?: boolean
+  }
 }
 
 export interface FrequencyHotspot {
@@ -51,6 +66,10 @@ export interface FrequencyHotspot {
   suggestedCutDb: number
   isRepeatOffender: boolean // 3+ occurrences
   lastEventTime: number // Timestamp of last event (for cooldown)
+  /** Average "working" cut depth for this hotspot (learned over time) */
+  learnedCutDb?: number
+  /** Number of successful Companion cuts recorded against this hotspot */
+  successfulCutCount?: number
 }
 
 export interface SessionSummary {
@@ -72,11 +91,19 @@ export interface SessionSummary {
 // CONSTANTS
 // ============================================================================
 
-const STORAGE_KEY = 'doneWellAudio_feedbackHistory'
 const FREQUENCY_GROUPING_CENTS = 100 // Group frequencies within 100 cents (match track association tolerance)
 const REPEAT_OFFENDER_THRESHOLD = 3 // 3+ occurrences = repeat offender
 const MAX_EVENTS_PER_SESSION = 500 // Limit memory usage
 const MAX_EVENTS_PER_HOTSPOT = 50 // Rolling window for per-hotspot stats
+
+/** How long we monitor for feedback recurrence after a Companion cut (ms) */
+export const COMPANION_VERIFICATION_WINDOW_MS = 2000
+/** Wait this long after VERIFICATION_WINDOW to declare a cut "worked" (ms) */
+export const COMPANION_SUCCESS_WINDOW_MS = 5000
+/** Max consecutive retry cuts per frequency before marking as persistent */
+export const COMPANION_MAX_RETRIES = 3
+/** How much deeper to cut on each retry (dB) */
+export const COMPANION_RETRY_STEP_DB = 3
 
 // ============================================================================
 // FEEDBACK HISTORY CLASS
@@ -92,11 +119,35 @@ export class FeedbackHistory {
   private _mode: string = 'speech'
   /** Per-hotspot post-cut cooldown override expiry timestamps (keyed by hotspot map key) */
   private _postCutCooldowns: Map<string, number> = new Map()
+  /**
+   * Open Companion cuts awaiting verification.
+   * Key: hotspot key. Value: { appliedAt, gainDb, bandIndex, retryCount, advisoryId }
+   */
+  private _companionPendingCuts: Map<string, {
+    appliedAt: number
+    gainDb: number
+    bandIndex: number
+    retryCount: number
+    advisoryId: string
+  }> = new Map()
+  private readonly _readyPromise: Promise<void>
+  /** True once loadFromStorage() resolves — guards against event loss during hydration */
+  private _hydrated = false
+  /** Events queued during async hydration — flushed once loadFromStorage completes */
+  private _pendingEvents: Array<Omit<FeedbackEvent, 'id'>> = []
 
   constructor() {
     this.sessionId = this.generateSessionId()
     this.startTime = Date.now()
-    this.loadFromStorage()
+    this._readyPromise = this.loadFromStorage()
+  }
+
+  /**
+   * Await initial IndexedDB hydration. Resolves immediately after first load.
+   * Callers that need data before interacting (e.g. export) should await this.
+   */
+  whenReady(): Promise<void> {
+    return this._readyPromise
   }
 
   /**
@@ -142,12 +193,143 @@ export class FeedbackHistory {
   }
 
   /**
-   * Record a new feedback event
+   * Mark that the Companion module applied a cut at a given frequency.
+   * Starts the verification window — if feedback re-triggers at this frequency
+   * within COMPANION_VERIFICATION_WINDOW_MS, the cut is considered insufficient
+   * and `shouldRetryCompanionCut()` will return true.
+   *
+   * Also attaches cut metadata to the most recent event for this frequency so
+   * exports can show what the module did.
+   */
+  markCompanionApplied(
+    args: { frequencyHz: number; gainDb: number; bandIndex: number; advisoryId: string; at?: number },
+  ): void {
+    const { frequencyHz, gainDb, bandIndex, advisoryId } = args
+    const appliedAt = args.at ?? Date.now()
+    const hotspotKey = this.findHotspotKey(frequencyHz)
+    if (!hotspotKey) return
+
+    const existing = this._companionPendingCuts.get(hotspotKey)
+    this._companionPendingCuts.set(hotspotKey, {
+      appliedAt,
+      gainDb,
+      bandIndex,
+      retryCount: existing?.retryCount ?? 0,
+      advisoryId,
+    })
+
+    // Also attach to the most recent matching event (for export/history)
+    for (let i = this.events.length - 1; i >= 0; i--) {
+      const event = this.events[i]
+      const cents = Math.abs(hzToCents(event.frequencyHz, frequencyHz))
+      if (cents <= FREQUENCY_GROUPING_CENTS) {
+        event.cutAppliedByCompanion = { gainDb, bandIndex, at: appliedAt }
+        event.wasActedOn = true
+        event.cutAppliedDb = gainDb
+        break
+      }
+    }
+    // Persist
+    this.saveToStorage()
+  }
+
+  /**
+   * Check whether a new detection at this frequency indicates the last Companion
+   * cut failed and a deeper retry is warranted.
+   *
+   * Returns an object describing the retry if conditions are met, else null.
+   * Conditions:
+   *   - Pending cut exists within VERIFICATION_WINDOW_MS
+   *   - Retry count is below COMPANION_MAX_RETRIES
+   *   - Calculated deeper cut does not exceed -12dB safety clamp
+   */
+  shouldRetryCompanionCut(frequencyHz: number, now: number = Date.now()): {
+    nextGainDb: number
+    retryCount: number
+    advisoryId: string
+    bandIndex: number
+  } | null {
+    const hotspotKey = this.findHotspotKey(frequencyHz)
+    if (!hotspotKey) return null
+
+    const pending = this._companionPendingCuts.get(hotspotKey)
+    if (!pending) return null
+
+    const elapsed = now - pending.appliedAt
+    // Outside verification window — cut is either "working" or too old to chain a retry
+    if (elapsed > COMPANION_VERIFICATION_WINDOW_MS) return null
+
+    // Already retried max times — stop the loop
+    if (pending.retryCount >= COMPANION_MAX_RETRIES) return null
+
+    // Deeper cut — clamp to safety floor
+    const nextGainDb = Math.max(pending.gainDb - COMPANION_RETRY_STEP_DB, -12)
+    if (nextGainDb >= pending.gainDb) return null // no room to go deeper
+
+    // Record that we're initiating a retry
+    this._companionPendingCuts.set(hotspotKey, {
+      ...pending,
+      retryCount: pending.retryCount + 1,
+      gainDb: nextGainDb,
+      appliedAt: now,
+    })
+
+    return {
+      nextGainDb,
+      retryCount: pending.retryCount + 1,
+      advisoryId: pending.advisoryId,
+      bandIndex: pending.bandIndex,
+    }
+  }
+
+  /**
+   * Promote pending cuts to "worked" state once the success window expires.
+   * Updates the hotspot's learnedCutDb as a rolling average over successful cuts.
+   * Call periodically (e.g. from a ticker hook).
+   */
+  reapCompanionCuts(now: number = Date.now()): void {
+    for (const [key, pending] of this._companionPendingCuts) {
+      if (now - pending.appliedAt < COMPANION_SUCCESS_WINDOW_MS) continue
+
+      // The cut survived the success window — mark as "worked"
+      const hotspot = this.hotspots.get(key)
+      if (hotspot) {
+        const prevCount = hotspot.successfulCutCount ?? 0
+        const prevLearned = hotspot.learnedCutDb ?? pending.gainDb
+        // Rolling average: blend the new cut with the existing learned depth
+        hotspot.learnedCutDb = (prevLearned * prevCount + pending.gainDb) / (prevCount + 1)
+        hotspot.successfulCutCount = prevCount + 1
+
+        // Mark the most recent event for this hotspot as worked
+        for (let i = hotspot.events.length - 1; i >= 0; i--) {
+          const e = hotspot.events[i]
+          if (e.cutAppliedByCompanion && e.cutAppliedByCompanion.worked === undefined) {
+            e.cutAppliedByCompanion.worked = true
+            break
+          }
+        }
+      }
+      this._companionPendingCuts.delete(key)
+    }
+  }
+
+  /**
+   * Record a new feedback event.
+   * If IndexedDB hydration hasn't completed yet, the event is queued and
+   * replayed once loadFromStorage() resolves — preventing data loss when
+   * analysis starts before persisted state is loaded.
    */
   recordEvent(event: Omit<FeedbackEvent, 'id'>): FeedbackEvent {
+    // Queue events until hydration completes to avoid overwriting loaded state
+    if (!this._hydrated) {
+      this._pendingEvents.push(event)
+      // Return a stub event — the real one is created during flush
+      return { id: `evt_pending_${this._pendingEvents.length}`, ...event }
+    }
+
     const id = `evt_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
     const fullEvent: FeedbackEvent = { id, ...event }
-    
+
     // Add to events array
     this.events.push(fullEvent)
     
@@ -311,9 +493,10 @@ export class FeedbackHistory {
     this.hotspots.clear()
     this.hotspotBucketIndex.clear()
     this._postCutCooldowns.clear()
+    this._companionPendingCuts.clear()
     this.sessionId = this.generateSessionId()
     this.startTime = Date.now()
-    this.saveToStorage()
+    clearStoredFeedbackHistory().catch(() => { /* handled internally */ })
   }
 
   /**
@@ -511,101 +694,126 @@ export class FeedbackHistory {
     if (this._saveTimer) return
     this._saveTimer = setTimeout(() => {
       this._saveTimer = null
-      this._flushToStorage()
+      this._flushToStorageAsync().catch(() => { /* handled internally */ })
     }, 1000)
 
-    // Register pagehide flush once — ensures pending data survives tab close/reload
+    // Register pagehide flush once — ensures pending data survives tab close/reload.
+    // Uses synchronous localStorage write because async IDB transactions may be
+    // killed by the browser on unload (especially Safari).
     if (!this._pagehideHandler) {
       this._pagehideHandler = () => {
         if (this._saveTimer) {
           clearTimeout(this._saveTimer)
           this._saveTimer = null
         }
-        this._flushToStorage()
+        this._flushToStorageSync()
       }
       window.addEventListener('pagehide', this._pagehideHandler)
     }
   }
 
-  private _flushToStorage(): void {
+  /** Serialize current state for storage. */
+  private _getStorageData(): StoredFeedbackHistory {
+    return {
+      sessionId: this.sessionId,
+      startTime: this.startTime,
+      events: this.events,
+      hotspots: Array.from(this.hotspots.entries()),
+    }
+  }
+
+  /** Async write to IndexedDB — used during normal operation. */
+  private async _flushToStorageAsync(): Promise<void> {
     try {
-      const data = {
-        sessionId: this.sessionId,
-        startTime: this.startTime,
-        events: this.events,
-        hotspots: Array.from(this.hotspots.entries()),
-      }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+      await saveStoredFeedbackHistory(this._getStorageData())
     } catch (e) {
-      // QuotaExceeded — prune oldest 50% of events and recompute hotspots
-      if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-        const half = Math.floor(this.events.length / 2)
-        if (half > 0) {
-          this.events = this.events.slice(half)
-          // Recompute hotspots from retained events so they stay consistent
-          this.hotspots.clear()
-          this.hotspotBucketIndex.clear()
-          for (const event of this.events) {
-            this.updateHotspot(event)
-          }
-          try {
-            const data = {
-              sessionId: this.sessionId,
-              startTime: this.startTime,
-              events: this.events,
-              hotspots: Array.from(this.hotspots.entries()),
-            }
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-            return
-          } catch (retryErr) {
-            console.warn('[FeedbackHistory] Retry after prune also failed:', retryErr)
-          }
-        }
-      }
-      console.warn('[FeedbackHistory] Failed to save to localStorage:', e)
+      console.warn('[FeedbackHistory] Failed to save to IndexedDB:', e)
     }
   }
 
   /**
-   * Force an immediate synchronous write to localStorage.
-   * Cancels any pending debounced save. Use in endSession / beforeunload
-   * where we cannot rely on the 1s debounce completing.
+   * Synchronous write to localStorage — used ONLY in pagehide handler.
+   * Next load will merge this pending data into IndexedDB.
    */
-  flush(): void {
+  private _flushToStorageSync(): void {
+    savePendingFeedbackHistory(this._getStorageData())
+  }
+
+  /**
+   * Force an immediate async write to IndexedDB.
+   * Cancels any pending debounced save. Use in endSession where we
+   * need to ensure data is persisted before archiving the session.
+   */
+  async flush(): Promise<void> {
     if (this._saveTimer) {
       clearTimeout(this._saveTimer)
       this._saveTimer = null
     }
-    this._flushToStorage()
+    await this._flushToStorageAsync()
   }
 
-  private loadFromStorage(): void {
-    if (typeof window === 'undefined') return
+  /**
+   * Force an immediate synchronous write to localStorage.
+   * Use only in contexts where async is not possible (pagehide, beforeunload).
+   */
+  flushSync(): void {
+    if (this._saveTimer) {
+      clearTimeout(this._saveTimer)
+      this._saveTimer = null
+    }
+    this._flushToStorageSync()
+  }
+
+  /**
+   * Load persisted session data from IndexedDB (primary) with localStorage
+   * pending fallback merge. Handles one-time migration from legacy localStorage.
+   */
+  private async loadFromStorage(): Promise<void> {
+    if (typeof window === 'undefined') {
+      // SSR / test environment — no storage, mark hydrated immediately
+      this._hydrated = true
+      return
+    }
 
     try {
-      const stored = localStorage.getItem(STORAGE_KEY)
-      if (stored) {
-        const data = JSON.parse(stored)
-        // Validate structure before trusting parsed data
-        if (typeof data !== 'object' || data === null) return
-        if (typeof data.sessionId === 'string') this.sessionId = data.sessionId
-        if (typeof data.startTime === 'number') this.startTime = data.startTime
-        // Validate events array — check first element has expected shape
-        if (Array.isArray(data.events)) {
-          if (data.events.length === 0 || (typeof data.events[0].frequencyHz === 'number' && typeof data.events[0].timestamp === 'number')) {
-            this.events = data.events
-          }
-        }
-        // Reconstruct hotspots Map — validate it's array of [key, value] pairs
-        if (Array.isArray(data.hotspots) && (data.hotspots.length === 0 || (Array.isArray(data.hotspots[0]) && data.hotspots[0].length === 2))) {
-          this.hotspots = new Map(data.hotspots)
-          this.rebuildHotspotIndex()
-        }
+      const data = await loadStoredFeedbackHistory()
+      if (!data) return
+
+      if (typeof data.sessionId === 'string') this.sessionId = data.sessionId
+      if (typeof data.startTime === 'number') this.startTime = data.startTime
+      if (Array.isArray(data.events)) this.events = data.events
+      if (Array.isArray(data.hotspots)) {
+        this.hotspots = new Map(data.hotspots)
+        this.rebuildHotspotIndex()
       }
     } catch (e) {
-      // Invalid/corrupt data — start fresh, remove bad entry
-      console.warn('[FeedbackHistory] Corrupt localStorage data, starting fresh:', e)
-      try { localStorage.removeItem(STORAGE_KEY) } catch { /* ignore */ }
+      // Invalid/corrupt data — start fresh
+      console.warn('[FeedbackHistory] Failed to load from storage, starting fresh:', e)
+    } finally {
+      // Mark hydrated and replay any events that arrived during async load
+      this._hydrated = true
+      if (this._pendingEvents.length > 0) {
+        const queued = this._pendingEvents
+        this._pendingEvents = []
+        for (const event of queued) {
+          this.recordEvent(event)
+        }
+      }
+    }
+  }
+
+  /**
+   * Remove the pagehide listener and clear timers.
+   * Call in test teardown to prevent listener accumulation across instances.
+   */
+  dispose(): void {
+    if (this._saveTimer) {
+      clearTimeout(this._saveTimer)
+      this._saveTimer = null
+    }
+    if (this._pagehideHandler && typeof window !== 'undefined') {
+      window.removeEventListener('pagehide', this._pagehideHandler)
+      this._pagehideHandler = null
     }
   }
 }
@@ -621,6 +829,17 @@ export function getFeedbackHistory(): FeedbackHistory {
     instance = new FeedbackHistory()
   }
   return instance
+}
+
+/**
+ * Await the singleton's initial IndexedDB hydration.
+ * Callers that need persisted data before interacting (e.g. export, history panel)
+ * should `await whenFeedbackHistoryReady()` first.
+ *
+ * Safe to call multiple times — resolves immediately after the first load completes.
+ */
+export function whenFeedbackHistoryReady(): Promise<void> {
+  return getFeedbackHistory().whenReady()
 }
 
 /**

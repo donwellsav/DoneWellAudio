@@ -20,32 +20,22 @@ export const CompanionTab = memo(function CompanionTab() {
             <p className="mb-2">Pre-built, ready to use. Unzip into Companion&apos;s dev modules folder — no build step needed.</p>
             <div className="space-y-2">
               <a
-                href="https://github.com/donwellsav/donewellaudio/releases/download/companion-modules-v0.3.0/donewell-companion-modules.zip"
+                href="https://github.com/donwellsav/donewellaudio/releases/download/companion-modules-v0.3.0/companion-module-donewell-audio.zip"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary text-primary-foreground text-xs font-mono font-bold tracking-wider uppercase hover:bg-primary/90 transition-colors"
               >
-                Download Both Modules (.zip)
+                Download DoneWell Audio Module (.zip)
               </a>
-              <p className="text-[10px] text-muted-foreground/60">DoneWell Audio + dbx PA2 Bridge. Recommended.</p>
-              <div className="flex gap-2 flex-wrap">
-                <a href="https://github.com/donwellsav/donewellaudio/releases/download/companion-modules-v0.3.0/companion-module-donewell-audio.zip" target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-muted text-foreground text-xs font-mono hover:bg-muted/80 transition-colors">
-                  DoneWell Audio Only
-                </a>
-                <a href="https://github.com/donwellsav/donewellaudio/releases/download/companion-modules-v0.3.0/companion-module-dbx-driverack-pa2.zip" target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-muted text-foreground text-xs font-mono hover:bg-muted/80 transition-colors">
-                  PA2 Bridge Only
-                </a>
-              </div>
+              <p className="text-[10px] text-muted-foreground/60">Supports X32, Midas M32, Yamaha TF/CL/QL, A&amp;H dLive/SQ, dbx DriveRack PA2, and Generic OSC via the Mixer Model dropdown.</p>
             </div>
             <div className="mt-3 space-y-2">
               <p className="font-medium text-foreground text-sm">Install steps:</p>
               <ol className="list-decimal list-inside space-y-1">
-                <li>Click a download button above</li>
+                <li>Click the download button above</li>
                 <li>Unzip into Companion&apos;s dev modules folder</li>
                 <li>Restart Companion</li>
-                <li>Search for <strong>&ldquo;DoneWell Audio&rdquo;</strong> or <strong>&ldquo;PA2&rdquo;</strong> in Add Connection</li>
+                <li>Search for <strong>&ldquo;DoneWell Audio&rdquo;</strong> in Add Connection</li>
               </ol>
             </div>
             <p className="mt-2 text-[10px] text-muted-foreground/50">
@@ -217,27 +207,6 @@ export const CompanionTab = memo(function CompanionTab() {
               <li><strong>Relay is ephemeral:</strong> Advisory data is consumed when polled and the relay expires after inactivity. Nothing is stored permanently.</li>
               <li><strong>Regenerate pairing code</strong> to instantly disconnect any previous session.</li>
             </ul>
-          </HelpSection>
-        </div>
-      </HelpGroup>
-
-      {/* Group: PA2 Bridge */}
-      <HelpGroup title="PA2 Bridge">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-          <HelpSection title="PA2 Bridge" color="green">
-            <p className="mb-2">
-              Deep integration with the PA2 Companion module. Enables smart PEQ notching, closed-loop GEQ tuning,
-              panic mute, mode sync, dual-RTA overlay, and ML training data collection.
-            </p>
-            <p>Configure in <strong>Setup &rarr; PA2 Bridge</strong>.</p>
-          </HelpSection>
-          <HelpSection title="PA2 Setup" color="green">
-            <ol className="list-decimal list-inside space-y-2">
-              <li>Install the PA2 Companion module</li>
-              <li>Configure it with your PA2&apos;s IP</li>
-              <li>In this app, go to Setup &rarr; PA2 Bridge and enter the Companion URL</li>
-              <li>Enable the bridge and choose auto-send mode</li>
-            </ol>
           </HelpSection>
         </div>
       </HelpGroup>

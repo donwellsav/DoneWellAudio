@@ -14,6 +14,7 @@ import type { CompanionSettings } from '@/types/companion'
 import { DEFAULT_COMPANION_SETTINGS } from '@/types/companion'
 import { companionStorage } from '@/lib/companion/companionStorage'
 import { CompanionBridge, generatePairingCode } from '@/lib/companion/companionBridge'
+import { getFeedbackHistory } from '@/lib/dsp/feedbackHistory'
 
 interface UseCompanionReturn {
   /** Current companion settings */
@@ -146,17 +147,82 @@ async function sendCompanionAdvisory(advisory: Advisory): Promise<boolean> {
   return result.accepted
 }
 
+/**
+ * Send an auto-apply directive — the module will apply the cut regardless of
+ * its `autoApply` config. Used for RUNAWAY severity in hybrid mode.
+ * Still respects `enabled` and `minConfidence` gates.
+ */
+async function sendCompanionAutoApply(advisory: Advisory): Promise<boolean> {
+  const current = getSnapshot()
+  if (!current.settings.enabled) return false
+  if (advisory.confidence < current.settings.minConfidence) return false
+
+  const currentBridge = getBridge()
+  const result = await currentBridge.sendAutoApply(advisory)
+  publish({
+    ...getSnapshot(),
+    connected: currentBridge.connected,
+    lastError: currentBridge.lastError,
+  })
+  return result.accepted
+}
+
+/**
+ * Build a deeper-cut variant of an advisory for closed-loop retry.
+ * Preserves identity fields but overrides the PEQ/GEQ gain depth.
+ */
+function makeRetryAdvisory(original: Advisory, nextGainDb: number): Advisory {
+  return {
+    ...original,
+    id: `${original.id}_retry_${Date.now()}`,
+    advisory: {
+      ...original.advisory,
+      peq: { ...original.advisory.peq, gainDb: nextGainDb },
+      geq: original.advisory.geq
+        ? { ...original.advisory.geq, suggestedDb: nextGainDb }
+        : original.advisory.geq,
+    },
+  }
+}
+
+/**
+ * Hybrid auto-send: RUNAWAY severities are always sent as auto_apply directives
+ * (module applies immediately regardless of its config). Other severities are
+ * sent only when the user's `autoSend` setting is on.
+ *
+ * Closed-loop retry: before sending a new advisory, checks if the same frequency
+ * was just cut by Companion. If so, sends a deeper cut instead (up to MAX_RETRIES).
+ */
 function autoSendCompanionAdvisories(advisories: readonly Advisory[]): void {
   const current = getSnapshot()
-  if (!current.settings.enabled || !current.settings.autoSend) return
+  if (!current.settings.enabled) return
+
+  const history = getFeedbackHistory()
 
   for (const advisory of advisories) {
     if (advisory.resolved) continue
     if (advisory.confidence < current.settings.minConfidence) continue
     if (autoSentAdvisoryIds.has(advisory.id)) continue
 
+    const isRunaway = advisory.severity === 'RUNAWAY'
+
+    // Skip non-RUNAWAY advisories when autoSend is off (hybrid mode)
+    if (!isRunaway && !current.settings.autoSend) continue
+
     autoSentAdvisoryIds.add(advisory.id)
-    void sendCompanionAdvisory(advisory)
+
+    // Closed-loop: if a Companion cut was just applied here and feedback
+    // is still present, send a deeper cut instead of the original.
+    const retry = history.shouldRetryCompanionCut(advisory.trueFrequencyHz)
+    const toSend = retry
+      ? makeRetryAdvisory(advisory, retry.nextGainDb)
+      : advisory
+
+    const sendPromise = isRunaway || retry
+      ? sendCompanionAutoApply(toSend)
+      : sendCompanionAdvisory(toSend)
+
+    void sendPromise
       .then((accepted) => {
         if (!accepted) autoSentAdvisoryIds.delete(advisory.id)
       })

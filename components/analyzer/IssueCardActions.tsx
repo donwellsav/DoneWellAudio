@@ -18,8 +18,6 @@ export interface IssueCardActionsProps {
   onCopy: () => void
   copied: boolean
   onSendToMixer?: () => void
-  onSendToPA2?: () => Promise<void>
-  pa2Connected?: boolean
   layout: 'desktop' | 'mobile' | 'copy-only'
 }
 
@@ -34,8 +32,6 @@ export const IssueCardActions = memo(function IssueCardActions({
   onCopy,
   copied,
   onSendToMixer,
-  onSendToPA2,
-  pa2Connected,
   layout,
 }: IssueCardActionsProps) {
   const actionButtonClass = layout === 'mobile' ? ACTION_BTN_MOBILE : ACTION_BTN_DESKTOP
@@ -116,15 +112,6 @@ export const IssueCardActions = memo(function IssueCardActions({
             className={`${actionButtonClass} text-blue-400/50 hover:text-blue-400 hover:bg-blue-500/10 border border-transparent`}
           >
             SEND
-          </button>
-        ) : null}
-        {pa2Connected && onSendToPA2 ? (
-          <button
-            onClick={() => onSendToPA2()}
-            aria-label={`Send ${exactFreqStr} to PA2 via Companion`}
-            className={`${actionButtonClass} text-cyan-400/50 hover:text-cyan-400 hover:bg-cyan-500/10 border border-transparent`}
-          >
-            PA2
           </button>
         ) : null}
         {copied ? <span className="sr-only" role="status">Frequency info copied</span> : null}

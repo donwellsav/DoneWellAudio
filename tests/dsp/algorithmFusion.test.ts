@@ -728,8 +728,12 @@ describe('ML 7th Algorithm Integration', () => {
 // ═════════════════════════════════════════════════════════════════════════════
 // 9. PROPOSED V2 WEIGHTS — Regression Tests
 //
-// When implementing weight changes based on Gemini's recommendations,
-// uncomment these tests and update the expected values.
+// INTENTIONALLY SKIPPED — these test proposed V2 fusion weights from Gemini
+// analysis + Claude audit that have NOT been validated in production.
+//
+// Gate condition: Enable after V2 weights are deployed behind a feature flag
+// and validated via A/B testing against current production weights.
+// See: docs/archive/ for the original Gemini analysis.
 // ═════════════════════════════════════════════════════════════════════════════
 
 describe.skip('Proposed V2 Weights — Regression Tests', () => {

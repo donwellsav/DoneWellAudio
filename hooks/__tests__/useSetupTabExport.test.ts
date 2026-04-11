@@ -19,6 +19,7 @@ vi.mock('@/lib/export/exportTxt', () => ({
 
 vi.mock('@/lib/dsp/feedbackHistory', () => ({
   getFeedbackHistory: () => mockGetFeedbackHistory(),
+  whenFeedbackHistoryReady: () => Promise.resolve(),
 }))
 
 function createSummary(): SessionSummary {
@@ -93,8 +94,8 @@ describe('useSetupTabExport', () => {
       })
     })
 
-    act(() => {
-      result.current.handleExportTxt()
+    await act(async () => {
+      await result.current.handleExportTxt()
     })
 
     expect(mockGenerateTxtReport).toHaveBeenCalledWith(

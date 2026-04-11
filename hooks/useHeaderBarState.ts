@@ -5,7 +5,6 @@ import { useTheme } from 'next-themes'
 import { useAdvisories } from '@/contexts/AdvisoryContext'
 import { useEngine } from '@/contexts/EngineContext'
 import { useMetering } from '@/contexts/MeteringContext'
-import { usePA2 } from '@/contexts/PA2Context'
 import { useUI } from '@/contexts/UIContext'
 import type { AudioDevice } from '@/hooks/useAudioDevices'
 
@@ -18,11 +17,6 @@ export interface HeaderBarState {
   isFrozen: boolean
   isFullscreen: boolean
   resolvedTheme: string | undefined
-  pa2Enabled: boolean
-  pa2Status: string
-  pa2Error: string | null
-  notchSlotsUsed: number
-  notchSlotsAvailable: number
   hasClearableContent: boolean
   handleToggleAnalysis: () => void
   handleClearDisplays: () => void
@@ -53,7 +47,6 @@ export function useHeaderBarState(): HeaderBarState {
     hasActiveRTAMarkers,
   } = useAdvisories()
   const { resolvedTheme, setTheme } = useTheme()
-  const pa2 = usePA2()
 
   const hasClearableContent = useMemo(
     () =>
@@ -90,11 +83,6 @@ export function useHeaderBarState(): HeaderBarState {
     isFrozen,
     isFullscreen,
     resolvedTheme,
-    pa2Enabled: pa2.settings.enabled,
-    pa2Status: pa2.status,
-    pa2Error: pa2.error,
-    notchSlotsUsed: pa2.notchSlotsUsed,
-    notchSlotsAvailable: pa2.notchSlotsAvailable,
     hasClearableContent,
     handleToggleAnalysis,
     handleClearDisplays,

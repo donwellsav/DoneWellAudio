@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('@sentry/nextjs', () => ({
   addBreadcrumb: vi.fn(),
   captureMessage: vi.fn(),
+  setTag: vi.fn(),
+  setContext: vi.fn(),
 }))
 
 import { useDSPWorker } from '../useDSPWorker'

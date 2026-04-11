@@ -41,7 +41,9 @@ export function useSessionHistory({ isRunning }: UseSessionHistoryOptions) {
     flushedRef.current = true
 
     const history = getFeedbackHistory()
-    history.flush() // force synchronous write of pending events
+    // Sync flush to localStorage — safe for beforeunload where async IDB
+    // transactions may be killed. Next load will merge into IndexedDB.
+    history.flushSync()
 
     const summary = history.getSessionSummary()
     const hotspots = history.getHotspots()

@@ -25,6 +25,37 @@ vi.mock('@/contexts/DetectionContext', () => ({
   }),
 }))
 
+// The provider now consumes Engine/Settings/UI/Companion contexts and polls
+// the relay. Mock all of them to isolate advisory logic under test.
+vi.mock('@/contexts/EngineContext', () => ({
+  useEngine: () => ({ start: vi.fn(), stop: vi.fn() }),
+}))
+
+vi.mock('@/contexts/SettingsContext', () => ({
+  useSettings: () => ({ setMode: vi.fn() }),
+}))
+
+vi.mock('@/contexts/UIContext', () => ({
+  useUI: () => ({ isFrozen: false, toggleFreeze: vi.fn() }),
+}))
+
+vi.mock('@/hooks/useCompanion', () => ({
+  useCompanion: () => ({
+    settings: { enabled: false, pairingCode: 'DWA-TEST01' },
+  }),
+}))
+
+vi.mock('@/hooks/useCompanionInbound', () => ({
+  useCompanionInbound: () => {},
+}))
+
+vi.mock('@/lib/dsp/feedbackHistory', () => ({
+  getFeedbackHistory: () => ({
+    markCompanionApplied: vi.fn(),
+    reapCompanionCuts: vi.fn(),
+  }),
+}))
+
 import { AdvisoryProvider, useAdvisories } from '../AdvisoryContext'
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────

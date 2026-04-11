@@ -7,19 +7,20 @@ import {
   useStableIssueEntries,
   type IssueListEntry,
 } from '@/hooks/useIssuesListEntries'
-import type { Advisory } from '@/types/advisory'
+import type { Advisory, SeverityLevel } from '@/types/advisory'
 
 function makeAdvisory(
   id: string,
   trueFrequencyHz: number,
   resolved = false,
+  severity: SeverityLevel = 'RESONANCE',
 ): Advisory {
   return {
     id,
     trackId: `track-${id}`,
     timestamp: 1,
     label: 'ACOUSTIC_FEEDBACK',
-    severity: 'RESONANCE',
+    severity,
     confidence: 0.9,
     why: ['test'],
     trueFrequencyHz,
@@ -70,6 +71,57 @@ describe('useIssuesListEntries', () => {
     )
 
     expect(entries.map((entry) => entry.advisory.id)).toEqual(['repeat', 'normal', 'resolved'])
+  })
+
+  it('merges nearby frequencies keeping higher-urgency severity', () => {
+    // 250 Hz (POSSIBLE_RING, urgency 2) and 260 Hz (RESONANCE, urgency 3)
+    // are ~66 cents apart — well within DISPLAY_MERGE_CENTS (200)
+    const advisories = [
+      makeAdvisory('ring', 250, false, 'POSSIBLE_RING'),
+      makeAdvisory('res', 260, false, 'RESONANCE'),
+    ]
+
+    const entries = buildIssueListEntries(
+      advisories, undefined, 10,
+      { getOccurrenceCount: () => 1 },
+    )
+
+    expect(entries).toHaveLength(1)
+    // RESONANCE (urgency 3) wins over POSSIBLE_RING (urgency 2)
+    expect(entries[0].advisory.severity).toBe('RESONANCE')
+    expect(entries[0].occurrenceCount).toBe(2)
+  })
+
+  it('does not merge frequencies beyond 200 cents apart', () => {
+    // 250 Hz and 300 Hz are ~316 cents apart — should NOT merge
+    const advisories = [
+      makeAdvisory('low', 250, false, 'RESONANCE'),
+      makeAdvisory('high', 300, false, 'POSSIBLE_RING'),
+    ]
+
+    const entries = buildIssueListEntries(
+      advisories, undefined, 10,
+      { getOccurrenceCount: () => 1 },
+    )
+
+    expect(entries).toHaveLength(2)
+  })
+
+  it('does not merge resolved with unresolved advisories', () => {
+    // Same frequency but one resolved — should remain separate
+    const advisories = [
+      makeAdvisory('active', 1000, false, 'RESONANCE'),
+      makeAdvisory('done', 1005, true, 'RESONANCE'),
+    ]
+
+    const entries = buildIssueListEntries(
+      advisories, undefined, 10,
+      { getOccurrenceCount: () => 1 },
+    )
+
+    // Unresolved sorts first, resolved sorts last — not adjacent after sort
+    // so they won't merge even if frequencies are close
+    expect(entries).toHaveLength(2)
   })
 
   it('holds list order until the minimum display time passes', () => {

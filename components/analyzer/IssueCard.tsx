@@ -1,7 +1,7 @@
 'use client'
 
 import { memo } from 'react'
-import { AlertTriangle, TrendingUp } from 'lucide-react'
+import { AlertTriangle, Check, TrendingUp } from 'lucide-react'
 import { confidenceColor, RUNAWAY_COLOR } from '@/lib/canvas/canvasTokens'
 import { getSeverityText } from '@/lib/utils/advisoryDisplay'
 import { IssueCardActions } from './IssueCardActions'
@@ -12,6 +12,7 @@ import {
 } from '@/components/analyzer/issueCardConfig'
 import { useIssueCardState } from '@/hooks/useIssueCardState'
 import type { Advisory } from '@/types/advisory'
+import type { CompanionAdvisoryState } from '@/contexts/AdvisoryContext'
 
 export interface IssueCardProps {
   advisory: Advisory
@@ -26,8 +27,8 @@ export interface IssueCardProps {
   showPeqDetails?: boolean
   onDismiss?: (advisoryId: string) => void
   onSendToMixer?: (advisory: Advisory) => void
-  onSendToPA2?: () => Promise<void>
-  pa2Connected?: boolean
+  /** Companion ack/applied/failed state for this advisory (module → app feedback). */
+  companionState?: CompanionAdvisoryState
   /** When true, animate a brief peek revealing swipe overlays (first card only, one-time). */
   peekSwipe?: boolean
 }
@@ -45,8 +46,7 @@ export const IssueCard = memo(function IssueCard({
   showPeqDetails,
   onDismiss,
   onSendToMixer,
-  onSendToPA2,
-  pa2Connected,
+  companionState,
   peekSwipe,
 }: IssueCardProps) {
   const {
@@ -220,6 +220,25 @@ export const IssueCard = memo(function IssueCard({
           ) : null}
 
           <div className="ml-auto flex items-center gap-1 flex-shrink-0 self-center">
+            {companionState?.applied ? (
+              <span
+                className="inline-flex items-center gap-0.5 text-[11px] font-bold text-emerald-400 bg-emerald-500/15 px-1.5 py-0.5 rounded-sm leading-none border border-emerald-500/30"
+                aria-label={`Applied by Companion: ${companionState.applied.gainDb}dB on slot ${companionState.applied.slotIndex}`}
+                title={`Applied by Companion: ${companionState.applied.gainDb}dB on slot ${companionState.applied.slotIndex}`}
+              >
+                <Check className="w-2.5 h-2.5" />
+                {companionState.applied.gainDb}dB
+              </span>
+            ) : companionState?.failed ? (
+              <span
+                className="inline-flex items-center gap-0.5 text-[11px] font-bold text-red-400 bg-red-500/15 px-1.5 py-0.5 rounded-sm leading-none border border-red-500/30"
+                aria-label={`Apply failed: ${companionState.failed.reason}`}
+                title={`Apply failed: ${companionState.failed.reason}`}
+              >
+                <AlertTriangle className="w-2.5 h-2.5" />
+                FAIL
+              </span>
+            ) : null}
             {occurrenceCount >= 3 ? (
               <span
                 className="inline-flex items-center gap-0.5 text-[11px] font-bold text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded-sm leading-none border border-amber-500/30"
@@ -309,8 +328,6 @@ export const IssueCard = memo(function IssueCard({
                 onCopy={handleCopy}
                 copied={copied}
                 onSendToMixer={handleSendToMixer}
-                onSendToPA2={onSendToPA2}
-                pa2Connected={pa2Connected}
                 layout={actionsLayout}
               />
             </div>
