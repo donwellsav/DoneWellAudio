@@ -14,6 +14,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.90.0',
+    date: '2026-04-11',
+    highlights: 'Session learnings added to CLAUDE.md — version rule, single-poller pattern, provider order, mock drift, tsc dev-server gotcha',
+    changes: [
+      { type: 'refactor', description: 'CLAUDE.md: **CRITICAL RULE added — "Version = PR number"**. `package.json` version must always be `0.{PR_NUMBER}.0`. Previously buried in CI/CD section, now prominent so every release catches it.' },
+      { type: 'refactor', description: 'CLAUDE.md: **Architecture Gotcha — single `useCompanionInbound` poller**. Both feedback state updates and Stream Deck commands dispatch through `CompanionCommandBridge` inside `UIProvider`. Adding a second poller races on the relay `toApp` queue.' },
+      { type: 'refactor', description: 'CLAUDE.md: **Architecture Gotcha — provider tree order**. `AdvisoryProvider` renders OUTSIDE `UIProvider`, so it cannot call `useEngine`/`useSettings`/`useUI` directly. Components needing all three must mount inside `UIProvider`.' },
+      { type: 'refactor', description: 'CLAUDE.md: **Mock drift warning** for `FeedbackHistory`. Adding a method requires updating every `vi.mock(\'@/lib/dsp/feedbackHistory\'` site — Vitest does not type-check mock return shapes.' },
+      { type: 'refactor', description: 'CLAUDE.md: **`tsc` + dev server gotcha**. Running `npx tsc --noEmit` while Turbopack is running can show spurious errors in `.next/dev/routes.d.ts` or `validator.ts`. Fix: `rm -rf .next/dev` first.' },
+      { type: 'refactor', description: 'CLAUDE.md: **Project Structure — added `companion-module/`** entry. The DoneWell Companion module source lives in this repo (not just GitHub Release zip). Key files: `src/main.ts` (TCP + HTTP bridge), `src/mixerProfiles.ts` (8 profiles including PA2), `src/actions.ts` (Stream Deck + remote DWA control), `src/mixerOutput.ts` (slot allocation).' },
+    ],
+  },
+  {
     version: '0.89.0',
     date: '2026-04-09',
     highlights: 'Bidirectional Companion protocol + PA2 bridge removal — closed-loop feedback control, Stream Deck remote, consolidated to single Companion path',

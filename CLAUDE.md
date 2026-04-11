@@ -1,6 +1,6 @@
 # CLAUDE.md — DoneWell Audio Project Intelligence
 
-> **Last updated April 2026. 597 TypeScript/TSX files, 1347 tests (1343 pass, 4 skip), 95 suites. Version 0.89.0.**
+> **Last updated April 2026. 597 TypeScript/TSX files, 1347 tests (1343 pass, 4 skip), 95 suites. Version 0.90.0.**
 > Architecture audit: 14 of 20 improvements implemented. 4 module splits (acousticUtils→7, spectrumDrawing→7, classifier helpers, feedbackDetector utils). EXP_LUT dedup. Dead code removal. CI bundle tracking. Worker pipeline integration tests. 71 docs archived. Signal tint toggle. Severity-graded fade. Issue card redesign. GEQ/RTA hover tooltips. Canvas color token system. Hotspot bucket index (O(1) lookup). useMemo clear state. FeedbackHistory IndexedDB migration. Swipe peek animation. Light theme canvas fixes. Font size scale tokens (`--text-dwa-xs/sm/base/lg`). Skip link a11y fix.
 
 ## CRITICAL RULES
@@ -8,6 +8,7 @@
 - **NEVER run `git push` unless the user explicitly says "push" or "send to GitHub".** Committing locally is fine. Pushing is NOT. No exceptions.
 - **Build verification after every change:** `npx tsc --noEmit && pnpm test`
 - **Do not modify audio output.** DoneWell Audio is analysis-only. It listens and advises. It never modifies the audio signal.
+- **Version = PR number.** `package.json` version is always `0.{PR_NUMBER}.0`. Check `gh pr view <number>` or `gh pr list` before bumping. Changelog entry and CLAUDE.md header version must match.
 
 ## Risk-First Planning
 
@@ -325,6 +326,11 @@ lib/storage/__tests__/ (2 files) # dwaStorage + indexedDb unit tests
 lib/export/__tests__/ (3 files)  # Export module unit tests (txt, pdf, downloadFile)
 lib/dsp/__tests__/ (21 files)   # DSP unit tests (feedbackDetector, fusionEngine, combPattern, classifier, acousticUtils, decayAnalyzer, severityUtils, feedbackHistoryStorage, etc.)
 tests/integration/ (1 file)     # Worker pipeline integration tests (AlgorithmEngine → fusion → classifier)
+companion-module/               # DoneWell Audio Companion module (polls relay, outputs OSC/TCP to mixer)
+  src/main.ts                   #   TCP state machine, HTTP bridge, inbound relay poller
+  src/mixerProfiles.ts          #   8 profiles: X32, M32, Yamaha TF/CL/QL, A&H dLive/SQ, dbx PA2, Generic OSC
+  src/actions.ts                #   Stream Deck actions (local + 8 remote DWA control actions)
+  src/mixerOutput.ts            #   Slot allocation, OSC encoding, TCP transport
 public/models/                  # ML model assets
   manifest.json                 #   Model registry (version, metrics, architecture)
   dwa-fp-filter-v1.onnx         #   Bootstrap ONNX model (929 params, 4KB)
@@ -340,6 +346,8 @@ scripts/ml/                     # ML training pipeline
 - **Do not extract interaction logic from SpectrumCanvas.tsx into a separate hook.** The dirty-bit skip pattern (`dirtyRef`, `hoverPosRef`, `dragRef`) depends on refs being declared in the same component scope as the `useAnimationFrame` render callback. Moving them to a hook broke frame skipping and dropped FPS from 100+ to under 20. Reverted in v0.80.0.
 - **Barrel re-exports are safe for pure-function splits.** acousticUtils, spectrumDrawing, classifier, and feedbackDetector were all split into sub-modules with barrel re-exports. Zero runtime impact — all consumer imports unchanged. Pattern: create subdirectory, move functions, keep original file as `export * from './submodule'` barrel.
 - **Do not split stateful class methods** from FeedbackDetector into separate files unless they are pure computation (no `this.` mutations). The class has ~40 private fields shared across 24 methods on a 50fps hot path.
+- **Only ONE `useCompanionInbound` poller may be mounted.** Feedback state updates AND Stream Deck commands both dispatch through `components/analyzer/CompanionCommandBridge.tsx` (mounted inside `UIProvider`). Adding a second poller races on the relay's `toApp` queue — whoever GETs first drains it. Extend the existing bridge's handler map for new message types.
+- **Provider tree order** (inside AudioAnalyzer → AdvisoryProvider → UIProvider). AdvisoryProvider cannot call `useEngine`/`useSettings`/`useUI` because it renders OUTSIDE UIProvider. Anything needing all three must live inside UIProvider as a child component (see CompanionCommandBridge).
 - **Archived docs:** 71 stale docs, plans, papers, and aifightclub files moved to `docs/archive/` in v0.80.0. Only 10 living docs remain in `docs/`. Check `docs/archive/` for historical audits, design plans, and AI handoff docs.
 
 ## Key Performance Constraints
@@ -365,6 +373,7 @@ scripts/ml/                     # ML training pipeline
 - **Styling:** Tailwind utilities + `cn()` from `lib/utils.ts`
 - **JSDoc:** Required on all DSP functions. Include academic references.
 - **Testing:** Vitest. Co-located unit tests in `__tests__/`, scenario tests in `tests/dsp/`
+- **Mock drift warning:** when adding a method to `FeedbackHistory`, grep for `vi.mock('@/lib/dsp/feedbackHistory'` — every existing mock must include the new method or tests fail at runtime. Vitest doesn't type-check `vi.mock` return shapes.
 - **ESLint:** Flat config, `@typescript-eslint/no-explicit-any: error`. React 19 experimental rules downgraded to warn.
 - **Build gate:** `npx tsc --noEmit && pnpm test && pnpm build` — all must pass
 - **Export formats:** PDF uses dynamic `import()` to avoid bundling jsPDF unless needed; CSV/JSON/TXT are synchronous
@@ -401,6 +410,7 @@ scripts/ml/                     # ML training pipeline
 - **Run `npx tsc --noEmit`** after making TypeScript changes to catch type errors before committing.
 - **Run `pnpm test`** after any DSP, hook, or context changes.
 - **Build gate:** `npx tsc --noEmit && pnpm test` — both must pass before committing.
+- **`tsc` + dev server gotcha:** if Turbopack dev server is running, `tsc --noEmit` can report spurious errors in `.next/dev/routes.d.ts` or `validator.ts` from stale generated files. Fix: `rm -rf .next/dev` before type-checking.
 - **Canvas changes** require visual verification in the browser (type-check won't catch drawing bugs).
 
 ## Change Impact Audit (MANDATORY — enforced by hooks)
