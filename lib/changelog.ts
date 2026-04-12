@@ -14,6 +14,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.91.0',
+    date: '2026-04-12',
+    changes: [
+      { type: 'feat', description: '**DSP hot path:** Replace 3 `Math.pow()` with `dbToLinearLut()` (~3-4ms/frame savings), pool `peakFrequencies` array (~5K fewer allocs/sec), eliminate Set allocation in worker pruning, single-pass content type max finder' },
+      { type: 'feat', description: '**Canvas:** Cache backlight gradients per dimension (2→0 GPU objects/frame)' },
+      { type: 'feat', description: '**Pagehide persistence:** Rework from truncated-snapshot to delta-based architecture — writes only unsaved events (no hotspots), with durability watermark, hotspot replay from recovered events, session rollover markers, and freshness-based conflict resolution' },
+      { type: 'feat', description: '**Service worker:** `.wasm` CacheFirst rule (30-day TTL), activation cleanup for stale runtime caches' },
+      { type: 'feat', description: '[x] `npx tsc --noEmit` — clean' },
+      { type: 'feat', description: '[x] `pnpm test` — 1364 pass, 4 skip (21 new tests)' },
+      { type: 'feat', description: '[x] 5 rounds of adversarial Codex review converged to zero findings' },
+      { type: 'feat', description: '[ ] Visual verification: canvas rendering, gradient caching, spectrum display' },
+      { type: 'feat', description: '[ ] Manual test: clear history → close tab → reopen → verify old session does not resurrect' },
+      { type: 'feat', description: '[ ] Manual test: record events → close tab mid-session → reopen → verify all events + hotspot counts survive' },
+    ],
+  },
+  {
     version: '0.90.0',
     date: '2026-04-11',
     highlights: 'Session learnings added to CLAUDE.md — version rule, single-poller pattern, provider order, mock drift, tsc dev-server gotcha',
