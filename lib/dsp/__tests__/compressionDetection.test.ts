@@ -264,5 +264,22 @@ describe('calculateSpectralFlatness', () => {
       // Should not throw
       expect(result.flatness).toBeGreaterThanOrEqual(0)
     })
+
+    it('detects narrow tone surrounded by -100 dB floor bins as feedback-like', () => {
+      // Regression: AnalyserNode.minDecibels = -100, so floor bins are exactly -100.
+      // A single tone peak at -20 dB surrounded by -100 dB bins should produce
+      // low flatness (tonal signal), NOT flatness ≈ 1.0 (broadband).
+      const spectrum = new Float32Array(4096)
+      spectrum.fill(-100) // floor (AnalyserNode default minDecibels)
+      const peakBin = 500
+      spectrum[peakBin] = -20 // 80 dB above floor — clear feedback tone
+
+      const result = calculateSpectralFlatness(spectrum, peakBin, 5)
+
+      // Flatness should be very low — one peak among floor bins is maximally tonal.
+      // With the old `<= -100` skip, count collapsed to 1 and flatness was ~1.0 (wrong).
+      expect(result.flatness).toBeLessThan(0.1)
+      expect(result.isFeedbackLikely).toBe(true)
+    })
   })
 })

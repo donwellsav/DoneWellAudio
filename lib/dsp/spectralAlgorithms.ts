@@ -99,7 +99,7 @@ export function analyzeInterHarmonicRatio(
         hPeakBin = b
       }
     }
-    const hPower = Math.pow(10, hPeak / 10)
+    const hPower = dbToLinearLut(hPeak)
     harmonicEnergy += hPower
 
     // Validate: peak must be within tolerance of exact integer multiple of f0
@@ -119,7 +119,7 @@ export function analyzeInterHarmonicRatio(
         for (let b = Math.max(0, midBin - halfBinWidth); b <= Math.min(maxBin, midBin + halfBinWidth); b++) {
           if (spectrum[b] > ihPeak) ihPeak = spectrum[b]
         }
-        interHarmonicEnergy += Math.pow(10, ihPeak / 10)
+        interHarmonicEnergy += dbToLinearLut(ihPeak)
       }
     }
   }

@@ -10,6 +10,7 @@ import {
   COMPRESSION_SETTINGS,
 } from './constants'
 import { medianInPlace64 } from '@/lib/utils/mathHelpers'
+import { dbToLinearLut } from './expLut'
 
 // ── Pre-allocated Scratch Buffers ───────────────────────────────────────────
 // Spectral flatness: max bandwidth=10 → max 21 bins. Sized at 21.
@@ -84,7 +85,9 @@ export function calculateSpectralFlatness(
   let peakDb = -Infinity
 
   for (let i = startBin; i <= endBin; i++) {
-    const linear = Math.pow(10, spectrum[i] / 10)
+    const db = spectrum[i]
+    if (!isFinite(db)) continue // Skip -Infinity/NaN — LUT can't represent true zero
+    const linear = dbToLinearLut(db)
     if (linear > 0) {
       _regionScratch[count] = linear
       _regionDbScratch[count] = spectrum[i]

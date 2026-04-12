@@ -24,6 +24,12 @@ let _gridMajorPath: Path2D | null = null
 let _gridFreqPath: Path2D | null = null
 let _gridCacheKey = ''
 
+// ── Gradient cache — rebuilt only on canvas resize ──
+let _vignetteGrad: CanvasGradient | null = null
+let _backlightGradDark: CanvasGradient | null = null
+let _backlightGradLight: CanvasGradient | null = null
+let _gradCacheKey = ''
+
 export function drawGrid(
   ctx: CanvasRenderingContext2D,
   plotWidth: number,
@@ -35,7 +41,32 @@ export function drawGrid(
   ctx.fillStyle = theme.background
   ctx.fillRect(0, 0, plotWidth, plotHeight)
 
-  // Radial vignette — subtle depth from center to edges
+  // Radial vignette + instrument backlight — cached, rebuilt only on resize
+  const isDark = theme === DARK_CANVAS_THEME
+  const gKey = `${plotWidth}|${plotHeight}`
+  if (gKey !== _gradCacheKey) {
+    _vignetteGrad = ctx.createRadialGradient(
+      plotWidth / 2, plotHeight / 2, plotWidth * 0.25,
+      plotWidth / 2, plotHeight / 2, plotWidth * 0.75,
+    )
+    // Color stops added per-frame below (theme may change without resize)
+    _backlightGradDark = ctx.createRadialGradient(
+      plotWidth * 0.5, plotHeight * 0.3, 0,
+      plotWidth * 0.5, plotHeight * 0.5, plotWidth * 0.52,
+    )
+    _backlightGradDark.addColorStop(0, 'rgba(20, 45, 90, 0.28)')
+    _backlightGradDark.addColorStop(1, 'rgba(0, 0, 0, 0)')
+    _backlightGradLight = ctx.createRadialGradient(
+      plotWidth * 0.5, plotHeight * 0.3, 0,
+      plotWidth * 0.5, plotHeight * 0.5, plotWidth * 0.52,
+    )
+    _backlightGradLight.addColorStop(0, 'rgba(180, 140, 60, 0.18)')
+    _backlightGradLight.addColorStop(1, 'rgba(0, 0, 0, 0)')
+    _gradCacheKey = gKey
+  }
+  // Vignette — color stops must be reset each frame since theme can change
+  // CanvasGradient color stops are append-only, so we must rebuild on theme change.
+  // But vignette geometry only depends on dimensions, so we cache the geometry key.
   const vg = ctx.createRadialGradient(
     plotWidth / 2, plotHeight / 2, plotWidth * 0.25,
     plotWidth / 2, plotHeight / 2, plotWidth * 0.75,
@@ -45,16 +76,8 @@ export function drawGrid(
   ctx.fillStyle = vg
   ctx.fillRect(0, 0, plotWidth, plotHeight)
 
-  // Instrument backlight — diffuse glow centered where spectrum data lives.
-  // Dark: cool blue-white. Light: warm amber tint matching amber-sidecar palette.
-  const isDark = theme === DARK_CANVAS_THEME
-  const backlight = ctx.createRadialGradient(
-    plotWidth * 0.5, plotHeight * 0.3, 0,
-    plotWidth * 0.5, plotHeight * 0.5, plotWidth * 0.52,
-  )
-  backlight.addColorStop(0, isDark ? 'rgba(20, 45, 90, 0.28)' : 'rgba(180, 140, 60, 0.18)')
-  backlight.addColorStop(1, isDark ? 'rgba(0, 0, 0, 0)' : 'rgba(0, 0, 0, 0)')
-  ctx.fillStyle = backlight
+  // Instrument backlight — use cached gradient (theme-specific, geometry-cached)
+  ctx.fillStyle = isDark ? _backlightGradDark! : _backlightGradLight!
   ctx.fillRect(0, 0, plotWidth, plotHeight)
 
   // Rebuild cached grid paths only when geometry inputs change
