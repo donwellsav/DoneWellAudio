@@ -85,6 +85,15 @@ export type ModuleToAppMessage =
     }
   /** Apply failed — mixer error, slots full, etc. */
   | { type: 'apply_failed'; advisoryId: string; reason: string; timestamp: number }
+  /** Partial apply — one of PEQ/GEQ succeeded but the other failed (both mode). */
+  | {
+      type: 'partial_apply'
+      advisoryId: string
+      peqApplied: boolean
+      geqApplied: boolean
+      failReason: string
+      timestamp: number
+    }
   /** Slot cleared (resolve/dismiss echo). */
   | { type: 'cleared'; advisoryId: string; slotIndex: number; timestamp: number }
   /** Stream Deck button pressed — DWA should take an action. */

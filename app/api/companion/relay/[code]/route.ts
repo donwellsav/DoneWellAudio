@@ -73,7 +73,7 @@ const VALID_TO_MODULE_TYPES = new Set([
 
 /** Valid module → DWA message types. */
 const VALID_TO_APP_TYPES = new Set([
-  'ack', 'applied', 'apply_failed', 'cleared', 'command', 'pong',
+  'ack', 'applied', 'apply_failed', 'partial_apply', 'cleared', 'command', 'pong',
 ])
 
 /** Max string field length to prevent oversized payloads */

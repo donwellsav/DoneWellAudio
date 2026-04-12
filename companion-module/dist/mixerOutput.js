@@ -43,6 +43,10 @@ export class MixerOutput {
     lastPeqFailReason = null;
     /** Active GEQ writes on the mixer — keyed by advisory ID for rollback */
     activeGeqWrites = new Map();
+    /** Reference count per GEQ band — only zero hardware when count drops to 0 */
+    geqBandRefCount = new Map();
+    /** Orphaned GEQ writes from failed relocation clears — retried on clearAll and clearByAdvisoryId */
+    orphanedGeqWrites = [];
     /** Session action log for export */
     sessionLog = [];
     constructor(config, log) {
@@ -51,9 +55,13 @@ export class MixerOutput {
         this.profile = getMixerProfile(config.mixerModel);
     }
     async updateConfig(config) {
-        // Drain active GEQ writes on the current profile/target before swapping
-        if (this.activeGeqWrites.size > 0 && this.profile.buildGeqMessage) {
+        // Drain all active state on the current profile/target before swapping
+        if (this.activeSlots.size > 0 || this.activeGeqWrites.size > 0) {
             await this.clearAll();
+            // Log if anything couldn't be cleared (orphaned GEQ entries survive)
+            if (this.activeGeqWrites.size > 0) {
+                this.log('warn', `${this.activeGeqWrites.size} GEQ write(s) could not be cleared before config change`);
+            }
         }
         this.config = config;
         this.profile = getMixerProfile(config.mixerModel);
@@ -157,24 +165,39 @@ export class MixerOutput {
             return false;
         }
         await this.sendEqMessage(msg);
-        // If this advisory previously wrote a different GEQ band/prefix, clear the old one
+        // If this advisory previously wrote a different GEQ band/prefix, handle relocation
         const prev = this.activeGeqWrites.get(advisory.id);
         if (prev && (prev.bandIndex !== advisory.geq.bandIndex || prev.prefix !== geqPrefix)) {
-            try {
-                const clearMsg = this.profile.buildGeqMessage({
-                    prefix: prev.prefix,
-                    bandIndex: prev.bandIndex,
-                    gainDb: 0,
-                });
-                await this.sendEqMessage(clearMsg);
-                this.log('info', `Cleared relocated GEQ band ${prev.bandIndex} (advisory ${advisory.id} moved to band ${advisory.geq.bandIndex})`);
+            const oldKey = `${prev.prefix}:${prev.bandIndex}`;
+            const oldCount = (this.geqBandRefCount.get(oldKey) ?? 1) - 1;
+            if (oldCount <= 0) {
+                // Last advisory on this band — zero the hardware
+                this.geqBandRefCount.delete(oldKey);
+                try {
+                    const clearMsg = this.profile.buildGeqMessage({
+                        prefix: prev.prefix,
+                        bandIndex: prev.bandIndex,
+                        gainDb: 0,
+                    });
+                    await this.sendEqMessage(clearMsg);
+                    this.log('info', `Cleared relocated GEQ band ${prev.bandIndex} (advisory ${advisory.id} moved to band ${advisory.geq.bandIndex})`);
+                }
+                catch {
+                    // Old band clear failed — retain as orphan for retry via clearByAdvisoryId or clearAll
+                    this.orphanedGeqWrites.push(prev);
+                    this.log('warn', `Failed to clear old GEQ band ${prev.bandIndex} — retained as orphan for retry`);
+                }
             }
-            catch {
-                // Old band clear failed — keep the old entry as an orphan so clearAll() can retry
-                const orphanKey = `orphan:${prev.prefix}:${prev.bandIndex}:${Date.now()}`;
-                this.activeGeqWrites.set(orphanKey, prev);
-                this.log('warn', `Failed to clear old GEQ band ${prev.bandIndex} — retained as orphan for retry`);
+            else {
+                // Other advisories still targeting this band — just decrement
+                this.geqBandRefCount.set(oldKey, oldCount);
+                this.log('info', `Decremented ref on GEQ band ${prev.bandIndex} (${oldCount} remaining)`);
             }
+        }
+        // Increment ref count for the new band
+        const newKey = `${geqPrefix}:${advisory.geq.bandIndex}`;
+        if (!prev || prev.bandIndex !== advisory.geq.bandIndex || prev.prefix !== geqPrefix) {
+            this.geqBandRefCount.set(newKey, (this.geqBandRefCount.get(newKey) ?? 0) + 1);
         }
         // Track for rollback on advisory dismiss/resolve
         this.activeGeqWrites.set(advisory.id, {
@@ -228,33 +251,70 @@ export class MixerOutput {
                 break;
             }
         }
-        // Revert GEQ write (send 0 dB to same band)
+        // Revert GEQ write — only zero hardware when this is the last advisory on the band
         const geqWrite = this.activeGeqWrites.get(advisoryId);
         if (geqWrite && this.profile.buildGeqMessage) {
             hadGeq = true;
-            try {
-                const msg = this.profile.buildGeqMessage({
-                    prefix: geqWrite.prefix,
-                    bandIndex: geqWrite.bandIndex,
-                    gainDb: 0,
-                });
-                await this.sendEqMessage(msg);
+            const bandKey = `${geqWrite.prefix}:${geqWrite.bandIndex}`;
+            const refCount = (this.geqBandRefCount.get(bandKey) ?? 1) - 1;
+            if (refCount <= 0) {
+                // Last advisory on this band — zero the hardware
+                this.geqBandRefCount.delete(bandKey);
+                try {
+                    const msg = this.profile.buildGeqMessage({
+                        prefix: geqWrite.prefix,
+                        bandIndex: geqWrite.bandIndex,
+                        gainDb: 0,
+                    });
+                    await this.sendEqMessage(msg);
+                    this.activeGeqWrites.delete(advisoryId);
+                    this.sessionLog.push({
+                        action: 'geq_clear',
+                        freqHz: 0,
+                        gainDb: 0,
+                        q: 0,
+                        band: geqWrite.bandIndex,
+                        timestamp: Date.now(),
+                    });
+                    this.log('info', `Cleared GEQ band ${geqWrite.bandIndex} (advisory ${advisoryId}, last ref)`);
+                    geqCleared = true;
+                }
+                catch {
+                    this.log('warn', `Failed to clear GEQ band ${geqWrite.bandIndex} for advisory ${advisoryId}`);
+                    // Restore ref count since clear failed
+                    this.geqBandRefCount.set(bandKey, 1);
+                }
+            }
+            else {
+                // Other advisories still need this band — just remove our tracking entry
+                this.geqBandRefCount.set(bandKey, refCount);
                 this.activeGeqWrites.delete(advisoryId);
-                this.sessionLog.push({
-                    action: 'geq_clear',
-                    freqHz: 0,
-                    gainDb: 0,
-                    q: 0,
-                    band: geqWrite.bandIndex,
-                    timestamp: Date.now(),
-                });
-                this.log('info', `Cleared GEQ band ${geqWrite.bandIndex} (advisory ${advisoryId})`);
+                this.log('info', `Released GEQ band ${geqWrite.bandIndex} ref (advisory ${advisoryId}, ${refCount} remaining)`);
                 geqCleared = true;
             }
-            catch {
-                this.log('warn', `Failed to clear GEQ band ${geqWrite.bandIndex} for advisory ${advisoryId}`);
+        }
+        // Also attempt to clear any orphaned GEQ writes from failed relocations for this advisory
+        const remainingOrphans = [];
+        for (const orphan of this.orphanedGeqWrites) {
+            if (orphan.advisoryId === advisoryId && this.profile.buildGeqMessage) {
+                try {
+                    const msg = this.profile.buildGeqMessage({
+                        prefix: orphan.prefix,
+                        bandIndex: orphan.bandIndex,
+                        gainDb: 0,
+                    });
+                    await this.sendEqMessage(msg);
+                    this.log('info', `Cleared orphaned GEQ band ${orphan.bandIndex} (advisory ${advisoryId})`);
+                }
+                catch {
+                    remainingOrphans.push(orphan);
+                }
+            }
+            else {
+                remainingOrphans.push(orphan);
             }
         }
+        this.orphanedGeqWrites = remainingOrphans;
         const fullyCleared = (!hadPeq || peqCleared) && (!hadGeq || geqCleared);
         return { peqCleared, geqCleared, fullyCleared };
     }
@@ -291,23 +351,54 @@ export class MixerOutput {
             await this.clearSlot(band);
         }
         // Revert all tracked GEQ writes — only delete entries that successfully cleared
+        // Collect unique bands to avoid sending duplicate zero commands
+        const bandsSeen = new Set();
         for (const advisoryId of [...this.activeGeqWrites.keys()]) {
             const geqWrite = this.activeGeqWrites.get(advisoryId);
             if (geqWrite && this.profile.buildGeqMessage) {
-                try {
-                    const msg = this.profile.buildGeqMessage({
-                        prefix: geqWrite.prefix,
-                        bandIndex: geqWrite.bandIndex,
-                        gainDb: 0,
-                    });
-                    await this.sendEqMessage(msg);
-                    this.activeGeqWrites.delete(advisoryId);
+                const bandKey = `${geqWrite.prefix}:${geqWrite.bandIndex}`;
+                if (!bandsSeen.has(bandKey)) {
+                    bandsSeen.add(bandKey);
+                    try {
+                        const msg = this.profile.buildGeqMessage({
+                            prefix: geqWrite.prefix,
+                            bandIndex: geqWrite.bandIndex,
+                            gainDb: 0,
+                        });
+                        await this.sendEqMessage(msg);
+                    }
+                    catch {
+                        this.log('warn', `Failed to clear GEQ band ${geqWrite.bandIndex} — entry retained for retry`);
+                        continue;
+                    }
                 }
-                catch {
-                    this.log('warn', `Failed to clear GEQ band ${geqWrite.bandIndex} — entry retained for retry`);
+                this.activeGeqWrites.delete(advisoryId);
+            }
+        }
+        this.geqBandRefCount.clear();
+        // Also drain orphaned writes
+        const remainingOrphans = [];
+        for (const orphan of this.orphanedGeqWrites) {
+            if (this.profile.buildGeqMessage) {
+                const bandKey = `${orphan.prefix}:${orphan.bandIndex}`;
+                if (!bandsSeen.has(bandKey)) {
+                    bandsSeen.add(bandKey);
+                    try {
+                        const msg = this.profile.buildGeqMessage({
+                            prefix: orphan.prefix,
+                            bandIndex: orphan.bandIndex,
+                            gainDb: 0,
+                        });
+                        await this.sendEqMessage(msg);
+                    }
+                    catch {
+                        remainingOrphans.push(orphan);
+                        continue;
+                    }
                 }
             }
         }
+        this.orphanedGeqWrites = remainingOrphans;
     }
     /** Get slot usage summary */
     getSlotSummary() {

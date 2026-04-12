@@ -19,6 +19,13 @@ export interface CompanionInboundAdvisoryHandlers {
     timestamp: number
   }) => void
   onApplyFailed?: (advisoryId: string, reason: string, timestamp: number) => void
+  onPartialApply?: (args: {
+    advisoryId: string
+    peqApplied: boolean
+    geqApplied: boolean
+    failReason: string
+    timestamp: number
+  }) => void
   onCleared?: (advisoryId: string, slotIndex: number, timestamp: number) => void
 }
 
@@ -66,6 +73,16 @@ export function dispatchCompanionMessage(
 
     case 'apply_failed':
       handlers.onApplyFailed?.(message.advisoryId, message.reason, message.timestamp)
+      return
+
+    case 'partial_apply':
+      handlers.onPartialApply?.({
+        advisoryId: message.advisoryId,
+        peqApplied: message.peqApplied,
+        geqApplied: message.geqApplied,
+        failReason: message.failReason,
+        timestamp: message.timestamp,
+      })
       return
 
     case 'cleared':

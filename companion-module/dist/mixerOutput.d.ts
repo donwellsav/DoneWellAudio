@@ -60,6 +60,10 @@ export declare class MixerOutput {
     private lastPeqFailReason;
     /** Active GEQ writes on the mixer — keyed by advisory ID for rollback */
     activeGeqWrites: Map<string, ActiveGeqWrite>;
+    /** Reference count per GEQ band — only zero hardware when count drops to 0 */
+    private geqBandRefCount;
+    /** Orphaned GEQ writes from failed relocation clears — retried on clearAll and clearByAdvisoryId */
+    private orphanedGeqWrites;
     /** Session action log for export */
     sessionLog: Array<{
         action: string;

@@ -149,17 +149,11 @@ export class ModuleInstance extends InstanceBase {
                                     });
                                 }
                                 else if (result.peqCleared || result.geqCleared) {
-                                    // Partial clear — report what succeeded but log the gap
+                                    // Partial clear — update slot count but do NOT tell DWA it's fully cleared
                                     const after = this.mixerOutput.getSlotSummary();
                                     this.setVariableValues({ slots_used: String(after.used) });
                                     const partial = result.peqCleared ? 'PEQ cleared, GEQ failed' : 'GEQ cleared, PEQ failed';
-                                    this.log('warn', `Partial clear for advisory ${advisoryId}: ${partial}`);
-                                    void this.sendToApp({
-                                        type: 'cleared',
-                                        advisoryId,
-                                        slotIndex: slotMatch?.band ?? 0,
-                                        timestamp: Date.now(),
-                                    });
+                                    this.log('warn', `Partial clear for advisory ${advisoryId}: ${partial} — advisory kept active`);
                                 }
                                 else {
                                     this.log('error', `Failed to clear any outputs for advisory ${advisoryId}`);
