@@ -199,6 +199,9 @@ const decayAnalyzer = new DecayAnalyzer()
 /** Per-track comb stability trackers — prevents cross-peak contamination. */
 const combTrackers = new Map<string, CombStabilityTracker>()
 
+/** Pre-allocated scratch array for active track frequencies — avoids .map() allocation per peak. */
+const _peakFreqScratch: number[] = []
+
 // ─── Classification temporal smoothing ──────────────────────────────────────
 // Prevents advisory flickering by requiring N consistent classification frames
 // before changing a track's label. Safety-critical RUNAWAY/GROWING bypass this.
@@ -461,12 +464,12 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
           advisoryManager.pruneBandCooldowns(now)
 
           // Prune classification label history and comb trackers for dead tracks
-          const activeTrackIds = new Set(trackManager.getActiveTracks().map(t => t.id))
+          // Uses trackManager.isActiveTrack() directly — avoids Set + .map() allocation
           for (const trackId of classificationLabelHistory.keys()) {
-            if (!activeTrackIds.has(trackId)) classificationLabelHistory.delete(trackId)
+            if (!trackManager.isActiveTrack(trackId)) classificationLabelHistory.delete(trackId)
           }
           for (const trackId of combTrackers.keys()) {
-            if (!activeTrackIds.has(trackId)) combTrackers.delete(trackId)
+            if (!trackManager.isActiveTrack(trackId)) combTrackers.delete(trackId)
           }
         }
 
@@ -487,7 +490,10 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
 
       // Compute algorithm scores for this peak
       const activeTracks = trackManager.getRawTracks()
-      const peakFrequencies = activeTracks.map(t => t.trueFrequencyHz)
+      _peakFreqScratch.length = 0
+      for (let i = 0; i < activeTracks.length; i++) {
+        _peakFreqScratch.push(activeTracks[i].trueFrequencyHz)
+      }
 
       // ── Room dimension measurement accumulation ──────────────────────────
       if (roomMeasurement.active) {
@@ -545,7 +551,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       }
 
       const algorithmResult = algorithmEngine.computeScores(
-        peak, track, spectrum, sampleRate, fftSize, peakFrequencies
+        peak, track, spectrum, sampleRate, fftSize, _peakFreqScratch
       )
       const { algorithmScores } = algorithmResult
       publishCombPattern(algorithmScores.comb ?? null)
@@ -596,7 +602,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
 
       // Classify track with full algorithm context
       const classification = classifyTrackWithAlgorithms(
-        track, algorithmScores, fusionResult, settings, peakFrequencies
+        track, algorithmScores, fusionResult, settings, _peakFreqScratch
       )
 
       // Apply temporal smoothing (RUNAWAY/GROWING bypass automatically)

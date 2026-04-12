@@ -303,9 +303,14 @@ export class AlgorithmEngine {
     for (const t of this._ctHistory) {
       if (t !== 'unknown') ctCounts[t] = (ctCounts[t] ?? 0) + 1
     }
-    const best = Object.entries(ctCounts).sort((a, b) => b[1] - a[1])[0]
+    // Single-pass max instead of sort (4 content types → O(4) vs O(4 log 4) + allocation)
+    let bestKey = ''
+    let bestCount = 0
+    for (const key in ctCounts) {
+      if (ctCounts[key] > bestCount) { bestCount = ctCounts[key]; bestKey = key }
+    }
     const prev = this._contentType
-    this._contentType = best && best[1] >= 3 ? best[0] as ContentType : (this._contentType ?? 'unknown')
+    this._contentType = bestKey && bestCount >= 3 ? bestKey as ContentType : (this._contentType ?? 'unknown')
 
     // Update compression status
     const compressionResult = this.ampBuffer.detectCompression()

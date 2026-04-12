@@ -135,6 +135,9 @@ export class FeedbackHistory {
   private _hydrated = false
   /** Events queued during async hydration — flushed once loadFromStorage completes */
   private _pendingEvents: Array<Omit<FeedbackEvent, 'id'>> = []
+  /** Number of events in this.events at the time of the last successful IDB flush.
+   *  Pagehide writes only events[_lastFlushedEventCount:] as the delta. */
+  private _lastFlushedEventCount = 0
 
   constructor() {
     this.sessionId = this.generateSessionId()
@@ -333,9 +336,11 @@ export class FeedbackHistory {
     // Add to events array
     this.events.push(fullEvent)
     
-    // Limit total events
+    // Limit total events — adjust watermark so delta stays correct
     if (this.events.length > MAX_EVENTS_PER_SESSION) {
+      const dropped = this.events.length - MAX_EVENTS_PER_SESSION
       this.events = this.events.slice(-MAX_EVENTS_PER_SESSION)
+      this._lastFlushedEventCount = Math.max(0, this._lastFlushedEventCount - dropped)
     }
     
     // Update hotspots
@@ -496,6 +501,7 @@ export class FeedbackHistory {
     this._companionPendingCuts.clear()
     this.sessionId = this.generateSessionId()
     this.startTime = Date.now()
+    this._lastFlushedEventCount = 0 // Reset watermark — new session has nothing in IDB
     clearStoredFeedbackHistory().catch(() => { /* handled internally */ })
   }
 
@@ -507,6 +513,7 @@ export class FeedbackHistory {
     this.startTime = Date.now()
     // Keep hotspots but clear events for new session
     this.events = []
+    this._lastFlushedEventCount = 0 // Reset watermark — new session has nothing in IDB
     this.saveToStorage()
   }
 
@@ -725,18 +732,22 @@ export class FeedbackHistory {
   /** Async write to IndexedDB — used during normal operation. */
   private async _flushToStorageAsync(): Promise<void> {
     try {
-      await saveStoredFeedbackHistory(this._getStorageData())
+      const data = this._getStorageData()
+      await saveStoredFeedbackHistory(data)
+      // Record watermark — pagehide only needs events after this point
+      this._lastFlushedEventCount = this.events.length
     } catch (e) {
       console.warn('[FeedbackHistory] Failed to save to IndexedDB:', e)
     }
   }
 
   /**
-   * Synchronous write to localStorage — used ONLY in pagehide handler.
-   * Next load will merge this pending data into IndexedDB.
+   * Synchronous delta write to localStorage — used ONLY in pagehide handler.
+   * Writes only events since the last IDB flush (no hotspots — those are
+   * already persisted in the IDB snapshot). Next load merges the delta.
    */
   private _flushToStorageSync(): void {
-    savePendingFeedbackHistory(this._getStorageData())
+    savePendingFeedbackHistory(this._getStorageData(), this._lastFlushedEventCount)
   }
 
   /**
@@ -776,15 +787,40 @@ export class FeedbackHistory {
     }
 
     try {
-      const data = await loadStoredFeedbackHistory()
-      if (!data) return
+      const result = await loadStoredFeedbackHistory()
+      if (!result) return
 
+      const { data, durableEventCount, hotspotCoveredCount } = result
       if (typeof data.sessionId === 'string') this.sessionId = data.sessionId
       if (typeof data.startTime === 'number') this.startTime = data.startTime
       if (Array.isArray(data.events)) this.events = data.events
       if (Array.isArray(data.hotspots)) {
         this.hotspots = new Map(data.hotspots)
         this.rebuildHotspotIndex()
+      }
+
+      // Replay events not covered by the stored hotspot snapshot.
+      // hotspotCoveredCount tracks how many events the IDB hotspots
+      // account for (pre-merge count). Events beyond that — whether
+      // from a delta merge or a promoted session — need hotspot replay
+      // so repeat-offender counts, cut-learning, etc. stay correct.
+      let hotspotsRebuilt = false
+      if (hotspotCoveredCount < this.events.length) {
+        for (let i = hotspotCoveredCount; i < this.events.length; i++) {
+          this.updateHotspot(this.events[i])
+        }
+        hotspotsRebuilt = true
+      }
+
+      // Set watermark to the durable count — NOT events.length.
+      // If the delta merge didn't persist to IDB, the next pagehide
+      // must re-write those events so they aren't lost.
+      this._lastFlushedEventCount = durableEventCount
+
+      // If we rebuilt hotspots, immediately persist the corrected snapshot
+      // so a second reload sees consistent hotspot state (not stale).
+      if (hotspotsRebuilt) {
+        this._flushToStorageAsync().catch(() => { /* handled internally */ })
       }
     } catch (e) {
       // Invalid/corrupt data — start fresh
