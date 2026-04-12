@@ -23,9 +23,14 @@ export function useServiceWorkerUpdate() {
     if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return
 
     let cancelled = false
+    let regRef: ServiceWorkerRegistration | null = null
+    let onUpdateFound: (() => void) | null = null
+    let installingRef: ServiceWorker | null = null
+    let onStateChange: (() => void) | null = null
 
     navigator.serviceWorker.ready.then((reg) => {
       if (cancelled) return
+      regRef = reg
       setRegistration(reg)
 
       // Check if there's already a waiting worker
@@ -35,17 +40,23 @@ export function useServiceWorkerUpdate() {
       }
 
       // Listen for new workers that enter the waiting state
-      reg.addEventListener('updatefound', () => {
+      onUpdateFound = () => {
         const installing = reg.installing
         if (!installing) return
 
-        installing.addEventListener('statechange', () => {
+        // Clean up previous installing listener if a new install starts
+        if (installingRef && onStateChange) {
+          installingRef.removeEventListener('statechange', onStateChange)
+        }
+        installingRef = installing
+        onStateChange = () => {
           if (installing.state === 'installed' && navigator.serviceWorker.controller) {
-            // New SW installed but waiting — an update is available
             if (!cancelled) setUpdateAvailable(true)
           }
-        })
-      })
+        }
+        installing.addEventListener('statechange', onStateChange)
+      }
+      reg.addEventListener('updatefound', onUpdateFound)
     }).catch(() => {
       // SW not supported or not registered — no update to offer
     })
@@ -57,6 +68,12 @@ export function useServiceWorkerUpdate() {
     return () => {
       cancelled = true
       navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
+      if (regRef && onUpdateFound) {
+        regRef.removeEventListener('updatefound', onUpdateFound)
+      }
+      if (installingRef && onStateChange) {
+        installingRef.removeEventListener('statechange', onStateChange)
+      }
     }
   }, [])
 

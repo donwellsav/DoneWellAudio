@@ -583,10 +583,12 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       let trackCst = combTrackers.get(track.id)
       if (!trackCst) {
         if (combTrackers.size >= 256) {
-          // Emergency prune — remove entries not in active tracks (O(1) per check via Map lookup)
+          // Emergency prune — remove entries not in active tracks
           for (const tid of combTrackers.keys()) {
             if (!trackManager.isActiveTrack(tid)) combTrackers.delete(tid)
           }
+          // Hard cap — if prune didn't free enough (all active), reset to prevent unbounded growth
+          if (combTrackers.size >= 300) combTrackers.clear()
         }
         trackCst = new CombStabilityTracker()
         combTrackers.set(track.id, trackCst)

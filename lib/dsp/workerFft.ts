@@ -229,7 +229,15 @@ export class AlgorithmEngine {
   private _ctEnergyBuffer = new Float32Array(TEMPORAL_ENVELOPE.BUFFER_SIZE)
   private _ctEnergyPos = 0
   private _ctEnergyFilled = false
-  private _ctHistory: ContentType[] = []
+  // Welford's online variance accumulators — O(1) per frame instead of O(n)
+  private _ctWelfordCount = 0
+  private _ctWelfordMean = 0
+  private _ctWelfordM2 = 0
+  private _ctSilentFrameCount = 0
+  // Fix 1: Circular buffer replaces push/shift — O(1) vs O(n)
+  private _ctHistoryBuf: ContentType[] = new Array<ContentType>(10).fill('unknown')
+  private _ctHistoryPos = 0
+  private _ctHistoryFilled = false
   private static readonly CT_WINDOW = 10
   private _contentType: ContentType = 'unknown'
   private _ctSilenceThresholdDb = -65
@@ -264,43 +272,61 @@ export class AlgorithmEngine {
     }
     if (validBins === 0 || specMax <= this._ctSilenceThresholdDb) return null
 
-    // Write energy to temporal ring buffer
-    this._ctEnergyBuffer[this._ctEnergyPos % TEMPORAL_ENVELOPE.BUFFER_SIZE] = specMax
-    this._ctEnergyPos++
-    if (this._ctEnergyPos >= TEMPORAL_ENVELOPE.BUFFER_SIZE) this._ctEnergyFilled = true
+    // Write energy to temporal ring buffer + Welford's online variance (O(1) per frame)
+    const bufSize = TEMPORAL_ENVELOPE.BUFFER_SIZE
+    const writeIdx = this._ctEnergyPos % bufSize
+    const isSilent = specMax < this._ctSilenceThresholdDb
 
-    // Compute temporal metrics when buffer has enough frames
+    if (this._ctEnergyFilled) {
+      // Ring buffer full — subtract the evicted sample from Welford accumulators
+      const evicted = this._ctEnergyBuffer[writeIdx]
+      // Reverse Welford: remove evicted sample (count stays constant)
+      const n = this._ctWelfordCount
+      const oldMean = this._ctWelfordMean
+      const newMean = oldMean + (specMax - evicted) / n
+      // Update M2: add new sample's contribution, remove evicted sample's
+      this._ctWelfordM2 += (specMax - newMean) * (specMax - oldMean)
+        - (evicted - newMean) * (evicted - oldMean)
+      if (this._ctWelfordM2 < 0) this._ctWelfordM2 = 0 // Clamp numerical drift
+      this._ctWelfordMean = newMean
+      // Update silent frame count
+      if (evicted < this._ctSilenceThresholdDb) this._ctSilentFrameCount--
+      if (isSilent) this._ctSilentFrameCount++
+    } else {
+      // Buffer filling — standard Welford add
+      this._ctWelfordCount++
+      const n = this._ctWelfordCount
+      const delta = specMax - this._ctWelfordMean
+      this._ctWelfordMean += delta / n
+      const delta2 = specMax - this._ctWelfordMean
+      this._ctWelfordM2 += delta * delta2
+      if (isSilent) this._ctSilentFrameCount++
+    }
+
+    this._ctEnergyBuffer[writeIdx] = specMax
+    this._ctEnergyPos++
+    if (this._ctEnergyPos >= bufSize) this._ctEnergyFilled = true
+
+    // Read temporal metrics in O(1) from accumulators
     let temporalMetrics: { energyVariance: number; silenceGapRatio: number } | undefined
-    const count = this._ctEnergyFilled ? TEMPORAL_ENVELOPE.BUFFER_SIZE : this._ctEnergyPos
+    const count = this._ctEnergyFilled ? bufSize : this._ctWelfordCount
     if (count >= TEMPORAL_ENVELOPE.MIN_FRAMES) {
-      const buf = this._ctEnergyBuffer
-      let sum = 0
-      let silentFrames = 0
-      for (let i = 0; i < count; i++) {
-        sum += buf[i]
-        if (buf[i] < this._ctSilenceThresholdDb) silentFrames++
-      }
-      const mean = sum / count
-      let varianceSum = 0
-      for (let i = 0; i < count; i++) {
-        const d = buf[i] - mean
-        varianceSum += d * d
-      }
       temporalMetrics = {
-        energyVariance: varianceSum / count,
-        silenceGapRatio: silentFrames / count,
+        energyVariance: this._ctWelfordM2 / count,
+        silenceGapRatio: this._ctSilentFrameCount / count,
       }
     }
 
     const instantType = detectContentType(spectrum, crestFactor, temporalMetrics)
 
-    // Majority-vote smoothing (same logic as former feedbackDetector.ts lines 997-1008)
-    this._ctHistory.push(instantType)
-    if (this._ctHistory.length > AlgorithmEngine.CT_WINDOW) {
-      this._ctHistory.shift()
-    }
+    // Majority-vote smoothing via circular buffer — O(1) write, O(window) scan
+    this._ctHistoryBuf[this._ctHistoryPos] = instantType
+    this._ctHistoryPos = (this._ctHistoryPos + 1) % AlgorithmEngine.CT_WINDOW
+    if (!this._ctHistoryFilled && this._ctHistoryPos === 0) this._ctHistoryFilled = true
+    const histLen = this._ctHistoryFilled ? AlgorithmEngine.CT_WINDOW : this._ctHistoryPos
     const ctCounts: Record<string, number> = {}
-    for (const t of this._ctHistory) {
+    for (let ci = 0; ci < histLen; ci++) {
+      const t = this._ctHistoryBuf[ci]
       if (t !== 'unknown') ctCounts[t] = (ctCounts[t] ?? 0) + 1
     }
     // Single-pass max instead of sort (4 content types → O(4) vs O(4 log 4) + allocation)
@@ -524,7 +550,13 @@ export class AlgorithmEngine {
     this._ctEnergyBuffer.fill(-100)
     this._ctEnergyPos = 0
     this._ctEnergyFilled = false
-    this._ctHistory = []
+    this._ctWelfordCount = 0
+    this._ctWelfordMean = 0
+    this._ctWelfordM2 = 0
+    this._ctSilentFrameCount = 0
+    this._ctHistoryBuf.fill('unknown')
+    this._ctHistoryPos = 0
+    this._ctHistoryFilled = false
     this._contentType = 'unknown'
     this._ctIsCompressed = false
     this._ctCompressionRatio = 1

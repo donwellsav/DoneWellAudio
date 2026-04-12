@@ -20,6 +20,16 @@ import {
   type StoredFeedbackHistory,
 } from '@/lib/dsp/feedbackHistoryStorage'
 
+// ── Secure random hex helper (replaces Math.random for IDs) ─────────────────
+/** Generate `n` random bytes as hex string using crypto.getRandomValues. */
+function _cryptoHex(n: number): string {
+  const buf = new Uint8Array(n)
+  crypto.getRandomValues(buf)
+  let hex = ''
+  for (let i = 0; i < n; i++) hex += buf[i].toString(16).padStart(2, '0')
+  return hex
+}
+
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -330,7 +340,7 @@ export class FeedbackHistory {
       return { id: `evt_pending_${this._pendingEvents.length}`, ...event }
     }
 
-    const id = `evt_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
+    const id = `evt_${Date.now()}_${_cryptoHex(6)}`
     const fullEvent: FeedbackEvent = { id, ...event }
 
     // Add to events array
@@ -520,7 +530,7 @@ export class FeedbackHistory {
   // ==================== PRIVATE METHODS ====================
 
   private generateSessionId(): string {
-    return `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
+    return `session_${Date.now()}_${_cryptoHex(6)}`
   }
 
   // ── Bucket index helpers ──────────────────────────────────────────────
@@ -684,6 +694,7 @@ export class FeedbackHistory {
     }
 
     const count = hotspot.events.length
+    if (count === 0) return
     hotspot.avgAmplitudeDb = amplitudeSum / count
     hotspot.avgConfidence = confidenceSum / count
     // Update center frequency (weighted average) — key is stable (ID-based), no re-keying needed

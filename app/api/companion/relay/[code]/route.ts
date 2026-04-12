@@ -45,8 +45,10 @@ const relays = new Map<string, RelayEntry>()
 const MAX_QUEUE = 20
 /** Max POST body size in bytes (50 KB — advisories are typically <2 KB) */
 const MAX_PAYLOAD_BYTES = 50_000
-/** Relay expires after 2 hours of inactivity */
-const EXPIRY_MS = 2 * 60 * 60 * 1000
+/** Relay expires after 30 minutes of inactivity (reduced from 2h to limit memory pressure) */
+const EXPIRY_MS = 30 * 60 * 1000
+/** Max concurrent relay codes to prevent memory exhaustion from code-flooding attacks */
+const MAX_RELAYS = 500
 
 /** Prune expired relays */
 function prune() {
@@ -145,9 +147,14 @@ function getDirection(request: NextRequest): 'module' | 'app' {
   return request.nextUrl.searchParams.get('direction') === 'app' ? 'app' : 'module'
 }
 
-function getOrCreateRelay(code: string): RelayEntry {
+function getOrCreateRelay(code: string): RelayEntry | null {
   let relay = relays.get(code)
   if (!relay) {
+    // Enforce relay count cap — prune first, then check limit
+    if (relays.size >= MAX_RELAYS) {
+      prune()
+      if (relays.size >= MAX_RELAYS) return null
+    }
     relay = { toModule: [], toApp: [], lastActivity: Date.now() }
     relays.set(code, relay)
   }
@@ -247,6 +254,9 @@ export async function POST(
   }
 
   const relay = getOrCreateRelay(code)
+  if (!relay) {
+    return NextResponse.json({ error: 'Too many active relays' }, { status: 503 })
+  }
   const queue = direction === 'app' ? relay.toApp : relay.toModule
 
   queue.push(payload)

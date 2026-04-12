@@ -28,7 +28,8 @@ export interface CompanionAdvisoryState {
   failed?: { at: number; reason: string }
 }
 
-export interface AdvisoryContextValue {
+/** High-frequency data — changes on every advisory update from the worker. */
+export interface AdvisoryDataContextValue {
   advisories: Advisory[]
   activeAdvisoryCount: number
   earlyWarning: EarlyWarning | null
@@ -41,9 +42,11 @@ export interface AdvisoryContextValue {
   confirmedIds: ReadonlySet<string> | undefined
   /** Per-advisory Companion ack/applied/failed state (module → app feedback). */
   companionState: ReadonlyMap<string, CompanionAdvisoryState>
-  /** Setter: patch Companion state for a specific advisory (called by CompanionCommandBridge). */
+}
+
+/** Low-frequency actions — stable callbacks, only change on user interaction. */
+export interface AdvisoryActionsContextValue {
   patchCompanionState: (advisoryId: string, patch: Partial<CompanionAdvisoryState>) => void
-  /** Setter: clear Companion state for an advisory. */
   clearCompanionStateForAdvisory: (advisoryId: string) => void
   onDismiss: (id: string) => void
   onClearAll: () => void
@@ -54,7 +57,11 @@ export interface AdvisoryContextValue {
   onConfirmFeedback: ((advisoryId: string) => void) | undefined
 }
 
-const AdvisoryContext = createContext<AdvisoryContextValue | null>(null)
+/** Combined type for consumers that need both (backward-compatible). */
+export type AdvisoryContextValue = AdvisoryDataContextValue & AdvisoryActionsContextValue
+
+const AdvisoryDataContext = createContext<AdvisoryDataContextValue | null>(null)
+const AdvisoryActionsContext = createContext<AdvisoryActionsContextValue | null>(null)
 
 interface AdvisoryProviderProps {
   onFalsePositive: ((advisoryId: string) => void) | undefined
@@ -121,7 +128,10 @@ export function AdvisoryProvider({
     return () => clearInterval(timerId)
   }, [companionSettings.enabled])
 
-  const value = useMemo<AdvisoryContextValue>(
+  // Split into two context values — data (high-frequency) vs actions (stable callbacks).
+  // Components that only need actions (e.g. CompanionCommandBridge) skip re-renders
+  // when advisories change (~50Hz during active detection).
+  const dataValue = useMemo<AdvisoryDataContextValue>(
     () => ({
       advisories,
       activeAdvisoryCount,
@@ -134,15 +144,6 @@ export function AdvisoryProvider({
       falsePositiveIds,
       confirmedIds,
       companionState,
-      patchCompanionState,
-      clearCompanionStateForAdvisory,
-      onDismiss,
-      onClearAll,
-      onClearResolved,
-      onClearRTA,
-      onClearGEQ,
-      onFalsePositive,
-      onConfirmFeedback,
     }),
     [
       advisories,
@@ -156,6 +157,22 @@ export function AdvisoryProvider({
       falsePositiveIds,
       confirmedIds,
       companionState,
+    ],
+  )
+
+  const actionsValue = useMemo<AdvisoryActionsContextValue>(
+    () => ({
+      patchCompanionState,
+      clearCompanionStateForAdvisory,
+      onDismiss,
+      onClearAll,
+      onClearResolved,
+      onClearRTA,
+      onClearGEQ,
+      onFalsePositive,
+      onConfirmFeedback,
+    }),
+    [
       patchCompanionState,
       clearCompanionStateForAdvisory,
       onDismiss,
@@ -169,16 +186,38 @@ export function AdvisoryProvider({
   )
 
   return (
-    <AdvisoryContext.Provider value={value}>
-      {children}
-    </AdvisoryContext.Provider>
+    <AdvisoryDataContext.Provider value={dataValue}>
+      <AdvisoryActionsContext.Provider value={actionsValue}>
+        {children}
+      </AdvisoryActionsContext.Provider>
+    </AdvisoryDataContext.Provider>
   )
 }
 
+/** Read advisory data + actions (backward-compatible). Triggers on ANY advisory change. */
 export function useAdvisories(): AdvisoryContextValue {
-  const ctx = useContext(AdvisoryContext)
-  if (!ctx) {
+  const data = useContext(AdvisoryDataContext)
+  const actions = useContext(AdvisoryActionsContext)
+  if (!data || !actions) {
     throw new Error('useAdvisories must be used within <AdvisoryProvider>')
+  }
+  return { ...data, ...actions }
+}
+
+/** Read ONLY actions (callbacks). Does NOT re-render on advisory data changes. */
+export function useAdvisoryActions(): AdvisoryActionsContextValue {
+  const ctx = useContext(AdvisoryActionsContext)
+  if (!ctx) {
+    throw new Error('useAdvisoryActions must be used within <AdvisoryProvider>')
+  }
+  return ctx
+}
+
+/** Read ONLY advisory data. Does NOT re-render on action changes. */
+export function useAdvisoryData(): AdvisoryDataContextValue {
+  const ctx = useContext(AdvisoryDataContext)
+  if (!ctx) {
+    throw new Error('useAdvisoryData must be used within <AdvisoryProvider>')
   }
   return ctx
 }

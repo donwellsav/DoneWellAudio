@@ -320,7 +320,7 @@ export class AdvisoryManager {
       }
       this.advisories.delete(oldestId)
       for (const [tid, aid] of this.trackToAdvisoryId) {
-        if (aid === oldestId) { this.trackToAdvisoryId.delete(tid); break }
+        if (aid === oldestId) this.trackToAdvisoryId.delete(tid)
       }
     }
     return oldestId

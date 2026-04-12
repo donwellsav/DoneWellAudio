@@ -940,7 +940,7 @@ describe('FeedbackDetector hot path — Part C: Performance optimizations', () =
       calculateMsdSpy.mockRestore()
     })
 
-    it('clears the MSD cache at the start of each _scanAndProcessPeaks call', () => {
+    it('invalidates MSD cache entries at the start of each _scanAndProcessPeaks call', () => {
       // Need signal above silence threshold so analyze() actually reaches _scanAndProcessPeaks.
       // Use a flat spectrum at -40 dB (above silence threshold of -65) but below the
       // detection threshold of -20, so no new early-detection cache entries are created.
@@ -949,18 +949,23 @@ describe('FeedbackDetector hot path — Part C: Performance optimizations', () =
         { thresholdDb: -20 },
       )
 
-      // Manually populate the cache with synthetic entries
-      const cache = (detector as any)._msdResultCache as Map<number, unknown>
-      cache.set(100, { msd: 0.5, growthRate: 0.1, isHowl: true, fastConfirm: false })
-      cache.set(200, { msd: 0.3, growthRate: 0.0, isHowl: false, fastConfirm: true })
+      // Manually populate the cache with synthetic entries from a prior generation
+      const cache = (detector as any)._msdResultCache as Map<number, { gen: number; msd: number; growthRate: number; isHowl: boolean; fastConfirm: boolean }>
+      const staleGen = (detector as any)._msdCacheGen as number
+      cache.set(100, { gen: staleGen, msd: 0.5, growthRate: 0.1, isHowl: true, fastConfirm: false })
+      cache.set(200, { gen: staleGen, msd: 0.3, growthRate: 0.0, isHowl: false, fastConfirm: true })
       expect(cache.size).toBe(2)
 
-      // Run one frame — _scanAndProcessPeaks should clear the cache at the top.
-      // Since all bins are at -40 dB (flat, no local maxima with prominence) and
-      // threshold is -20 dB, no early detection fires, so cache stays empty after clear.
+      // Run one frame — _scanAndProcessPeaks increments the generation counter,
+      // logically invalidating all prior entries (they won't match the new gen).
       ;(detector as any).analyze(0, 20)
 
-      expect(cache.size).toBe(0)
+      const newGen = (detector as any)._msdCacheGen as number
+      expect(newGen).toBeGreaterThan(staleGen)
+      // Stale entries still exist in the Map but are logically dead (gen mismatch)
+      for (const entry of cache.values()) {
+        expect(entry.gen).not.toBe(newGen)
+      }
     })
   })
 

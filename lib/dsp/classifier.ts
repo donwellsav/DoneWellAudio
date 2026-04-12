@@ -53,6 +53,12 @@ const PRIOR_INSTRUMENT = 0.27
 const CLUSTERING_BANDWIDTH_MULTIPLIER = 3
 const MODE_ABSENCE_PENALTY = 0.05
 
+// Cached room-physics derivation — only depends on (roomPreset, roomRT60, roomVolume).
+// Avoids recalculating Schroeder frequency on every peak (~200+ calls/sec during dense feedback).
+let _roomCacheKey = ''
+let _roomCacheSchroeder = 0
+let _roomCacheConfigured = false
+
 /**
  * Maximum absolute delta that room-physics adjustments can cumulatively apply
  * to pFeedback. Room cues (RT60, modal density, Schroeder penalty, mode
@@ -78,13 +84,22 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
   // ==================== Acoustic Context ====================
 
   // Gate all room physics behind preset — 'none' means raw detection only
-  const roomConfigured = settings?.roomPreset != null && settings.roomPreset !== 'none'
-
-  // Calculate Schroeder frequency for frequency-dependent analysis
-  // When room is unconfigured, schroederFreq = 0 so nothing falls in LOW band
+  const roomPreset = settings?.roomPreset
+  const roomConfigured = roomPreset != null && roomPreset !== 'none'
   const roomRT60 = settings?.roomRT60 ?? 1.2
   const roomVolume = settings?.roomVolume ?? 500
-  const schroederFreq = roomConfigured ? calculateSchroederFrequency(roomRT60, roomVolume) : 0
+
+  // Cached Schroeder frequency — only recompute when room settings change
+  const roomKey = roomConfigured ? `${roomPreset}:${roomRT60}:${roomVolume}` : ''
+  let schroederFreq: number
+  if (roomKey === _roomCacheKey) {
+    schroederFreq = _roomCacheSchroeder
+  } else {
+    schroederFreq = roomConfigured ? calculateSchroederFrequency(roomRT60, roomVolume) : 0
+    _roomCacheKey = roomKey
+    _roomCacheSchroeder = schroederFreq
+    _roomCacheConfigured = roomConfigured
+  }
   
   // Get frequency band and modifiers
   const freqBand = getFrequencyBand(features.frequencyHz, schroederFreq)
@@ -285,7 +300,7 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
   }
 
   // 10a. Room mode proximity — compare against calculated eigenfrequencies
-  if (roomConfigured && settings?.roomLengthM > 0 && settings?.roomWidthM > 0 && settings?.roomHeightM > 0) {
+  if (roomConfigured && settings && settings.roomLengthM && settings.roomLengthM > 0 && settings.roomWidthM && settings.roomWidthM > 0 && settings.roomHeightM && settings.roomHeightM > 0) {
     const modeProximity = roomModeProximityPenalty(
       features.frequencyHz,
       settings.roomLengthM,
