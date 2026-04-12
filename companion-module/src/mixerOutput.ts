@@ -2,7 +2,7 @@ import * as dgram from 'node:dgram'
 import * as net from 'node:net'
 import type { ModuleConfig } from './config.js'
 import { getMixerProfile } from './mixerProfiles.js'
-import type { MixerProfile, EqMessage } from './mixerProfiles.js'
+import type { MixerProfile, EqMessage, OscArg } from './mixerProfiles.js'
 
 /** Advisory payload from the relay */
 export interface DwaAdvisory {
@@ -24,6 +24,31 @@ export interface ActiveSlot {
   timestamp: number
 }
 
+/** A GEQ band write tracked for rollback on advisory dismiss/resolve */
+export interface ActiveGeqWrite {
+  advisoryId: string
+  prefix: string
+  bandIndex: number
+  gainDb: number
+  timestamp: number
+}
+
+/** Result from clearByAdvisoryId() — per-output clear status */
+export interface ClearResult {
+  peqCleared: boolean
+  geqCleared: boolean
+  /** True if everything that was active got cleared */
+  fullyCleared: boolean
+}
+
+/** Result from applyWithMode() — distinguishes PEQ slot success from GEQ-only success */
+export interface ApplyResult {
+  peqSlot: ActiveSlot | null
+  geqApplied: boolean
+  /** Non-empty when one or both outputs failed */
+  failReason: string | null
+}
+
 /**
  * Encode an OSC message (minimal implementation — no external deps).
  * OSC spec: address (string) + type tag (string) + arguments.
@@ -40,11 +65,11 @@ function oscFloat(val: number): Buffer {
   return buf
 }
 
-function oscMessage(address: string, args: Array<{ type: 'f'; value: number }>): Buffer {
+function oscMessage(address: string, args: OscArg[]): Buffer {
   const addrBuf = oscString(address)
   const typeTags = ',' + args.map((a) => a.type).join('')
   const tagBuf = oscString(typeTags)
-  const argBufs = args.map((a) => oscFloat(a.value))
+  const argBufs = args.map((a) => a.type === 's' ? oscString(a.value) : oscFloat(a.value))
   return Buffer.concat([addrBuf, tagBuf, ...argBufs])
 }
 
@@ -68,6 +93,12 @@ export class MixerOutput {
   /** Active PEQ slots on the mixer — keyed by band number */
   activeSlots: Map<number, ActiveSlot> = new Map()
 
+  /** Last PEQ failure reason — set by applyAdvisory when it returns null */
+  private lastPeqFailReason: string | null = null
+
+  /** Active GEQ writes on the mixer — keyed by advisory ID for rollback */
+  activeGeqWrites: Map<string, ActiveGeqWrite> = new Map()
+
   /** Session action log for export */
   sessionLog: Array<{ action: string; freqHz: number; gainDb: number; q: number; band: number; timestamp: number }> = []
 
@@ -77,7 +108,11 @@ export class MixerOutput {
     this.profile = getMixerProfile(config.mixerModel)
   }
 
-  updateConfig(config: ModuleConfig): void {
+  async updateConfig(config: ModuleConfig): Promise<void> {
+    // Drain active GEQ writes on the current profile/target before swapping
+    if (this.activeGeqWrites.size > 0 && this.profile.buildGeqMessage) {
+      await this.clearAll()
+    }
     this.config = config
     this.profile = getMixerProfile(config.mixerModel)
     this.disconnect()
@@ -96,26 +131,42 @@ export class MixerOutput {
 
   /** Apply an advisory's PEQ to the mixer using smart slot management */
   async applyAdvisory(advisory: DwaAdvisory): Promise<ActiveSlot | null> {
-    if (this.config.mixerModel === 'none' as string) return null
-    if (!this.config.mixerHost) return null
+    this.lastPeqFailReason = null
+
+    if (this.config.mixerModel === 'none' as string) {
+      this.lastPeqFailReason = 'No mixer model configured'
+      return null
+    }
+    if (!this.config.mixerHost) {
+      this.lastPeqFailReason = 'No mixer host configured'
+      return null
+    }
 
     const gainClamped = Math.max(advisory.peq.gainDb, this.config.maxCutDb)
 
     // Find a slot for this advisory
     const band = this.allocateSlot(advisory)
     if (band === null) {
-      this.log('warn', `No PEQ slot available for ${Math.round(advisory.peq.hz)}Hz — all ${this.config.peqBandCount} slots in use`)
+      this.lastPeqFailReason = `No PEQ slot available (all ${this.config.peqBandCount} in use)`
+      this.log('warn', `${this.lastPeqFailReason} for ${Math.round(advisory.peq.hz)}Hz`)
       return null
     }
 
     // Build and send EQ message using the mixer profile
-    const msg = this.profile.buildEqMessage({
-      prefix: this.config.oscPrefix || this.profile.defaultOscPrefix,
-      band,
-      freqHz: advisory.peq.hz,
-      gainDb: gainClamped,
-      q: advisory.peq.q,
-    })
+    let msg: EqMessage
+    try {
+      msg = this.profile.buildEqMessage({
+        prefix: this.config.oscPrefix || this.profile.defaultOscPrefix,
+        band,
+        freqHz: advisory.peq.hz,
+        gainDb: gainClamped,
+        q: advisory.peq.q,
+      })
+    } catch (err) {
+      this.lastPeqFailReason = err instanceof Error ? err.message : 'PEQ build failed'
+      this.log('error', this.lastPeqFailReason)
+      return null
+    }
 
     await this.sendEqMessage(msg)
 
@@ -145,22 +196,65 @@ export class MixerOutput {
     return slot
   }
 
-  /** Apply GEQ correction from advisory's GEQ recommendation */
-  async applyGEQ(advisory: DwaAdvisory): Promise<void> {
-    if (!this.config.mixerHost) return
+  /** Apply GEQ correction from advisory's GEQ recommendation. Returns true only if the command was actually sent. */
+  async applyGEQ(advisory: DwaAdvisory): Promise<boolean> {
+    if (!this.config.mixerHost) return false
     if (!this.profile.buildGeqMessage) {
       this.log('warn', `${this.profile.label} does not support GEQ output`)
-      return
+      return false
     }
 
     const gainClamped = Math.max(advisory.geq.suggestedDb, this.config.maxCutDb)
-    const msg = this.profile.buildGeqMessage({
-      prefix: this.config.oscPrefix || this.profile.defaultOscPrefix,
-      bandIndex: advisory.geq.bandIndex,
-      gainDb: gainClamped,
-    })
+
+    // Profiles with requireGeqPrefix (e.g. VENU360) need an explicit GEQ prefix —
+    // do not fall back to oscPrefix because the address spaces differ.
+    if (this.profile.requireGeqPrefix && !this.config.geqPrefix) {
+      this.log('error', `${this.profile.label} requires an explicit GEQ Prefix (set in module config)`)
+      return false
+    }
+    const geqPrefix = this.config.geqPrefix || this.config.oscPrefix || this.profile.defaultOscPrefix
+
+    let msg: EqMessage
+    try {
+      msg = this.profile.buildGeqMessage({
+        prefix: geqPrefix,
+        bandIndex: advisory.geq.bandIndex,
+        gainDb: gainClamped,
+      })
+    } catch (err) {
+      this.log('error', err instanceof Error ? err.message : 'GEQ build failed')
+      return false
+    }
 
     await this.sendEqMessage(msg)
+
+    // If this advisory previously wrote a different GEQ band/prefix, clear the old one
+    const prev = this.activeGeqWrites.get(advisory.id)
+    if (prev && (prev.bandIndex !== advisory.geq.bandIndex || prev.prefix !== geqPrefix)) {
+      try {
+        const clearMsg = this.profile.buildGeqMessage!({
+          prefix: prev.prefix,
+          bandIndex: prev.bandIndex,
+          gainDb: 0,
+        })
+        await this.sendEqMessage(clearMsg)
+        this.log('info', `Cleared relocated GEQ band ${prev.bandIndex} (advisory ${advisory.id} moved to band ${advisory.geq.bandIndex})`)
+      } catch {
+        // Old band clear failed — keep the old entry as an orphan so clearAll() can retry
+        const orphanKey = `orphan:${prev.prefix}:${prev.bandIndex}:${Date.now()}`
+        this.activeGeqWrites.set(orphanKey, prev)
+        this.log('warn', `Failed to clear old GEQ band ${prev.bandIndex} — retained as orphan for retry`)
+      }
+    }
+
+    // Track for rollback on advisory dismiss/resolve
+    this.activeGeqWrites.set(advisory.id, {
+      advisoryId: advisory.id,
+      prefix: geqPrefix,
+      bandIndex: advisory.geq.bandIndex,
+      gainDb: gainClamped,
+      timestamp: Date.now(),
+    })
 
     this.sessionLog.push({
       action: 'geq',
@@ -172,31 +266,74 @@ export class MixerOutput {
     })
 
     this.log('info', `GEQ band ${advisory.geq.bandIndex} (${advisory.geq.bandHz}Hz) → ${gainClamped}dB`)
+    return true
   }
 
   /** Apply advisory using configured output mode (PEQ, GEQ, or both) */
-  async applyWithMode(advisory: DwaAdvisory): Promise<ActiveSlot | null> {
+  async applyWithMode(advisory: DwaAdvisory): Promise<ApplyResult> {
     const mode = this.config.outputMode || 'peq'
-    let slot: ActiveSlot | null = null
+    let peqSlot: ActiveSlot | null = null
+    let geqApplied = false
+    const failures: string[] = []
 
     if (mode === 'peq' || mode === 'both') {
-      slot = await this.applyAdvisory(advisory)
+      peqSlot = await this.applyAdvisory(advisory)
+      if (!peqSlot) failures.push(this.lastPeqFailReason || 'PEQ apply failed')
     }
     if (mode === 'geq' || mode === 'both') {
-      await this.applyGEQ(advisory)
+      geqApplied = await this.applyGEQ(advisory)
+      if (!geqApplied) failures.push('GEQ apply failed (check mixer host, model, and GEQ prefix)')
     }
 
-    return slot
+    const failReason = failures.length > 0 ? failures.join('; ') : null
+    return { peqSlot, geqApplied, failReason }
   }
 
-  /** Clear a slot by advisory ID (when feedback resolves) */
-  async clearByAdvisoryId(advisoryId: string): Promise<boolean> {
+  /** Clear PEQ slot and/or GEQ write by advisory ID (when feedback resolves) */
+  async clearByAdvisoryId(advisoryId: string): Promise<ClearResult> {
+    let peqCleared = false
+    let geqCleared = false
+    let hadPeq = false
+    let hadGeq = false
+
+    // Clear PEQ slot
     for (const [band, slot] of this.activeSlots) {
       if (slot.advisoryId === advisoryId) {
-        return this.clearSlot(band)
+        hadPeq = true
+        peqCleared = await this.clearSlot(band)
+        break
       }
     }
-    return false
+
+    // Revert GEQ write (send 0 dB to same band)
+    const geqWrite = this.activeGeqWrites.get(advisoryId)
+    if (geqWrite && this.profile.buildGeqMessage) {
+      hadGeq = true
+      try {
+        const msg = this.profile.buildGeqMessage({
+          prefix: geqWrite.prefix,
+          bandIndex: geqWrite.bandIndex,
+          gainDb: 0,
+        })
+        await this.sendEqMessage(msg)
+        this.activeGeqWrites.delete(advisoryId)
+        this.sessionLog.push({
+          action: 'geq_clear',
+          freqHz: 0,
+          gainDb: 0,
+          q: 0,
+          band: geqWrite.bandIndex,
+          timestamp: Date.now(),
+        })
+        this.log('info', `Cleared GEQ band ${geqWrite.bandIndex} (advisory ${advisoryId})`)
+        geqCleared = true
+      } catch {
+        this.log('warn', `Failed to clear GEQ band ${geqWrite.bandIndex} for advisory ${advisoryId}`)
+      }
+    }
+
+    const fullyCleared = (!hadPeq || peqCleared) && (!hadGeq || geqCleared)
+    return { peqCleared, geqCleared, fullyCleared }
   }
 
   /** Clear a specific PEQ band on the mixer */
@@ -228,10 +365,27 @@ export class MixerOutput {
     }
   }
 
-  /** Clear all active slots */
+  /** Clear all active PEQ slots and GEQ writes */
   async clearAll(): Promise<void> {
     for (const band of [...this.activeSlots.keys()]) {
       await this.clearSlot(band)
+    }
+    // Revert all tracked GEQ writes — only delete entries that successfully cleared
+    for (const advisoryId of [...this.activeGeqWrites.keys()]) {
+      const geqWrite = this.activeGeqWrites.get(advisoryId)
+      if (geqWrite && this.profile.buildGeqMessage) {
+        try {
+          const msg = this.profile.buildGeqMessage({
+            prefix: geqWrite.prefix,
+            bandIndex: geqWrite.bandIndex,
+            gainDb: 0,
+          })
+          await this.sendEqMessage(msg)
+          this.activeGeqWrites.delete(advisoryId)
+        } catch {
+          this.log('warn', `Failed to clear GEQ band ${geqWrite.bandIndex} — entry retained for retry`)
+        }
+      }
     }
   }
 
@@ -304,7 +458,7 @@ export class MixerOutput {
     }
   }
 
-  private async sendOscMessages(messages: readonly { address: string; args: readonly { type: 'f'; value: number }[] }[]): Promise<void> {
+  private async sendOscMessages(messages: readonly { address: string; args: readonly OscArg[] }[]): Promise<void> {
     if (!this.config.mixerHost) return
     const socket = this.getUdpSocket()
     const port = this.config.mixerPort || this.profile.defaultPort

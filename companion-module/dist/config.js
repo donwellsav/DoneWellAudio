@@ -76,6 +76,13 @@ export function GetConfigFields() {
             width: 6,
         },
         {
+            type: 'textinput',
+            id: 'geqPrefix',
+            label: 'GEQ Channel/Chain Prefix (blank = same as PEQ)',
+            default: '',
+            width: 6,
+        },
+        {
             type: 'number',
             id: 'peqBandCount',
             label: 'PEQ Bands Available (for slot management)',

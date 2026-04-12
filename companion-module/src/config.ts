@@ -14,6 +14,7 @@ export interface ModuleConfig {
   mixerHost: string
   mixerPort: number
   oscPrefix: string
+  geqPrefix: string
   autoApply: boolean
   maxCutDb: number
 
@@ -100,6 +101,13 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
       id: 'oscPrefix',
       label: 'Channel/EQ Prefix (e.g. /ch/01/eq)',
       default: '/ch/01/eq',
+      width: 6,
+    },
+    {
+      type: 'textinput',
+      id: 'geqPrefix',
+      label: 'GEQ Channel/Chain Prefix (blank = same as PEQ)',
+      default: '',
       width: 6,
     },
     {

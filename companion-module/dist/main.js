@@ -6,6 +6,7 @@ import { UpdateVariableDefinitions } from './variables.js';
 import { UpdatePresets } from './presets.js';
 import { UpgradeScripts } from './upgrades.js';
 import { MixerOutput } from './mixerOutput.js';
+import { getMixerProfile } from './mixerProfiles.js';
 export class ModuleInstance extends InstanceBase {
     config = {
         siteUrl: '',
@@ -21,6 +22,7 @@ export class ModuleInstance extends InstanceBase {
         peqBandCount: 6,
         peqBandStart: 1,
         outputMode: 'peq',
+        geqPrefix: '',
     };
     pendingAdvisories = [];
     pollTimer = null;
@@ -37,8 +39,34 @@ export class ModuleInstance extends InstanceBase {
         this.log('info', 'Module initialized — polling for advisories');
     }
     async configUpdated(config) {
+        // Snapshot previous config before overwriting — used for model-switch migration
+        const prevConfig = { ...this.config };
         this.config = config;
-        this.mixerOutput?.updateConfig(config);
+        if (config.mixerModel !== prevConfig.mixerModel) {
+            const prevProfile = getMixerProfile(prevConfig.mixerModel);
+            const newProfile = getMixerProfile(config.mixerModel);
+            // Only migrate fields that the user did NOT change from the previously
+            // persisted value AND that value matched the old model's default.
+            // This avoids overwriting explicit user input that happens to equal the old default.
+            if (config.mixerPort === prevConfig.mixerPort && prevConfig.mixerPort === prevProfile.defaultPort) {
+                this.config.mixerPort = newProfile.defaultPort;
+            }
+            if (config.oscPrefix === prevConfig.oscPrefix && prevConfig.oscPrefix === prevProfile.defaultOscPrefix) {
+                this.config.oscPrefix = newProfile.defaultOscPrefix;
+            }
+            // Profiles with requireGeqPrefix need a valid default — don't leave blank
+            if (!this.config.geqPrefix && newProfile.requireGeqPrefix) {
+                this.config.geqPrefix = '1';
+            }
+            else if (!this.config.geqPrefix) {
+                this.config.geqPrefix = '';
+            }
+            if (config.peqBandCount === prevConfig.peqBandCount && prevConfig.peqBandCount === prevProfile.peqBands) {
+                this.config.peqBandCount = newProfile.peqBands;
+            }
+            this.saveConfig(this.config);
+        }
+        await this.mixerOutput?.updateConfig(this.config);
         this.startPolling();
     }
     async destroy() {
@@ -48,6 +76,34 @@ export class ModuleInstance extends InstanceBase {
     }
     getConfigFields() {
         return GetConfigFields();
+    }
+    // ── Outbound (module → app) ─────────────────────────────────────
+    //
+    // The relay endpoint accepts POST with ?direction=app for module-initiated
+    // messages. Fire-and-forget: failures are logged but don't block processing.
+    /** Build the relay URL with the app-direction query parameter. */
+    relayUrlForApp() {
+        return `${this.config.siteUrl.replace(/\/$/, '')}/api/companion/relay/${this.config.pairingCode}?direction=app`;
+    }
+    /** POST a message to the toApp queue so DWA can pick it up on its next poll. */
+    async sendToApp(message) {
+        if (!this.config.siteUrl || !this.config.pairingCode)
+            return;
+        try {
+            const response = await fetch(this.relayUrlForApp(), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(message),
+                signal: AbortSignal.timeout(3000),
+            });
+            if (!response.ok) {
+                this.log('warn', `sendToApp (${message.type}) returned HTTP ${response.status}`);
+            }
+        }
+        catch (err) {
+            const msg = err instanceof Error ? err.message : 'sendToApp failed';
+            this.log('warn', `sendToApp (${message.type}) failed: ${msg}`);
+        }
     }
     // ── Polling ──────────────────────────────────────────────────
     startPolling() {
@@ -76,15 +132,41 @@ export class ModuleInstance extends InstanceBase {
                 if (data.events && data.events.length > 0) {
                     for (const event of data.events) {
                         if ((event.type === 'resolve' || event.type === 'dismiss') && event.advisoryId && this.mixerOutput) {
-                            this.mixerOutput.clearByAdvisoryId(event.advisoryId).then((cleared) => {
-                                if (cleared) {
-                                    const summary = this.mixerOutput.getSlotSummary();
-                                    this.setVariableValues({ slots_used: String(summary.used) });
-                                    this.log('info', `Cleared slot for ${event.type}d advisory ${event.advisoryId}`);
+                            const advisoryId = event.advisoryId;
+                            // Find the slot BEFORE clearing so we can report its index back
+                            const summary = this.mixerOutput.getSlotSummary();
+                            const slotMatch = summary.slots.find((s) => s.advisoryId === advisoryId);
+                            this.mixerOutput.clearByAdvisoryId(advisoryId).then((result) => {
+                                if (result.fullyCleared) {
+                                    const after = this.mixerOutput.getSlotSummary();
+                                    this.setVariableValues({ slots_used: String(after.used) });
+                                    this.log('info', `Cleared slot for ${event.type}d advisory ${advisoryId}`);
+                                    void this.sendToApp({
+                                        type: 'cleared',
+                                        advisoryId,
+                                        slotIndex: slotMatch?.band ?? 0,
+                                        timestamp: Date.now(),
+                                    });
+                                }
+                                else if (result.peqCleared || result.geqCleared) {
+                                    // Partial clear — report what succeeded but log the gap
+                                    const after = this.mixerOutput.getSlotSummary();
+                                    this.setVariableValues({ slots_used: String(after.used) });
+                                    const partial = result.peqCleared ? 'PEQ cleared, GEQ failed' : 'GEQ cleared, PEQ failed';
+                                    this.log('warn', `Partial clear for advisory ${advisoryId}: ${partial}`);
+                                    void this.sendToApp({
+                                        type: 'cleared',
+                                        advisoryId,
+                                        slotIndex: slotMatch?.band ?? 0,
+                                        timestamp: Date.now(),
+                                    });
+                                }
+                                else {
+                                    this.log('error', `Failed to clear any outputs for advisory ${advisoryId}`);
                                 }
                             });
                             // Remove from pending
-                            this.pendingAdvisories = this.pendingAdvisories.filter(a => a.id !== event.advisoryId);
+                            this.pendingAdvisories = this.pendingAdvisories.filter(a => a.id !== advisoryId);
                         }
                     }
                     this.refreshState();
@@ -108,6 +190,8 @@ export class ModuleInstance extends InstanceBase {
         advisory.geq.suggestedDb = Math.max(advisory.geq.suggestedDb, this.config.maxCutDb);
         // Add to queue
         this.pendingAdvisories.push(advisory);
+        // Send ack immediately so DWA knows the module received it
+        void this.sendToApp({ type: 'ack', advisoryId: advisory.id, timestamp: Date.now() });
         // Update Companion variables with latest advisory data
         const pitchStr = `${advisory.pitch.note}${advisory.pitch.octave}${advisory.pitch.cents >= 0 ? '+' : ''}${advisory.pitch.cents}c`;
         this.setVariableValues({
@@ -127,19 +211,80 @@ export class ModuleInstance extends InstanceBase {
         // Update feedbacks (button colors)
         this.checkFeedbacks('advisory_pending', 'severity_runaway', 'severity_growing');
         this.log('info', `Advisory: ${Math.round(advisory.peq.hz)}Hz ${advisory.severity} (${advisory.peq.gainDb}dB)`);
-        // Auto-apply EQ to mixer if configured (uses outputMode: peq/geq/both)
-        if (this.config.autoApply && this.config.mixerModel !== 'none' && this.mixerOutput) {
-            this.mixerOutput.applyWithMode(advisory).then((slot) => {
-                if (slot) {
+        // Auto-apply conditions:
+        //  - `autoApply: true` in module config (full auto), OR
+        //  - message has `type: 'auto_apply'` (DWA forced it — used for RUNAWAY hybrid)
+        const shouldAutoApply = (this.config.autoApply || advisory.type === 'auto_apply') &&
+            this.config.mixerModel !== 'none' &&
+            this.mixerOutput !== null;
+        if (shouldAutoApply && this.mixerOutput) {
+            this.mixerOutput.applyWithMode(advisory).then((result) => {
+                // Update slot variables if PEQ landed
+                if (result.peqSlot) {
                     const summary = this.mixerOutput.getSlotSummary();
                     this.setVariableValues({
                         slots_used: String(summary.used),
                         slots_total: String(summary.total),
                     });
                 }
+                // Report to DWA based on what actually succeeded
+                const mode = this.config.outputMode || 'peq';
+                const anythingSucceeded = result.peqSlot || result.geqApplied;
+                const everythingSucceeded = !result.failReason;
+                if (anythingSucceeded && everythingSucceeded) {
+                    // Full success — all requested outputs landed
+                    void this.sendToApp({
+                        type: 'applied',
+                        advisoryId: advisory.id,
+                        bandIndex: advisory.geq.bandIndex,
+                        appliedGainDb: result.peqSlot ? advisory.peq.gainDb : advisory.geq.suggestedDb,
+                        frequencyHz: result.peqSlot ? advisory.peq.hz : advisory.geq.bandHz,
+                        slotIndex: result.peqSlot?.band ?? 0,
+                        timestamp: Date.now(),
+                    });
+                }
+                else if (anythingSucceeded && mode === 'both') {
+                    // Partial success in both mode — one side failed
+                    this.log('warn', `Partial apply for ${Math.round(advisory.peq.hz)}Hz: ${result.failReason}`);
+                    void this.sendToApp({
+                        type: 'partial_apply',
+                        advisoryId: advisory.id,
+                        peqApplied: !!result.peqSlot,
+                        geqApplied: result.geqApplied,
+                        failReason: result.failReason,
+                        timestamp: Date.now(),
+                    });
+                }
+                else if (anythingSucceeded) {
+                    // Single-mode success (peq-only or geq-only mode)
+                    void this.sendToApp({
+                        type: 'applied',
+                        advisoryId: advisory.id,
+                        bandIndex: advisory.geq.bandIndex,
+                        appliedGainDb: result.peqSlot ? advisory.peq.gainDb : advisory.geq.suggestedDb,
+                        frequencyHz: result.peqSlot ? advisory.peq.hz : advisory.geq.bandHz,
+                        slotIndex: result.peqSlot?.band ?? 0,
+                        timestamp: Date.now(),
+                    });
+                }
+                else {
+                    // Nothing succeeded
+                    void this.sendToApp({
+                        type: 'apply_failed',
+                        advisoryId: advisory.id,
+                        reason: result.failReason || 'Apply failed',
+                        timestamp: Date.now(),
+                    });
+                }
             }).catch((err) => {
                 const msg = err instanceof Error ? err.message : 'Apply failed';
                 this.log('error', `Auto-apply failed: ${msg}`);
+                void this.sendToApp({
+                    type: 'apply_failed',
+                    advisoryId: advisory.id,
+                    reason: msg,
+                    timestamp: Date.now(),
+                });
             });
         }
     }
@@ -167,8 +312,8 @@ export class ModuleInstance extends InstanceBase {
             this.log('warn', 'No mixer output configured — set Mixer Model in module settings');
             return;
         }
-        this.mixerOutput.applyWithMode(latest).then((slot) => {
-            if (slot) {
+        this.mixerOutput.applyWithMode(latest).then((result) => {
+            if (result.peqSlot) {
                 const summary = this.mixerOutput.getSlotSummary();
                 this.setVariableValues({
                     slots_used: String(summary.used),

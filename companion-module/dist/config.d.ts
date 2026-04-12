@@ -9,6 +9,7 @@ export interface ModuleConfig {
     mixerHost: string;
     mixerPort: number;
     oscPrefix: string;
+    geqPrefix: string;
     autoApply: boolean;
     maxCutDb: number;
     peqBandCount: number;
