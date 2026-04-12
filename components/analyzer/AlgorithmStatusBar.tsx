@@ -55,7 +55,7 @@ export const AlgorithmStatusBar = memo(function AlgorithmStatusBar({
 
   if (!isRunning) {
     return (
-      <div className="flex items-center gap-1.5 px-2 py-0.5 text-sm tracking-wide text-muted-foreground">
+      <div className="flex items-center gap-1 px-1.5 py-0.5 text-[11px] tracking-wide text-muted-foreground">
         <span className="led-dot led-dot-waiting" />
         <span className="font-mono">ALGO: {ALGORITHM_MODE_LABELS[algorithmMode]}</span>
         <span className="text-muted-foreground/25 mx-0.5">|</span>
@@ -66,7 +66,7 @@ export const AlgorithmStatusBar = memo(function AlgorithmStatusBar({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex items-center gap-1.5 px-2 py-0.5 text-sm tracking-wide font-mono">
+      <div className="flex items-center gap-1 px-1.5 py-0.5 text-[11px] tracking-wide font-mono">
         <span className="led-dot led-dot-active" />
         {/* Algorithm Mode + auto-selected indicators */}
         <Tooltip>
@@ -95,7 +95,7 @@ export const AlgorithmStatusBar = memo(function AlgorithmStatusBar({
           </TooltipContent>
         </Tooltip>
 
-        <span className="text-muted-foreground/20 mx-1">·</span>
+        <span className="text-muted-foreground/20 mx-0.5">·</span>
 
         {/* Content Type */}
         <Tooltip>
@@ -115,7 +115,7 @@ export const AlgorithmStatusBar = memo(function AlgorithmStatusBar({
           </TooltipContent>
         </Tooltip>
 
-        <span className="text-muted-foreground/20 mx-1">·</span>
+        <span className="text-muted-foreground/20 mx-0.5">·</span>
 
         {/* MSD Buffer Status */}
         <Tooltip>
@@ -152,7 +152,7 @@ export const AlgorithmStatusBar = memo(function AlgorithmStatusBar({
         {/* Compression Indicator */}
         {isCompressed && (
           <>
-            <span className="text-muted-foreground/20 mx-1">·</span>
+            <span className="text-muted-foreground/20 mx-0.5">·</span>
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="text-amber-400 motion-safe:animate-pulse">

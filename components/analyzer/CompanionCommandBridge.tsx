@@ -19,7 +19,7 @@ import { memo, useMemo } from 'react'
 import { useEngine } from '@/contexts/EngineContext'
 import { useSettings } from '@/contexts/SettingsContext'
 import { useUI } from '@/contexts/UIContext'
-import { useAdvisories } from '@/contexts/AdvisoryContext'
+import { useAdvisoryActions } from '@/contexts/AdvisoryContext'
 import { useCompanion } from '@/hooks/useCompanion'
 import { useCompanionInbound } from '@/hooks/useCompanionInbound'
 import { getFeedbackHistory } from '@/lib/dsp/feedbackHistory'
@@ -33,7 +33,7 @@ export const CompanionCommandBridge = memo(function CompanionCommandBridge() {
   const engine = useEngine()
   const settingsCtx = useSettings()
   const uiCtx = useUI()
-  const { onClearAll, patchCompanionState, clearCompanionStateForAdvisory } = useAdvisories()
+  const { onClearAll, patchCompanionState, clearCompanionStateForAdvisory } = useAdvisoryActions()
 
   useCompanionInbound({
     enabled: companionSettings.enabled,

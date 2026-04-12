@@ -14,6 +14,34 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.92.0',
+    date: '2026-04-12',
+    highlights: 'Dependency audit (7 vulns fixed, 4 dead packages removed), 10 DSP hot-path perf optimizations, 10 code review fixes, algo status moved to footer bar',
+    changes: [
+      { type: 'perf', description: 'Welford\'s online variance replaces O(n) two-pass loop for content-type temporal metrics — O(1) per frame (`workerFft.ts`)' },
+      { type: 'perf', description: 'Circular ring buffer replaces `.push()/.shift()` for content-type majority vote — O(1) write vs O(n) (`workerFft.ts`)' },
+      { type: 'perf', description: 'Module-level `Set` reuse via `.clear()/.add()` replaces per-call `new Set()` + `string[]` in fusion engine (~500 calls/sec)' },
+      { type: 'perf', description: 'Generation-counter MSD cache replaces `Map.clear()` — avoids rehash overhead (`feedbackDetector.ts`)' },
+      { type: 'perf', description: 'Quantized 1/10th-octave bucket cache for `erbDepthScale()` and `findNearestGEQBand()` — ~80 entries cover full audio range (`eqAdvisor.ts`)' },
+      { type: 'perf', description: 'Per-frame coherence cache in `PhaseHistoryBuffer` — invalidated on `addFrame()`, prevents redundant circular-stats computation (`phaseCoherence.ts`)' },
+      { type: 'perf', description: 'Schroeder frequency cached by room settings key in classifier — avoids recalculation on every peak (`classifier.ts`)' },
+      { type: 'perf', description: 'AdvisoryContext split into `AdvisoryDataContext` (high-freq) + `AdvisoryActionsContext` (stable callbacks). `CompanionCommandBridge` uses `useAdvisoryActions()` — skips ~50Hz detection re-renders' },
+      { type: 'perf', description: '`useAdvisoryMap.flushToReact` skips `setAdvisories` when no visible advisory actually changed — prevents IssueCard cascade re-renders' },
+      { type: 'fix', description: '`advisoryManager.pruneOldest()` now removes ALL matching `trackToAdvisoryId` entries (was `break` after first — caused duplicate advisories for clustered tracks)' },
+      { type: 'fix', description: 'Final `[0, 1]` clamp on `feedbackProbability` after calibration table extrapolation — prevents >1.0 escaping to classifier' },
+      { type: 'fix', description: 'Division-by-zero guard in `recomputeHotspotStats()` when `hotspot.events` is empty (`feedbackHistory.ts`)' },
+      { type: 'fix', description: '`combTrackers` hard cap (300) with `.clear()` fallback — prevents unbounded Map growth during broadband transients (`dspWorker.ts`)' },
+      { type: 'fix', description: 'Service worker `updatefound` + `statechange` listeners now properly cleaned up on unmount (`useServiceWorkerUpdate.ts`)' },
+      { type: 'fix', description: 'Worker crash recovery uses exponential backoff (500ms → 1s → 2s) instead of fixed 500ms delay — prevents rapid crash loop (`dspWorkerInternals.ts`)' },
+      { type: 'fix', description: '`buildSortedRef.current()` used consistently instead of direct `buildSorted()` call in effect — fixes single-render stale closure window (`useAdvisoryMap.ts`)' },
+      { type: 'fix', description: 'Event/session IDs use `crypto.getRandomValues()` instead of `Math.random()` — consistent with pairing code security (`feedbackHistory.ts`)' },
+      { type: 'fix', description: 'Ingest endpoint validates ALL snapshots instead of spot-checking 3 — closes schema bypass vulnerability (`api/v1/ingest/route.ts`)' },
+      { type: 'fix', description: 'Companion relay store capped at 500 codes with 30-min expiry (was 2h) — prevents memory exhaustion from code-flooding (`relay/[code]/route.ts`)' },
+      { type: 'ui', description: 'Algorithm status moved from sidebar header to footer bar — compact 9px mono text matching DoneWell branding, shows mode + content type + MSD frame count' },
+      { type: 'refactor', description: 'Dependency audit: react 19.2.5, sentry 10.48.0, vitest 4.1.4, vite 7.3.2 (security pin), lucide 1.8.0, resizable-panels 4.10.0. Removed jest-dom, autoprefixer, docx, pptxgenjs. Added pnpm overrides for flatted ≥3.4.2. 7 security vulns resolved (4 HIGH, 3 MODERATE — all dev-only).' },
+    ],
+  },
+  {
     version: '0.91.0',
     date: '2026-04-12',
     changes: [

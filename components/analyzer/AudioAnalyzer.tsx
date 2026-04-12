@@ -48,7 +48,7 @@ export const AudioAnalyzer = memo(function AudioAnalyzerComponent() {
         <LazyOnboardingOverlay />
       </Suspense>
 
-      <AudioAnalyzerFooter />
+      {/* Footer moved inside AudioAnalyzerInner for context access */}
 
       {updateAvailable ? (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-2.5 rounded-lg glass-card border border-primary/30 shadow-lg animate-issue-enter">
@@ -161,6 +161,7 @@ const AudioAnalyzerInner = memo(function AudioAnalyzerInner({
             onStartRingOut={ringOutFlow.startRingOut}
           />
         </FullscreenPortalGate>
+        <AudioAnalyzerFooter />
       </UIProvider>
     </AdvisoryProvider>
   )

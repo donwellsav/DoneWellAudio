@@ -134,6 +134,9 @@ const _effScores = new Float64Array(8)
 /** Pre-allocated mutable weights object — avoids object spread per fusion call (~500/sec).
  *  Only read within the synchronous fuseAlgorithmResults(); no concurrent access in Worker. */
 const _weights = { msd: 0, phase: 0, spectral: 0, comb: 0, ihr: 0, ptmr: 0, ml: 0 }
+// Pre-allocated Set + algorithm list — reused per call to avoid GC pressure (~500 calls/sec)
+const _ALL_ALGORITHMS = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml'] as const
+const _active = new Set<string>()
 
 // ── Fusion Weights ──────────────────────────────────────────────────────────
 
@@ -256,36 +259,31 @@ export function fuseAlgorithmResults(
 
   const weights = _weights
 
-  let activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml']
+  // Perf: reuse module-level Set — avoids new Set() + new string[] per call (~500/sec).
+  // Safe because fuseAlgorithmResults runs synchronously in a single worker thread.
+  _active.clear()
   switch (config.mode) {
     case 'msd':
-      activeAlgorithms = ['msd', 'ihr', 'ptmr', 'ml']
+      _active.add('msd').add('ihr').add('ptmr').add('ml')
       break
     case 'phase':
-      activeAlgorithms = ['phase', 'ihr', 'ptmr', 'ml']
-      break
-    case 'combined':
-      activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml']
-      break
-    case 'all':
-      activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml']
+      _active.add('phase').add('ihr').add('ptmr').add('ml')
       break
     case 'auto':
       if (scores.msd && scores.msd.framesAnalyzed >= config.msdMinFrames) {
-        activeAlgorithms = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml']
-      } else {
-        activeAlgorithms = ['phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml']
+        _active.add('msd')
       }
+      _active.add('phase').add('spectral').add('comb').add('ihr').add('ptmr').add('ml')
       break
     case 'custom':
-      activeAlgorithms = config.enabledAlgorithms ?? ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml']
+      for (const a of (config.enabledAlgorithms ?? _ALL_ALGORITHMS)) _active.add(a)
+      break
+    default: // 'combined', 'all'
+      for (const a of _ALL_ALGORITHMS) _active.add(a)
       break
   }
-
-  // Convert to Set for O(1) .has() instead of O(n) .includes() on each algorithm check.
-  // Also handles mlEnabled filtering (replaces .filter(a => a !== 'ml')).
-  const active = new Set(activeAlgorithms)
-  if (config.mlEnabled === false) active.delete('ml')
+  if (config.mlEnabled === false) _active.delete('ml')
+  const active = _active
 
   let weightedSum  = 0
   let totalWeight  = 0
@@ -421,6 +419,9 @@ export function fuseAlgorithmResults(
 
   // 14.3: Apply post-gate calibration (identity by default — zero behavior change)
   feedbackProbability = calibrateProbability(feedbackProbability, calibrationTable)
+  // Final clamp — gates can only reduce, but calibration tables can extrapolate beyond [0, 1]
+  if (feedbackProbability > 1) feedbackProbability = 1
+  else if (feedbackProbability < 0) feedbackProbability = 0
 
   // Agreement and confidence use effective scores (collected above)
   let _effSum = 0

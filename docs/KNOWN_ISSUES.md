@@ -1,6 +1,6 @@
 # DoneWell Audio — Known Issues & Recommendations
 
-> **Last updated:** March 19, 2026 | **Version:** 0.151.0
+> **Last updated:** April 12, 2026 | **Version:** 0.92.0
 
 ---
 
@@ -11,7 +11,7 @@
 | Issue | Impact | Location | Suggested Fix |
 |-------|--------|----------|---------------|
 | Canvas not accessible to screen readers | High — blind users cannot use the tool | CLAUDE.md, SpectrumCanvas.tsx | Add aria-live region announcing detected peaks with frequency and severity |
-| Focus indicators inconsistent | Medium — keyboard nav incomplete | Multiple components | Apply `focus-visible:ring-2` consistently across all interactive elements |
+| ~~Focus indicators inconsistent~~ | ~~Medium~~ Fixed | Multiple components | Standardized `focus-visible:ring-[3px]` across all components (v0.80.0+) |
 
 ### Skipped Tests
 
@@ -25,7 +25,7 @@
 | Gap | Severity | Description |
 |-----|----------|-------------|
 | Worker message runtime validation | Medium | `satisfies` is compile-time only. Malformed messages silently ignored. |
-| Worker restart race condition | Medium | Component unmount during restart timeout window could attach stale handlers |
+| Worker restart race condition | ~~Medium~~ Fixed | ~~Component unmount during restart timeout window could attach stale handlers~~ Fixed in v0.92.0: exponential backoff (500ms→1s→2s) + max 3 restarts |
 | Buffer pool epoch tracking | Low | Buffers from crashed worker could pollute new pool |
 | Settings schema validation | Low | No range checking on `updateSettings()` — invalid values propagate to worker |
 

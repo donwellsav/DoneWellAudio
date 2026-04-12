@@ -96,10 +96,17 @@ export function useAdvisoryMap(
       return
     }
 
-    const sorted = sortedCacheRef.current.map(advisory => {
+    // Non-structural update: only advisory fields changed, not sort order.
+    // Build new array but skip setAdvisories if no visible advisory actually changed
+    // (prevents unnecessary IssuesList/IssueCard re-render cascade).
+    const prev = sortedCacheRef.current
+    let anyChanged = false
+    const sorted = prev.map(advisory => {
       const latest = mapRef.current.get(advisory.id)
+      if (latest && latest !== advisory) anyChanged = true
       return latest ?? advisory
     })
+    if (!anyChanged) return // Identity-stable — no React update needed
     sortedCacheRef.current = sorted
     setAdvisories(sorted)
   }, [])
@@ -157,7 +164,7 @@ export function useAdvisoryMap(
     if (mapRef.current.size === 0) return
     dirtyRef.current = true
     if (frozenRef?.current ?? false) return
-    setAdvisories(buildSorted())
+    setAdvisories(buildSortedRef.current())
   // eslint-disable-next-line react-hooks/exhaustive-deps -- frozenRef is a stable ref, read imperatively
   }, [buildSorted])
 

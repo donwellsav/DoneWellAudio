@@ -96,9 +96,10 @@ export class FeedbackDetector {
   // Pooled sparse allocation: 256 slots × 64 frames = 64KB. LRU eviction when full.
   private _msdPool: MSDPool | null = null
   // Per-frame MSD result cache — avoids duplicate calculateMsd() calls when
-  // early detection (line ~1139) and registration (line ~1366) both need the same bin's MSD.
-  // Cleared at the start of each _scanAndProcessPeaks() call.
-  private _msdResultCache: Map<number, { msd: number; growthRate: number; isHowl: boolean; fastConfirm: boolean }> = new Map()
+  // early detection and registration both need the same bin's MSD.
+  // Uses generation counter instead of .clear() to invalidate stale entries (avoids Map rehash).
+  private _msdResultCache: Map<number, { gen: number; msd: number; growthRate: number; isHowl: boolean; fastConfirm: boolean }> = new Map()
+  private _msdCacheGen = 0
   private _fastConfirmCounts: Map<number, number> = new Map() // binIndex → consecutive low-MSD frames
   private msdMinFrames: number = MSD_SETTINGS.DEFAULT_MIN_FRAMES // Content-adaptive (synced with worker)
 
@@ -1057,8 +1058,8 @@ export class FeedbackDetector {
     const neighborhoodCount = 2 * nb - 4
     const hzPerBin = this.getSampleRate() / this.config.fftSize
 
-    // Clear per-frame MSD cache (avoids duplicate calculateMsd calls within this scan)
-    this._msdResultCache.clear()
+    // Invalidate per-frame MSD cache via generation counter (avoids Map.clear() rehash)
+    this._msdCacheGen++
 
     for (let i = start; i <= end; i++) {
       const peakDb = freqDb[i]
@@ -1082,7 +1083,7 @@ export class FeedbackDetector {
       // This lets quiet feedback through before it becomes obvious.
       if (!valid && isLocalMax && peakDb >= earlyConfirmThreshold) {
         const msdResult = this.calculateMsd(i)
-        this._msdResultCache.set(i, msdResult)
+        this._msdResultCache.set(i, { gen: this._msdCacheGen, ...msdResult })
         if (msdResult.isHowl || msdResult.fastConfirm) {
           valid = true
         }
@@ -1259,7 +1260,8 @@ export class FeedbackDetector {
     peak.phpr = this.calculatePHPR(i)
 
     // MSD analysis for howl detection (reuse cached result from early detection if available)
-    const msdResult = this._msdResultCache.get(i) ?? this.calculateMsd(i)
+    const cached = this._msdResultCache.get(i)
+    const msdResult = (cached && cached.gen === this._msdCacheGen) ? cached : this.calculateMsd(i)
     peak.msd = msdResult.msd
     peak.msdGrowthRate = msdResult.growthRate
     peak.msdIsHowl = msdResult.isHowl

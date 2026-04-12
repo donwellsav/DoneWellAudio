@@ -323,6 +323,8 @@ export function createDSPWorkerErrorHandler(
       clearTimeout(refs.restartTimerRef.current)
     }
 
+    // Exponential backoff: 500ms → 1s → 2s (prevents rapid crash loop)
+    const backoffMs = RESTART_DELAY_MS * (1 << (attempt - 1))
     refs.restartTimerRef.current = setTimeout(() => {
       refs.restartTimerRef.current = null
       refs.restartCountRef.current = attempt
@@ -339,6 +341,6 @@ export function createDSPWorkerErrorHandler(
         sampleRate: lastInit.sampleRate,
         fftSize: lastInit.fftSize,
       })
-    }, RESTART_DELAY_MS)
+    }, backoffMs)
   }
 }

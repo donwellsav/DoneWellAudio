@@ -52,6 +52,16 @@ export function calculateERB(frequencyHz: number): number {
  *
  * Smooth interpolation at boundaries via linear ramp.
  */
+// Pre-computed ERB log2 constants (used by erbDepthScale)
+const _LOG2_LOW_FREQ = Math.log2(ERB_SETTINGS.LOW_FREQ_HZ)
+const _INV_LOG2_RANGE = 1 / (Math.log2(ERB_SETTINGS.HIGH_FREQ_HZ) - _LOG2_LOW_FREQ)
+const _ERB_SCALE_RANGE = ERB_SETTINGS.HIGH_FREQ_SCALE - ERB_SETTINGS.LOW_FREQ_SCALE
+
+// Quantized ERB cache — 10 buckets per octave across ~8 octaves (100–12000 Hz) ≈ 80 entries.
+// Eliminates Math.log2 per call (~120 calls/sec) after first encounter.
+const _erbCache = new Map<number, number>()
+const _ERB_QUANT_FACTOR = 10 // buckets per octave → ~12 Hz resolution at 100 Hz, ~120 Hz at 10 kHz
+
 export function erbDepthScale(frequencyHz: number): number {
   if (frequencyHz <= ERB_SETTINGS.LOW_FREQ_HZ) {
     return ERB_SETTINGS.LOW_FREQ_SCALE
@@ -59,15 +69,15 @@ export function erbDepthScale(frequencyHz: number): number {
   if (frequencyHz >= ERB_SETTINGS.HIGH_FREQ_HZ) {
     return ERB_SETTINGS.HIGH_FREQ_SCALE
   }
-  // Logarithmic interpolation (octave-based) for psychoacoustic accuracy
-  // Constants hoisted to module level — saves 2 Math.log2 + 1 division per call
+  // Quantize to nearest 1/10th octave for cache lookup
+  const bucket = Math.round(Math.log2(frequencyHz) * _ERB_QUANT_FACTOR)
+  const cached = _erbCache.get(bucket)
+  if (cached !== undefined) return cached
   const t = (Math.log2(frequencyHz) - _LOG2_LOW_FREQ) * _INV_LOG2_RANGE
-  return ERB_SETTINGS.LOW_FREQ_SCALE + t * (ERB_SETTINGS.HIGH_FREQ_SCALE - ERB_SETTINGS.LOW_FREQ_SCALE)
+  const result = ERB_SETTINGS.LOW_FREQ_SCALE + t * _ERB_SCALE_RANGE
+  _erbCache.set(bucket, result)
+  return result
 }
-
-// Pre-computed ERB log2 constants (used by erbDepthScale)
-const _LOG2_LOW_FREQ = Math.log2(ERB_SETTINGS.LOW_FREQ_HZ)
-const _INV_LOG2_RANGE = 1 / (Math.log2(ERB_SETTINGS.HIGH_FREQ_HZ) - _LOG2_LOW_FREQ)
 
 /**
  * Find nearest ISO 31-band to a given frequency
@@ -75,7 +85,15 @@ const _INV_LOG2_RANGE = 1 / (Math.log2(ERB_SETTINGS.HIGH_FREQ_HZ) - _LOG2_LOW_FR
 // Pre-computed log2 of ISO 31 bands — saves 31 Math.log2 calls per lookup
 const _ISO_31_BANDS_LOG2 = ISO_31_BANDS.map(f => Math.log2(f))
 
+// GEQ band lookup cache — keyed by quantized log2 bucket (same as ERB cache).
+// 31 bands × ~80 quantized buckets → at most ~80 cache entries, then all hits.
+const _geqBandCache = new Map<number, { bandHz: number; bandIndex: number }>()
+
 export function findNearestGEQBand(freqHz: number): { bandHz: number; bandIndex: number } {
+  const bucket = Math.round(Math.log2(freqHz) * _ERB_QUANT_FACTOR)
+  const cached = _geqBandCache.get(bucket)
+  if (cached !== undefined) return cached
+
   let minDist = Infinity
   let nearestIndex = 0
   const logFreq = Math.log2(freqHz)
@@ -88,10 +106,9 @@ export function findNearestGEQBand(freqHz: number): { bandHz: number; bandIndex:
     }
   }
 
-  return {
-    bandHz: ISO_31_BANDS[nearestIndex],
-    bandIndex: nearestIndex,
-  }
+  const result = { bandHz: ISO_31_BANDS[nearestIndex], bandIndex: nearestIndex }
+  _geqBandCache.set(bucket, result)
+  return result
 }
 
 /**

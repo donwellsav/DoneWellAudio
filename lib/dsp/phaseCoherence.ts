@@ -38,6 +38,11 @@ export class PhaseHistoryBuffer {
   private frameIndex: number = 0
   private frameCount: number = 0
   private maxFrames: number
+  // Per-frame coherence cache — invalidated on addFrame().
+  // Prevents redundant circular-stats computation when multiple consumers
+  // query the same bin within one frame (~4 bins/frame × 50fps).
+  private _coherenceCache = new Map<number, PhaseCoherenceResult>()
+  private _cacheFrameGen = 0
 
   constructor(numBins: number, maxFrames: number = 10) {
     this.maxFrames = maxFrames
@@ -54,6 +59,8 @@ export class PhaseHistoryBuffer {
     }
     this.frameIndex = (this.frameIndex + 1) % this.maxFrames
     this.frameCount = Math.min(this.frameCount + 1, this.maxFrames)
+    // Invalidate coherence cache — new frame means new results
+    this._cacheFrameGen++
   }
 
   /**
@@ -63,6 +70,10 @@ export class PhaseHistoryBuffer {
    *   coherence = | (1/N) * Σ exp(j * Δφ_n) |
    */
   calculateCoherence(binIndex: number): PhaseCoherenceResult {
+    // Per-frame cache: skip circular-stats recomputation for same bin in same frame
+    const cached = this._coherenceCache.get(binIndex)
+    if (cached !== undefined) return cached
+
     const count = this.frameCount
     if (count < PHASE_CONSTANTS.MIN_SAMPLES) {
       return {
@@ -106,18 +117,22 @@ export class PhaseHistoryBuffer {
     imagSum /= numDeltas
     const coherence = Math.sqrt(realSum * realSum + imagSum * imagSum)
 
-    return {
+    const result: PhaseCoherenceResult = {
       coherence,
       feedbackScore: coherence,
       meanPhaseDelta,
       phaseDeltaStd,
       isFeedbackLikely: coherence >= PHASE_CONSTANTS.HIGH_COHERENCE,
     }
+    this._coherenceCache.set(binIndex, result)
+    return result
   }
 
   reset(): void {
     this.frameIndex = 0
     this.frameCount = 0
+    this._coherenceCache.clear()
+    this._cacheFrameGen = 0
     for (const frame of this.history) {
       frame.fill(0)
     }

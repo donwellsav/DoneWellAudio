@@ -1,7 +1,7 @@
 # CLAUDE.md — DoneWell Audio Project Intelligence
 
-> **Last updated April 2026. 597 TypeScript/TSX files, 1347 tests (1343 pass, 4 skip), 95 suites. Version 0.90.0.**
-> Architecture audit: 14 of 20 improvements implemented. 4 module splits (acousticUtils→7, spectrumDrawing→7, classifier helpers, feedbackDetector utils). EXP_LUT dedup. Dead code removal. CI bundle tracking. Worker pipeline integration tests. 71 docs archived. Signal tint toggle. Severity-graded fade. Issue card redesign. GEQ/RTA hover tooltips. Canvas color token system. Hotspot bucket index (O(1) lookup). useMemo clear state. FeedbackHistory IndexedDB migration. Swipe peek animation. Light theme canvas fixes. Font size scale tokens (`--text-dwa-xs/sm/base/lg`). Skip link a11y fix.
+> **Last updated April 2026. 597 TypeScript/TSX files, 1364 tests (1360 pass, 4 skip), 95 suites. Version 0.92.0.**
+> Architecture audit: 14 of 20 improvements implemented. 4 module splits (acousticUtils→7, spectrumDrawing→7, classifier helpers, feedbackDetector utils). EXP_LUT dedup. Dead code removal. CI bundle tracking. Worker pipeline integration tests. 71 docs archived. Signal tint toggle. Severity-graded fade. Issue card redesign. GEQ/RTA hover tooltips. Canvas color token system. Hotspot bucket index (O(1) lookup). useMemo clear state. FeedbackHistory IndexedDB migration. Swipe peek animation. Light theme canvas fixes. Font size scale tokens (`--text-dwa-xs/sm/base/lg`). Skip link a11y fix. AdvisoryContext data/actions split. 10 hot-path perf optimizations (Welford's variance, circular ring buffer, Set reuse, gen-counter cache, ERB/GEQ bucket caches, phase coherence cache). 10 code review fixes (pruneOldest, probability clamp, relay hardening, crypto IDs). Dependency audit: 7 vulns fixed, 4 dead packages removed.
 
 ## CRITICAL RULES
 
@@ -122,7 +122,7 @@ When the user asks to cut a release or "update the usuals":
 | DSP Offload | Web Worker (dspWorker.ts, ~745 lines) |
 | Visualization | HTML5 Canvas at 30fps |
 | State | React 19 hooks + 4 context providers (no external state library) |
-| Testing | Vitest (1376 tests, 100 suites, under 25s) |
+| Testing | Vitest (1364 tests, 95 suites, under 40s) |
 | Error Reporting | Sentry (browser + server + worker runtimes) |
 | PWA | Serwist (service worker, offline caching, installable) |
 | Package Manager | pnpm |
@@ -134,7 +134,7 @@ pnpm dev              # Dev server on :3000 (Turbopack, no SW)
 pnpm build            # Production build (webpack, generates SW)
 pnpm start            # Production server
 pnpm lint             # ESLint (flat config)
-pnpm test             # Vitest (1376 tests: 1372 pass + 4 skip)
+pnpm test             # Vitest (1364 tests: 1360 pass + 4 skip)
 pnpm test:watch       # Vitest watch mode
 pnpm test:coverage    # Vitest with V8 coverage
 npx tsc --noEmit      # Type-check (run BEFORE pnpm build)
@@ -172,7 +172,12 @@ Mic -> getUserMedia -> GainNode -> AnalyserNode (8192 FFT)
    - `SettingsContext` (5 fields) — settings, updateSettings, mode/freq changes
    - `DetectionContext` (3 fields) — advisories, earlyWarning
    - `MeteringContext` (10 fields) — spectrumRef, inputLevel, autoGain, noiseFloor
-2. `AdvisoryContext` — Advisory state, dismiss/clear/false-positive, derived booleans
+2. `AdvisoryContext` — Split into two contexts for render performance:
+   - `AdvisoryDataContext` (high-freq) — advisories, counts, earlyWarning, dismissed/cleared IDs, companionState
+   - `AdvisoryActionsContext` (stable) — onDismiss, onClear*, onFalsePositive, onConfirmFeedback, patchCompanionState
+   - `useAdvisories()` — backward-compatible, merges both (triggers on any change)
+   - `useAdvisoryActions()` — actions only, skips detection re-renders (used by CompanionCommandBridge)
+   - `useAdvisoryData()` — data only, skips action changes
 3. `UIContext` — Mobile tab, freeze, fullscreen, layout reset
 4. `PortalContainerContext` — Portal mount for mobile overlays
 
@@ -242,7 +247,7 @@ contexts/ (9 files)           # React context providers
   SettingsContext (30)        #   Settings, updateSettings, mode/freq (5 fields)
   MeteringContext (38)        #   Spectrum, inputLevel, autoGain, noiseFloor (10 fields)
   DetectionContext (25)       #   Advisories, earlyWarning (3 fields)
-  AdvisoryContext (205)       #   Advisory state, dismiss/clear/FP, derived booleans
+  AdvisoryContext (215)       #   Split: AdvisoryDataContext (high-freq) + AdvisoryActionsContext (stable callbacks)
   UIContext (162)             #   Mobile tab, freeze, fullscreen, RTA fullscreen, layout reset
   PortalContainerContext (23) #   Portal mount for mobile overlays
 hooks/ (21 files)             # Custom hooks
@@ -348,6 +353,7 @@ scripts/ml/                     # ML training pipeline
 - **Do not split stateful class methods** from FeedbackDetector into separate files unless they are pure computation (no `this.` mutations). The class has ~40 private fields shared across 24 methods on a 50fps hot path.
 - **Only ONE `useCompanionInbound` poller may be mounted.** Feedback state updates AND Stream Deck commands both dispatch through `components/analyzer/CompanionCommandBridge.tsx` (mounted inside `UIProvider`). Adding a second poller races on the relay's `toApp` queue — whoever GETs first drains it. Extend the existing bridge's handler map for new message types.
 - **Provider tree order** (inside AudioAnalyzer → AdvisoryProvider → UIProvider). AdvisoryProvider cannot call `useEngine`/`useSettings`/`useUI` because it renders OUTSIDE UIProvider. Anything needing all three must live inside UIProvider as a child component (see CompanionCommandBridge).
+- **Worker crash recovery uses exponential backoff:** `dspWorkerInternals.ts` retries up to 3 times with delays of 500ms → 1s → 2s. After 3 failures, the worker is marked permanently dead and the user must tap Restart. Do not remove the backoff — without it, a WASM OOM can cause a rapid create/destroy loop.
 - **Archived docs:** 71 stale docs, plans, papers, and aifightclub files moved to `docs/archive/` in v0.80.0. Only 10 living docs remain in `docs/`. Check `docs/archive/` for historical audits, design plans, and AI handoff docs.
 
 ## Key Performance Constraints
@@ -360,6 +366,13 @@ scripts/ml/                     # ML training pipeline
 - **Canvas at 30fps (default), not 60fps.** Sufficient for spectrum visualization. Grid cached as Path2D, log-scale math hoisted outside loops.
 - **Worker backpressure:** If worker is still processing, next peak is DROPPED (not queued). Real-time > completeness.
 - **Transferable buffers:** spectrum and timeDomain Float32Arrays are transferred (zero-copy) to worker, then returned via `returnBuffers` message. No allocation after init.
+- **Welford's online variance:** Content-type temporal metrics computed in O(1) per frame (incremental mean/variance) instead of O(n) two-pass loop over 100-frame buffer. `workerFft.ts`.
+- **Circular ring buffer:** Content-type majority-vote uses fixed-size array with index pointer — O(1) write vs O(n) `.shift()`. `workerFft.ts`.
+- **Module-level Set reuse:** `fusionEngine.ts` reuses a single `Set<string>` via `.clear()/.add()` instead of `new Set()` per call (~500 calls/sec).
+- **Generation-counter cache:** MSD result cache uses frame generation number instead of `Map.clear()` — avoids rehash overhead. `feedbackDetector.ts`.
+- **ERB/GEQ bucket caches:** `eqAdvisor.ts` quantizes frequencies to 1/10th-octave buckets, caching `erbDepthScale()` and `findNearestGEQBand()` results. ~80 cache entries cover the full audio range.
+- **Phase coherence per-frame cache:** `PhaseHistoryBuffer.calculateCoherence()` caches results per bin per frame, invalidated on `addFrame()`. `phaseCoherence.ts`.
+- **Schroeder frequency cache:** `classifier.ts` caches Schroeder frequency by room settings key — avoids recalculation on every peak.
 
 ## Coding Conventions
 
@@ -542,11 +555,11 @@ Then when user says "PR":
 - **CSP:** Nonce-based `script-src` in prod (middleware.ts), `'unsafe-inline'` in dev for hot reload. `style-src 'unsafe-inline'` in both (required by Tailwind/React). `suppressHydrationWarning` on `<html>` and `<body>` to prevent nonce mismatch (browsers strip nonce from DOM).
 - **Permissions-Policy:** `microphone=(self), camera=(), geolocation=()`
 - **Zero XSS vectors:** No direct HTML injection, no dynamic code execution
-- **API:** Ingest endpoint validates v1.0/v1.1/v1.2 schema, dual rate-limiting (IP-based 30/60s primary + session-based 6/60s secondary), actual body size enforcement (512KB), strips IP, error messages not leaked
+- **API:** Ingest endpoint validates v1.0/v1.1/v1.2 schema with full snapshot validation (all entries, not spot-check), dual rate-limiting (IP-based 30/60s primary + session-based 6/60s secondary), actual body size enforcement (512KB), strips IP, error messages not leaked
 - **Worker:** Inbound messages type-validated via `WorkerOutboundMessage` switch; outbound postMessage lacks compile-time Set validation (minor gap)
 - **localStorage:** 37 touchpoints, all via dwaStorage.ts abstraction with try/catch
 - **Companion proxy:** SSRF-hardened public HTTP proxy (`app/api/companion/proxy/route.ts`): Origin header check (defense-in-depth, spoofable by non-browser clients — not a true auth boundary), HTTP-only (HTTPS blocked), 15 IPv4 special-use ranges blocked (RFC 1918, loopback, link-local, CGNAT, TEST-NETs, benchmarking, multicast 224/4, 6to4 relay 192.88.99/24, reserved), all-IPv6 blocked, DNS resolution via OS resolver with 2s timeout, IP pinning (TOCTOU-safe for HTTP), dual-stack IPv4 filtering, manual redirect re-validation per hop, 307/308 method preservation, 1MB response cap, rate limiting (30 req/60s per IP via `x-forwarded-for` — trusted on Vercel, spoofable elsewhere), redirect exhaustion → 502, distinct error codes (403/429/504/502). **Known gaps:** no unforgeable auth (Origin is spoofable), IP-based rate limiting depends on platform-sanitized headers. Public HTTP endpoints only — LAN Companion uses relay.
-- **Companion relay:** Rate-limited (30 req/min per IP, amortized Map pruning), payload shape validated before storage (`app/api/companion/relay/[code]/route.ts`)
+- **Companion relay:** Rate-limited (30 req/min per IP, amortized Map pruning), payload shape validated before storage, relay store capped at 500 codes with 30-min expiry to prevent memory exhaustion (`app/api/companion/relay/[code]/route.ts`)
 - **Pairing codes:** `crypto.getRandomValues()` (not Math.random()), 6-char alphanumeric (`lib/companion/companionBridge.ts`)
 
 ## Accessibility Notes

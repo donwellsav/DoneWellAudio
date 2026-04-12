@@ -200,12 +200,8 @@ function validateBatch(batch: unknown): string | null {
   if (b.snapshots.length === 0) return 'Empty snapshots'
   if (b.snapshots.length > 240) return 'Too many snapshots (max 240)'
 
-  // Spot-check snapshots: first, last, and one random middle entry
-  const indicesToCheck = [0, b.snapshots.length - 1]
-  if (b.snapshots.length > 2) {
-    indicesToCheck.push(1 + Math.floor(Math.random() * (b.snapshots.length - 2)))
-  }
-  for (const idx of indicesToCheck) {
+  // Validate ALL snapshots — spot-checking left unchecked positions exploitable
+  for (let idx = 0; idx < b.snapshots.length; idx++) {
     const snap = b.snapshots[idx] as Record<string, unknown>
     if (typeof snap.t !== 'number') return `Invalid snapshot[${idx}].t`
     if (typeof snap.s !== 'string') return `Invalid snapshot[${idx}].s`
