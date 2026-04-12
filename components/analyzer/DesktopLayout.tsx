@@ -2,7 +2,6 @@
 
 import { memo } from 'react'
 import { AlertTriangle, Columns2, PanelLeftClose } from 'lucide-react'
-import { AlgorithmStatusBar } from './AlgorithmStatusBar'
 import { DesktopGraphPanels } from './DesktopGraphPanels'
 import { DesktopIssuesContent } from './DesktopIssuesContent'
 import { DualFaderStrip } from './DualFaderStrip'
@@ -124,20 +123,6 @@ export const DesktopLayout = memo(function DesktopLayout({
       <ResizablePanelGroup key={layoutKey} orientation="horizontal">
         <ResizablePanel defaultSize="20%" minSize="8%" maxSize="30%" collapsible>
           <div className="flex flex-col h-full amber-sidecar overflow-hidden">
-            <div className="flex-shrink-0 amber-panel-header p-2 panel-groove">
-              <AlgorithmStatusBar
-                algorithmMode={spectrumStatus?.algorithmMode ?? settings.algorithmMode}
-                contentType={spectrumStatus?.contentType}
-                msdFrameCount={spectrumStatus?.msdFrameCount}
-                isCompressed={spectrumStatus?.isCompressed}
-                compressionRatio={spectrumStatus?.compressionRatio}
-                isRunning={isRunning}
-                showDetailed={settings.showAlgorithmScores}
-                actualFps={actualFps}
-                droppedPercent={droppedPercent}
-              />
-            </div>
-
             <div className="flex-shrink-0 flex items-center gap-1.5 px-2 py-1.5 amber-panel-header">
               <div className="flex flex-1 tab-track">
                 {!issuesPanelOpen ? (

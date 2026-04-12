@@ -98,7 +98,7 @@ C:\ktr\donewellaudio\
 │   │   ├── FeedbackHistoryPanel.tsx  # Historical feedback frequency log (dynamic multi-column)
 │   │   ├── MissedFeedbackButton.tsx # Mark false negatives for calibration
 │   │   ├── EarlyWarningPanel.tsx     # Pre-feedback warning indicators
-│   │   ├── AlgorithmStatusBar.tsx    # Shows which detection algorithm is active
+│   │   ├── AlgorithmStatusBar.tsx    # Algorithm status (rendered in footer bar)
 │   │   ├── FullscreenOverlay.tsx     # Fullscreen RTA overlay
 │   │   ├── OnboardingOverlay.tsx     # First-run welcome/permissions flow
 │   │   ├── ResetConfirmDialog.tsx    # "Are you sure?" dialog for reset
@@ -277,7 +277,6 @@ app/page.tsx
             │
             └── DesktopLayout (landscape orientation)
                 ├── Sidebar (resizable)
-                │   ├── AlgorithmStatusBar
                 │   ├── EarlyWarningPanel
                 │   ├── Issues tab → IssuesList
                 │   └── Controls tab → DetectionControls + InputMeterSlider

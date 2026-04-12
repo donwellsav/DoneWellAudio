@@ -38,7 +38,7 @@ export const GuideTab = memo(function GuideTab() {
               <li><strong>Mobile Landscape:</strong> Issues/Settings toggle on the left (40-45%), single full-height RTA or GEQ graph on the right (49-54%), fader sidecar. Tap the toggle to switch between issues and settings without leaving the view.</li>
               <li><strong>Issues Panel:</strong> Active detected issues sorted by frequency. RUNAWAY issues pulse red. Copy EQ settings to clipboard.</li>
               <li><strong>Controls Panel:</strong> Four tabs — Live (sensitivity + frequency range), Setup (mode, room, calibration, presets), Display (graph settings, tooltips, themes), Advanced (algorithms, DSP, diagnostics).</li>
-              <li><strong>Algorithm Status Bar:</strong> Shows algorithm mode, active algorithms (Auto mode), FPS counter, content type (speech/music/compressed via temporal envelope + spectral analysis), and compression status.</li>
+              <li><strong>Algorithm Status (Footer Bar):</strong> The bottom footer bar shows algorithm mode (e.g. AUTO, MSD+PH), detected content type (SPEECH/MUSIC/COMP), and MSD buffer frame count — matching the DoneWell branding style.</li>
               <li><strong>Early Warning Panel:</strong> Comb filter predictions with elapsed timer and urgency progress bar.</li>
               <li><strong>Theme Toggle:</strong> Sun/Moon icon in header (between Help and Reset Layout) switches dark/light mode. Persists across sessions.</li>
               <li><strong>Tooltips:</strong> Most controls have a ⓘ help icon. Hover or tap to see explanations with recommended ranges. Toggle tooltips on/off in Display → Preferences.</li>

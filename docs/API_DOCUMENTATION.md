@@ -110,7 +110,7 @@ Each snapshot in the `snapshots` array:
 | `t` | `number` | Must be number (relative time in ms) |
 | `s` | `string` | Base64-encoded quantized spectrum, 100-800 chars |
 
-**Note:** The route spot-checks only 3 snapshots (first, last, and one random middle entry) rather than validating all entries.
+**Note:** All snapshots are validated (type and length checks on every entry). Previously spot-checked 3; changed to full validation in v0.92.0.
 
 ### Example request
 
@@ -185,7 +185,7 @@ curl -X POST "http://localhost:3000/api/v1/ingest" \
 | 400 | `{"error":"snapshots must be array"}` | Not an array |
 | 400 | `{"error":"Empty snapshots"}` | Zero-length array |
 | 400 | `{"error":"Too many snapshots (max 240)"}` | Over 240 entries |
-| 400 | `{"error":"Invalid snapshot[N].t"}` | Spot-checked snapshot missing numeric `t` |
+| 400 | `{"error":"Invalid snapshot[N].t"}` | Snapshot at index N missing numeric `t` |
 | 400 | `{"error":"Invalid snapshot[N].s length"}` | Base64 string outside 100-800 chars |
 | 413 | `{"error":"Payload too large"}` | Exceeds 512 KB (checked via header AND body) |
 | 415 | `{"error":"Content-Type must be application/json"}` | Wrong content type |
@@ -356,7 +356,8 @@ Codes are generated client-side using `crypto.getRandomValues()` (not `Math.rand
 | Constraint | Value |
 |---|---|
 | Queue capacity | 20 items per pairing code (FIFO, oldest dropped) |
-| Relay expiry | 2 hours of inactivity |
+| Relay expiry | 30 minutes of inactivity |
+| Max relay codes | 500 concurrent (returns 503 when full) |
 | Rate limit | 30 requests per 60 seconds per IP (GET + POST only) |
 | Storage | In-memory — lost on cold start/redeploy |
 | Rate limit map cap | 10,000 entries with amortized pruning |
