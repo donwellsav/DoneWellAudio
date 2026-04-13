@@ -105,7 +105,7 @@ describe('relay route', () => {
   it('rate limits repeated polls from the same IP', async () => {
     const { GET } = await importRoute()
 
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 600; i++) {
       const res = await GET(makeRequest('GET', undefined, '10.0.0.9'), validParams)
       expect(res.status).toBe(200)
     }

@@ -82,7 +82,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'refactor', description: 'CLAUDE.md: **Architecture Gotcha — provider tree order**. `AdvisoryProvider` renders OUTSIDE `UIProvider`, so it cannot call `useEngine`/`useSettings`/`useUI` directly. Components needing all three must mount inside `UIProvider`.' },
       { type: 'refactor', description: 'CLAUDE.md: **Mock drift warning** for `FeedbackHistory`. Adding a method requires updating every `vi.mock(\'@/lib/dsp/feedbackHistory\'` site — Vitest does not type-check mock return shapes.' },
       { type: 'refactor', description: 'CLAUDE.md: **`tsc` + dev server gotcha**. Running `npx tsc --noEmit` while Turbopack is running can show spurious errors in `.next/dev/routes.d.ts` or `validator.ts`. Fix: `rm -rf .next/dev` first.' },
-      { type: 'refactor', description: 'CLAUDE.md: **Project Structure — added `companion-module/`** entry. The DoneWell Companion module source lives in this repo (not just GitHub Release zip). Key files: `src/main.ts` (TCP + HTTP bridge), `src/mixerProfiles.ts` (8 profiles including PA2), `src/actions.ts` (Stream Deck + remote DWA control), `src/mixerOutput.ts` (slot allocation).' },
+      { type: 'refactor', description: 'CLAUDE.md: **Project Structure — added `companion-module/`** entry. The DoneWell Companion module source lives in this repo (not just GitHub Release zip). Key files: `src/main.ts` (TCP + HTTP bridge), `src/mixerProfiles.ts` (9 profiles including PA2 + VENU360), `src/actions.ts` (Stream Deck + remote DWA control), `src/mixerOutput.ts` (slot allocation).' },
     ],
   },
   {
