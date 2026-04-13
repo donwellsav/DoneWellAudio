@@ -1,7 +1,7 @@
 # CLAUDE.md — DoneWell Audio Project Intelligence
 
-> **Last updated April 2026. 597 TypeScript/TSX files, 1364 tests (1360 pass, 4 skip), 95 suites. Version 0.92.0.**
-> Architecture audit: 14 of 20 improvements implemented. 4 module splits (acousticUtils→7, spectrumDrawing→7, classifier helpers, feedbackDetector utils). EXP_LUT dedup. Dead code removal. CI bundle tracking. Worker pipeline integration tests. 71 docs archived. Signal tint toggle. Severity-graded fade. Issue card redesign. GEQ/RTA hover tooltips. Canvas color token system. Hotspot bucket index (O(1) lookup). useMemo clear state. FeedbackHistory IndexedDB migration. Swipe peek animation. Light theme canvas fixes. Font size scale tokens (`--text-dwa-xs/sm/base/lg`). Skip link a11y fix. AdvisoryContext data/actions split. 10 hot-path perf optimizations (Welford's variance, circular ring buffer, Set reuse, gen-counter cache, ERB/GEQ bucket caches, phase coherence cache). 10 code review fixes (pruneOldest, probability clamp, relay hardening, crypto IDs). Dependency audit: 7 vulns fixed, 4 dead packages removed.
+> **Last updated April 2026. 597 TypeScript/TSX files, 1364 tests (1360 pass, 4 skip), 95 suites. Version 0.93.0.**
+> Architecture audit: 14 of 20 improvements implemented. 4 module splits (acousticUtils→7, spectrumDrawing→7, classifier helpers, feedbackDetector utils). EXP_LUT dedup. Dead code removal. CI bundle tracking. Worker pipeline integration tests. 71 docs archived. Signal tint toggle. Severity-graded fade. Issue card redesign. GEQ/RTA hover tooltips. Canvas color token system. Hotspot bucket index (O(1) lookup). useMemo clear state. FeedbackHistory IndexedDB migration. Swipe peek animation. Light theme canvas fixes. Font size scale tokens (`--text-dwa-xs/sm/base/lg`). Skip link a11y fix. AdvisoryContext data/actions split. 10 hot-path perf optimizations (Welford's variance, circular ring buffer, Set reuse, gen-counter cache, ERB/GEQ bucket caches, phase coherence cache). 10 code review fixes (pruneOldest, probability clamp, relay hardening, crypto IDs). Dependency audit: 7 vulns fixed, 4 dead packages removed. VENU360 mixer profile with GEQ infrastructure (ref-counted rollback, partial_apply protocol, per-band tracking).
 
 ## CRITICAL RULES
 
@@ -333,7 +333,7 @@ lib/dsp/__tests__/ (21 files)   # DSP unit tests (feedbackDetector, fusionEngine
 tests/integration/ (1 file)     # Worker pipeline integration tests (AlgorithmEngine → fusion → classifier)
 companion-module/               # DoneWell Audio Companion module (polls relay, outputs OSC/TCP to mixer)
   src/main.ts                   #   TCP state machine, HTTP bridge, inbound relay poller
-  src/mixerProfiles.ts          #   8 profiles: X32, M32, Yamaha TF/CL/QL, A&H dLive/SQ, dbx PA2, Generic OSC
+  src/mixerProfiles.ts          #   9 profiles: X32, M32, Yamaha TF/CL/QL, A&H dLive/SQ, dbx PA2, dbx VENU360, Generic OSC
   src/actions.ts                #   Stream Deck actions (local + 8 remote DWA control actions)
   src/mixerOutput.ts            #   Slot allocation, OSC encoding, TCP transport
 public/models/                  # ML model assets

@@ -157,5 +157,18 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
       step: 1,
       width: 6,
     },
+
+    // ── DWA-Owned Bands ──
+    {
+      type: 'static-text',
+      id: 'bands_header',
+      label: '',
+      value:
+        '── DWA-Owned Bands ──\n' +
+        'DWA manages PEQ bands starting at "First PEQ Band Number" for "PEQ Bands Available" slots. ' +
+        'Dedicate these bands to DWA — keep your own EQ on other bands.\n' +
+        'GEQ bands are zeroed when advisories clear. Use PEQ-only mode if you have manual GEQ tuning to preserve.',
+      width: 12,
+    },
   ]
 }

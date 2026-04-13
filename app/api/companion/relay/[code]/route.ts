@@ -62,7 +62,7 @@ function prune() {
 
 // ─── Rate limiting ────────────────────────────────────────────────────────────
 
-const isRateLimited = createRateLimiter({ windowMs: 60_000, maxRequests: 30, maxEntries: 10_000 })
+const isRateLimited = createRateLimiter({ windowMs: 60_000, maxRequests: 600, maxEntries: 10_000 })
 
 // ─── Payload validation ───────────────────────────────────────────────────────
 
@@ -261,6 +261,9 @@ export async function POST(
 
   queue.push(payload)
   relay.lastActivity = Date.now()
+  // DEBUG: log relay activity to terminal
+  const p = payload as Record<string, unknown>
+  console.log(`[RELAY] ${direction === 'app' ? 'module→app' : 'dwa→module'} code=${code} type=${p.type ?? 'advisory'} queue=${queue.length}`)
 
   // Cap queue size (drop oldest, keep newest)
   if (queue.length > MAX_QUEUE) {

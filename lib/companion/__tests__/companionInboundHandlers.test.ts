@@ -30,6 +30,7 @@ function makeHandlers(): CompanionInboundHandlers & {
     onRingoutStart: capture('ringoutStart'),
     onRingoutStop: capture('ringoutStop'),
     onModeChange: capture('modeChange'),
+    onPartialApply: capture('partialApply'),
     onPong: capture('pong'),
   }
 }
@@ -75,6 +76,28 @@ describe('dispatchCompanionMessage', () => {
       h,
     )
     expect(h._calls.applyFailed).toEqual(['adv-3', 'No slot', 3000])
+  })
+
+  it('dispatches partial_apply with structured payload', () => {
+    const h = makeHandlers()
+    dispatchCompanionMessage(
+      {
+        type: 'partial_apply',
+        advisoryId: 'adv-pa',
+        peqApplied: true,
+        geqApplied: false,
+        failReason: 'GEQ apply failed (check mixer host, model, and GEQ prefix)',
+        timestamp: 3500,
+      },
+      h,
+    )
+    expect(h._calls.partialApply).toEqual([{
+      advisoryId: 'adv-pa',
+      peqApplied: true,
+      geqApplied: false,
+      failReason: 'GEQ apply failed (check mixer host, model, and GEQ prefix)',
+      timestamp: 3500,
+    }])
   })
 
   it('dispatches cleared to onCleared', () => {

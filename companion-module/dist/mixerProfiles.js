@@ -110,11 +110,11 @@ function clearPa2Eq(_prefix, band) {
 // Frequency as float Hz — the VENU360 module auto-formats to
 // device strings ("250Hz", "1kHz", "12.5kHz").
 function venu360ValidateOutput(prefix) {
-    const trimmed = prefix.trim();
-    if (!/^[1-6]$/.test(trimmed)) {
+    const num = parseInt(prefix.trim(), 10);
+    if (isNaN(num) || num < 1 || num > 6) {
         throw new Error(`VENU360 PEQ output must be 1-6, got '${prefix}'. Set the Channel/EQ Prefix to a valid output number.`);
     }
-    return trimmed;
+    return String(num);
 }
 function buildVenu360PeqEq(prefix, band, freqHz, gainDb, q) {
     const inst = venu360ValidateOutput(prefix || '1');
@@ -139,14 +139,14 @@ function clearVenu360PeqEq(prefix, band) {
 }
 function buildVenu360Geq(prefix, bandIndex, gainDb) {
     // VENU360 GEQ chains are 1-3 only. Reject invalid values instead of guessing.
-    const trimmed = prefix.trim();
-    if (!/^[1-3]$/.test(trimmed)) {
+    const num = parseInt(prefix.trim(), 10);
+    if (isNaN(num) || num < 1 || num > 3) {
         throw new Error(`VENU360 GEQ chain must be 1-3, got '${prefix}'. Set the GEQ Prefix field to a valid chain number.`);
     }
     return {
         protocol: 'osc',
         oscMessages: [
-            { address: `/venu360/geq/${trimmed}/band/${bandIndex + 1}`, args: [{ type: 'f', value: gainDb }] },
+            { address: `/venu360/geq/${num}/band/${bandIndex + 1}`, args: [{ type: 'f', value: gainDb }] },
         ],
     };
 }
