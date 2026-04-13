@@ -26,6 +26,9 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'fix', description: 'Model-switch migration preserves user overrides, migrates peqBandCount' },
       { type: 'fix', description: 'GEQ-only mode no longer falsely reports apply_failed' },
       { type: 'fix', description: 'Structured error propagation from PEQ/GEQ apply paths' },
+      { type: 'fix', description: 'GROWING/RUNAWAY now use maxCut depth (-18/-12 dB) on first detection — no more undershooting feedback that needs killing' },
+      { type: 'fix', description: 'Closed-loop retry cap raised from -12 to -18 dB to match preset maxCut' },
+      { type: 'fix', description: 'Relay rate limit changed from per-IP to per-pairing-code — fixes localhost throttling' },
     ],
   },
   {

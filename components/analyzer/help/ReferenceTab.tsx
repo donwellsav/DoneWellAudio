@@ -84,12 +84,12 @@ export const ReferenceTab = memo(function ReferenceTab() {
               <div>
                 <p className="font-medium text-foreground mb-1">Surgical</p>
                 <p>Default Q: 30 | Runaway Q: 60</p>
-                <p>Max cut: -18 dB | Moderate: -9 dB | Light: -4 dB</p>
+                <p>RUNAWAY/GROWING: -18 dB | RESONANCE/RING: -9 dB</p>
               </div>
               <div>
                 <p className="font-medium text-foreground mb-1">Heavy</p>
                 <p>Default Q: 16 | Runaway Q: 30</p>
-                <p>Max cut: -12 dB | Moderate: -6 dB | Light: -3 dB</p>
+                <p>RUNAWAY/GROWING: -12 dB | RESONANCE/RING: -6 dB</p>
               </div>
             </div>
           </HelpSection>

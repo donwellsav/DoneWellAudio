@@ -180,19 +180,19 @@ describe('calculateCutDepth', () => {
     expect(calculateCutDepth('RUNAWAY', 'heavy')).toBe(-12)
   })
 
-  it('returns moderate cut for GROWING', () => {
-    expect(calculateCutDepth('GROWING', 'surgical')).toBe(-9)
-    expect(calculateCutDepth('GROWING', 'heavy')).toBe(-6)
+  it('returns maxCut for GROWING (same as RUNAWAY — kill it)', () => {
+    expect(calculateCutDepth('GROWING', 'surgical')).toBe(-18)
+    expect(calculateCutDepth('GROWING', 'heavy')).toBe(-12)
   })
 
-  it('returns light cut for RESONANCE', () => {
-    expect(calculateCutDepth('RESONANCE', 'surgical')).toBe(-4)
-    expect(calculateCutDepth('RESONANCE', 'heavy')).toBe(-3)
+  it('returns moderate cut for RESONANCE', () => {
+    expect(calculateCutDepth('RESONANCE', 'surgical')).toBe(-9)
+    expect(calculateCutDepth('RESONANCE', 'heavy')).toBe(-6)
   })
 
-  it('returns -3 for POSSIBLE_RING', () => {
-    expect(calculateCutDepth('POSSIBLE_RING', 'surgical')).toBe(-3)
-    expect(calculateCutDepth('POSSIBLE_RING', 'heavy')).toBe(-3)
+  it('returns moderate cut for POSSIBLE_RING', () => {
+    expect(calculateCutDepth('POSSIBLE_RING', 'surgical')).toBe(-9)
+    expect(calculateCutDepth('POSSIBLE_RING', 'heavy')).toBe(-6)
   })
 
   it('returns 0 for WHISTLE and INSTRUMENT (no cut)', () => {

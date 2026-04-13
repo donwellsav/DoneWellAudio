@@ -102,7 +102,7 @@ describe('relay route', () => {
     expect(await badControl.json()).toEqual({ error: 'Unknown type: reboot_everything' })
   })
 
-  it('rate limits repeated polls from the same IP', async () => {
+  it('rate limits repeated polls on the same pairing code', async () => {
     const { GET } = await importRoute()
 
     for (let i = 0; i < 600; i++) {
