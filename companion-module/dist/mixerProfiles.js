@@ -105,6 +105,51 @@ function clearPa2Eq(_prefix, band) {
         tcpPayload: JSON.stringify({ command: 'set_peq', filter: band, frequency: 1000, gain: 0, q: 4, type: 'Bell' }) + '\n',
     };
 }
+// ═══ VENU360 (OSC via VENU360 Companion module) ═══
+// Sends to the VENU360 Companion module's OSC receive port.
+// Frequency as float Hz — the VENU360 module auto-formats to
+// device strings ("250Hz", "1kHz", "12.5kHz").
+function venu360ValidateOutput(prefix) {
+    const num = parseInt(prefix.trim(), 10);
+    if (isNaN(num) || num < 1 || num > 6) {
+        throw new Error(`VENU360 PEQ output must be 1-6, got '${prefix}'. Set the Channel/EQ Prefix to a valid output number.`);
+    }
+    return String(num);
+}
+function buildVenu360PeqEq(prefix, band, freqHz, gainDb, q) {
+    const inst = venu360ValidateOutput(prefix || '1');
+    return {
+        protocol: 'osc',
+        oscMessages: [
+            { address: `/venu360/peqout/${inst}/band/${band}/type`, args: [{ type: 's', value: 'Bell' }] },
+            { address: `/venu360/peqout/${inst}/band/${band}/freq`, args: [{ type: 'f', value: freqHz }] },
+            { address: `/venu360/peqout/${inst}/band/${band}/gain`, args: [{ type: 'f', value: gainDb }] },
+            { address: `/venu360/peqout/${inst}/band/${band}/q`, args: [{ type: 'f', value: q }] },
+        ],
+    };
+}
+function clearVenu360PeqEq(prefix, band) {
+    const inst = venu360ValidateOutput(prefix || '1');
+    return {
+        protocol: 'osc',
+        oscMessages: [
+            { address: `/venu360/peqout/${inst}/band/${band}/gain`, args: [{ type: 'f', value: 0 }] },
+        ],
+    };
+}
+function buildVenu360Geq(prefix, bandIndex, gainDb) {
+    // VENU360 GEQ chains are 1-3 only. Reject invalid values instead of guessing.
+    const num = parseInt(prefix.trim(), 10);
+    if (isNaN(num) || num < 1 || num > 3) {
+        throw new Error(`VENU360 GEQ chain must be 1-3, got '${prefix}'. Set the GEQ Prefix field to a valid chain number.`);
+    }
+    return {
+        protocol: 'osc',
+        oscMessages: [
+            { address: `/venu360/geq/${num}/band/${bandIndex + 1}`, args: [{ type: 'f', value: gainDb }] },
+        ],
+    };
+}
 // ═══ Generic OSC (uses X32 normalization as baseline) ═══
 function buildGenericOscEq(prefix, band, freqHz, gainDb, q) {
     return buildX32Eq(prefix, band, freqHz, gainDb, q);
@@ -193,6 +238,18 @@ export const MIXER_PROFILES = {
         defaultOscPrefix: 'High',
         buildEqMessage: (p) => buildPa2Eq(p.prefix, p.band, p.freqHz, p.gainDb, p.q),
         buildClearMessage: (p) => clearPa2Eq(p.prefix, p.band),
+    },
+    venu360: {
+        id: 'venu360',
+        label: 'dbx DriveRack VENU360',
+        protocol: 'osc',
+        defaultPort: 9000,
+        peqBands: 8,
+        defaultOscPrefix: '1',
+        buildEqMessage: (p) => buildVenu360PeqEq(p.prefix, p.band, p.freqHz, p.gainDb, p.q),
+        buildClearMessage: (p) => clearVenu360PeqEq(p.prefix, p.band),
+        buildGeqMessage: (p) => buildVenu360Geq(p.prefix, p.bandIndex, p.gainDb),
+        requireGeqPrefix: true,
     },
     generic_osc: {
         id: 'generic_osc',

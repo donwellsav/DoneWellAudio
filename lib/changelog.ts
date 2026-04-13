@@ -14,6 +14,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.93.0',
+    date: '2026-04-12',
+    highlights: 'VENU360 mixer profile, GEQ infrastructure with ref-counted rollback, partial_apply relay protocol',
+    changes: [
+      { type: 'feat', description: 'VENU360 mixer profile — OSC to peer Companion module for dbx DriveRack VENU360 loudspeaker processor' },
+      { type: 'feat', description: 'GEQ output mode with per-band reference counting, orphan tracking, and rollback on advisory dismiss/resolve' },
+      { type: 'feat', description: '`geqPrefix` config field separates PEQ output from GEQ chain addressing' },
+      { type: 'feat', description: '`partial_apply` relay message for both-mode partial success reporting' },
+      { type: 'feat', description: 'OSC encoder extended with string arg support for filter type messages' },
+      { type: 'fix', description: 'Model-switch migration preserves user overrides, migrates peqBandCount' },
+      { type: 'fix', description: 'GEQ-only mode no longer falsely reports apply_failed' },
+      { type: 'fix', description: 'Structured error propagation from PEQ/GEQ apply paths' },
+    ],
+  },
+  {
     version: '0.92.0',
     date: '2026-04-12',
     highlights: 'Dependency audit (7 vulns fixed, 4 dead packages removed), 10 DSP hot-path perf optimizations, 10 code review fixes, algo status moved to footer bar',
@@ -67,7 +82,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'refactor', description: 'CLAUDE.md: **Architecture Gotcha — provider tree order**. `AdvisoryProvider` renders OUTSIDE `UIProvider`, so it cannot call `useEngine`/`useSettings`/`useUI` directly. Components needing all three must mount inside `UIProvider`.' },
       { type: 'refactor', description: 'CLAUDE.md: **Mock drift warning** for `FeedbackHistory`. Adding a method requires updating every `vi.mock(\'@/lib/dsp/feedbackHistory\'` site — Vitest does not type-check mock return shapes.' },
       { type: 'refactor', description: 'CLAUDE.md: **`tsc` + dev server gotcha**. Running `npx tsc --noEmit` while Turbopack is running can show spurious errors in `.next/dev/routes.d.ts` or `validator.ts`. Fix: `rm -rf .next/dev` first.' },
-      { type: 'refactor', description: 'CLAUDE.md: **Project Structure — added `companion-module/`** entry. The DoneWell Companion module source lives in this repo (not just GitHub Release zip). Key files: `src/main.ts` (TCP + HTTP bridge), `src/mixerProfiles.ts` (8 profiles including PA2), `src/actions.ts` (Stream Deck + remote DWA control), `src/mixerOutput.ts` (slot allocation).' },
+      { type: 'refactor', description: 'CLAUDE.md: **Project Structure — added `companion-module/`** entry. The DoneWell Companion module source lives in this repo (not just GitHub Release zip). Key files: `src/main.ts` (TCP + HTTP bridge), `src/mixerProfiles.ts` (9 profiles including PA2 + VENU360), `src/actions.ts` (Stream Deck + remote DWA control), `src/mixerOutput.ts` (slot allocation).' },
     ],
   },
   {

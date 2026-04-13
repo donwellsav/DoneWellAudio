@@ -26,6 +26,28 @@ export interface ActiveSlot {
     severity: string;
     timestamp: number;
 }
+/** A GEQ band write tracked for rollback on advisory dismiss/resolve */
+export interface ActiveGeqWrite {
+    advisoryId: string;
+    prefix: string;
+    bandIndex: number;
+    gainDb: number;
+    timestamp: number;
+}
+/** Result from clearByAdvisoryId() — per-output clear status */
+export interface ClearResult {
+    peqCleared: boolean;
+    geqCleared: boolean;
+    /** True if everything that was active got cleared */
+    fullyCleared: boolean;
+}
+/** Result from applyWithMode() — distinguishes PEQ slot success from GEQ-only success */
+export interface ApplyResult {
+    peqSlot: ActiveSlot | null;
+    geqApplied: boolean;
+    /** Non-empty when one or both outputs failed */
+    failReason: string | null;
+}
 export declare class MixerOutput {
     private udpSocket;
     private tcpSocket;
@@ -34,6 +56,14 @@ export declare class MixerOutput {
     private profile;
     /** Active PEQ slots on the mixer — keyed by band number */
     activeSlots: Map<number, ActiveSlot>;
+    /** Last PEQ failure reason — set by applyAdvisory when it returns null */
+    private lastPeqFailReason;
+    /** Active GEQ writes on the mixer — keyed by advisory ID for rollback */
+    activeGeqWrites: Map<string, ActiveGeqWrite>;
+    /** Reference count per GEQ band — only zero hardware when count drops to 0 */
+    private geqBandRefCount;
+    /** Orphaned GEQ writes from failed relocation clears — retried on clearAll and clearByAdvisoryId */
+    private orphanedGeqWrites;
     /** Session action log for export */
     sessionLog: Array<{
         action: string;
@@ -44,19 +74,19 @@ export declare class MixerOutput {
         timestamp: number;
     }>;
     constructor(config: ModuleConfig, log: (level: string, msg: string) => void);
-    updateConfig(config: ModuleConfig): void;
+    updateConfig(config: ModuleConfig): Promise<void>;
     disconnect(): void;
     /** Apply an advisory's PEQ to the mixer using smart slot management */
     applyAdvisory(advisory: DwaAdvisory): Promise<ActiveSlot | null>;
-    /** Apply GEQ correction from advisory's GEQ recommendation */
-    applyGEQ(advisory: DwaAdvisory): Promise<void>;
+    /** Apply GEQ correction from advisory's GEQ recommendation. Returns true only if the command was actually sent. */
+    applyGEQ(advisory: DwaAdvisory): Promise<boolean>;
     /** Apply advisory using configured output mode (PEQ, GEQ, or both) */
-    applyWithMode(advisory: DwaAdvisory): Promise<ActiveSlot | null>;
-    /** Clear a slot by advisory ID (when feedback resolves) */
-    clearByAdvisoryId(advisoryId: string): Promise<boolean>;
+    applyWithMode(advisory: DwaAdvisory): Promise<ApplyResult>;
+    /** Clear PEQ slot and/or GEQ write by advisory ID (when feedback resolves) */
+    clearByAdvisoryId(advisoryId: string): Promise<ClearResult>;
     /** Clear a specific PEQ band on the mixer */
     clearSlot(band: number): Promise<boolean>;
-    /** Clear all active slots */
+    /** Clear all active PEQ slots and GEQ writes */
     clearAll(): Promise<void>;
     /** Get slot usage summary */
     getSlotSummary(): {

@@ -57,6 +57,10 @@ export const CompanionCommandBridge = memo(function CompanionCommandBridge() {
         },
         onApplyFailed: (advisoryId, reason, at) =>
           patchCompanionState(advisoryId, { failed: { at, reason } }),
+        onPartialApply: ({ advisoryId, peqApplied, geqApplied, failReason, timestamp }) =>
+          patchCompanionState(advisoryId, {
+            partialApply: { at: timestamp, peqApplied, geqApplied, failReason },
+          }),
         onCleared: (advisoryId) => clearCompanionStateForAdvisory(advisoryId),
 
         // ── Stream Deck remote control ─────────────────────────────

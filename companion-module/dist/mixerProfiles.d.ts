@@ -13,19 +13,23 @@
  * - Yamaha TF/CL/QL: Yamaha StageMix OSC (direct values, different address format)
  * - A&H dLive/SQ: Allen & Heath TCP/MIDI NRPN (binary, not OSC)
  */
-export type MixerModelId = 'x32' | 'midas_m32' | 'yamaha_tf' | 'yamaha_cl' | 'ah_dlive' | 'ah_sq' | 'pa2' | 'generic_osc';
+export type MixerModelId = 'x32' | 'midas_m32' | 'yamaha_tf' | 'yamaha_cl' | 'ah_dlive' | 'ah_sq' | 'pa2' | 'generic_osc' | 'venu360';
 export interface EqMessage {
     /** For OSC: address + args pairs. For TCP: raw string payloads. */
     readonly protocol: 'osc' | 'tcp';
     readonly oscMessages?: readonly OscMsg[];
     readonly tcpPayload?: string;
 }
+export type OscArg = {
+    type: 'f';
+    value: number;
+} | {
+    type: 's';
+    value: string;
+};
 export interface OscMsg {
     readonly address: string;
-    readonly args: readonly {
-        type: 'f';
-        value: number;
-    }[];
+    readonly args: readonly OscArg[];
 }
 export interface MixerProfile {
     readonly id: MixerModelId;
@@ -55,6 +59,8 @@ export interface MixerProfile {
         bandIndex: number;
         gainDb: number;
     }): EqMessage;
+    /** When true, GEQ requires an explicit geqPrefix — do not fall back to oscPrefix */
+    requireGeqPrefix?: boolean;
 }
 export declare const MIXER_PROFILES: Record<MixerModelId, MixerProfile>;
 /** Dropdown choices for Companion config */

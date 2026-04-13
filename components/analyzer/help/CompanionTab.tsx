@@ -27,7 +27,7 @@ export const CompanionTab = memo(function CompanionTab() {
               >
                 Download DoneWell Audio Module (.zip)
               </a>
-              <p className="text-[10px] text-muted-foreground/60">Supports X32, Midas M32, Yamaha TF/CL/QL, A&amp;H dLive/SQ, dbx DriveRack PA2, and Generic OSC via the Mixer Model dropdown.</p>
+              <p className="text-[10px] text-muted-foreground/60">Supports X32, Midas M32, Yamaha TF/CL/QL, A&amp;H dLive/SQ, dbx DriveRack PA2, dbx DriveRack VENU360, and Generic OSC via the Mixer Model dropdown.</p>
             </div>
             <div className="mt-3 space-y-2">
               <p className="font-medium text-foreground text-sm">Install steps:</p>
@@ -130,7 +130,7 @@ export const CompanionTab = memo(function CompanionTab() {
           <HelpSection title="Built-in Mixer Output (Recommended)" color="green">
             <p className="mb-2">The module can send EQ commands directly to your mixer — no separate mixer module or triggers needed.</p>
             <ol className="list-decimal list-inside space-y-2">
-              <li>In the module settings, choose your <strong>Mixer Model</strong> (X32, Midas M32, Yamaha TF/CL/QL, A&amp;H dLive/SQ, dbx PA2, or Generic OSC)</li>
+              <li>In the module settings, choose your <strong>Mixer Model</strong> (X32, Midas M32, Yamaha TF/CL/QL, A&amp;H dLive/SQ, dbx PA2, dbx VENU360, or Generic OSC)</li>
               <li>Enter your mixer&apos;s <strong>IP address</strong> — port auto-fills per model</li>
               <li>Set the <strong>Channel/EQ Prefix</strong> (e.g., <code className="font-mono text-xs bg-muted px-1 rounded">/ch/01/eq</code> for X32 channel 1)</li>
               <li>Set <strong>PEQ Bands Available</strong> (how many bands the module can use for notch filters)</li>
@@ -151,6 +151,7 @@ export const CompanionTab = memo(function CompanionTab() {
               <li><strong>Allen &amp; Heath dLive:</strong> TCP, port 51325.</li>
               <li><strong>Allen &amp; Heath SQ:</strong> TCP, port 51326.</li>
               <li><strong>dbx DriveRack PA2:</strong> TCP, port 19272. Precision PEQ with Q 4-16.</li>
+              <li><strong>dbx DriveRack VENU360:</strong> OSC via VENU360 Companion module, port 9000. PEQ (8 bands) + GEQ (31-band). Requires separate GEQ Prefix for chain routing.</li>
               <li><strong>Generic OSC:</strong> User-configured. Uses X32-style normalization.</li>
             </ul>
           </HelpSection>

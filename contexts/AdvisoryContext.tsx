@@ -26,6 +26,8 @@ export interface CompanionAdvisoryState {
   applied?: { at: number; gainDb: number; slotIndex: number }
   /** Apply failed — mixer error, slots full, etc. */
   failed?: { at: number; reason: string }
+  /** Partial apply — one of PEQ/GEQ succeeded but the other failed (both mode). */
+  partialApply?: { at: number; peqApplied: boolean; geqApplied: boolean; failReason: string }
 }
 
 /** High-frequency data — changes on every advisory update from the worker. */
