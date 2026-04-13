@@ -14,6 +14,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.94.0',
+    date: '2026-04-13',
+    changes: [
+      { type: 'feat', description: 'GROWING/RUNAWAY now use maxCut on first detection (-18/-12 dB) instead of moderate (-9/-6 dB)' },
+      { type: 'feat', description: 'RESONANCE/POSSIBLE_RING use moderateCut (-9/-6 dB) instead of light (-4/-3 dB)' },
+      { type: 'feat', description: 'Closed-loop retry cap raised from -12 to -18 dB' },
+      { type: 'feat', description: 'Relay rate limit changed from per-IP to per-pairing-code (fixes localhost throttling)' },
+      { type: 'feat', description: 'Help menu and reference tab updated with new cut depth values' },
+      { type: 'feat', description: '[x] `npx tsc --noEmit` — clean' },
+      { type: 'feat', description: '[x] `pnpm test` — 95 suites, 1361 passed, 4 skipped' },
+      { type: 'feat', description: '[x] Hardware verified: deeper cuts kill feedback on first pass on VENU360' },
+    ],
+  },
+  {
     version: '0.93.0',
     date: '2026-04-12',
     highlights: 'VENU360 mixer profile, GEQ infrastructure with ref-counted rollback, partial_apply relay protocol',
