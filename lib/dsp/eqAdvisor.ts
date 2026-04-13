@@ -130,20 +130,20 @@ export function calculateCutDepth(severity: SeverityLevel, preset: Preset, recur
       baseDepth = presetConfig.maxCut // -18 or -12 dB
       break
     case 'GROWING':
-      baseDepth = presetConfig.moderateCut // -9 or -6 dB
+      baseDepth = presetConfig.maxCut // Same as RUNAWAY — if it's growing, kill it
       break
     case 'RESONANCE':
-      baseDepth = presetConfig.lightCut // -4 or -3 dB
+      baseDepth = presetConfig.moderateCut // -9 or -6 dB
       break
     case 'POSSIBLE_RING':
-      baseDepth = -3 // Gentle for possible rings
+      baseDepth = presetConfig.moderateCut // Match resonance — detected means cut
       break
     case 'WHISTLE':
       return 0 // No cut for whistles
     case 'INSTRUMENT':
       return 0 // No cut for instruments
     default:
-      baseDepth = presetConfig.lightCut
+      baseDepth = presetConfig.moderateCut
   }
 
   // MINDS-inspired adaptive depth: each recurrence deepens by 2 dB

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createRateLimiter } from '@/lib/api/rateLimit'
 
 /**
  * Cloud relay for Companion integration (bidirectional).
@@ -60,9 +59,32 @@ function prune() {
   }
 }
 
-// ─── Rate limiting ────────────────────────────────────────────────────────────
+// ─── Rate limiting (per pairing code, not per IP) ────────────────────────────
+// On localhost all pollers share one IP, so IP-based limiting throttles the
+// module and app against each other. Per-code limiting gives each pairing
+// session its own 600 req/min budget.
 
-const isRateLimited = createRateLimiter({ windowMs: 60_000, maxRequests: 600, maxEntries: 10_000 })
+const codeRateMap = new Map<string, { count: number; windowStart: number }>()
+
+function isCodeRateLimited(code: string): boolean {
+  const now = Date.now()
+  const entry = codeRateMap.get(code)
+
+  // Prune expired entries periodically
+  if (codeRateMap.size > 5000) {
+    for (const [k, v] of codeRateMap) {
+      if (now - v.windowStart > 60_000) codeRateMap.delete(k)
+    }
+  }
+
+  if (!entry || now - entry.windowStart > 60_000) {
+    codeRateMap.set(code, { count: 1, windowStart: now })
+    return false
+  }
+
+  entry.count++
+  return entry.count > 600
+}
 
 // ─── Payload validation ───────────────────────────────────────────────────────
 
@@ -168,13 +190,12 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ code: string }> },
 ) {
-  if (isRateLimited(request)) {
-    return NextResponse.json({ error: 'Rate limited' }, { status: 429, headers: { 'Retry-After': '60' } })
-  }
-
   const { code } = await params
   if (!VALID_CODE.test(code)) {
     return NextResponse.json({ error: 'Invalid code' }, { status: 400 })
+  }
+  if (isCodeRateLimited(code)) {
+    return NextResponse.json({ error: 'Rate limited' }, { status: 429, headers: { 'Retry-After': '60' } })
   }
   prune()
 
@@ -204,15 +225,15 @@ export async function GET(
 
 // HEAD — health check without draining either queue. Used by DWA's checkStatus.
 export async function HEAD(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ code: string }> },
 ) {
-  if (isRateLimited(request)) {
-    return new NextResponse(null, { status: 429, headers: { 'Retry-After': '60' } })
-  }
   const { code } = await params
   if (!VALID_CODE.test(code)) {
     return new NextResponse(null, { status: 400 })
+  }
+  if (isCodeRateLimited(code)) {
+    return new NextResponse(null, { status: 429, headers: { 'Retry-After': '60' } })
   }
   return new NextResponse(null, { status: 200 })
 }
@@ -224,13 +245,12 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ code: string }> },
 ) {
-  if (isRateLimited(request)) {
-    return NextResponse.json({ error: 'Rate limited' }, { status: 429, headers: { 'Retry-After': '60' } })
-  }
-
   const { code } = await params
   if (!VALID_CODE.test(code)) {
     return NextResponse.json({ error: 'Invalid code' }, { status: 400 })
+  }
+  if (isCodeRateLimited(code)) {
+    return NextResponse.json({ error: 'Rate limited' }, { status: 429, headers: { 'Retry-After': '60' } })
   }
   prune()
 
@@ -278,16 +298,15 @@ export async function POST(
 
 // DELETE — Clear both queues (disconnect)
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ code: string }> },
 ) {
-  if (isRateLimited(request)) {
-    return NextResponse.json({ error: 'Rate limited' }, { status: 429, headers: { 'Retry-After': '60' } })
-  }
-
   const { code } = await params
   if (!VALID_CODE.test(code)) {
     return NextResponse.json({ error: 'Invalid code' }, { status: 400 })
+  }
+  if (isCodeRateLimited(code)) {
+    return NextResponse.json({ error: 'Rate limited' }, { status: 429, headers: { 'Retry-After': '60' } })
   }
   relays.delete(code)
   return NextResponse.json({ ok: true })

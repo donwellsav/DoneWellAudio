@@ -240,7 +240,7 @@ export const CompanionTab = memo(function CompanionTab() {
             <ul className="space-y-2">
               <li><strong>Ring-out:</strong> Enable Ring-Out Auto-Send. Each time you click Next in the wizard, the PEQ cut goes to your mixer automatically.</li>
               <li><strong>Live show:</strong> Keep auto-send <strong>off</strong>. Use the SEND button manually — confirm each cut before it hits the PA.</li>
-              <li><strong>Max cut depth:</strong> Set to -6 or -9 dB for live shows. Deeper cuts can be destructive.</li>
+              <li><strong>Max cut depth:</strong> Default -12 dB. Set deeper (-18 to -20 dB) if feedback persists after cuts. The module clamps all recommendations to this value.</li>
               <li><strong>Trust your ears first.</strong> This is a tool, not a replacement for the engineer.</li>
               <li><strong>Multiple mixers:</strong> One pairing code can feed as many Companion triggers as you need — FOH, monitors, broadcast, etc.</li>
             </ul>

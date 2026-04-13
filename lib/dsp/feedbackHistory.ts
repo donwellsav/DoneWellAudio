@@ -275,8 +275,8 @@ export class FeedbackHistory {
     // Already retried max times — stop the loop
     if (pending.retryCount >= COMPANION_MAX_RETRIES) return null
 
-    // Deeper cut — clamp to safety floor
-    const nextGainDb = Math.max(pending.gainDb - COMPANION_RETRY_STEP_DB, -12)
+    // Deeper cut — clamp to preset maxCut (-18 surgical). Module config clamps further.
+    const nextGainDb = Math.max(pending.gainDb - COMPANION_RETRY_STEP_DB, -18)
     if (nextGainDb >= pending.gainDb) return null // no room to go deeper
 
     // Record that we're initiating a retry
