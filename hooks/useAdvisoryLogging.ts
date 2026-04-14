@@ -7,10 +7,14 @@ import type { Advisory } from '@/types/advisory'
  * Prevents duplicate recording of the same advisory
  * Records to feedback history for repeat offender tracking
  */
-export function useAdvisoryLogging(advisories: Advisory[]) {
+export function useAdvisoryLogging(
+  advisories: Advisory[],
+  onRecorded?: () => void,
+) {
   const loggedIdsRef = useRef(new Set<string>())
 
   useEffect(() => {
+    let recorded = false
     advisories.forEach(advisory => {
       // Only record if we haven't seen this advisory ID before
       if (!loggedIdsRef.current.has(advisory.id)) {
@@ -21,6 +25,7 @@ export function useAdvisoryLogging(advisories: Advisory[]) {
           (advisory.label === 'ACOUSTIC_FEEDBACK' || advisory.label === 'POSSIBLE_RING')
         ) {
           recordFeedbackFromAdvisory(advisory)
+          recorded = true
         }
 
         loggedIdsRef.current.add(advisory.id)
@@ -36,5 +41,9 @@ export function useAdvisoryLogging(advisories: Advisory[]) {
       }
     })
     idsToRemove.forEach(id => loggedIdsRef.current.delete(id))
-  }, [advisories])
+
+    if (recorded) {
+      onRecorded?.()
+    }
+  }, [advisories, onRecorded])
 }

@@ -27,12 +27,29 @@ interface UseCompanionReturn {
   lastError: string | null
   /** Send a single advisory to the relay. Returns true if accepted. */
   sendAdvisory: (advisory: Advisory) => Promise<boolean>
+  /** Explicit operator send that bypasses minConfidence but still requires pairing/enabled. */
+  sendExplicitAdvisory: (advisory: Advisory) => Promise<boolean>
   /** Auto-send only advisories that have not already been relayed this session. */
   autoSendAdvisories: (advisories: readonly Advisory[]) => void
   /** Check relay connection */
   checkConnection: () => Promise<boolean>
   /** Generate a new pairing code */
   regenerateCode: () => void
+}
+
+type CompanionRetryHistory = ReturnType<typeof getFeedbackHistory> & {
+  peekRetryCompanionCut?: (frequencyHz: number) => {
+    nextGainDb: number
+    retryCount: number
+    advisoryId: string
+    bandIndex: number
+  } | null
+  consumeRetryCompanionCut?: (frequencyHz: number) => {
+    nextGainDb: number
+    retryCount: number
+    advisoryId: string
+    bandIndex: number
+  } | null
 }
 
 interface CompanionSnapshot {
@@ -45,7 +62,12 @@ const listeners = new Set<() => void>()
 let snapshot: CompanionSnapshot | null = null
 let bridge: CompanionBridge | null = null
 let pendingStatusCheck: Promise<boolean> | null = null
-const autoSentAdvisoryIds = new Set<string>()
+const autoSentPayloadsByIdentity = new Map<string, string>()
+const inFlightRelayDispatches = new Set<string>()
+
+type SendOptions = {
+  bypassMinConfidence?: boolean
+}
 
 function loadSettings(): CompanionSettings {
   const saved = companionStorage.load()
@@ -100,7 +122,8 @@ function updateCompanionSettings(partial: Partial<CompanionSettings>): void {
   }
 
   if (disableRequested || pairingCodeChanged) {
-    autoSentAdvisoryIds.clear()
+    autoSentPayloadsByIdentity.clear()
+    inFlightRelayDispatches.clear()
   }
 
   publish({
@@ -132,10 +155,39 @@ async function checkCompanionConnection(): Promise<boolean> {
   return pendingStatusCheck
 }
 
-async function sendCompanionAdvisory(advisory: Advisory): Promise<boolean> {
+function isExplicitRelayEligibleAdvisory(advisory: Advisory): boolean {
+  return advisory.label === 'ACOUSTIC_FEEDBACK' || advisory.label === 'POSSIBLE_RING'
+}
+
+function isAutoRelayEligibleAdvisory(advisory: Advisory): boolean {
+  return advisory.label === 'ACOUSTIC_FEEDBACK'
+}
+
+function buildRelayPayloadKey(advisory: Advisory, autoApply: boolean): string {
+  const payload = {
+    type: autoApply ? 'auto_apply' : 'advisory',
+    trueFrequencyHz: advisory.trueFrequencyHz,
+    peq: {
+      type: advisory.advisory.peq.type,
+      hz: advisory.advisory.peq.hz,
+      q: advisory.advisory.peq.q,
+      gainDb: advisory.advisory.peq.gainDb,
+    },
+    geq: {
+      bandHz: advisory.advisory.geq.bandHz,
+      bandIndex: advisory.advisory.geq.bandIndex,
+      suggestedDb: advisory.advisory.geq.suggestedDb,
+    },
+  }
+
+  return JSON.stringify(payload)
+}
+
+async function sendCompanionAdvisory(advisory: Advisory, options: SendOptions = {}): Promise<boolean> {
   const current = getSnapshot()
   if (!current.settings.enabled) return false
-  if (advisory.confidence < current.settings.minConfidence) return false
+  if (!isExplicitRelayEligibleAdvisory(advisory)) return false
+  if (!options.bypassMinConfidence && advisory.confidence < current.settings.minConfidence) return false
 
   const currentBridge = getBridge()
   const result = await currentBridge.sendAdvisory(advisory)
@@ -149,13 +201,14 @@ async function sendCompanionAdvisory(advisory: Advisory): Promise<boolean> {
 
 /**
  * Send an auto-apply directive — the module will apply the cut regardless of
- * its `autoApply` config. Used for RUNAWAY severity in hybrid mode.
- * Still respects `enabled` and `minConfidence` gates.
+ * its `autoApply` config. Used for RUNAWAY severity and closed-loop retries.
+ * Still respects `enabled` and, by default, `minConfidence` gates.
  */
-async function sendCompanionAutoApply(advisory: Advisory): Promise<boolean> {
+async function sendCompanionAutoApply(advisory: Advisory, options: SendOptions = {}): Promise<boolean> {
   const current = getSnapshot()
   if (!current.settings.enabled) return false
-  if (advisory.confidence < current.settings.minConfidence) return false
+  if (!isAutoRelayEligibleAdvisory(advisory)) return false
+  if (!options.bypassMinConfidence && advisory.confidence < current.settings.minConfidence) return false
 
   const currentBridge = getBridge()
   const result = await currentBridge.sendAutoApply(advisory)
@@ -171,15 +224,17 @@ async function sendCompanionAutoApply(advisory: Advisory): Promise<boolean> {
  * Build a deeper-cut variant of an advisory for closed-loop retry.
  * Preserves identity fields but overrides the PEQ/GEQ gain depth.
  */
-function makeRetryAdvisory(original: Advisory, nextGainDb: number): Advisory {
+function makeRetryAdvisory(
+  original: Advisory,
+  retry: { nextGainDb: number; retryCount: number },
+): Advisory {
   return {
     ...original,
-    id: `${original.id}_retry_${Date.now()}`,
     advisory: {
       ...original.advisory,
-      peq: { ...original.advisory.peq, gainDb: nextGainDb },
+      peq: { ...original.advisory.peq, gainDb: retry.nextGainDb },
       geq: original.advisory.geq
-        ? { ...original.advisory.geq, suggestedDb: nextGainDb }
+        ? { ...original.advisory.geq, suggestedDb: retry.nextGainDb }
         : original.advisory.geq,
     },
   }
@@ -197,39 +252,64 @@ function autoSendCompanionAdvisories(advisories: readonly Advisory[]): void {
   const current = getSnapshot()
   if (!current.settings.enabled) return
 
-  const history = getFeedbackHistory()
+  const history = getFeedbackHistory() as CompanionRetryHistory
 
   for (const advisory of advisories) {
     if (advisory.resolved) continue
-    if (advisory.confidence < current.settings.minConfidence) continue
-    if (autoSentAdvisoryIds.has(advisory.id)) continue
 
+    const retry = history.peekRetryCompanionCut?.(advisory.trueFrequencyHz) ?? null
     const isRunaway = advisory.severity === 'RUNAWAY'
+    const bypassMinConfidence = retry !== null
 
-    // Skip non-RUNAWAY advisories when autoSend is off (hybrid mode)
-    if (!isRunaway && !current.settings.autoSend) continue
+    if (!retry && !isAutoRelayEligibleAdvisory(advisory)) continue
+    if (!bypassMinConfidence && advisory.confidence < current.settings.minConfidence) continue
 
-    autoSentAdvisoryIds.add(advisory.id)
+    const relayIdentity = retry
+      ? `${retry.advisoryId}:retry:${retry.retryCount}`
+      : advisory.id
+
+    // Skip non-RUNAWAY advisories when autoSend is off, unless this is a
+    // closed-loop retry for a cut that Companion already applied.
+    if (!retry && !isRunaway && !current.settings.autoSend) continue
 
     // Closed-loop: if a Companion cut was just applied here and feedback
     // is still present, send a deeper cut instead of the original.
-    const retry = history.shouldRetryCompanionCut(advisory.trueFrequencyHz)
     const toSend = retry
-      ? makeRetryAdvisory(advisory, retry.nextGainDb)
+      ? makeRetryAdvisory(advisory, retry)
       : advisory
 
-    const sendPromise = isRunaway || retry
-      ? sendCompanionAutoApply(toSend)
-      : sendCompanionAdvisory(toSend)
+    const useAutoApply = isRunaway || retry !== null
+    const relayPayloadKey = buildRelayPayloadKey(toSend, useAutoApply)
+    const inFlightKey = `${relayIdentity}|${relayPayloadKey}`
+
+    if (autoSentPayloadsByIdentity.get(relayIdentity) === relayPayloadKey) continue
+    if (inFlightRelayDispatches.has(inFlightKey)) continue
+
+    inFlightRelayDispatches.add(inFlightKey)
+
+    const sendPromise = useAutoApply
+      ? sendCompanionAutoApply(toSend, { bypassMinConfidence })
+      : sendCompanionAdvisory(toSend, { bypassMinConfidence })
 
     void sendPromise
       .then((accepted) => {
-        if (!accepted) autoSentAdvisoryIds.delete(advisory.id)
+        inFlightRelayDispatches.delete(inFlightKey)
+        if (!accepted) {
+          return
+        }
+        autoSentPayloadsByIdentity.set(relayIdentity, relayPayloadKey)
+        if (retry) {
+          history.consumeRetryCompanionCut?.(advisory.trueFrequencyHz)
+        }
       })
       .catch(() => {
-        autoSentAdvisoryIds.delete(advisory.id)
+        inFlightRelayDispatches.delete(inFlightKey)
       })
   }
+}
+
+function sendCompanionExplicitAdvisory(advisory: Advisory): Promise<boolean> {
+  return sendCompanionAdvisory(advisory, { bypassMinConfidence: true })
 }
 
 function regenerateCompanionCode(): void {
@@ -256,6 +336,7 @@ export function useCompanion(): UseCompanionReturn {
     connected: current.connected,
     lastError: current.lastError,
     sendAdvisory: sendCompanionAdvisory,
+    sendExplicitAdvisory: sendCompanionExplicitAdvisory,
     autoSendAdvisories: autoSendCompanionAdvisories,
     checkConnection: checkCompanionConnection,
     regenerateCode: regenerateCompanionCode,

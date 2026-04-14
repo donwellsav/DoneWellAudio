@@ -39,6 +39,7 @@ export function useAudioAnalyzerViewState(dataCollection: DataCollectionHandle) 
   useAnalyzerSessionEffects({
     isRunning,
     dataCollection,
+    dspWorker,
     fftSize,
     sampleRate,
     advisories,

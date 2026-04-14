@@ -288,14 +288,28 @@ describe('generatePEQRecommendation (cluster-aware)', () => {
   it('widens Q when cluster bounds are provided', () => {
     const track = makeTrack({ trueFrequencyHz: 1000, qEstimate: 5 })
     const withoutCluster = generatePEQRecommendation(track, 'GROWING', 'surgical')
-    const withCluster = generatePEQRecommendation(track, 'GROWING', 'surgical', 900, 1100)
+    const withCluster = generatePEQRecommendation(
+      track,
+      'GROWING',
+      'surgical',
+      undefined,
+      900,
+      1100,
+    )
     expect(withCluster.q).toBeLessThan(withoutCluster.q)
   })
 
   it('produces identical Q without cluster bounds', () => {
     const track = makeTrack({ trueFrequencyHz: 1000, qEstimate: 5 })
     const rec = generatePEQRecommendation(track, 'GROWING', 'surgical')
-    const recNoCluster = generatePEQRecommendation(track, 'GROWING', 'surgical', undefined, undefined)
+    const recNoCluster = generatePEQRecommendation(
+      track,
+      'GROWING',
+      'surgical',
+      undefined,
+      undefined,
+      undefined,
+    )
     expect(rec.q).toBe(recNoCluster.q)
   })
 })
@@ -323,6 +337,13 @@ describe('generateGEQRecommendation', () => {
     const highRec = generateGEQRecommendation(highTrack, 'GROWING', 'surgical')
     // Low frequency should have less aggressive cut (closer to 0)
     expect(lowRec.suggestedDb).toBeGreaterThan(highRec.suggestedDb)
+  })
+
+  it('clamps the final GEQ cut at the preset max-cut envelope', () => {
+    const track = makeTrack({ trueFrequencyHz: 5000 })
+    const rec = generateGEQRecommendation(track, 'RUNAWAY', 'heavy')
+
+    expect(rec.suggestedDb).toBe(-12)
   })
 })
 
@@ -365,6 +386,28 @@ describe('generatePEQRecommendation', () => {
     const track = makeTrack({ trueFrequencyHz: 1000, bandwidthHz: 200 })
     const rec = generatePEQRecommendation(track, 'GROWING', 'surgical')
     expect(rec.bandwidthHz).toBe(200)
+  })
+
+  it('uses learned cut depth when it is more aggressive than recurrence depth', () => {
+    const track = makeTrack({ trueFrequencyHz: 1000 })
+    const rec = generatePEQRecommendation(track, 'RESONANCE', 'heavy', {
+      recurrenceCount: 0,
+      learnedCutDb: -8,
+      successfulCutCount: 2,
+    })
+
+    expect(rec.gainDb).toBe(-8)
+  })
+
+  it('clamps learned cut depth inside the preset max-cut envelope', () => {
+    const track = makeTrack({ trueFrequencyHz: 5000 })
+    const rec = generatePEQRecommendation(track, 'RESONANCE', 'heavy', {
+      recurrenceCount: 0,
+      learnedCutDb: -20,
+      successfulCutCount: 2,
+    })
+
+    expect(rec.gainDb).toBe(-12)
   })
 })
 

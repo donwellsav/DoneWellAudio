@@ -115,6 +115,7 @@ export function useRingOutWizardState({
   const [notched, setNotched] = useState<NotchedFreq[]>([])
   const [currentAdvisory, setCurrentAdvisory] = useState<Advisory | null>(null)
   const prevAdvisoryCountRef = useRef(0)
+  const acceptedAdvisoriesRef = useRef<Advisory[]>([])
   const companion = useCompanion()
 
   const activeAdvisories = useMemo(
@@ -163,9 +164,13 @@ export function useRingOutWizardState({
         modeAdjacent: adjacentMode?.label,
       },
     ])
+    acceptedAdvisoriesRef.current = [
+      ...acceptedAdvisoriesRef.current,
+      currentAdvisory,
+    ]
 
     if (companion.settings.enabled && companion.settings.ringOutAutoSend) {
-      void companion.sendAdvisory(currentAdvisory)
+      void companion.sendExplicitAdvisory(currentAdvisory)
     }
 
     setCurrentAdvisory(null)
@@ -197,10 +202,10 @@ export function useRingOutWizardState({
   }, [notched])
 
   const handleSendAll = useCallback(() => {
-    for (const advisory of advisories) {
-      void companion.sendAdvisory(advisory)
+    for (const advisory of acceptedAdvisoriesRef.current) {
+      void companion.sendExplicitAdvisory(advisory)
     }
-  }, [advisories, companion])
+  }, [companion])
 
   const companionEnabled = companion.settings.enabled
 

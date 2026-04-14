@@ -7,6 +7,7 @@ import type { WorkerInboundMessage, WorkerOutboundMessage } from '@/lib/dsp/dspW
 import type {
   DSPWorkerCallbacks,
   PendingCollectionRequest,
+  PendingHistorySyncRequest,
   PendingPeakFrame,
   WorkerInitSnapshot,
 } from './dspWorkerTypes'
@@ -32,6 +33,7 @@ export interface DSPWorkerHandlerRefs extends PeakPoolRefs {
   restartTimerRef: MutableRefObject<ReturnType<typeof setTimeout> | null>
   lastInitRef: MutableRefObject<WorkerInitSnapshot | null>
   pendingCollectionRef: MutableRefObject<PendingCollectionRequest | null>
+  pendingHistorySyncRef: MutableRefObject<PendingHistorySyncRequest | null>
   specUpdatePoolRef: MutableRefObject<Float32Array[]>
 }
 
@@ -197,6 +199,16 @@ function replayPendingCollection(worker: Worker, refs: DSPWorkerHandlerRefs) {
   worker.postMessage({ type: 'enableCollection', sessionId, fftSize, sampleRate })
 }
 
+function replayPendingFeedbackHistory(worker: Worker, refs: DSPWorkerHandlerRefs) {
+  if (!refs.pendingHistorySyncRef.current) {
+    return
+  }
+
+  const { hotspots } = refs.pendingHistorySyncRef.current
+  refs.pendingHistorySyncRef.current = null
+  worker.postMessage({ type: 'syncFeedbackHistory', hotspots })
+}
+
 export function createDSPWorkerMessageHandler(
   worker: Worker,
   refs: DSPWorkerHandlerRefs,
@@ -216,6 +228,7 @@ export function createDSPWorkerMessageHandler(
           level: 'info',
         })
         replayPendingCollection(worker, refs)
+        replayPendingFeedbackHistory(worker, refs)
         refs.callbacksRef.current.onReady?.()
         break
       case 'advisory':

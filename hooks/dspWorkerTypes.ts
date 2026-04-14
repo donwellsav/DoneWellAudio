@@ -11,6 +11,7 @@ import type { SnapshotBatch } from '@/types/data'
 import type { RoomDimensionEstimate } from '@/types/calibration'
 import type { CombPatternResult } from '@/lib/dsp/advancedDetection'
 import type { WorkerRuntimeSettings } from '@/lib/settings/runtimeSettings'
+import type { FeedbackHotspotSummary } from '@/lib/dsp/feedbackHistoryShared'
 
 export interface DSPWorkerCallbacks {
   onAdvisory?: (advisory: Advisory) => void
@@ -66,6 +67,7 @@ export interface DSPWorkerHandle {
   terminate: () => void
   enableCollection: (sessionId: string, fftSize: number, sampleRate: number) => void
   disableCollection: () => void
+  syncFeedbackHistory: (hotspots: FeedbackHotspotSummary[]) => void
   sendUserFeedback: (
     frequencyHz: number,
     feedback: 'correct' | 'false_positive' | 'confirmed_feedback',
@@ -86,6 +88,10 @@ export interface PendingCollectionRequest {
   sessionId: string
   fftSize: number
   sampleRate: number
+}
+
+export interface PendingHistorySyncRequest {
+  hotspots: FeedbackHotspotSummary[]
 }
 
 export interface WorkerInitSnapshot {

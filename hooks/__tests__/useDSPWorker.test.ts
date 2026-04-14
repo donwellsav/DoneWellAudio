@@ -106,6 +106,41 @@ describe('useDSPWorker', () => {
     })
   })
 
+  it('queues feedback history sync until the worker is ready', () => {
+    const { result } = renderHook(() => useDSPWorker({}))
+    const worker = MockWorker.instances[0]
+
+    act(() => {
+      result.current.syncFeedbackHistory([
+        {
+          centerFrequencyHz: 1000,
+          occurrences: 3,
+          learnedCutDb: -8,
+          successfulCutCount: 2,
+          lastSeen: 123,
+        },
+      ])
+    })
+    expect(worker.messages).toEqual([])
+
+    act(() => {
+      result.current.init(DEFAULT_SETTINGS, 48000, 8192)
+      worker.emitMessage({ type: 'ready' })
+    })
+
+    expect(worker.messages[1]).toMatchObject({
+      type: 'syncFeedbackHistory',
+      hotspots: [
+        expect.objectContaining({
+          centerFrequencyHz: 1000,
+          occurrences: 3,
+          learnedCutDb: -8,
+          successfulCutCount: 2,
+        }),
+      ],
+    })
+  })
+
   it('buffers the most recent peak during backpressure and flushes it on tracksUpdate', () => {
     const { result } = renderHook(() => useDSPWorker({}))
     const worker = MockWorker.instances[0]

@@ -12,9 +12,13 @@ import {
 import type { Advisory } from '@/types/advisory'
 import type { EarlyWarning } from '@/hooks/audioAnalyzerTypes'
 import { useDetection } from '@/contexts/DetectionContext'
+import { useEngine } from '@/contexts/EngineContext'
 import { useAdvisoryClearState } from '@/hooks/useAdvisoryClearState'
 import { useCompanion } from '@/hooks/useCompanion'
-import { getFeedbackHistory } from '@/lib/dsp/feedbackHistory'
+import {
+  getFeedbackHistory,
+  getFeedbackHotspotSummaries,
+} from '@/lib/dsp/feedbackHistory'
 
 // Re-export for consumers that want to import CompanionAdvisoryState from here
 
@@ -23,7 +27,7 @@ export interface CompanionAdvisoryState {
   /** Module received the advisory. */
   ack?: { at: number }
   /** EQ cut was successfully sent to mixer. */
-  applied?: { at: number; gainDb: number; slotIndex: number }
+  applied?: { at: number; gainDb: number; slotIndex?: number }
   /** Apply failed — mixer error, slots full, etc. */
   failed?: { at: number; reason: string }
   /** Partial apply — one of PEQ/GEQ succeeded but the other failed (both mode). */
@@ -81,6 +85,7 @@ export function AdvisoryProvider({
   children,
 }: AdvisoryProviderProps) {
   const { advisories, earlyWarning } = useDetection()
+  const { dspWorker } = useEngine()
   const {
     clearState,
     activeAdvisoryCount,
@@ -125,10 +130,12 @@ export function AdvisoryProvider({
     if (!companionSettings.enabled) return
     const history = getFeedbackHistory()
     const timerId = setInterval(() => {
-      history.reapCompanionCuts()
+      if (history.reapCompanionCuts()) {
+        dspWorker.syncFeedbackHistory(getFeedbackHotspotSummaries())
+      }
     }, 1000)
     return () => clearInterval(timerId)
-  }, [companionSettings.enabled])
+  }, [companionSettings.enabled, dspWorker])
 
   // Split into two context values — data (high-frequency) vs actions (stable callbacks).
   // Components that only need actions (e.g. CompanionCommandBridge) skip re-renders

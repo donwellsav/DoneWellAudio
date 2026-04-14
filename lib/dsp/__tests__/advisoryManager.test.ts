@@ -92,6 +92,8 @@ function makeClassification(overrides: Partial<ClassificationResult> = {}): Clas
     label: 'ACOUSTIC_FEEDBACK',
     severity: 'RESONANCE',
     confidence: 0.85,
+    fusionVerdict: 'FEEDBACK',
+    recommendationEligible: true,
     reasons: ['High phase coherence', 'Sustained peak'],
     ...overrides,
   }

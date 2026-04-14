@@ -454,6 +454,8 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     label,
     severity,
     confidence,
+    fusionVerdict: 'UNCERTAIN',
+    recommendationEligible: true,
     reasons,
     // Enhanced fields from acoustic analysis
     frequencyHz: features.frequencyHz,
@@ -476,6 +478,10 @@ export function shouldReportIssue(
   const mode = settings.mode
   const ignoreWhistle = settings.ignoreWhistle ?? true
   const { label, severity, confidence } = classification
+
+  if (!classification.recommendationEligible) {
+    return false
+  }
   
   // Get confidence threshold from settings (default 0.40 = 40%)
   const confidenceThreshold = settings.confidenceThreshold ?? 0.40
@@ -668,10 +674,18 @@ export function classifyTrackWithAlgorithms(
     pInstrument /= total
   }
 
-  // Re-apply severity overrides AFTER normalization — overrides are final
-  if (baseResult.severity === 'RUNAWAY') {
+  const definitiveFeedback = fusionResult.verdict === 'FEEDBACK'
+  const probableFeedback = fusionResult.verdict === 'POSSIBLE_FEEDBACK'
+  const rejectedFeedback = fusionResult.verdict === 'NOT_FEEDBACK'
+  const uncertainFeedback = fusionResult.verdict === 'UNCERTAIN'
+  const preserveUrgentFeedback = definitiveFeedback
+
+  // Re-apply severity overrides AFTER normalization only when fusion still
+  // considers feedback plausible. A negative verdict must be able to demote
+  // urgent base heuristics instead of getting overwritten here.
+  if (baseResult.severity === 'RUNAWAY' && preserveUrgentFeedback) {
     pFeedback = Math.max(pFeedback, 0.85)
-  } else if (baseResult.severity === 'GROWING') {
+  } else if (baseResult.severity === 'GROWING' && preserveUrgentFeedback) {
     pFeedback = Math.max(pFeedback, 0.7)
   }
 
@@ -686,25 +700,62 @@ export function classifyTrackWithAlgorithms(
     pInstrument /= postOverrideTotal
   }
 
-  // Confidence from fusion and base classifier
-  const maxProb = Math.max(pFeedback, pWhistle, pInstrument)
-  const confidence = fusionResult
-    ? Math.max(fusionResult.confidence, baseResult.confidence, maxProb)
-    : Math.max(baseResult.confidence, maxProb)
-
   // pUnknown as residual mass — matches base path contract
   const pUnknown = Math.max(0, 1 - (pFeedback + pWhistle + pInstrument))
   
   // Determine updated label and severity
   let { label, severity } = baseResult
-  
-  // Override based on updated scores
-  if (pFeedback >= 0.6 && fusionResult?.verdict === 'FEEDBACK') {
+
+  const whistleWins =
+    pWhistle >= CLASSIFIER_WEIGHTS.WHISTLE_THRESHOLD && pWhistle > pFeedback
+  const instrumentWins =
+    pInstrument >= CLASSIFIER_WEIGHTS.INSTRUMENT_THRESHOLD && pInstrument > pFeedback
+
+  if (rejectedFeedback) {
+    if (baseResult.label === 'WHISTLE' || whistleWins) {
+      label = 'WHISTLE'
+      severity = 'WHISTLE'
+    } else if (baseResult.label === 'INSTRUMENT' || instrumentWins) {
+      label = 'INSTRUMENT'
+      severity = 'INSTRUMENT'
+    } else {
+      label = 'POSSIBLE_RING'
+      severity = 'POSSIBLE_RING'
+    }
+  } else if (whistleWins) {
+    label = 'WHISTLE'
+    severity = 'WHISTLE'
+  } else if (instrumentWins) {
+    label = 'INSTRUMENT'
+    severity = 'INSTRUMENT'
+  } else if (pFeedback >= 0.6 && definitiveFeedback) {
     label = 'ACOUSTIC_FEEDBACK'
     if (severity !== 'RUNAWAY' && severity !== 'GROWING') {
       severity = fusionResult.confidence > 0.8 ? 'GROWING' : 'RESONANCE'
     }
+  } else if ((probableFeedback || uncertainFeedback) && (severity === 'RUNAWAY' || severity === 'GROWING')) {
+    // Borderline fusion verdicts can still keep the feedback label, but they
+    // must fall back through the normal confidence gate instead of taking the
+    // urgent RUNAWAY/GROWING bypass.
+    severity = 'RESONANCE'
   }
+
+  const labelProbability =
+    label === 'WHISTLE'
+      ? pWhistle
+      : label === 'INSTRUMENT'
+        ? pInstrument
+        : label === 'ACOUSTIC_FEEDBACK'
+          ? pFeedback
+          : Math.max(pFeedback, pWhistle, pInstrument)
+  const blendedConfidence = Math.max(
+    labelProbability,
+    (baseResult.confidence + fusionResult.confidence) / 2,
+  )
+  const confidence =
+    rejectedFeedback && label === 'POSSIBLE_RING'
+      ? Math.min(blendedConfidence, fusionResult.confidence)
+      : blendedConfidence
   
   return {
     ...baseResult,
@@ -715,6 +766,8 @@ export function classifyTrackWithAlgorithms(
     label,
     severity,
     confidence,
+    fusionVerdict: fusionResult.verdict,
+    recommendationEligible: !rejectedFeedback,
     reasons,
   }
 }

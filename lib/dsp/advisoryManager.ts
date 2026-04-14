@@ -177,7 +177,12 @@ export class AdvisoryManager {
           const clusterMinHz = Math.min(dup.clusterMinHz ?? dup.trueFrequencyHz, track.trueFrequencyHz)
           const clusterMaxHz = Math.max(dup.clusterMaxHz ?? dup.trueFrequencyHz, track.trueFrequencyHz)
           const updatedPeq = generatePEQRecommendation(
-            track, dup.severity, settings.eqPreset, clusterMinHz, clusterMaxHz,
+            track,
+            dup.severity,
+            settings.eqPreset,
+            dup.advisory.recommendationContext,
+            clusterMinHz,
+            clusterMaxHz,
           )
           const updatedAdvisory: Advisory = {
             ...dup,
@@ -229,7 +234,17 @@ export class AdvisoryManager {
       harmonicityScore: track.features.harmonicityScore,
       modulationScore: track.features.modulationScore,
       advisory: mergedClusterMinHz
-        ? { ...eqAdvisory, peq: generatePEQRecommendation(track, classification.severity, settings.eqPreset, mergedClusterMinHz, mergedClusterMaxHz) }
+        ? {
+            ...eqAdvisory,
+            peq: generatePEQRecommendation(
+              track,
+              classification.severity,
+              settings.eqPreset,
+              eqAdvisory.recommendationContext,
+              mergedClusterMinHz,
+              mergedClusterMaxHz,
+            ),
+          }
         : eqAdvisory,
       modalOverlapFactor: classification.modalOverlapFactor,
       cumulativeGrowthDb: classification.cumulativeGrowthDb,

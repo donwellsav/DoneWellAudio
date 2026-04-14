@@ -60,6 +60,8 @@ function makeClassification(overrides: Partial<ClassificationResult> = {}): Clas
     label: 'ACOUSTIC_FEEDBACK',
     severity: 'RESONANCE',
     confidence: 0.8,
+    fusionVerdict: 'FEEDBACK',
+    recommendationEligible: true,
     reasons: ['test'],
     ...overrides,
   } as ClassificationResult
@@ -131,6 +133,17 @@ describe('shouldReportIssue', () => {
       severity: 'RESONANCE',
       confidence: 0.2, // Below default threshold of 0.35
     })
+    expect(shouldReportIssue(classification, makeSettings())).toBe(false)
+  })
+
+  it('rejects recommendation-ineligible results before urgency or confidence gates', () => {
+    const classification = makeClassification({
+      severity: 'RUNAWAY',
+      confidence: 0.99,
+      recommendationEligible: false,
+      fusionVerdict: 'NOT_FEEDBACK',
+    })
+
     expect(shouldReportIssue(classification, makeSettings())).toBe(false)
   })
 
@@ -463,6 +476,95 @@ describe('Mains hum gate', () => {
 
 // ── Smooth Schroeder Penalty ────────────────────────────────────────────────
 
+describe('fusion-driven demotion', () => {
+  it('lets a NOT_FEEDBACK verdict demote a runaway base classification', () => {
+    const track = makeTrack({
+      velocityDbPerSec: 15,
+      features: {
+        stabilityCentsStd: 3,
+        harmonicityScore: 0.1,
+        modulationScore: 0.05,
+        noiseSidebandScore: 0.02,
+        meanQ: 40,
+        minQ: 30,
+        meanVelocityDbPerSec: 12,
+        maxVelocityDbPerSec: 15,
+        persistenceMs: 1200,
+      },
+    })
+    const scores = buildScores({
+      msd: 0.05,
+      phase: 0.1,
+      spectral: 0.1,
+      comb: 0,
+      ihr: 0.85,
+      ptmr: 0.05,
+      msdFrames: 20,
+    })
+    const fusion: FusedDetectionResult = {
+      feedbackProbability: 0.1,
+      confidence: 0.3,
+      contributingAlgorithms: ['msd', 'phase'],
+      algorithmScores: scores,
+      verdict: 'NOT_FEEDBACK',
+      reasons: ['rejected by fusion'],
+    }
+
+    const result = classifyTrackWithAlgorithms(track, scores, fusion, makeSettings())
+
+    expect(result.label).toBe('POSSIBLE_RING')
+    expect(result.severity).toBe('POSSIBLE_RING')
+    expect(result.fusionVerdict).toBe('NOT_FEEDBACK')
+    expect(result.recommendationEligible).toBe(false)
+    expect(result.confidence).toBeLessThan(0.4)
+    expect(shouldReportIssue(result, makeSettings({ mode: 'speech' }))).toBe(false)
+  })
+
+  it('removes the urgent bypass when fusion is uncertain about a growing peak', () => {
+    const track = makeTrack({
+      velocityDbPerSec: 8,
+      features: {
+        stabilityCentsStd: 4,
+        harmonicityScore: 0.15,
+        modulationScore: 0.08,
+        noiseSidebandScore: 0.05,
+        meanQ: 25,
+        minQ: 18,
+        meanVelocityDbPerSec: 6,
+        maxVelocityDbPerSec: 8,
+        persistenceMs: 900,
+      },
+    })
+    const scores = buildScores({
+      msd: 0.3,
+      phase: 0.35,
+      spectral: 0.25,
+      comb: 0,
+      ihr: 0.4,
+      ptmr: 0.35,
+      msdFrames: 20,
+    })
+    const fusion: FusedDetectionResult = {
+      feedbackProbability: 0.35,
+      confidence: 0.35,
+      contributingAlgorithms: ['msd', 'phase'],
+      algorithmScores: scores,
+      verdict: 'UNCERTAIN',
+      reasons: ['mixed evidence'],
+    }
+
+    const settings = makeSettings({ confidenceThreshold: 0.8 })
+    const result = classifyTrackWithAlgorithms(track, scores, fusion, settings)
+
+    expect(result.label).toBe('ACOUSTIC_FEEDBACK')
+    expect(result.severity).toBe('RESONANCE')
+    expect(result.fusionVerdict).toBe('UNCERTAIN')
+    expect(result.recommendationEligible).toBe(true)
+    expect(result.confidence).toBeLessThan(0.8)
+    expect(shouldReportIssue(result, settings)).toBe(false)
+  })
+})
+
 describe('Smooth Schroeder penalty (sigmoid transition)', () => {
   // Configure a room so the Schroeder penalty is active.
   // RT60=1.0, Volume=400 gives a Schroeder frequency via calculateSchroederFrequency.
@@ -708,6 +810,7 @@ describe('classifyTrackWithAlgorithms wrapper posterior (S9)', () => {
     expect(sum).toBeGreaterThanOrEqual(0.99)
     expect(sum).toBeLessThanOrEqual(1.01)
     expect(result.pUnknown).toBeGreaterThanOrEqual(0)
+    expect(result.recommendationEligible).toBe(true)
   })
 
   it('posterior sums to ~1 after GROWING severity override', () => {
@@ -748,5 +851,34 @@ describe('classifyTrackWithAlgorithms wrapper posterior (S9)', () => {
     expect(result.pWhistle).toBeGreaterThanOrEqual(0)
     expect(result.pInstrument).toBeGreaterThanOrEqual(0)
     expect(result.pUnknown).toBeGreaterThanOrEqual(0)
+  })
+
+  it('demotes POSSIBLE_FEEDBACK urgency back through the confidence gate', () => {
+    const track = makeTrack({
+      prominenceDb: 24,
+      qEstimate: 48,
+      features: {
+        stabilityCentsStd: 2,
+        meanQ: 48,
+        minQ: 42,
+        meanVelocityDbPerSec: 3,
+        maxVelocityDbPerSec: 8,
+        persistenceMs: 1800,
+        harmonicityScore: 0.1,
+        modulationScore: 0.04,
+        noiseSidebandScore: 0.02,
+      },
+    })
+    const scores = buildScores({ msd: 0.72, phase: 0.74, spectral: 0.7, comb: 0.62, ihr: 0.18, ptmr: 0.72 })
+    const fusion = makeFusionResult(scores)
+    fusion.feedbackProbability = 0.56
+    fusion.confidence = 0.45
+    fusion.verdict = 'POSSIBLE_FEEDBACK'
+
+    const result = classifyTrackWithAlgorithms(track, scores, fusion)
+
+    expect(result.label).toBe('ACOUSTIC_FEEDBACK')
+    expect(result.severity).toBe('RESONANCE')
+    expect(shouldReportIssue(result, makeSettings({ confidenceThreshold: 0.9 }))).toBe(false)
   })
 })

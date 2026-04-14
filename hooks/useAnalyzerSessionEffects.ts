@@ -1,10 +1,15 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useAdvisoryLogging } from '@/hooks/useAdvisoryLogging'
 import { useIsMobile } from '@/hooks/use-mobile'
 import type { DataCollectionHandle } from '@/hooks/useDataCollection'
 import type { UseCalibrationSessionReturn } from '@/hooks/useCalibrationSession'
+import type { DSPWorkerHandle } from '@/hooks/useDSPWorker'
+import {
+  getFeedbackHotspotSummaries,
+  whenFeedbackHistoryReady,
+} from '@/lib/dsp/feedbackHistory'
 import type { Advisory, DetectorSettings, MicCalibrationProfile, SpectrumData } from '@/types/advisory'
 
 function assignSettingDelta<K extends keyof DetectorSettings>(
@@ -18,6 +23,7 @@ function assignSettingDelta<K extends keyof DetectorSettings>(
 interface UseAnalyzerSessionEffectsParams {
   isRunning: boolean
   dataCollection: Pick<DataCollectionHandle, 'promptIfNeeded'>
+  dspWorker: Pick<DSPWorkerHandle, 'syncFeedbackHistory'>
   fftSize: number
   sampleRate: number
   advisories: Advisory[]
@@ -32,6 +38,7 @@ interface UseAnalyzerSessionEffectsParams {
 export function useAnalyzerSessionEffects({
   isRunning,
   dataCollection,
+  dspWorker,
   fftSize,
   sampleRate,
   advisories,
@@ -43,6 +50,9 @@ export function useAnalyzerSessionEffects({
   setMicProfile,
 }: UseAnalyzerSessionEffectsParams): void {
   const isMobile = useIsMobile()
+  const syncFeedbackHistory = useCallback(() => {
+    dspWorker.syncFeedbackHistory(getFeedbackHotspotSummaries())
+  }, [dspWorker])
 
   useEffect(() => {
     if (isRunning) {
@@ -50,7 +60,21 @@ export function useAnalyzerSessionEffects({
     }
   }, [dataCollection, fftSize, isRunning, sampleRate])
 
-  useAdvisoryLogging(advisories)
+  useEffect(() => {
+    let cancelled = false
+
+    void whenFeedbackHistoryReady().then(() => {
+      if (!cancelled) {
+        syncFeedbackHistory()
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [syncFeedbackHistory])
+
+  useAdvisoryLogging(advisories, syncFeedbackHistory)
 
   const prevAdvisoryIdsRef = useRef<Set<string>>(new Set())
   useEffect(() => {

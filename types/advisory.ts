@@ -160,6 +160,12 @@ export interface ClassificationResult {
   label: IssueLabel
   severity: SeverityLevel
   confidence: number
+  fusionVerdict:
+    | 'FEEDBACK'
+    | 'POSSIBLE_FEEDBACK'
+    | 'NOT_FEEDBACK'
+    | 'UNCERTAIN'
+  recommendationEligible: boolean
   reasons: string[]
   // Enhanced fields from acoustic analysis
   modalOverlapFactor?: number // M = 1/Q (isolated < 0.03, coupled < 0.1, diffuse > 0.33)
@@ -199,11 +205,18 @@ export interface ShelfRecommendation {
   reason: string
 }
 
+export interface RecommendationContext {
+  recurrenceCount: number
+  learnedCutDb?: number
+  successfulCutCount?: number
+}
+
 export interface EQAdvisory {
   geq: GEQRecommendation
   peq: PEQRecommendation
   shelves: ShelfRecommendation[]
   pitch: PitchInfo
+  recommendationContext?: RecommendationContext
 }
 
 export interface Advisory {

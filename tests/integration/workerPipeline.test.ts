@@ -18,6 +18,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { AlgorithmEngine } from '@/lib/dsp/workerFft'
 import { fuseAlgorithmResults, DEFAULT_FUSION_CONFIG } from '@/lib/dsp/advancedDetection'
 import { classifyTrackWithAlgorithms } from '@/lib/dsp/classifier'
+import { generateEQAdvisory } from '@/lib/dsp/eqAdvisor'
 import type { DetectedPeak, Track } from '@/types/advisory'
 import type { AlgorithmScores } from '@/lib/dsp/advancedDetection'
 import {
@@ -298,6 +299,73 @@ describe('Worker Pipeline Integration', () => {
 
       // Instrument-like track with very low algorithm scores should classify below feedback threshold
       expect(result.pFeedback).toBeLessThan(0.5)
+    })
+
+    it('marks NOT_FEEDBACK fusion results as ineligible for recommendation', () => {
+      const track = makeTrack({
+        features: {
+          stabilityCentsStd: 2,
+          meanQ: 30,
+          minQ: 24,
+          meanVelocityDbPerSec: 6,
+          maxVelocityDbPerSec: 12,
+          persistenceMs: 1800,
+          harmonicityScore: 0.05,
+          modulationScore: 0.02,
+          noiseSidebandScore: 0.04,
+        },
+        velocityDbPerSec: 12,
+      })
+
+      const scores: AlgorithmScores = buildScores({
+        msd: 0.1,
+        phase: 0.05,
+        spectral: 0.08,
+        comb: 0,
+        ihr: 0.9,
+        ptmr: 0.05,
+        msdFrames: 20,
+      })
+
+      const result = classifyTrackWithAlgorithms(track, scores, {
+        feedbackProbability: 0.08,
+        confidence: 0.25,
+        contributingAlgorithms: ['msd', 'phase'],
+        algorithmScores: scores,
+        verdict: 'NOT_FEEDBACK',
+        reasons: ['fusion rejected'],
+      })
+
+      expect(result.fusionVerdict).toBe('NOT_FEEDBACK')
+      expect(result.recommendationEligible).toBe(false)
+    })
+
+    it('uses recommendation context to deepen the initial cut when history has a learned depth', () => {
+      const track = makeTrack({ trueFrequencyHz: 1000 })
+
+      const baseline = generateEQAdvisory(track, 'RESONANCE', 'heavy')
+      const learned = generateEQAdvisory(
+        track,
+        'RESONANCE',
+        'heavy',
+        undefined,
+        undefined,
+        undefined,
+        [],
+        {
+          recurrenceCount: 0,
+          learnedCutDb: -8,
+          successfulCutCount: 2,
+        },
+      )
+
+      expect(learned.peq.gainDb).toBeLessThan(baseline.peq.gainDb)
+      expect(learned.geq.suggestedDb).toBeLessThan(baseline.geq.suggestedDb)
+      expect(learned.recommendationContext).toMatchObject({
+        recurrenceCount: 0,
+        learnedCutDb: -8,
+        successfulCutCount: 2,
+      })
     })
   })
 

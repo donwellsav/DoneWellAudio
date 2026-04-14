@@ -58,6 +58,7 @@ describe('useRingOutWizardState', () => {
         ringOutAutoSend: false,
       },
       sendAdvisory: vi.fn(),
+      sendExplicitAdvisory: vi.fn(),
     })
   })
 
@@ -89,7 +90,7 @@ describe('useRingOutWizardState', () => {
   })
 
   it('records the notch and auto-sends during ring-out when enabled', async () => {
-    const sendAdvisory = vi.fn()
+    const sendExplicitAdvisory = vi.fn()
     const advisory = makeAdvisory('adv-1')
 
     useCompanionMock.mockReturnValue({
@@ -97,7 +98,8 @@ describe('useRingOutWizardState', () => {
         enabled: true,
         ringOutAutoSend: true,
       },
-      sendAdvisory,
+      sendAdvisory: vi.fn(),
+      sendExplicitAdvisory,
     })
 
     const { result } = renderHook(() =>
@@ -125,7 +127,56 @@ describe('useRingOutWizardState', () => {
       gainDb: -6,
       q: 4,
     })
-    expect(sendAdvisory).toHaveBeenCalledWith(advisory)
+    expect(sendExplicitAdvisory).toHaveBeenCalledWith(advisory)
+  })
+
+  it('send all relays only accepted notches, not the current advisory list', async () => {
+    const sendExplicitAdvisory = vi.fn()
+    const accepted = makeAdvisory('accepted', { trueFrequencyHz: 1000 })
+    const unrelated = makeAdvisory('unrelated', {
+      severity: 'INSTRUMENT',
+      trueFrequencyHz: 1800,
+    })
+
+    useCompanionMock.mockReturnValue({
+      settings: {
+        enabled: true,
+        ringOutAutoSend: false,
+      },
+      sendAdvisory: vi.fn(),
+      sendExplicitAdvisory,
+    })
+
+    const { result, rerender } = renderHook(
+      ({ advisories }) =>
+        useRingOutWizardState({
+          advisories,
+          isRunning: true,
+          roomModes: null,
+        }),
+      {
+        initialProps: {
+          advisories: [accepted] as Advisory[],
+        },
+      },
+    )
+
+    await waitFor(() => {
+      expect(result.current.phase).toBe('detected')
+    })
+
+    act(() => {
+      result.current.handleNext()
+    })
+
+    rerender({ advisories: [unrelated] })
+
+    act(() => {
+      result.current.handleSendAll()
+    })
+
+    expect(sendExplicitAdvisory).toHaveBeenCalledTimes(1)
+    expect(sendExplicitAdvisory).toHaveBeenCalledWith(accepted)
   })
 
   it('formats export lines and room-mode proximity through pure helpers', () => {

@@ -13,6 +13,11 @@
 import { hzToCents } from '@/lib/utils/pitchUtils'
 import { HOTSPOT_COOLDOWN_MS, HOTSPOT_COOLDOWN_BY_MODE, POST_CUT_COOLDOWN_MS } from '@/lib/dsp/constants'
 import {
+  FEEDBACK_HISTORY_GROUPING_CENTS,
+  isWithinFeedbackHistoryTolerance,
+  type FeedbackHotspotSummary,
+} from '@/lib/dsp/feedbackHistoryShared'
+import {
   loadStoredFeedbackHistory,
   saveStoredFeedbackHistory,
   clearStoredFeedbackHistory,
@@ -58,6 +63,7 @@ export interface FeedbackEvent {
   cutAppliedByCompanion?: {
     gainDb: number
     bandIndex: number
+    maxCutDb?: number
     at: number
     /** True if no recurrence within VERIFICATION_WINDOW_MS, false if feedback re-triggered */
     worked?: boolean
@@ -101,7 +107,6 @@ export interface SessionSummary {
 // CONSTANTS
 // ============================================================================
 
-const FREQUENCY_GROUPING_CENTS = 100 // Group frequencies within 100 cents (match track association tolerance)
 const REPEAT_OFFENDER_THRESHOLD = 3 // 3+ occurrences = repeat offender
 const MAX_EVENTS_PER_SESSION = 500 // Limit memory usage
 const MAX_EVENTS_PER_HOTSPOT = 50 // Rolling window for per-hotspot stats
@@ -114,6 +119,8 @@ export const COMPANION_SUCCESS_WINDOW_MS = 5000
 export const COMPANION_MAX_RETRIES = 3
 /** How much deeper to cut on each retry (dB) */
 export const COMPANION_RETRY_STEP_DB = 3
+/** Default Companion module safety clamp for applied cuts (dB) */
+export const COMPANION_RETRY_MAX_CUT_DB = -12
 
 // ============================================================================
 // FEEDBACK HISTORY CLASS
@@ -137,6 +144,7 @@ export class FeedbackHistory {
     appliedAt: number
     gainDb: number
     bandIndex: number
+    maxCutDb?: number
     retryCount: number
     advisoryId: string
   }> = new Map()
@@ -215,10 +223,18 @@ export class FeedbackHistory {
    * exports can show what the module did.
    */
   markCompanionApplied(
-    args: { frequencyHz: number; gainDb: number; bandIndex: number; advisoryId: string; at?: number },
+    args: {
+      frequencyHz: number
+      gainDb: number
+      bandIndex: number
+      advisoryId: string
+      at?: number
+      maxCutDb?: number
+    },
   ): void {
     const { frequencyHz, gainDb, bandIndex, advisoryId } = args
     const appliedAt = args.at ?? Date.now()
+    const maxCutDb = args.maxCutDb ?? COMPANION_RETRY_MAX_CUT_DB
     const hotspotKey = this.findHotspotKey(frequencyHz)
     if (!hotspotKey) return
 
@@ -227,6 +243,7 @@ export class FeedbackHistory {
       appliedAt,
       gainDb,
       bandIndex,
+      maxCutDb,
       retryCount: existing?.retryCount ?? 0,
       advisoryId,
     })
@@ -234,9 +251,8 @@ export class FeedbackHistory {
     // Also attach to the most recent matching event (for export/history)
     for (let i = this.events.length - 1; i >= 0; i--) {
       const event = this.events[i]
-      const cents = Math.abs(hzToCents(event.frequencyHz, frequencyHz))
-      if (cents <= FREQUENCY_GROUPING_CENTS) {
-        event.cutAppliedByCompanion = { gainDb, bandIndex, at: appliedAt }
+      if (isWithinFeedbackHistoryTolerance(event.frequencyHz, frequencyHz)) {
+        event.cutAppliedByCompanion = { gainDb, bandIndex, maxCutDb, at: appliedAt }
         event.wasActedOn = true
         event.cutAppliedDb = gainDb
         break
@@ -244,6 +260,85 @@ export class FeedbackHistory {
     }
     // Persist
     this.saveToStorage()
+  }
+
+  private getRetrySuggestion(
+    frequencyHz: number,
+    now: number,
+  ): ({
+    hotspotKey: string
+    nextGainDb: number
+    retryCount: number
+    advisoryId: string
+    bandIndex: number
+  } | null) {
+    const hotspotKey = this.findHotspotKey(frequencyHz)
+    if (!hotspotKey) return null
+
+    const pending = this._companionPendingCuts.get(hotspotKey)
+    if (!pending) return null
+
+    const elapsed = now - pending.appliedAt
+    if (elapsed > COMPANION_VERIFICATION_WINDOW_MS) return null
+    if (pending.retryCount >= COMPANION_MAX_RETRIES) return null
+
+    const nextGainDb = Math.max(
+      pending.gainDb - COMPANION_RETRY_STEP_DB,
+      pending.maxCutDb ?? COMPANION_RETRY_MAX_CUT_DB,
+    )
+    if (nextGainDb >= pending.gainDb) return null
+
+    return {
+      hotspotKey,
+      nextGainDb,
+      retryCount: pending.retryCount + 1,
+      advisoryId: pending.advisoryId,
+      bandIndex: pending.bandIndex,
+    }
+  }
+
+  peekRetryCompanionCut(frequencyHz: number, now: number = Date.now()): {
+    nextGainDb: number
+    retryCount: number
+    advisoryId: string
+    bandIndex: number
+  } | null {
+    const suggestion = this.getRetrySuggestion(frequencyHz, now)
+    if (!suggestion) return null
+
+    return {
+      nextGainDb: suggestion.nextGainDb,
+      retryCount: suggestion.retryCount,
+      advisoryId: suggestion.advisoryId,
+      bandIndex: suggestion.bandIndex,
+    }
+  }
+
+  consumeRetryCompanionCut(frequencyHz: number, now: number = Date.now()): {
+    nextGainDb: number
+    retryCount: number
+    advisoryId: string
+    bandIndex: number
+  } | null {
+    const suggestion = this.getRetrySuggestion(frequencyHz, now)
+    if (!suggestion) return null
+
+    const pending = this._companionPendingCuts.get(suggestion.hotspotKey)
+    if (!pending) return null
+
+    this._companionPendingCuts.set(suggestion.hotspotKey, {
+      ...pending,
+      retryCount: suggestion.retryCount,
+      gainDb: suggestion.nextGainDb,
+      appliedAt: now,
+    })
+
+    return {
+      nextGainDb: suggestion.nextGainDb,
+      retryCount: suggestion.retryCount,
+      advisoryId: suggestion.advisoryId,
+      bandIndex: suggestion.bandIndex,
+    }
   }
 
   /**
@@ -262,37 +357,7 @@ export class FeedbackHistory {
     advisoryId: string
     bandIndex: number
   } | null {
-    const hotspotKey = this.findHotspotKey(frequencyHz)
-    if (!hotspotKey) return null
-
-    const pending = this._companionPendingCuts.get(hotspotKey)
-    if (!pending) return null
-
-    const elapsed = now - pending.appliedAt
-    // Outside verification window — cut is either "working" or too old to chain a retry
-    if (elapsed > COMPANION_VERIFICATION_WINDOW_MS) return null
-
-    // Already retried max times — stop the loop
-    if (pending.retryCount >= COMPANION_MAX_RETRIES) return null
-
-    // Deeper cut — clamp to preset maxCut (-18 surgical). Module config clamps further.
-    const nextGainDb = Math.max(pending.gainDb - COMPANION_RETRY_STEP_DB, -18)
-    if (nextGainDb >= pending.gainDb) return null // no room to go deeper
-
-    // Record that we're initiating a retry
-    this._companionPendingCuts.set(hotspotKey, {
-      ...pending,
-      retryCount: pending.retryCount + 1,
-      gainDb: nextGainDb,
-      appliedAt: now,
-    })
-
-    return {
-      nextGainDb,
-      retryCount: pending.retryCount + 1,
-      advisoryId: pending.advisoryId,
-      bandIndex: pending.bandIndex,
-    }
+    return this.consumeRetryCompanionCut(frequencyHz, now)
   }
 
   /**
@@ -300,7 +365,8 @@ export class FeedbackHistory {
    * Updates the hotspot's learnedCutDb as a rolling average over successful cuts.
    * Call periodically (e.g. from a ticker hook).
    */
-  reapCompanionCuts(now: number = Date.now()): void {
+  reapCompanionCuts(now: number = Date.now()): boolean {
+    let changed = false
     for (const [key, pending] of this._companionPendingCuts) {
       if (now - pending.appliedAt < COMPANION_SUCCESS_WINDOW_MS) continue
 
@@ -321,9 +387,16 @@ export class FeedbackHistory {
             break
           }
         }
+        changed = true
       }
       this._companionPendingCuts.delete(key)
+      changed = true
     }
+
+    if (changed) {
+      this.saveToStorage()
+    }
+    return changed
   }
 
   /**
@@ -380,6 +453,16 @@ export class FeedbackHistory {
   getHotspots(): FrequencyHotspot[] {
     return Array.from(this.hotspots.values())
       .sort((a, b) => b.occurrences - a.occurrences)
+  }
+
+  getHotspotSummaries(): FeedbackHotspotSummary[] {
+    return this.getHotspots().map((hotspot) => ({
+      centerFrequencyHz: hotspot.centerFrequencyHz,
+      occurrences: hotspot.occurrences,
+      learnedCutDb: hotspot.learnedCutDb,
+      successfulCutCount: hotspot.successfulCutCount,
+      lastSeen: hotspot.lastSeen,
+    }))
   }
 
   /**
@@ -534,12 +617,12 @@ export class FeedbackHistory {
   }
 
   // ── Bucket index helpers ──────────────────────────────────────────────
-  // Cents-based spatial hashing: each bucket covers FREQUENCY_GROUPING_CENTS
+  // Cents-based spatial hashing: each bucket covers FEEDBACK_HISTORY_GROUPING_CENTS
   // (100 cents). Lookups check ±1 neighbor bucket for O(1) amortized access
   // instead of scanning every hotspot.
 
   private getFrequencyBucket(frequencyHz: number): number {
-    return Math.floor((1200 * Math.log2(frequencyHz)) / FREQUENCY_GROUPING_CENTS)
+    return Math.floor((1200 * Math.log2(frequencyHz)) / FEEDBACK_HISTORY_GROUPING_CENTS)
   }
 
   private addHotspotToIndex(hotspotKey: string, centerFrequencyHz: number): void {
@@ -600,8 +683,11 @@ export class FeedbackHistory {
         const hotspot = this.hotspots.get(key)
         if (!hotspot) continue
 
+        if (!isWithinFeedbackHistoryTolerance(frequencyHz, hotspot.centerFrequencyHz)) {
+          continue
+        }
+
         const cents = Math.abs(hzToCents(frequencyHz, hotspot.centerFrequencyHz))
-        if (cents > FREQUENCY_GROUPING_CENTS) continue
 
         if (!bestMatch || cents < bestMatch.cents) {
           bestMatch = { key, cents }
@@ -887,6 +973,10 @@ export function getFeedbackHistory(): FeedbackHistory {
  */
 export function whenFeedbackHistoryReady(): Promise<void> {
   return getFeedbackHistory().whenReady()
+}
+
+export function getFeedbackHotspotSummaries(): FeedbackHotspotSummary[] {
+  return getFeedbackHistory().getHotspotSummaries()
 }
 
 /**

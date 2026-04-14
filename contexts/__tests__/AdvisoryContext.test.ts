@@ -28,7 +28,11 @@ vi.mock('@/contexts/DetectionContext', () => ({
 // The provider now consumes Engine/Settings/UI/Companion contexts and polls
 // the relay. Mock all of them to isolate advisory logic under test.
 vi.mock('@/contexts/EngineContext', () => ({
-  useEngine: () => ({ start: vi.fn(), stop: vi.fn() }),
+  useEngine: () => ({
+    start: vi.fn(),
+    stop: vi.fn(),
+    dspWorker: { syncFeedbackHistory: vi.fn() },
+  }),
 }))
 
 vi.mock('@/contexts/SettingsContext', () => ({
@@ -54,6 +58,7 @@ vi.mock('@/lib/dsp/feedbackHistory', () => ({
     markCompanionApplied: vi.fn(),
     reapCompanionCuts: vi.fn(),
   }),
+  getFeedbackHotspotSummaries: () => [],
 }))
 
 import { AdvisoryProvider, useAdvisories } from '../AdvisoryContext'

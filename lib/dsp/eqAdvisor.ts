@@ -1,8 +1,6 @@
 // DoneWell Audio EQ Advisor - GEQ/PEQ recommendations with pitch translation
-// Enhanced with MINDS (MSD-Inspired Notch Depth Setting) from DAFx-16 paper
 
 import { ISO_31_BANDS, EQ_PRESETS, ERB_SETTINGS, SPECTRAL_TRENDS, VIZ_COLORS, VIZ_COLORS_LIGHT } from './constants'
-import { calculateMINDS } from './advancedDetection'
 import { hzToPitch, formatPitch } from '@/lib/utils/pitchUtils'
 import { clamp } from '@/lib/utils/mathHelpers'
 import type { 
@@ -15,8 +13,8 @@ import type {
   ShelfRecommendation,
   EQAdvisory,
   PitchInfo,
+  RecommendationContext,
 } from '@/types/advisory'
-import type { MINDSResult } from './advancedDetection'
 
 // Track input type that works with both Track and TrackedPeak
 type TrackInput = Track | TrackedPeak
@@ -150,39 +148,46 @@ export function calculateCutDepth(severity: SeverityLevel, preset: Preset, recur
   // capped at the preset's maxCut to avoid over-cutting
   if (recurrenceCount > 0) {
     const adaptiveDepth = baseDepth - (recurrenceCount * 2)
-    return Math.max(adaptiveDepth, presetConfig.maxCut) // maxCut is negative, so max() clamps
+    return clamp(adaptiveDepth, presetConfig.maxCut, 0)
   }
 
-  return baseDepth
+  return clamp(baseDepth, presetConfig.maxCut, 0)
 }
 
-/**
- * Calculate dynamic notch depth using MINDS algorithm
- * This uses the magnitude history to determine optimal cut depth
- * 
- * @param magnitudeHistory - Array of recent magnitude values in dB (oldest to newest)
- * @param severity - Current severity classification
- * @param preset - EQ preset (surgical/heavy)
- * @param currentDepthDb - Current applied notch depth (if any)
- */
-export function calculateMINDSCutDepth(
-  magnitudeHistory: number[],
+function resolveRecommendationContext(
+  recommendationContext?: RecommendationContext,
+): RecommendationContext {
+  return {
+    recurrenceCount: recommendationContext?.recurrenceCount ?? 0,
+    learnedCutDb: recommendationContext?.learnedCutDb,
+    successfulCutCount: recommendationContext?.successfulCutCount,
+  }
+}
+
+function resolveBaseCutDepth(
   severity: SeverityLevel,
   preset: Preset,
-  currentDepthDb: number = 0
-): { depth: number; minds: MINDSResult } {
-  // Get MINDS recommendation
-  const minds = calculateMINDS(magnitudeHistory, currentDepthDb)
-  
-  // Get preset-based recommendation
-  const presetDepth = calculateCutDepth(severity, preset)
-  
-  // Use the more aggressive of the two (more negative)
-  // MINDS is dynamic and responds to growth rate
-  // Preset is based on severity classification
-  const depth = Math.min(minds.suggestedDepthDb, presetDepth)
-  
-  return { depth, minds }
+  recommendationContext?: RecommendationContext,
+): number {
+  const presetConfig = EQ_PRESETS[preset]
+  const context = resolveRecommendationContext(recommendationContext)
+  const recurrenceDepth = calculateCutDepth(severity, preset, context.recurrenceCount)
+
+  const learnedDepth =
+    context.learnedCutDb !== undefined && (context.successfulCutCount ?? 0) >= 1
+      ? context.learnedCutDb
+      : undefined
+
+  const effectiveDepth =
+    learnedDepth !== undefined
+      ? Math.min(recurrenceDepth, learnedDepth)
+      : recurrenceDepth
+
+  return clamp(effectiveDepth, presetConfig.maxCut, 0)
+}
+
+function clampSuggestedCutDb(suggestedDb: number, preset: Preset): number {
+  return clamp(Math.round(suggestedDb), EQ_PRESETS[preset].maxCut, 0)
 }
 
 /**
@@ -222,11 +227,15 @@ export function calculateQ(severity: SeverityLevel, preset: Preset, trackQ: numb
 export function generateGEQRecommendation(
   track: TrackInput,
   severity: SeverityLevel,
-  preset: Preset
+  preset: Preset,
+  recommendationContext?: RecommendationContext,
 ): GEQRecommendation {
   const { bandHz, bandIndex } = findNearestGEQBand(getTrackFrequency(track))
-  const baseCut = calculateCutDepth(severity, preset)
-  const suggestedDb = Math.round(baseCut * erbDepthScale(getTrackFrequency(track)))
+  const baseCut = resolveBaseCutDepth(severity, preset, recommendationContext)
+  const suggestedDb = clampSuggestedCutDb(
+    baseCut * erbDepthScale(getTrackFrequency(track)),
+    preset,
+  )
 
   return {
     bandHz,
@@ -266,12 +275,13 @@ export function generatePEQRecommendation(
   track: TrackInput,
   severity: SeverityLevel,
   preset: Preset,
+  recommendationContext?: RecommendationContext,
   clusterMinHz?: number,
   clusterMaxHz?: number,
 ): PEQRecommendation {
   const freqHz = getTrackFrequency(track)
-  const baseCut = calculateCutDepth(severity, preset)
-  const suggestedDb = Math.round(baseCut * erbDepthScale(freqHz))
+  const baseCut = resolveBaseCutDepth(severity, preset, recommendationContext)
+  const suggestedDb = clampSuggestedCutDb(baseCut * erbDepthScale(freqHz), preset)
   // Estimate SNR from peak amplitude (higher peak = better SNR for Q measurement)
   const peakDb = 'trueAmplitudeDb' in track ? track.trueAmplitudeDb : -30
   const estimatedSnr = Math.max(0, peakDb + 90) // -90dB floor → 0dB SNR, -30dB peak → 60dB SNR
@@ -458,11 +468,13 @@ export function generateEQAdvisory(
   spectrum?: Float32Array,
   sampleRate?: number,
   fftSize?: number,
-  precomputedShelves?: ShelfRecommendation[]
+  precomputedShelves?: ShelfRecommendation[],
+  recommendationContext?: RecommendationContext,
 ): EQAdvisory {
   const freqHz = getTrackFrequency(track)
-  const geq = generateGEQRecommendation(track, severity, preset)
-  const peq = generatePEQRecommendation(track, severity, preset)
+  const normalizedContext = resolveRecommendationContext(recommendationContext)
+  const geq = generateGEQRecommendation(track, severity, preset, normalizedContext)
+  const peq = generatePEQRecommendation(track, severity, preset, normalizedContext)
   const pitch = hzToPitch(freqHz)
 
   // Use pre-computed shelves if provided (cross-advisory dedup),
@@ -479,6 +491,7 @@ export function generateEQAdvisory(
     peq,
     shelves,
     pitch,
+    recommendationContext: normalizedContext,
   }
 }
 

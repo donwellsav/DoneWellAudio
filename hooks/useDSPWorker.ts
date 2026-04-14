@@ -34,9 +34,11 @@ import type {
   DSPWorkerCallbacks,
   DSPWorkerHandle,
   PendingCollectionRequest,
+  PendingHistorySyncRequest,
   PendingPeakFrame,
   WorkerInitSnapshot,
 } from './dspWorkerTypes'
+import type { FeedbackHotspotSummary } from '@/lib/dsp/feedbackHistoryShared'
 
 export type { DSPWorkerCallbacks, DSPWorkerHandle } from './dspWorkerTypes'
 
@@ -63,6 +65,7 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
   const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastInitRef = useRef<WorkerInitSnapshot | null>(null)
   const pendingCollectionRef = useRef<PendingCollectionRequest | null>(null)
+  const pendingHistorySyncRef = useRef<PendingHistorySyncRequest | null>(null)
   const specPoolRef = useRef<Float32Array[]>([])
   const tdPoolRef = useRef<Float32Array[]>([])
   const poolFftSizeRef = useRef(0)
@@ -85,6 +88,7 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
       restartTimerRef,
       lastInitRef,
       pendingCollectionRef,
+      pendingHistorySyncRef,
       specPoolRef,
       tdPoolRef,
       specUpdatePoolRef,
@@ -268,6 +272,18 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
     postMessage({ type: 'disableCollection' })
   }, [postMessage])
 
+  const syncFeedbackHistory = useCallback<DSPWorkerHandle['syncFeedbackHistory']>(
+    (hotspots: FeedbackHotspotSummary[]) => {
+      if (!isReadyRef.current) {
+        pendingHistorySyncRef.current = { hotspots: [...hotspots] }
+        return
+      }
+
+      postMessage({ type: 'syncFeedbackHistory', hotspots })
+    },
+    [postMessage],
+  )
+
   const sendUserFeedback = useCallback<DSPWorkerHandle['sendUserFeedback']>(
     (frequencyHz, feedback) => {
       postMessage({ type: 'userFeedback', frequencyHz, feedback })
@@ -322,6 +338,7 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
       terminate,
       enableCollection,
       disableCollection,
+      syncFeedbackHistory,
       sendUserFeedback,
       startRoomMeasurement,
       stopRoomMeasurement,
@@ -336,6 +353,7 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
       terminate,
       enableCollection,
       disableCollection,
+      syncFeedbackHistory,
       sendUserFeedback,
       startRoomMeasurement,
       stopRoomMeasurement,

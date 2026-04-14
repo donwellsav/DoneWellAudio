@@ -28,12 +28,17 @@ import type {
   ContentType,
   DetectedPeak,
   DetectorSettings,
+  RecommendationContext,
   TrackedPeak,
 } from '@/types/advisory'
 import type { SnapshotWorkerInbound, SnapshotWorkerOutbound, MarkerAlgorithmScores, UserFeedback } from '@/types/data'
 import { SnapshotCollector } from '@/lib/data/snapshotCollector'
 import { DEFAULT_SETTINGS, MSD_SETTINGS } from './constants'
 import type { WorkerRuntimeSettings } from '@/lib/settings/runtimeSettings'
+import {
+  isWithinFeedbackHistoryTolerance,
+  type FeedbackHotspotSummary,
+} from './feedbackHistoryShared'
 
 // ─── Message types ──────────────────────────────────────────────────────────
 
@@ -47,6 +52,10 @@ export type WorkerInboundMessage =
   | {
       type: 'updateSettings'
       settings: Partial<WorkerRuntimeSettings>
+    }
+  | {
+      type: 'syncFeedbackHistory'
+      hotspots: FeedbackHotspotSummary[]
     }
   | {
       type: 'processPeak'
@@ -130,6 +139,38 @@ let lastContentType: ContentType = 'unknown'
 let lastIsCompressed = false
 let lastCompressionRatio = 1
 let lastCombPattern: CombPatternResult | null = null
+let feedbackHotspotSummaries: FeedbackHotspotSummary[] = []
+
+function findFeedbackHistorySummary(frequencyHz: number): FeedbackHotspotSummary | null {
+  let bestMatch: FeedbackHotspotSummary | null = null
+  let bestDistance = Infinity
+
+  for (const hotspot of feedbackHotspotSummaries) {
+    if (!isWithinFeedbackHistoryTolerance(frequencyHz, hotspot.centerFrequencyHz)) {
+      continue
+    }
+    const distance = Math.abs(frequencyHz - hotspot.centerFrequencyHz)
+    if (distance < bestDistance) {
+      bestMatch = hotspot
+      bestDistance = distance
+    }
+  }
+
+  return bestMatch
+}
+
+function buildRecommendationContext(frequencyHz: number): RecommendationContext {
+  const hotspot = findFeedbackHistorySummary(frequencyHz)
+  if (!hotspot) {
+    return { recurrenceCount: 0 }
+  }
+
+  return {
+    recurrenceCount: hotspot.occurrences,
+    learnedCutDb: hotspot.learnedCutDb,
+    successfulCutCount: hotspot.successfulCutCount,
+  }
+}
 
 function normalizeCombPattern(pattern: CombPatternResult | null | undefined): CombPatternResult | null {
   if (!pattern || !pattern.hasPattern || pattern.predictedFrequencies.length === 0) return null
@@ -304,6 +345,11 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
           trackTimeoutMs: msg.settings.trackTimeoutMs,
         })
       }
+      break
+    }
+
+    case 'syncFeedbackHistory': {
+      feedbackHotspotSummaries = [...msg.hotspots]
       break
     }
 
@@ -623,6 +669,15 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       // ── Mark ALL classified peaks for snapshot collection ──
       // Collect before the reporting gate — ML model needs ring, feedback,
       // instruments, and false positives alike to learn the boundaries.
+      const isHarmonic = advisoryManager.isHarmonicOfExisting(track.trueFrequencyHz, settings)
+      if (isHarmonic) {
+        classification.confidence = Math.min(classification.confidence, 0.35)
+        if (classification.severity === 'RUNAWAY' || classification.severity === 'GROWING') {
+          classification.severity = 'RESONANCE'
+        }
+        classification.reasons = [...classification.reasons, 'Harmonic of existing advisory']
+      }
+
       if (snapshotCollector) {
         // Extract intermediate algorithm scores for ML training data (v1.1+)
         const markerScores: MarkerAlgorithmScores = {
@@ -666,11 +721,6 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
 
       // Flag harmonics of existing advisories — reduce confidence instead of suppressing.
       // This lets the soft floor system send them as shallow cuts if slots are available.
-      const isHarmonic = advisoryManager.isHarmonicOfExisting(track.trueFrequencyHz, settings)
-      if (isHarmonic) {
-        classification.confidence = Math.min(classification.confidence, 0.35)
-      }
-
       // Compute shelves once per analysis frame (cross-advisory dedup)
       if (cachedShelvesFrameId !== peakProcessCount) {
         cachedShelves = analyzeSpectralTrends(spectrum, sampleRate, fftSize)
@@ -678,9 +728,15 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       }
 
       // Generate EQ advisory with pre-computed shelves
+      const recommendationContext = buildRecommendationContext(track.trueFrequencyHz)
       const eqAdvisory = generateEQAdvisory(
         track, classification.severity,
-        settings.eqPreset, undefined, undefined, undefined, cachedShelves ?? []
+        settings.eqPreset,
+        undefined,
+        undefined,
+        undefined,
+        cachedShelves ?? [],
+        recommendationContext,
       )
 
       // Create or update advisory (handles rate limit, band cooldown, dedup)
