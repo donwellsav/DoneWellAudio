@@ -14,6 +14,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.96.0',
+    date: '2026-04-14',
+    changes: [
+      { type: 'fix', description: 'Recover session work into a deployable build by gating Sentry source map upload behind an explicit build flag' },
+      { type: 'fix', description: 'Install @companion-module/base at the app root so CI and Vercel can type-check companion-module sources during Next builds' },
+    ],
+  },
+  {
     version: '0.94.1',
     date: '2026-04-14',
     changes: [
