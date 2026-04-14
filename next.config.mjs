@@ -13,6 +13,14 @@ const withSerwist = withSerwistInit({
   disable: process.env.NODE_ENV === "development",
 });
 
+// Keep deploys independent from Sentry release configuration drift.
+// Source map upload stays opt-in via an explicit build flag.
+const sentryBuildEnabled =
+  process.env.SENTRY_BUILD_ENABLED === "true" &&
+  Boolean(process.env.SENTRY_AUTH_TOKEN) &&
+  Boolean(process.env.SENTRY_ORG) &&
+  Boolean(process.env.SENTRY_PROJECT);
+
 // CSP is handled by proxy.ts (per-request nonce-based script-src).
 // Non-CSP security headers remain here as static config.
 const securityHeaders = [
@@ -48,33 +56,37 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-}
+};
 
-export default withSentryConfig(withSerwist(nextConfig), {
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
-  authToken: process.env.SENTRY_AUTH_TOKEN,
+const wrappedConfig = withSerwist(nextConfig);
 
-  // Upload wider set of client source files for better stack traces
-  widenClientFileUpload: true,
+export default sentryBuildEnabled
+  ? withSentryConfig(wrappedConfig, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      authToken: process.env.SENTRY_AUTH_TOKEN,
 
-  // Proxy route to bypass ad-blockers
-  tunnelRoute: "/monitoring",
+      // Upload wider set of client source files for better stack traces
+      widenClientFileUpload: true,
 
-  // Suppress output unless in CI
-  silent: !process.env.CI,
+      // Proxy route to bypass ad-blockers
+      tunnelRoute: "/monitoring",
 
-  // Disable source map upload when no auth token is configured
-  sourcemaps: {
-    disable: !process.env.SENTRY_AUTH_TOKEN,
-  },
+      // Suppress output unless in CI
+      silent: !process.env.CI,
 
-  hideSourceMaps: true,
+      // Disable source map upload when no auth token is configured
+      sourcemaps: {
+        disable: !process.env.SENTRY_AUTH_TOKEN,
+      },
 
-  // Tree-shake Sentry debug logging in production (webpack only)
-  webpack: {
-    treeshake: {
-      removeDebugLogging: true,
-    },
-  },
-})
+      hideSourceMaps: true,
+
+      // Tree-shake Sentry debug logging in production (webpack only)
+      webpack: {
+        treeshake: {
+          removeDebugLogging: true,
+        },
+      },
+    })
+  : wrappedConfig;
