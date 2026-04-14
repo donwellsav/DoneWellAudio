@@ -5,21 +5,22 @@ import { CHANGELOG } from '@/lib/changelog'
 import { HelpSection, HelpGroup, TYPE_STYLES } from './HelpShared'
 
 export const AboutTab = memo(function AboutTab() {
+  const [latestEntry, ...olderEntries] = CHANGELOG
+
   return (
     <>
-      <div className="flex flex-col items-center text-center py-6 space-y-3">
-        <div className="text-3xl font-black tracking-tighter font-mono">
+      <div className="flex flex-col items-center py-6 text-center space-y-3">
+        <div className="font-mono text-3xl font-black tracking-tighter">
           DONEWELL <span className="text-[var(--console-blue)] drop-shadow-[0_0_10px_rgba(75,146,255,0.35)]">AUDIO</span>
         </div>
-        <div className="text-sm text-muted-foreground/80 font-mono tracking-[0.2em] uppercase">Real-Time Acoustic Feedback Detection</div>
-        <div className="font-mono text-sm bg-card/80 text-muted-foreground px-3 py-1.5 rounded border">
+        <div className="font-mono text-sm uppercase tracking-[0.2em] text-muted-foreground/80">Real-Time Acoustic Feedback Detection</div>
+        <div className="rounded border bg-card/80 px-3 py-1.5 font-mono text-sm text-muted-foreground">
           v{process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0'}
         </div>
       </div>
 
-      {/* Group: Project Info */}
       <HelpGroup title="Project Info">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
           <HelpSection title="About" color="amber">
             <p>
               DoneWell Audio is a professional real-time acoustic feedback detection and analysis tool
@@ -27,7 +28,7 @@ export const AboutTab = memo(function AboutTab() {
               research to identify feedback frequencies and deliver EQ recommendations with pitch translation.
             </p>
             <p className="mt-2">
-              The app is <strong>analysis-only</strong> — it never outputs or modifies audio.
+              The app is <strong>analysis-only</strong> - it never outputs or modifies audio.
               All processing happens locally in your browser via Web Audio API and Web Workers.
             </p>
           </HelpSection>
@@ -51,24 +52,56 @@ export const AboutTab = memo(function AboutTab() {
         </div>
       </HelpGroup>
 
-      {/* Changelog — compact entries */}
-      <HelpGroup title="Changelog">
+      <HelpGroup title="Latest Release">
+        <HelpSection title={`v${latestEntry.version}`} color="blue">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs text-muted-foreground">
+              <span>{latestEntry.date}</span>
+              {latestEntry.highlights && (
+                <span style={{ color: 'var(--console-blue)' }}>{latestEntry.highlights}</span>
+              )}
+              <span>{latestEntry.changes.length} changes</span>
+            </div>
+            <div className="space-y-1.5">
+              {latestEntry.changes.map((change) => {
+                const style = TYPE_STYLES[change.type]
+                return (
+                  <div
+                    key={`${latestEntry.version}-${change.type}-${change.description}`}
+                    className="flex items-start gap-2 text-sm text-muted-foreground"
+                  >
+                    <span className={`mt-0.5 inline-flex shrink-0 items-center rounded px-1.5 py-0.5 font-mono text-[10px] font-medium leading-none ${style.className}`}>
+                      {style.label}
+                    </span>
+                    <span>{change.description}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </HelpSection>
+      </HelpGroup>
+
+      <HelpGroup title="Release History" defaultOpen={false}>
         <div className="space-y-1.5">
-          {CHANGELOG.map((entry, i) => (
-            <div key={`${entry.version}-${i}`} className="bg-card/80 rounded border p-2.5">
-              <div className="flex items-center gap-2 mb-1.5">
+          {olderEntries.map((entry, i) => (
+            <div key={`${entry.version}-${i}`} className="rounded border bg-card/80 p-2.5">
+              <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="font-mono text-sm font-bold text-foreground">v{entry.version}</span>
-                <span className="text-xs text-muted-foreground font-mono">{entry.date}</span>
+                <span className="font-mono text-xs text-muted-foreground">{entry.date}</span>
                 {entry.highlights && (
-                  <span className="text-xs font-mono" style={{ color: 'var(--console-blue)' }}>· {entry.highlights}</span>
+                  <span className="font-mono text-xs" style={{ color: 'var(--console-blue)' }}>· {entry.highlights}</span>
                 )}
               </div>
               <div className="space-y-1">
                 {entry.changes.map((change) => {
                   const style = TYPE_STYLES[change.type]
                   return (
-                    <div key={change.description} className="flex items-start gap-2 text-sm text-muted-foreground">
-                      <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-mono font-medium leading-none shrink-0 mt-0.5 ${style.className}`}>
+                    <div
+                      key={`${entry.version}-${change.type}-${change.description}`}
+                      className="flex items-start gap-2 text-sm text-muted-foreground"
+                    >
+                      <span className={`mt-0.5 inline-flex shrink-0 items-center rounded px-1.5 py-0.5 font-mono text-[10px] font-medium leading-none ${style.className}`}>
                         {style.label}
                       </span>
                       <span>{change.description}</span>

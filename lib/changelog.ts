@@ -14,8 +14,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.97.0',
+    date: '2026-04-14',
+    highlights: 'Help menu changelog surfaced and expanded',
+    changes: [
+      { type: 'ui', description: 'Help → About now shows the latest release in a dedicated section instead of burying it inside the full history list' },
+      { type: 'fix', description: 'Expanded the 0.94.1 entry so the April 14 feedback, ring-out, Companion, and mixer-state fixes are visible in product help instead of collapsing into a one-line placeholder' },
+      { type: 'fix', description: 'Release history now stays available under a collapsed section so the current release is easy to scan without losing older details' },
+    ],
+  },
+  {
     version: '0.96.0',
     date: '2026-04-14',
+    highlights: 'Deployability recovery for the April 14 feedback/Companion hardening work',
     changes: [
       { type: 'fix', description: 'Recover session work into a deployable build by gating Sentry source map upload behind an explicit build flag' },
       { type: 'fix', description: 'Install @companion-module/base at the app root so CI and Vercel can type-check companion-module sources during Next builds' },
@@ -24,8 +35,33 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     version: '0.94.1',
     date: '2026-04-14',
+    highlights: 'Feedback detection retune, Companion workflow hardening, ring-out reliability, and module/app state sync',
     changes: [
-      { type: 'fix', description: 'Harden feedback detection and Companion workflow' },
+      { type: 'fix', description: 'Retuned the detection path to recover more real feedback with softer detector headroom, wider MSD early-confirm rescue, and lower feedback-critical energy gating' },
+      { type: 'fix', description: 'Confidence calibration now follows the final adjusted posterior instead of stale pre-adjustment math, so isolated feedback becomes more reportable when the model becomes more certain' },
+      { type: 'fix', description: 'Removed duplicate compressed-content suppression and relaxed overly conservative early-ring suppression in live-music-style conditions' },
+      { type: 'fix', description: 'Borderline feedback rejection no longer drops obvious true positives simply because one stage was slightly more conservative than the full posterior' },
+      { type: 'fix', description: 'GEQ band dedupe and track-to-advisory mapping cleanup now prevent stale band occupancy, resurrected advisories, and same-track drift across band boundaries' },
+      { type: 'fix', description: 'Clustered advisory clear/supersede paths now remove absorbed track mappings correctly instead of leaving stale advisory ownership behind' },
+      { type: 'fix', description: 'Worker startup and restart handling now preserve the pending peak through init-to-ready transitions instead of dropping the latest detection frame' },
+      { type: 'fix', description: 'Closed-loop retry state now advances only after the Companion module actually reports an applied cut, not when the relay merely accepts the message' },
+      { type: 'fix', description: 'Retry logic now works for persistent same-advisory recurrences and avoids duplicate resend loops when the effective payload has not changed' },
+      { type: 'fix', description: 'Explicit ring-out notches now use the intentional send path, bypass the passive confidence gate, and stop double-sending accepted cuts' },
+      { type: 'fix', description: 'Ring-out now detects replacement advisories by identity instead of only by list count, so a new ringing frequency still surfaces when the count stays flat' },
+      { type: 'fix', description: 'Issue cards now keep SEND available on touch and desktop surfaces only when the advisory is actually relay-eligible' },
+      { type: 'fix', description: 'Partial apply, partial clear, clear failed, and cleared states now round-trip correctly between the app and Companion module instead of drifting or disappearing in the UI' },
+      { type: 'fix', description: 'GEQ-only apply and clear events no longer fabricate PEQ slot 0 in the UI' },
+      { type: 'fix', description: 'Companion lifecycle clear actions now retry until the relay accepts them instead of being one-shot fire-and-forget' },
+      { type: 'fix', description: 'Manual and automatic Companion sends now share safer dedupe rules so resolved advisories can send again when they truly recur' },
+      { type: 'fix', description: 'Companion module Clear All now reconciles module-managed mixer state instead of only clearing the local pending queue' },
+      { type: 'fix', description: 'MixerOutput clearAll and clearByAdvisoryId now preserve shared GEQ ownership correctly and stop reporting false fully-cleared states while mixer state still remains' },
+      { type: 'fix', description: 'Applied gain and max-cut metadata now flow back from the Companion module into FeedbackHistory so retry depth and learned cuts follow real hardware state' },
+      { type: 'fix', description: 'PA2 output now clamps Q into the supported device range instead of forwarding out-of-range values' },
+      { type: 'fix', description: 'Advisory feedback state, Companion state, and per-card local state now prune cleanly when advisories disappear' },
+      { type: 'fix', description: 'GROWING urgency handling is now consistent through freeze and related downstream advisory paths' },
+      { type: 'refactor', description: 'Runtime logging moved onto the shared logger path and raw console noise was removed from production code paths' },
+      { type: 'refactor', description: 'CSP handling moved from middleware to proxy.ts and production build tracing was tightened for a more stable Next.js deployment path' },
+      { type: 'fix', description: 'Regression coverage was expanded across detector hot path, classifier, advisory manager, Companion hooks, ring-out flow, command bridge, and Companion module mixer behavior' },
     ],
   },
   {
