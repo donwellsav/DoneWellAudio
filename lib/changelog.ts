@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.94.1',
+    date: '2026-04-14',
+    changes: [
+      { type: 'fix', description: 'Harden feedback detection and Companion workflow' },
+    ],
+  },
+  {
     version: '0.94.0',
     date: '2026-04-13',
     changes: [
