@@ -333,8 +333,6 @@ export function estimateRoomDimensions(
   stableFrequencies: number[],
   knownDimensionM?: number
 ): RoomDimensionEstimate | null {
-  const C = ROOM_ESTIMATION.SPEED_OF_SOUND
-
   // Filter to room mode range
   const filtered = stableFrequencies.filter(
     (f) => f > 20 && f <= ROOM_ESTIMATION.MAX_FREQUENCY_HZ

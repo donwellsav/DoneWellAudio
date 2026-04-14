@@ -34,10 +34,10 @@ export function UpdateActions(self: ModuleInstance): void {
     },
 
     clear_all: {
-      name: 'Clear All Advisories (local)',
+      name: 'Clear All Advisories + Mixer State (local)',
       options: [],
       callback: async () => {
-        self.clearAll()
+        await self.clearAll()
       },
     },
 

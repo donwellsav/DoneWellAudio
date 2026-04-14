@@ -1,7 +1,7 @@
 import { getRoomParametersFromDimensions } from '@/lib/dsp/acousticUtils'
 import { ENVIRONMENT_TEMPLATES } from '@/lib/settings/environmentTemplates'
 import { MODE_BASELINES } from '@/lib/settings/modeBaselines'
-import type { DetectorSettings, MicCalibrationProfile } from '@/types/advisory'
+import type { DetectorSettings } from '@/types/advisory'
 import type {
   DiagnosticsProfile,
   DisplayPrefs,

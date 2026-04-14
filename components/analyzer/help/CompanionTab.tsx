@@ -173,7 +173,7 @@ export const CompanionTab = memo(function CompanionTab() {
             <ul className="space-y-2">
               <li><strong>Apply Latest EQ:</strong> Press to send the current advisory to your mixer on demand (when Auto-Apply is off).</li>
               <li><strong>Latest Advisory:</strong> Shows frequency, gain, and Q. Turns yellow when pending, red for RUNAWAY.</li>
-              <li><strong>Clear All:</strong> Clears all pending advisories.</li>
+              <li><strong>Clear All:</strong> Clears pending advisories and any module-managed mixer cuts that the local module session still owns.</li>
               <li><strong>Status:</strong> Shows pending count and severity at a glance.</li>
               <li><strong>Custom buttons:</strong> Use variables like <code className="font-mono text-xs bg-muted px-1 rounded">$(donewell:note)</code> in any button text.</li>
             </ul>

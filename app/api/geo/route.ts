@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
 /**
  * GET /api/geo — returns whether the request originates from an EU/EEA/UK jurisdiction.

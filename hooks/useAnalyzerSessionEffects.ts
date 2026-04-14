@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from 'react'
 import { useAdvisoryLogging } from '@/hooks/useAdvisoryLogging'
+import { useCompanionModeSync } from '@/hooks/useCompanionModeSync'
 import { useIsMobile } from '@/hooks/use-mobile'
 import type { DataCollectionHandle } from '@/hooks/useDataCollection'
 import type { UseCalibrationSessionReturn } from '@/hooks/useCalibrationSession'
@@ -50,6 +51,7 @@ export function useAnalyzerSessionEffects({
   setMicProfile,
 }: UseAnalyzerSessionEffectsParams): void {
   const isMobile = useIsMobile()
+  useCompanionModeSync(settings.mode)
   const syncFeedbackHistory = useCallback(() => {
     dspWorker.syncFeedbackHistory(getFeedbackHotspotSummaries())
   }, [dspWorker])

@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import type { StoredFeedbackHistory, PendingDelta, LoadResult } from '../feedbackHistoryStorage'
+import type { StoredFeedbackHistory, PendingDelta } from '../feedbackHistoryStorage'
 
 // Mock IndexedDB layer — isolate localStorage-only paths
 vi.mock('@/lib/storage/indexedDb', () => ({

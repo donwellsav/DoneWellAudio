@@ -29,6 +29,7 @@ import {
 import type { ConsentStatus } from '@/types/data'
 import type { SnapshotBatch } from '@/types/data'
 import type { DSPWorkerHandle } from './useDSPWorker'
+import type { SnapshotUploader } from '@/lib/data/uploader'
 
 export interface DataCollectionState {
   /** Current consent status */
@@ -69,7 +70,7 @@ export function useDataCollection(): DataCollectionHandle {
     fetch('/api/geo')
       .then(r => r.json())
       .then(({ isEU: eu }: { isEU: boolean }) => setIsEU(eu))
-      .catch((e) => { console.warn('[DataCollection] Geo fetch failed (failing open):', e) })
+      .catch(() => undefined)
   }, [])
 
   // DSP worker handle — set externally by the consumer after useAudioAnalyzer
@@ -82,7 +83,7 @@ export function useDataCollection(): DataCollectionHandle {
   const audioParamsRef = useRef<{ fftSize: number; sampleRate: number } | null>(null)
 
   // Lazy uploader — only instantiated when collecting
-  const uploaderRef = useRef<import('@/lib/data/uploader').SnapshotUploader | null>(null)
+  const uploaderRef = useRef<SnapshotUploader | null>(null)
 
   // Queue for batches that arrive before the uploader finishes dynamic import
   const pendingBatchesRef = useRef<SnapshotBatch[]>([])
@@ -95,7 +96,6 @@ export function useDataCollection(): DataCollectionHandle {
   const enableCollection = useCallback(async (fftSize: number, sampleRate: number) => {
     const worker = workerRef.current
     if (!worker) {
-      console.warn('[DataCollection] enableCollection called but workerRef is null')
       return
     }
 
@@ -106,7 +106,6 @@ export function useDataCollection(): DataCollectionHandle {
       try {
         const { SnapshotUploader } = await import('@/lib/data/uploader')
         uploaderRef.current = new SnapshotUploader()
-        console.debug('[DataCollection] Uploader created')
         // Flush any batches that arrived during dynamic import
         if (pendingBatchesRef.current.length > 0) {
           const queued = pendingBatchesRef.current
@@ -114,17 +113,14 @@ export function useDataCollection(): DataCollectionHandle {
           for (const batch of queued) {
             uploaderRef.current.enqueue(batch)
           }
-          console.debug(`[DataCollection] Flushed ${queued.length} queued batch(es)`)
         }
         // Retry any batches from previous sessions
-        uploaderRef.current.retryQueued().catch((e) => { console.warn('[DataCollection] retryQueued failed:', e) })
-      } catch (err) {
-        console.error('[DataCollection] Failed to load uploader — aborting collection:', err)
+        uploaderRef.current.retryQueued().catch(() => undefined)
+      } catch {
         return
       }
     }
 
-    console.debug('[DataCollection] Enabling collection, sessionId=' + sessionIdRef.current.slice(0, 8) + '...')
     worker.enableCollection(sessionIdRef.current, fftSize, sampleRate)
     setIsCollecting(true)
   }, [])

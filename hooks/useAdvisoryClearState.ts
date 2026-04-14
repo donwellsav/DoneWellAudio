@@ -15,6 +15,7 @@ export interface AdvisoryClearStateHandle {
   hasActiveGEQBars: boolean
   hasActiveRTAMarkers: boolean
   onDismiss: (id: string) => void
+  restoreDismissed: (id: string) => void
   onClearAll: () => void
   onClearResolved: () => void
   onClearGEQ: () => void
@@ -32,6 +33,13 @@ function createEmptyClearState(): AdvisoryClearState {
 function copyWithAddedId(ids: ReadonlySet<string>, id: string): Set<string> {
   const next = new Set(ids)
   next.add(id)
+  return next
+}
+
+function copyWithRemovedId(ids: ReadonlySet<string>, id: string): Set<string> {
+  if (!ids.has(id)) return ids as Set<string>
+  const next = new Set(ids)
+  next.delete(id)
   return next
 }
 
@@ -81,18 +89,23 @@ export function useAdvisoryClearState(
   useEffect(() => {
     if (++pruneCounterRef.current < 100) return
     pruneCounterRef.current = 0
-    setClearState((prev) => {
-      if (prev.dismissed.size === 0 && prev.geqCleared.size === 0 && prev.rtaCleared.size === 0) {
-        return prev
-      }
-      const dismissed = pruneIds(prev.dismissed, liveIds)
-      const geqCleared = pruneIds(prev.geqCleared, liveIds)
-      const rtaCleared = pruneIds(prev.rtaCleared, liveIds)
-      if (dismissed === prev.dismissed && geqCleared === prev.geqCleared && rtaCleared === prev.rtaCleared) {
-        return prev
-      }
-      return { dismissed, geqCleared, rtaCleared }
-    })
+
+    const timeoutId = window.setTimeout(() => {
+      setClearState((prev) => {
+        if (prev.dismissed.size === 0 && prev.geqCleared.size === 0 && prev.rtaCleared.size === 0) {
+          return prev
+        }
+        const dismissed = pruneIds(prev.dismissed, liveIds)
+        const geqCleared = pruneIds(prev.geqCleared, liveIds)
+        const rtaCleared = pruneIds(prev.rtaCleared, liveIds)
+        if (dismissed === prev.dismissed && geqCleared === prev.geqCleared && rtaCleared === prev.rtaCleared) {
+          return prev
+        }
+        return { dismissed, geqCleared, rtaCleared }
+      })
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [liveIds])
 
   const activeAdvisoryCount = useMemo(
@@ -123,6 +136,13 @@ export function useAdvisoryClearState(
       ...prev,
       dismissed: copyWithAddedId(prev.dismissed, id),
     }))
+  }, [])
+
+  const restoreDismissed = useCallback((id: string) => {
+    setClearState((prev) => {
+      const dismissed = copyWithRemovedId(prev.dismissed, id)
+      return dismissed === prev.dismissed ? prev : { ...prev, dismissed }
+    })
   }, [])
 
   const onClearAll = useCallback(() => {
@@ -164,6 +184,7 @@ export function useAdvisoryClearState(
     hasActiveGEQBars,
     hasActiveRTAMarkers,
     onDismiss,
+    restoreDismissed,
     onClearAll,
     onClearResolved,
     onClearGEQ,

@@ -11,6 +11,8 @@
 
 // ── Quota exceeded detection ─────────────────────────────────────────────────
 
+import { logError, logWarn } from '@/lib/utils/logger'
+
 function isQuotaExceeded(err: unknown): boolean {
   return err instanceof DOMException && (
     err.name === 'QuotaExceededError' || err.code === 22
@@ -22,7 +24,7 @@ function isQuotaExceeded(err: unknown): boolean {
  * so any component can listen for it (e.g., show a "storage full" banner).
  */
 function notifyQuotaExceeded(key: string): void {
-  console.error(`[dwaStorage] Storage quota exceeded writing "${key}" — settings may not persist. Clear old data or reduce usage.`)
+  logError(`[dwaStorage] Storage quota exceeded writing "${key}" — settings may not persist. Clear old data or reduce usage.`)
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('dwa:storage-quota-exceeded', { detail: { key } }))
   }
@@ -68,7 +70,7 @@ export function typedStorage<T>(key: string, fallback: T): TypedStorage<T> {
         if (isQuotaExceeded(err)) {
           notifyQuotaExceeded(key)
         } else {
-          console.warn(`[dwaStorage] Failed to save "${key}":`, err instanceof Error ? err.message : err)
+          logWarn(`[dwaStorage] Failed to save "${key}":`, err instanceof Error ? err.message : err)
         }
       }
     },
@@ -114,7 +116,7 @@ export function stringStorage(key: string, fallback: string = ''): StringStorage
         if (isQuotaExceeded(err)) {
           notifyQuotaExceeded(key)
         } else {
-          console.warn(`[dwaStorage] Failed to save "${key}":`, err instanceof Error ? err.message : err)
+          logWarn(`[dwaStorage] Failed to save "${key}":`, err instanceof Error ? err.message : err)
         }
       }
     },
@@ -161,7 +163,7 @@ export function flagStorage(key: string): FlagStorage {
         if (isQuotaExceeded(err)) {
           notifyQuotaExceeded(key)
         } else {
-          console.warn(`[dwaStorage] Failed to set flag "${key}":`, err instanceof Error ? err.message : err)
+          logWarn(`[dwaStorage] Failed to set flag "${key}":`, err instanceof Error ? err.message : err)
         }
       }
     },

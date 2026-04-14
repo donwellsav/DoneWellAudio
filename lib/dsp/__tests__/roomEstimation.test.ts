@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { findHarmonicSeries, estimateRoomDimensions, calculateRoomModes } from '../acousticUtils'
+import { findHarmonicSeries, estimateRoomDimensions } from '../acousticUtils'
 import { ROOM_ESTIMATION } from '../constants'
 
 const C = ROOM_ESTIMATION.SPEED_OF_SOUND // 343 m/s

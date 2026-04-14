@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Advisory } from '@/types/advisory'
 import type { UseCalibrationSessionReturn } from '@/hooks/useCalibrationSession'
 import type { DSPWorkerHandle } from '@/hooks/useDSPWorker'
@@ -32,23 +32,40 @@ export function useAdvisoryFeedback({
   const [localFalsePositiveIds, setLocalFalsePositiveIds] = useState<Set<string>>(new Set())
   const [confirmedIds, setConfirmedIds] = useState<Set<string>>(new Set())
 
-  const localFalsePositiveIdsRef = useRef(localFalsePositiveIds)
-  localFalsePositiveIdsRef.current = localFalsePositiveIds
+  useEffect(() => {
+    const liveIds = new Set(advisories.map((advisory) => advisory.id))
 
-  const confirmedIdsRef = useRef(confirmedIds)
-  confirmedIdsRef.current = confirmedIds
+    setLocalFalsePositiveIds((prev) => {
+      const next = new Set<string>()
+      let changed = false
+      prev.forEach((id) => {
+        if (liveIds.has(id)) {
+          next.add(id)
+        } else {
+          changed = true
+        }
+      })
+      return changed ? next : prev
+    })
 
-  const advisoriesRef = useRef(advisories)
-  advisoriesRef.current = advisories
-
-  const calibrationRef = useRef(calibration)
-  calibrationRef.current = calibration
+    setConfirmedIds((prev) => {
+      const next = new Set<string>()
+      let changed = false
+      prev.forEach((id) => {
+        if (liveIds.has(id)) {
+          next.add(id)
+        } else {
+          changed = true
+        }
+      })
+      return changed ? next : prev
+    })
+  }, [advisories])
 
   const handleFalsePositive = useCallback((advisoryId: string) => {
-    const calibrationState = calibrationRef.current
     const isCurrentlyFlagged =
-      localFalsePositiveIdsRef.current.has(advisoryId) ||
-      calibrationState.falsePositiveIds.has(advisoryId)
+      localFalsePositiveIds.has(advisoryId) ||
+      calibration.falsePositiveIds.has(advisoryId)
     const isFlagging = !isCurrentlyFlagged
 
     setLocalFalsePositiveIds(prev => {
@@ -61,7 +78,7 @@ export function useAdvisoryFeedback({
       return next
     })
 
-    const advisory = advisoriesRef.current.find(item => item.id === advisoryId)
+    const advisory = advisories.find(item => item.id === advisoryId)
     if (advisory) {
       dspWorker.sendUserFeedback(
         advisory.trueFrequencyHz,
@@ -76,13 +93,13 @@ export function useAdvisoryFeedback({
       return next
     })
 
-    if (calibrationState.calibrationEnabled) {
-      calibrationState.onFalsePositive(advisoryId)
+    if (calibration.calibrationEnabled) {
+      calibration.onFalsePositive(advisoryId)
     }
-  }, [dspWorker])
+  }, [advisories, calibration, dspWorker, localFalsePositiveIds])
 
   const handleConfirmFeedback = useCallback((advisoryId: string) => {
-    const isConfirming = !confirmedIdsRef.current.has(advisoryId)
+    const isConfirming = !confirmedIds.has(advisoryId)
 
     setConfirmedIds(prev => {
       const next = new Set(prev)
@@ -101,19 +118,18 @@ export function useAdvisoryFeedback({
       return next
     })
 
-    const calibrationState = calibrationRef.current
-    if (calibrationState.calibrationEnabled && calibrationState.falsePositiveIds.has(advisoryId)) {
-      calibrationState.onFalsePositive(advisoryId)
+    if (calibration.calibrationEnabled && calibration.falsePositiveIds.has(advisoryId)) {
+      calibration.onFalsePositive(advisoryId)
     }
 
-    const advisory = advisoriesRef.current.find(item => item.id === advisoryId)
+    const advisory = advisories.find(item => item.id === advisoryId)
     if (advisory) {
       dspWorker.sendUserFeedback(
         advisory.trueFrequencyHz,
         isConfirming ? 'confirmed_feedback' : 'correct',
       )
     }
-  }, [dspWorker])
+  }, [advisories, calibration, confirmedIds, dspWorker])
 
   const falsePositiveIds = useMemo<ReadonlySet<string>>(() => {
     if (!calibration.calibrationEnabled) return localFalsePositiveIds

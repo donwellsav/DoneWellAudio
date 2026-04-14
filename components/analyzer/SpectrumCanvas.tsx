@@ -9,6 +9,7 @@ import { CANVAS_SETTINGS } from '@/lib/dsp/constants'
 import { thresholdDraggedStorage } from '@/lib/storage/dwaStorage'
 import { OVERLAY_TEXT, OVERLAY_ACCENT, GROWING_COLOR } from '@/lib/canvas/canvasTokens'
 import { getSeverityColor } from '@/lib/utils/advisoryDisplay'
+import { logError } from '@/lib/utils/logger'
 import type { SpectrumData, Advisory } from '@/types/advisory'
 import type { RoomMode } from '@/lib/dsp/acousticUtils'
 import type { EarlyWarning } from '@/hooks/audioAnalyzerTypes'
@@ -199,7 +200,7 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
           // atomically with the redraw, preventing flash from observer clearing
         }
       } catch (err) {
-        console.error('[SpectrumCanvas] resize error:', err)
+        logError('[SpectrumCanvas] resize error:', err)
       }
     })
 
@@ -221,7 +222,7 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
   // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run only on theme change
   }, [resolvedTheme])
 
-  const render = useCallback((deltaTimeMs: number, _timestamp: number) => {
+  const render = useCallback((deltaTimeMs: number) => {
     // Convert RAF delta (ms) to seconds for frame-rate-independent peak hold decay
     const dtSeconds = deltaTimeMs > 0 ? deltaTimeMs / 1000 : 0.04 // fallback ~25fps
     const spectrum = isFrozenRef.current ? frozenSpectrumRef.current : spectrumRef.current

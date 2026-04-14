@@ -132,6 +132,37 @@ describe('useCompanion', () => {
     expect(first.result.current.lastError).toBeNull()
   })
 
+  it('ignores stale connection checks after Companion is disabled', async () => {
+    let resolveFetch: ((value: { ok: boolean; json: () => Promise<{ ok: boolean; pendingCount: number }> }) => void) | null = null
+    const fetchMock = vi.fn().mockImplementation(() => new Promise((resolve) => {
+      resolveFetch = resolve
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { useCompanion } = await loadUseCompanion()
+    const { result } = renderHook(() => useCompanion())
+
+    act(() => {
+      result.current.updateSettings({ enabled: true })
+    })
+
+    act(() => {
+      result.current.updateSettings({ enabled: false })
+    })
+
+    await act(async () => {
+      resolveFetch?.({
+        ok: true,
+        json: async () => ({ ok: true, pendingCount: 0 }),
+      })
+      await Promise.resolve()
+    })
+
+    expect(result.current.settings.enabled).toBe(false)
+    expect(result.current.connected).toBe(false)
+    expect(result.current.lastError).toBeNull()
+  })
+
   it('dedupes auto-send across multiple hook consumers', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({
@@ -237,7 +268,7 @@ describe('useCompanion', () => {
 
     expect(retryPayload.id).toBe(advisory.id)
     expect(retryPayload.peq.gainDb).toBe(-9)
-    expect(feedbackHistoryMock.consumeRetryCompanionCut).toHaveBeenCalledWith(1000)
+    expect(feedbackHistoryMock.consumeRetryCompanionCut).not.toHaveBeenCalled()
   })
 
   it('dedupes a retry step even when the hotspot is recreated under a new advisory id', async () => {
@@ -334,7 +365,7 @@ describe('useCompanion', () => {
       expect(postCalls).toHaveLength(1)
     })
 
-    expect(feedbackHistoryMock.consumeRetryCompanionCut).toHaveBeenCalledWith(1000)
+    expect(feedbackHistoryMock.consumeRetryCompanionCut).not.toHaveBeenCalled()
   })
 
   it('sends closed-loop retries even below minConfidence', async () => {
@@ -382,7 +413,66 @@ describe('useCompanion', () => {
       expect(postCalls).toHaveLength(1)
     })
 
-    expect(feedbackHistoryMock.consumeRetryCompanionCut).toHaveBeenCalledWith(1000)
+    expect(feedbackHistoryMock.consumeRetryCompanionCut).not.toHaveBeenCalled()
+  })
+
+  it('sends closed-loop retries for POSSIBLE_RING advisories after an explicit cut', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ ok: true, pendingCount: 0 }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ accepted: true, pendingCount: 1 }),
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    feedbackHistoryMock.peekRetryCompanionCut.mockReturnValue({
+      nextGainDb: -9,
+      retryCount: 1,
+      advisoryId: 'ring-1',
+      bandIndex: 15,
+    })
+
+    const { useCompanion } = await loadUseCompanion()
+    const { result } = renderHook(() => useCompanion())
+
+    act(() => {
+      result.current.updateSettings({
+        enabled: true,
+        autoSend: false,
+        minConfidence: 0.95,
+      })
+    })
+
+    await waitFor(() => {
+      expect(result.current.connected).toBe(true)
+    })
+
+    act(() => {
+      result.current.autoSendAdvisories([
+        makeAdvisory({
+          id: 'ring-1',
+          label: 'POSSIBLE_RING',
+          severity: 'POSSIBLE_RING',
+          confidence: 0.2,
+        }),
+      ])
+    })
+
+    await waitFor(() => {
+      const postCalls = fetchMock.mock.calls.filter(([, init]) => init && (init as RequestInit).method === 'POST')
+      expect(postCalls).toHaveLength(1)
+    })
+
+    const postCalls = fetchMock.mock.calls.filter(([, init]) => init && (init as RequestInit).method === 'POST')
+    const request = postCalls[0]?.[1] as RequestInit
+    const payload = JSON.parse(String(request.body))
+
+    expect(payload.type).toBe('auto_apply')
+    expect(payload.peq.gainDb).toBe(-9)
+    expect(feedbackHistoryMock.consumeRetryCompanionCut).not.toHaveBeenCalled()
   })
 
   it('does not auto-send whistle or instrument advisories', async () => {
@@ -501,6 +591,131 @@ describe('useCompanion', () => {
     expect(postCalls).toHaveLength(1)
   })
 
+  it('does not auto-send again after the same advisory was already sent explicitly', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ ok: true, pendingCount: 0 }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ accepted: true, pendingCount: 1 }),
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { useCompanion } = await loadUseCompanion()
+    const { result } = renderHook(() => useCompanion())
+
+    act(() => {
+      result.current.updateSettings({
+        enabled: true,
+        autoSend: true,
+        minConfidence: 0.5,
+      })
+    })
+
+    await waitFor(() => {
+      expect(result.current.connected).toBe(true)
+    })
+
+    await act(async () => {
+      const accepted = await result.current.sendExplicitAdvisory(
+        makeAdvisory({ id: 'adv-explicit' }),
+      )
+      expect(accepted).toBe(true)
+    })
+
+    act(() => {
+      result.current.autoSendAdvisories([
+        makeAdvisory({ id: 'adv-explicit' }),
+      ])
+    })
+
+    const postCalls = fetchMock.mock.calls.filter(([, init]) => init && (init as RequestInit).method === 'POST')
+    expect(postCalls).toHaveLength(1)
+  })
+
+  it('still allows a second explicit send for the same advisory payload', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ ok: true, pendingCount: 0 }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ accepted: true, pendingCount: 1 }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ accepted: true, pendingCount: 1 }),
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { useCompanion } = await loadUseCompanion()
+    const { result } = renderHook(() => useCompanion())
+
+    act(() => {
+      result.current.updateSettings({
+        enabled: true,
+        autoSend: false,
+        minConfidence: 0.5,
+      })
+    })
+
+    await waitFor(() => {
+      expect(result.current.connected).toBe(true)
+    })
+
+    await act(async () => {
+      expect(await result.current.sendExplicitAdvisory(makeAdvisory({ id: 'adv-explicit-repeat' }))).toBe(true)
+      expect(await result.current.sendExplicitAdvisory(makeAdvisory({ id: 'adv-explicit-repeat' }))).toBe(true)
+    })
+
+    const postCalls = fetchMock.mock.calls.filter(([, init]) => init && (init as RequestInit).method === 'POST')
+    expect(postCalls).toHaveLength(2)
+  })
+
+  it('sends mode changes through the relay and refreshes connection state on success', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ ok: true, pendingCount: 0 }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ accepted: true, pendingCount: 0 }),
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { useCompanion } = await loadUseCompanion()
+    const { result } = renderHook(() => useCompanion())
+
+    act(() => {
+      result.current.updateSettings({
+        enabled: true,
+      })
+    })
+
+    await waitFor(() => {
+      expect(result.current.connected).toBe(true)
+    })
+
+    await act(async () => {
+      const accepted = await result.current.sendModeChange('ringOut')
+      expect(accepted).toBe(true)
+    })
+
+    expect(result.current.connected).toBe(true)
+    expect(result.current.lastError).toBeNull()
+
+    const postCalls = fetchMock.mock.calls.filter(([, init]) => init && (init as RequestInit).method === 'POST')
+    expect(postCalls).toHaveLength(1)
+    expect(JSON.parse(String((postCalls[0]?.[1] as RequestInit).body))).toEqual({
+      type: 'mode_change',
+      mode: 'ringOut',
+    })
+  })
+
   it('re-sends when the same advisory id changes its effective EQ payload', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({
@@ -602,6 +817,68 @@ describe('useCompanion', () => {
     await waitFor(() => {
       const postCalls = fetchMock.mock.calls.filter(([, init]) => init && (init as RequestInit).method === 'POST')
       expect(postCalls).toHaveLength(1)
+    })
+  })
+
+  it('re-sends after the same advisory id resolves and later recurs', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ ok: true, pendingCount: 0 }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ accepted: true, pendingCount: 1 }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ accepted: true, pendingCount: 1 }),
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { useCompanion } = await loadUseCompanion()
+    const { result } = renderHook(() => useCompanion())
+
+    act(() => {
+      result.current.updateSettings({
+        enabled: true,
+        autoSend: true,
+        minConfidence: 0.5,
+      })
+    })
+
+    await waitFor(() => {
+      expect(result.current.connected).toBe(true)
+    })
+
+    act(() => {
+      result.current.autoSendAdvisories([
+        makeAdvisory({ id: 'adv-recur' }),
+      ])
+    })
+
+    await waitFor(() => {
+      const postCalls = fetchMock.mock.calls.filter(([, init]) => init && (init as RequestInit).method === 'POST')
+      expect(postCalls).toHaveLength(1)
+    })
+
+    await act(async () => {
+      const accepted = await result.current.sendResolve('adv-recur')
+      expect(accepted).toBe(true)
+    })
+
+    act(() => {
+      result.current.autoSendAdvisories([
+        makeAdvisory({ id: 'adv-recur' }),
+      ])
+    })
+
+    await waitFor(() => {
+      const postCalls = fetchMock.mock.calls.filter(([, init]) => init && (init as RequestInit).method === 'POST')
+      expect(postCalls).toHaveLength(3)
     })
   })
 })

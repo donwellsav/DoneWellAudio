@@ -1,8 +1,9 @@
 'use client'
 
-import { memo, type ComponentProps, type Ref } from 'react'
-import { GEQBarView } from './GEQBarView'
-import { SpectrumCanvas } from './SpectrumCanvas'
+import { memo } from 'react'
+import type { ComponentProps, Ref } from 'react'
+import type { GEQBarView } from './GEQBarView'
+import type { SpectrumCanvas } from './SpectrumCanvas'
 import { DesktopGeqPanel } from './DesktopGeqPanel'
 import { DesktopRtaPanel } from './DesktopRtaPanel'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'

@@ -22,10 +22,14 @@ export function useLowSignal(isRunning: boolean, inputLevel: number, thresholdDb
 
   useEffect(() => {
     if (!isRunning) {
-      setIsLow(false)
       targetRef.current = false
       if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
-      return
+
+      const timeoutId = window.setTimeout(() => {
+        setIsLow(false)
+      }, 0)
+
+      return () => window.clearTimeout(timeoutId)
     }
 
     const rawLow = inputLevel < thresholdDb

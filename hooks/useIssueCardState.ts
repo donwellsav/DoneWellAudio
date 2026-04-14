@@ -32,9 +32,8 @@ export function resolveIssueCardActionsLayout(
   touchFriendly?: boolean,
   swipeLabeling?: boolean,
 ): IssueCardActionsLayout {
-  if (!touchFriendly && !swipeLabeling) return 'desktop'
-  if (!touchFriendly && swipeLabeling) return 'copy-only'
-  if (touchFriendly && !swipeLabeling) return 'mobile'
+  if (!touchFriendly) return 'desktop'
+  if (touchFriendly) return 'mobile'
   return null
 }
 

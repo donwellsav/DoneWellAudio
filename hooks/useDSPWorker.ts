@@ -192,7 +192,11 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
     (peak, spectrum, sampleRate, fftSize, timeDomain) => {
       totalFramesRef.current++
       if (busyRef.current || crashedRef.current || !isReadyRef.current) {
-        if (!crashedRef.current && isReadyRef.current) {
+        if (
+          !crashedRef.current
+          && !permanentlyDeadRef.current
+          && lastInitRef.current
+        ) {
           pendingPeakRef.current = clonePendingPeak(
             peak,
             spectrum,

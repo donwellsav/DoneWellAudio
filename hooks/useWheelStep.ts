@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type RefObject } from 'react'
+import { useEffect, useRef, type RefObject } from 'react'
 
 /**
  * Adds focus-gated scroll-wheel step adjustment to any numerical control.
@@ -37,8 +37,11 @@ export function useWheelStep(
   opts: UseWheelStepOptions,
 ) {
   const optsRef = useRef(opts)
-  optsRef.current = opts
   const focusedRef = useRef(false)
+
+  useEffect(() => {
+    optsRef.current = opts
+  }, [opts])
 
   useEffect(() => {
     const el = ref.current

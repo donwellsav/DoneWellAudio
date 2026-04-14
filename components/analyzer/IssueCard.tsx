@@ -1,6 +1,6 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { AlertTriangle, Check, TrendingUp } from 'lucide-react'
 import { confidenceColor, RUNAWAY_COLOR } from '@/lib/canvas/canvasTokens'
 import { getSeverityText } from '@/lib/utils/advisoryDisplay'
@@ -78,7 +78,19 @@ export const IssueCard = memo(function IssueCard({
     onSendToMixer,
   })
 
-  const ageSec = Math.max(0, Math.round((Date.now() - advisory.timestamp) / 1000))
+  const [nowMs, setNowMs] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (isResolved) return
+
+    const intervalId = window.setInterval(() => {
+      setNowMs(Date.now())
+    }, 1000)
+
+    return () => window.clearInterval(intervalId)
+  }, [isResolved])
+
+  const ageSec = Math.max(0, Math.round((nowMs - advisory.timestamp) / 1000))
   const ageStr = ageSec < 5 ? 'just now' : ageSec < 60 ? `${ageSec}s` : `${Math.floor(ageSec / 60)}m`
   const SeverityIconEl = SEVERITY_ICON[advisory.severity] ?? null
 
@@ -223,13 +235,34 @@ export const IssueCard = memo(function IssueCard({
             {companionState?.applied ? (
               <span
                 className="inline-flex items-center gap-0.5 text-[11px] font-bold text-emerald-400 bg-emerald-500/15 px-1.5 py-0.5 rounded-sm leading-none border border-emerald-500/30"
-                aria-label={`Applied by Companion: ${companionState.applied.gainDb}dB on slot ${companionState.applied.slotIndex}`}
-                title={`Applied by Companion: ${companionState.applied.gainDb}dB on slot ${companionState.applied.slotIndex}`}
+                aria-label={`Applied by Companion: ${companionState.applied.gainDb}dB${companionState.applied.slotIndex !== undefined ? ` on slot ${companionState.applied.slotIndex}` : ''}`}
+                title={`Applied by Companion: ${companionState.applied.gainDb}dB${companionState.applied.slotIndex !== undefined ? ` on slot ${companionState.applied.slotIndex}` : ''}`}
               >
                 <Check className="w-2.5 h-2.5" />
                 {companionState.applied.gainDb}dB
               </span>
-            ) : companionState?.failed ? (
+            ) : null}
+            {companionState?.partialApply ? (
+              <span
+                className="inline-flex items-center gap-0.5 text-[11px] font-bold text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded-sm leading-none border border-amber-500/30"
+                aria-label={`Partial apply: ${companionState.partialApply.peqApplied ? 'PEQ applied' : 'PEQ failed'}, ${companionState.partialApply.geqApplied ? 'GEQ applied' : 'GEQ failed'}${companionState.partialApply.failReason ? `; ${companionState.partialApply.failReason}` : ''}`}
+                title={`Partial apply: ${companionState.partialApply.peqApplied ? 'PEQ applied' : 'PEQ failed'}, ${companionState.partialApply.geqApplied ? 'GEQ applied' : 'GEQ failed'}${companionState.partialApply.failReason ? `; ${companionState.partialApply.failReason}` : ''}`}
+              >
+                <AlertTriangle className="w-2.5 h-2.5" />
+                PARTIAL
+              </span>
+            ) : null}
+            {companionState?.partialClear ? (
+              <span
+                className="inline-flex items-center gap-0.5 text-[11px] font-bold text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded-sm leading-none border border-amber-500/30"
+                aria-label={`Partial clear: ${companionState.partialClear.peqCleared ? 'PEQ cleared' : 'PEQ failed'}, ${companionState.partialClear.geqCleared ? 'GEQ cleared' : 'GEQ failed'}${companionState.partialClear.failReason ? `; ${companionState.partialClear.failReason}` : ''}`}
+                title={`Partial clear: ${companionState.partialClear.peqCleared ? 'PEQ cleared' : 'PEQ failed'}, ${companionState.partialClear.geqCleared ? 'GEQ cleared' : 'GEQ failed'}${companionState.partialClear.failReason ? `; ${companionState.partialClear.failReason}` : ''}`}
+              >
+                <AlertTriangle className="w-2.5 h-2.5" />
+                CLR PART
+              </span>
+            ) : null}
+            {companionState?.failed ? (
               <span
                 className="inline-flex items-center gap-0.5 text-[11px] font-bold text-red-400 bg-red-500/15 px-1.5 py-0.5 rounded-sm leading-none border border-red-500/30"
                 aria-label={`Apply failed: ${companionState.failed.reason}`}
@@ -237,6 +270,16 @@ export const IssueCard = memo(function IssueCard({
               >
                 <AlertTriangle className="w-2.5 h-2.5" />
                 FAIL
+              </span>
+            ) : null}
+            {companionState?.clearFailed ? (
+              <span
+                className="inline-flex items-center gap-0.5 text-[11px] font-bold text-red-400 bg-red-500/15 px-1.5 py-0.5 rounded-sm leading-none border border-red-500/30"
+                aria-label={`Clear failed: ${companionState.clearFailed.reason}`}
+                title={`Clear failed: ${companionState.clearFailed.reason}`}
+              >
+                <AlertTriangle className="w-2.5 h-2.5" />
+                CLR FAIL
               </span>
             ) : null}
             {occurrenceCount >= 3 ? (
@@ -372,6 +415,7 @@ export const IssueCard = memo(function IssueCard({
             onDismiss={onDismiss}
             onCopy={handleCopy}
             copied={copied}
+            onSendToMixer={handleSendToMixer}
             layout="mobile"
           />
         ) : null}

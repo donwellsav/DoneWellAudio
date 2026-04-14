@@ -260,13 +260,11 @@ export class AlgorithmEngine {
     const startBin = Math.max(1, Math.floor(150 * fftSizeParam / sampleRateParam))
     const endBin = Math.min(spectrum.length - 1, Math.ceil(10000 * fftSizeParam / sampleRateParam))
     let specMax = -Infinity
-    let sumLinear = 0
     let validBins = 0
     for (let i = startBin; i <= endBin; i++) {
       const v = spectrum[i]
       if (Number.isFinite(v)) {
         if (v > specMax) specMax = v
-        sumLinear += dbToLinear(v)
         validBins++
       }
     }

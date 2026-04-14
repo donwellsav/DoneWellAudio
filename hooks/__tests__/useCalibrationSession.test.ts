@@ -90,33 +90,6 @@ function makeSpectrum(contentType: SpectrumData['contentType'] = 'speech'): Spec
   }
 }
 
-function makeAdvisory(id: string): Advisory {
-  return {
-    id,
-    trackId: `track-${id}`,
-    timestamp: Date.now(),
-    label: 'ACOUSTIC_FEEDBACK',
-    severity: 'GROWING',
-    confidence: 0.9,
-    why: ['test'],
-    trueFrequencyHz: 1000,
-    trueAmplitudeDb: -18,
-    prominenceDb: 12,
-    qEstimate: 4,
-    bandwidthHz: 250,
-    velocityDbPerSec: 1.2,
-    stabilityCentsStd: 0,
-    harmonicityScore: 0,
-    modulationScore: 0,
-    advisory: {
-      geq: { bandIndex: 15, bandHz: 1000, suggestedDb: -6 },
-      peq: { type: 'bell', hz: 1000, q: 4, gainDb: -6 },
-      shelves: [],
-      pitch: { note: 'B', octave: 5, cents: 0, midi: 83 },
-    },
-  }
-}
-
 describe('useCalibrationSession', () => {
   beforeEach(() => {
     vi.useFakeTimers()

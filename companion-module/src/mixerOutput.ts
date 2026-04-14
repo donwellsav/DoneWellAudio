@@ -320,6 +320,8 @@ export class MixerOutput {
     let geqCleared = false
     let hadPeq = false
     let hadGeq = false
+    const hadOrphanedGeq = this.orphanedGeqWrites.some((orphan) => orphan.advisoryId === advisoryId)
+    let orphanedGeqCleared = !hadOrphanedGeq
 
     // Clear PEQ slot
     for (const [band, slot] of this.activeSlots) {
@@ -385,6 +387,7 @@ export class MixerOutput {
           await this.sendEqMessage(msg)
           this.log('info', `Cleared orphaned GEQ band ${orphan.bandIndex} (advisory ${advisoryId})`)
         } catch {
+          orphanedGeqCleared = false
           remainingOrphans.push(orphan)
         }
       } else {
@@ -393,7 +396,10 @@ export class MixerOutput {
     }
     this.orphanedGeqWrites = remainingOrphans
 
-    const fullyCleared = (!hadPeq || peqCleared) && (!hadGeq || geqCleared)
+    const hadAnyGeqState = hadGeq || hadOrphanedGeq
+    geqCleared = hadAnyGeqState && (!hadGeq || geqCleared) && orphanedGeqCleared
+
+    const fullyCleared = (!hadPeq || peqCleared) && (!hadAnyGeqState || geqCleared)
     return { peqCleared, geqCleared, fullyCleared }
   }
 
@@ -431,50 +437,87 @@ export class MixerOutput {
     for (const band of [...this.activeSlots.keys()]) {
       await this.clearSlot(band)
     }
-    // Revert all tracked GEQ writes — only delete entries that successfully cleared
-    // Collect unique bands to avoid sending duplicate zero commands
-    const bandsSeen = new Set<string>()
-    for (const advisoryId of [...this.activeGeqWrites.keys()]) {
-      const geqWrite = this.activeGeqWrites.get(advisoryId)
-      if (geqWrite && this.profile.buildGeqMessage) {
-        const bandKey = `${geqWrite.prefix}:${geqWrite.bandIndex}`
-        if (!bandsSeen.has(bandKey)) {
-          bandsSeen.add(bandKey)
-          try {
-            const msg = this.profile.buildGeqMessage({
-              prefix: geqWrite.prefix,
-              bandIndex: geqWrite.bandIndex,
-              gainDb: 0,
-            })
-            await this.sendEqMessage(msg)
-          } catch {
-            this.log('warn', `Failed to clear GEQ band ${geqWrite.bandIndex} — entry retained for retry`)
-            continue
-          }
-        }
-        this.activeGeqWrites.delete(advisoryId)
+    if (!this.profile.buildGeqMessage) {
+      this.activeGeqWrites.clear()
+      this.geqBandRefCount.clear()
+      this.orphanedGeqWrites = []
+      return
+    }
+
+    const clearedBands = new Set<string>()
+    const failedBands = new Set<string>()
+    const groupedActiveWrites = new Map<string, ActiveGeqWrite[]>()
+    for (const geqWrite of this.activeGeqWrites.values()) {
+      const bandKey = `${geqWrite.prefix}:${geqWrite.bandIndex}`
+      const existing = groupedActiveWrites.get(bandKey)
+      if (existing) {
+        existing.push(geqWrite)
+      } else {
+        groupedActiveWrites.set(bandKey, [geqWrite])
       }
     }
-    this.geqBandRefCount.clear()
-    // Also drain orphaned writes
-    const remainingOrphans: ActiveGeqWrite[] = []
-    for (const orphan of this.orphanedGeqWrites) {
-      if (this.profile.buildGeqMessage) {
-        const bandKey = `${orphan.prefix}:${orphan.bandIndex}`
-        if (!bandsSeen.has(bandKey)) {
-          bandsSeen.add(bandKey)
-          try {
-            const msg = this.profile.buildGeqMessage({
-              prefix: orphan.prefix,
-              bandIndex: orphan.bandIndex,
-              gainDb: 0,
-            })
-            await this.sendEqMessage(msg)
-          } catch {
-            remainingOrphans.push(orphan)
-            continue
-          }
+
+    const remainingActiveGeqWrites = new Map<string, ActiveGeqWrite>()
+    for (const [bandKey, writes] of groupedActiveWrites) {
+      const [prefix, bandIndexValue] = bandKey.split(':')
+      const bandIndex = Number(bandIndexValue)
+      try {
+        const msg = this.profile.buildGeqMessage({
+          prefix,
+          bandIndex,
+          gainDb: 0,
+        })
+        await this.sendEqMessage(msg)
+        clearedBands.add(bandKey)
+      } catch {
+        failedBands.add(bandKey)
+        this.log('warn', `Failed to clear GEQ band ${bandIndex} - entries retained for retry`)
+        for (const geqWrite of writes) {
+          remainingActiveGeqWrites.set(geqWrite.advisoryId, geqWrite)
         }
+      }
+    }
+    this.activeGeqWrites = remainingActiveGeqWrites
+
+    const nextGeqBandRefCount = new Map<string, number>()
+    for (const geqWrite of this.activeGeqWrites.values()) {
+      const bandKey = `${geqWrite.prefix}:${geqWrite.bandIndex}`
+      nextGeqBandRefCount.set(bandKey, (nextGeqBandRefCount.get(bandKey) ?? 0) + 1)
+    }
+    this.geqBandRefCount = nextGeqBandRefCount
+
+    const groupedOrphans = new Map<string, ActiveGeqWrite[]>()
+    for (const orphan of this.orphanedGeqWrites) {
+      const bandKey = `${orphan.prefix}:${orphan.bandIndex}`
+      const existing = groupedOrphans.get(bandKey)
+      if (existing) {
+        existing.push(orphan)
+      } else {
+        groupedOrphans.set(bandKey, [orphan])
+      }
+    }
+
+    const remainingOrphans: ActiveGeqWrite[] = []
+    for (const [bandKey, orphans] of groupedOrphans) {
+      if (failedBands.has(bandKey)) {
+        remainingOrphans.push(...orphans)
+        continue
+      }
+      if (clearedBands.has(bandKey)) {
+        continue
+      }
+
+      const [prefix, bandIndexValue] = bandKey.split(':')
+      const bandIndex = Number(bandIndexValue)
+      try {
+        const msg = this.profile.buildGeqMessage({
+          prefix,
+          bandIndex,
+          gainDb: 0,
+        })
+        await this.sendEqMessage(msg)
+      } catch {
+        remainingOrphans.push(...orphans)
       }
     }
     this.orphanedGeqWrites = remainingOrphans
@@ -487,6 +530,23 @@ export class MixerOutput {
       total: this.config.peqBandCount,
       slots: [...this.activeSlots.values()],
     }
+  }
+
+  /** Get all advisory IDs that still own mixer-managed state. */
+  getTrackedAdvisoryIds(): string[] {
+    const advisoryIds = new Set<string>()
+
+    for (const slot of this.activeSlots.values()) {
+      advisoryIds.add(slot.advisoryId)
+    }
+    for (const geqWrite of this.activeGeqWrites.values()) {
+      advisoryIds.add(geqWrite.advisoryId)
+    }
+    for (const orphan of this.orphanedGeqWrites) {
+      advisoryIds.add(orphan.advisoryId)
+    }
+
+    return [...advisoryIds]
   }
 
   // ── Slot Allocation ─────────────────────────────────────────

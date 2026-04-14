@@ -35,15 +35,25 @@ export function useIssueAnnouncement(entries: IssueListEntry[]): string {
       announcedIdsRef.current = new Set(retainedIds)
     }
 
+    let nextAnnouncement: string | null = null
+
     for (const entry of entries) {
       const { advisory } = entry
       if (announcedIdsRef.current.has(advisory.id) || advisory.resolved) continue
 
       announcedIdsRef.current.add(advisory.id)
       lastAnnounceTimeRef.current = now
-      setLiveAnnouncement(formatIssueAnnouncement(advisory))
+      nextAnnouncement = formatIssueAnnouncement(advisory)
       break
     }
+
+    if (nextAnnouncement === null) return
+
+    const timeoutId = window.setTimeout(() => {
+      setLiveAnnouncement(nextAnnouncement)
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [entries])
 
   return liveAnnouncement

@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useRef } from 'react'
+import { logError } from '@/lib/utils/logger'
 
 export interface AnimationFrameCallback {
   (deltaTime: number, timestamp: number): void
@@ -56,7 +57,7 @@ export function useAnimationFrame(
         try {
           callbackRef.current(deltaTime, timestamp)
         } catch (err) {
-          console.error('[useAnimationFrame] callback error:', err)
+          logError('[useAnimationFrame] callback error:', err)
         }
       }
 

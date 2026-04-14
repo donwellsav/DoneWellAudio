@@ -21,12 +21,15 @@ const SHORTCUTS = [
 export const KeyboardShortcutsModal = memo(function KeyboardShortcutsModal() {
   const [open, setOpen] = useState(false)
   const openRef = useRef(open)
-  openRef.current = open
 
   /** Element that had focus before modal opened — restored on close */
   const previousFocusRef = useRef<HTMLElement | null>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    openRef.current = open
+  }, [open])
 
   const handleClose = useCallback(() => {
     setOpen(false)

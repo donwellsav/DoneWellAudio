@@ -13,6 +13,11 @@ import { UpdatePresets } from './presets.js'
 import { UpgradeScripts } from './upgrades.js'
 import { MixerOutput } from './mixerOutput.js'
 import { getMixerProfile } from './mixerProfiles.js'
+import {
+  buildApplyResultMessage,
+  reconcilePendingAdvisoriesAfterApply,
+  reconcilePendingAdvisoriesAfterClear,
+} from './applyResultMessage.js'
 
 /** Advisory payload received from the cloud relay */
 interface DwaAdvisory {
@@ -35,8 +40,9 @@ type ModuleToAppMessage =
       advisoryId: string
       bandIndex: number
       appliedGainDb: number
+      maxCutDb?: number
       frequencyHz: number
-      slotIndex: number
+      slotIndex?: number
       timestamp: number
     }
   | { type: 'apply_failed'; advisoryId: string; reason: string; timestamp: number }
@@ -45,10 +51,24 @@ type ModuleToAppMessage =
       advisoryId: string
       peqApplied: boolean
       geqApplied: boolean
+      bandIndex?: number
+      appliedGainDb?: number
+      maxCutDb?: number
+      frequencyHz?: number
+      slotIndex?: number
       failReason: string
       timestamp: number
     }
-  | { type: 'cleared'; advisoryId: string; slotIndex: number; timestamp: number }
+  | {
+      type: 'partial_clear'
+      advisoryId: string
+      peqCleared: boolean
+      geqCleared: boolean
+      failReason: string
+      timestamp: number
+    }
+  | { type: 'clear_failed'; advisoryId: string; reason: string; timestamp: number }
+  | { type: 'cleared'; advisoryId: string; slotIndex?: number; timestamp: number }
   | {
       type: 'command'
       action: string
@@ -76,6 +96,7 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
   pendingAdvisories: DwaAdvisory[] = []
   private pollTimer: ReturnType<typeof setInterval> | null = null
   private mixerOutput: MixerOutput | null = null
+  private currentMode = '--'
 
   async init(config: ModuleConfig): Promise<void> {
     this.config = config
@@ -218,7 +239,7 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
                   void this.sendToApp({
                     type: 'cleared',
                     advisoryId,
-                    slotIndex: slotMatch?.band ?? 0,
+                    ...(slotMatch ? { slotIndex: slotMatch.band } : {}),
                     timestamp: Date.now(),
                   })
                 } else if (result.peqCleared || result.geqCleared) {
@@ -227,12 +248,33 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
                   this.setVariableValues({ slots_used: String(after.used) })
                   const partial = result.peqCleared ? 'PEQ cleared, GEQ failed' : 'GEQ cleared, PEQ failed'
                   this.log('warn', `Partial clear for advisory ${advisoryId}: ${partial} — advisory kept active`)
+                  void this.sendToApp({
+                    type: 'partial_clear',
+                    advisoryId,
+                    peqCleared: result.peqCleared,
+                    geqCleared: result.geqCleared,
+                    failReason: partial,
+                    timestamp: Date.now(),
+                  })
                 } else {
                   this.log('error', `Failed to clear any outputs for advisory ${advisoryId}`)
+                  void this.sendToApp({
+                    type: 'clear_failed',
+                    advisoryId,
+                    reason: 'Failed to clear any outputs for this advisory',
+                    timestamp: Date.now(),
+                  })
                 }
+                this.pendingAdvisories = reconcilePendingAdvisoriesAfterClear(
+                  this.pendingAdvisories,
+                  advisoryId,
+                  result.fullyCleared,
+                )
               })
-              // Remove from pending
-              this.pendingAdvisories = this.pendingAdvisories.filter(a => a.id !== advisoryId)
+            } else if (event.type === 'mode_change' && event.mode) {
+              this.currentMode = event.mode
+              this.setVariableValues({ current_mode: this.currentMode })
+              this.log('info', `DWA mode changed to ${this.currentMode}`)
             }
           }
           this.refreshState()
@@ -275,8 +317,10 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
       note: pitchStr,
       severity: advisory.severity,
       confidence: String(advisory.confidence.toFixed(2)),
+      current_mode: this.currentMode,
       pending_count: String(this.pendingAdvisories.length),
       last_updated: new Date().toLocaleTimeString(),
+      mixer_model: this.config.mixerModel,
     })
 
     // Update feedbacks (button colors)
@@ -304,52 +348,22 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
         }
 
         // Report to DWA based on what actually succeeded
-        const mode = this.config.outputMode || 'peq'
-        const anythingSucceeded = result.peqSlot || result.geqApplied
-        const everythingSucceeded = !result.failReason
-
-        if (anythingSucceeded && everythingSucceeded) {
-          // Full success — all requested outputs landed
-          void this.sendToApp({
-            type: 'applied',
-            advisoryId: advisory.id,
-            bandIndex: advisory.geq.bandIndex,
-            appliedGainDb: result.peqSlot ? advisory.peq.gainDb : advisory.geq.suggestedDb,
-            frequencyHz: result.peqSlot ? advisory.peq.hz : advisory.geq.bandHz,
-            slotIndex: result.peqSlot?.band ?? 0,
-            timestamp: Date.now(),
-          })
-        } else if (anythingSucceeded && mode === 'both') {
-          // Partial success in both mode — one side failed
-          this.log('warn', `Partial apply for ${Math.round(advisory.peq.hz)}Hz: ${result.failReason}`)
-          void this.sendToApp({
-            type: 'partial_apply',
-            advisoryId: advisory.id,
-            peqApplied: !!result.peqSlot,
-            geqApplied: result.geqApplied,
-            failReason: result.failReason!,
-            timestamp: Date.now(),
-          })
-        } else if (anythingSucceeded) {
-          // Single-mode success (peq-only or geq-only mode)
-          void this.sendToApp({
-            type: 'applied',
-            advisoryId: advisory.id,
-            bandIndex: advisory.geq.bandIndex,
-            appliedGainDb: result.peqSlot ? advisory.peq.gainDb : advisory.geq.suggestedDb,
-            frequencyHz: result.peqSlot ? advisory.peq.hz : advisory.geq.bandHz,
-            slotIndex: result.peqSlot?.band ?? 0,
-            timestamp: Date.now(),
-          })
-        } else {
-          // Nothing succeeded
-          void this.sendToApp({
-            type: 'apply_failed',
-            advisoryId: advisory.id,
-            reason: result.failReason || 'Apply failed',
-            timestamp: Date.now(),
-          })
+        const outboundMessage = buildApplyResultMessage({
+          advisory,
+          result,
+          outputMode: this.config.outputMode || 'peq',
+          maxCutDb: this.config.maxCutDb,
+          timestamp: Date.now(),
+        })
+        this.pendingAdvisories = reconcilePendingAdvisoriesAfterApply(
+          this.pendingAdvisories,
+          outboundMessage,
+        )
+        this.refreshState()
+        if (outboundMessage.type === 'partial_apply') {
+          this.log('warn', `Partial apply for ${Math.round(advisory.peq.hz)}Hz: ${outboundMessage.failReason}`)
         }
+        void this.sendToApp(outboundMessage)
       }).catch((err) => {
         const msg = err instanceof Error ? err.message : 'Apply failed'
         this.log('error', `Auto-apply failed: ${msg}`)
@@ -397,17 +411,81 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
           slots_total: String(summary.total),
         })
       }
+      const outboundMessage = buildApplyResultMessage({
+        advisory: latest,
+        result,
+        outputMode: this.config.outputMode || 'peq',
+        maxCutDb: this.config.maxCutDb,
+        timestamp: Date.now(),
+      })
+      this.pendingAdvisories = reconcilePendingAdvisoriesAfterApply(
+        this.pendingAdvisories,
+        outboundMessage,
+      )
+      this.refreshState()
+      if (outboundMessage.type === 'partial_apply') {
+        this.log('warn', `Partial apply for ${Math.round(latest.peq.hz)}Hz: ${outboundMessage.failReason}`)
+      }
+      void this.sendToApp(outboundMessage)
     }).catch((err) => {
       const msg = err instanceof Error ? err.message : 'Apply failed'
       this.log('error', `Apply failed: ${msg}`)
+      void this.sendToApp({
+        type: 'apply_failed',
+        advisoryId: latest.id,
+        reason: msg,
+        timestamp: Date.now(),
+      })
     })
   }
 
-  clearAll(): void {
+  async clearAll(): Promise<void> {
+    const trackedBefore = this.mixerOutput?.getTrackedAdvisoryIds() ?? []
+    const slotIndexByAdvisoryId = new Map<string, number>()
+    this.mixerOutput?.getSlotSummary().slots.forEach((slot) => {
+      if (!slotIndexByAdvisoryId.has(slot.advisoryId)) {
+        slotIndexByAdvisoryId.set(slot.advisoryId, slot.band)
+      }
+    })
+
     this.pendingAdvisories = []
+    await this.mixerOutput?.clearAll()
+
+    const trackedAfter = new Set(this.mixerOutput?.getTrackedAdvisoryIds() ?? [])
+    const clearedAdvisoryIds = trackedBefore.filter(
+      (advisoryId) => !trackedAfter.has(advisoryId),
+    )
+    const failedAdvisoryIds = trackedBefore.filter((advisoryId) => trackedAfter.has(advisoryId))
+
     this.resetVariables()
     this.checkFeedbacks('advisory_pending', 'severity_runaway', 'severity_growing')
-    this.log('info', 'Cleared all advisories')
+    this.log('info', 'Cleared all advisories and module-managed mixer state')
+
+    const timestamp = Date.now()
+    for (const advisoryId of clearedAdvisoryIds) {
+      const slotIndex = slotIndexByAdvisoryId.get(advisoryId)
+      void this.sendToApp({
+        type: 'cleared',
+        advisoryId,
+        ...(slotIndex !== undefined ? { slotIndex } : {}),
+        timestamp,
+      })
+    }
+    for (const advisoryId of failedAdvisoryIds) {
+      void this.sendToApp({
+        type: 'clear_failed',
+        advisoryId,
+        reason: 'Local clear all did not fully remove all mixer state for this advisory',
+        timestamp,
+      })
+    }
+
+    if (trackedAfter.size > 0) {
+      this.log(
+        'warn',
+        `Some mixer state could not be cleared locally (${trackedAfter.size} advisory IDs still tracked)`,
+      )
+    }
   }
 
   private refreshState(): void {
@@ -425,8 +503,10 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
         note: pitchStr,
         severity: latest.severity,
         confidence: String(latest.confidence.toFixed(2)),
+        current_mode: this.currentMode,
         pending_count: String(this.pendingAdvisories.length),
         last_updated: new Date().toLocaleTimeString(),
+        mixer_model: this.config.mixerModel,
       })
     } else {
       this.resetVariables()
@@ -446,8 +526,12 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
       note: '--',
       severity: '--',
       confidence: '--',
+      current_mode: this.currentMode,
       pending_count: '0',
       last_updated: '--',
+      slots_used: String(this.mixerOutput?.getSlotSummary().used ?? 0),
+      slots_total: String(this.config.peqBandCount),
+      mixer_model: this.config.mixerModel,
     })
   }
 }

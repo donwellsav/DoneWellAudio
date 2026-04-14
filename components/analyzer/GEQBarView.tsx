@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useCallback, useEffect, useRef, type MouseEvent } from 'react'
+import { memo, useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
 import { useTheme } from 'next-themes'
 import { useAnimationFrame } from '@/hooks/useAnimationFrame'
 import { GEQBarEmptyState } from './GEQBarEmptyState'
@@ -33,6 +33,7 @@ export const GEQBarView = memo(function GEQBarView({
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null)
   const dprRef = useRef(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1)
   const dirtyRef = useRef(true)
+  const [containerWidth, setContainerWidth] = useState(300)
 
   const {
     bandRecommendations,
@@ -61,6 +62,7 @@ export const GEQBarView = memo(function GEQBarView({
       for (const entry of entries) {
         const { width, height } = entry.contentRect
         dimensionsRef.current = { width, height }
+        setContainerWidth(width)
 
         const dpr = window.devicePixelRatio || 1
         dprRef.current = dpr
@@ -152,7 +154,7 @@ export const GEQBarView = memo(function GEQBarView({
           hoverRec={hoverRec}
           hoverLabel={hoverLabel}
           hoverPos={hoverPos}
-          containerWidth={containerRef.current?.clientWidth ?? 300}
+          containerWidth={containerWidth}
         />
       )}
 

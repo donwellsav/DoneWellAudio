@@ -7,6 +7,7 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { AdvisoryManager } from '../advisoryManager'
+import type * as MathHelpersModule from '@/lib/utils/mathHelpers'
 import type {
   Track,
   TrackFeatures,
@@ -23,7 +24,7 @@ import type {
 let idCounter = 0
 
 vi.mock('@/lib/utils/mathHelpers', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/utils/mathHelpers')>()
+  const actual = await importOriginal<typeof MathHelpersModule>()
   return {
     ...actual,
     generateId: () => `test-id-${++idCounter}`,
@@ -311,6 +312,54 @@ describe('AdvisoryManager', () => {
       expect(actions2).toHaveLength(1)
       expect(actions2[0].type).toBe('advisory')
     })
+
+    it('removes the previous GEQ band mapping when an updated advisory changes bands', () => {
+      const initialTrack = makeTrack({ id: 'track-band-shift', trueFrequencyHz: 1000 })
+      const shiftedTrack = makeTrack({ id: 'track-band-shift', trueFrequencyHz: 1250 })
+      const oldBandEq = makeEQAdvisory({
+        geq: { bandHz: 1000, bandIndex: 15, suggestedDb: -6 },
+      })
+      const newBandEq = makeEQAdvisory({
+        geq: { bandHz: 1250, bandIndex: 16, suggestedDb: -6 },
+        peq: { type: 'bell', hz: 1250, q: 8, gainDb: -6 },
+      })
+
+      mgr.createOrUpdate(
+        initialTrack,
+        makePeak({ timestamp: 10000 }),
+        makeClassification(),
+        oldBandEq,
+        settings,
+      )
+
+      mgr.createOrUpdate(
+        shiftedTrack,
+        makePeak({ timestamp: 11000, trueFrequencyHz: 1250 }),
+        makeClassification(),
+        newBandEq,
+        settings,
+      )
+
+      const newTrack = makeTrack({
+        id: 'track-old-band',
+        trueFrequencyHz: 1000,
+      })
+      const actions = mgr.createOrUpdate(
+        newTrack,
+        makePeak({ timestamp: 12050 }),
+        makeClassification(),
+        oldBandEq,
+        makeSettings({ peakMergeCents: 0 }),
+      )
+
+      expect(actions).toHaveLength(1)
+      expect(actions[0].type).toBe('advisory')
+      expect(mgr.getAdvisoryIdForTrack('track-band-shift')).toBeDefined()
+      expect(mgr.getAdvisoryIdForTrack('track-old-band')).toBeDefined()
+      expect(mgr.getAdvisoryIdForTrack('track-old-band')).not.toBe(
+        mgr.getAdvisoryIdForTrack('track-band-shift'),
+      )
+    })
   })
 
   // ── 3. Frequency proximity dedup ─────────────────────────────────────────
@@ -368,6 +417,41 @@ describe('AdvisoryManager', () => {
       const newAdv = (advisoryAction as { type: 'advisory'; advisory: { trackId: string; clusterCount: number } }).advisory
       expect(newAdv.trackId).toBe('track-s2')
       expect(newAdv.clusterCount).toBe(2) // carried cluster count forward
+    })
+
+    it('cleans up absorbed track mappings when a merged advisory is superseded', () => {
+      const track1 = makeTrack({ id: 'track-sup-1', trueFrequencyHz: 1000, trueAmplitudeDb: -25 })
+      const track2 = makeTrack({ id: 'track-sup-2', trueFrequencyHz: 1050, trueAmplitudeDb: -30 })
+      const track3 = makeTrack({ id: 'track-sup-3', trueFrequencyHz: 1045, trueAmplitudeDb: -20 })
+
+      mgr.createOrUpdate(
+        track1,
+        makePeak({ timestamp: 10000 }),
+        makeClassification({ severity: 'GROWING' }),
+        makeEQAdvisory(),
+        settings,
+      )
+
+      mgr.createOrUpdate(
+        track2,
+        makePeak({ timestamp: 11000, trueFrequencyHz: 1050 }),
+        makeClassification({ severity: 'RESONANCE' }),
+        makeEQAdvisory(),
+        settings,
+      )
+
+      const actions = mgr.createOrUpdate(
+        track3,
+        makePeak({ timestamp: 12000, trueFrequencyHz: 1045 }),
+        makeClassification({ severity: 'RUNAWAY' }),
+        makeEQAdvisory(),
+        settings,
+      )
+
+      expect(actions.some((action) => action.type === 'advisoryCleared')).toBe(true)
+      expect(mgr.getAdvisoryIdForTrack('track-sup-1')).toBeUndefined()
+      expect(mgr.getAdvisoryIdForTrack('track-sup-2')).toBeUndefined()
+      expect(mgr.getAdvisoryIdForTrack('track-sup-3')).toBeDefined()
     })
 
     it('does not dedup tracks that are far apart in frequency', () => {
@@ -688,6 +772,31 @@ describe('AdvisoryManager', () => {
 
       expect(actions).toHaveLength(0)
     })
+
+    it('removes all absorbed track mappings when clearing a merged advisory by frequency', () => {
+      const track1 = makeTrack({ id: 'track-cf-merged-1', trueFrequencyHz: 1000, trueAmplitudeDb: -25 })
+      const track2 = makeTrack({ id: 'track-cf-merged-2', trueFrequencyHz: 1050, trueAmplitudeDb: -30 })
+
+      mgr.createOrUpdate(
+        track1,
+        makePeak({ timestamp: 10000 }),
+        makeClassification({ severity: 'GROWING' }),
+        makeEQAdvisory(),
+        settings,
+      )
+      mgr.createOrUpdate(
+        track2,
+        makePeak({ timestamp: 11000, trueFrequencyHz: 1050 }),
+        makeClassification({ severity: 'RESONANCE' }),
+        makeEQAdvisory(),
+        settings,
+      )
+
+      mgr.clearByFrequency(1000, 20000)
+
+      expect(mgr.getAdvisoryIdForTrack('track-cf-merged-1')).toBeUndefined()
+      expect(mgr.getAdvisoryIdForTrack('track-cf-merged-2')).toBeUndefined()
+    })
   })
 
   // ── 9. clearForTrack ─────────────────────────────────────────────────────
@@ -731,6 +840,31 @@ describe('AdvisoryManager', () => {
       expect(actions[0].type).toBe('advisory')
       const adv = (actions[0] as { type: 'advisory'; advisory: { clusterCount?: number } }).advisory
       expect(adv.clusterCount).toBeUndefined() // fresh advisory, not merged
+    })
+
+    it('removes absorbed track mappings when clearing by the primary track', () => {
+      const track1 = makeTrack({ id: 'track-ct-merged-1', trueFrequencyHz: 1000, trueAmplitudeDb: -25 })
+      const track2 = makeTrack({ id: 'track-ct-merged-2', trueFrequencyHz: 1050, trueAmplitudeDb: -30 })
+
+      mgr.createOrUpdate(
+        track1,
+        makePeak({ timestamp: 10000 }),
+        makeClassification({ severity: 'GROWING' }),
+        makeEQAdvisory(),
+        settings,
+      )
+      mgr.createOrUpdate(
+        track2,
+        makePeak({ timestamp: 11000, trueFrequencyHz: 1050 }),
+        makeClassification({ severity: 'RESONANCE' }),
+        makeEQAdvisory(),
+        settings,
+      )
+
+      mgr.clearForTrack('track-ct-merged-1')
+
+      expect(mgr.getAdvisoryIdForTrack('track-ct-merged-1')).toBeUndefined()
+      expect(mgr.getAdvisoryIdForTrack('track-ct-merged-2')).toBeUndefined()
     })
   })
 

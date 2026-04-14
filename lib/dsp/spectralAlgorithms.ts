@@ -10,7 +10,7 @@
  */
 
 import type { ContentType } from '@/types/advisory'
-import { COMPRESSION_SETTINGS, TEMPORAL_ENVELOPE } from './constants'
+import { TEMPORAL_ENVELOPE } from './constants'
 import { COMPRESSION_CONSTANTS } from './compressionDetection'
 import { medianInPlace } from '@/lib/utils/mathHelpers'
 import { dbToLinearLut } from './expLut'
@@ -68,9 +68,11 @@ export interface TemporalMetrics {
 export function analyzeInterHarmonicRatio(
   spectrum: Float32Array,
   fundamentalBin: number,
-  sampleRate: number,
-  fftSize: number
+  _sampleRate: number,
+  _fftSize: number
 ): InterHarmonicResult {
+  void _sampleRate
+  void _fftSize
   const maxBin = spectrum.length - 1
   const nyquistBin = Math.floor(maxBin * 0.95)
 

@@ -6,6 +6,7 @@
  */
 
 import type { ModuleToAppMessage } from '@/types/companion'
+import { logWarn } from '@/lib/utils/logger'
 
 /** Advisory-related state updates triggered by module responses. */
 export interface CompanionInboundAdvisoryHandlers {
@@ -14,8 +15,9 @@ export interface CompanionInboundAdvisoryHandlers {
     advisoryId: string
     bandIndex: number
     appliedGainDb: number
+    maxCutDb?: number
     frequencyHz: number
-    slotIndex: number
+    slotIndex?: number
     timestamp: number
   }) => void
   onApplyFailed?: (advisoryId: string, reason: string, timestamp: number) => void
@@ -23,10 +25,23 @@ export interface CompanionInboundAdvisoryHandlers {
     advisoryId: string
     peqApplied: boolean
     geqApplied: boolean
+    bandIndex?: number
+    appliedGainDb?: number
+    maxCutDb?: number
+    frequencyHz?: number
+    slotIndex?: number
     failReason: string
     timestamp: number
   }) => void
-  onCleared?: (advisoryId: string, slotIndex: number, timestamp: number) => void
+  onPartialClear?: (args: {
+    advisoryId: string
+    peqCleared: boolean
+    geqCleared: boolean
+    failReason: string
+    timestamp: number
+  }) => void
+  onClearFailed?: (advisoryId: string, reason: string, timestamp: number) => void
+  onCleared?: (advisoryId: string, slotIndex: number | undefined, timestamp: number) => void
 }
 
 /** Commands from Stream Deck buttons. */
@@ -65,6 +80,7 @@ export function dispatchCompanionMessage(
         advisoryId: message.advisoryId,
         bandIndex: message.bandIndex,
         appliedGainDb: message.appliedGainDb,
+        maxCutDb: message.maxCutDb,
         frequencyHz: message.frequencyHz,
         slotIndex: message.slotIndex,
         timestamp: message.timestamp,
@@ -80,9 +96,28 @@ export function dispatchCompanionMessage(
         advisoryId: message.advisoryId,
         peqApplied: message.peqApplied,
         geqApplied: message.geqApplied,
+        bandIndex: message.bandIndex,
+        appliedGainDb: message.appliedGainDb,
+        maxCutDb: message.maxCutDb,
+        frequencyHz: message.frequencyHz,
+        slotIndex: message.slotIndex,
         failReason: message.failReason,
         timestamp: message.timestamp,
       })
+      return
+
+    case 'partial_clear':
+      handlers.onPartialClear?.({
+        advisoryId: message.advisoryId,
+        peqCleared: message.peqCleared,
+        geqCleared: message.geqCleared,
+        failReason: message.failReason,
+        timestamp: message.timestamp,
+      })
+      return
+
+    case 'clear_failed':
+      handlers.onClearFailed?.(message.advisoryId, message.reason, message.timestamp)
       return
 
     case 'cleared':
@@ -111,7 +146,7 @@ export function dispatchCompanionMessages(
     try {
       dispatchCompanionMessage(message, handlers)
     } catch (err) {
-      console.warn('[CompanionInbound] dispatch error:', err)
+      logWarn('[CompanionInbound] dispatch error:', err)
     }
   }
 }

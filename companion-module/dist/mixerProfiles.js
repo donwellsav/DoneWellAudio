@@ -94,9 +94,10 @@ function clearAhEq(prefix, band) {
 }
 // ═══ PA2 TCP ═══
 function buildPa2Eq(_prefix, band, freqHz, gainDb, q) {
+    const clampedQ = Math.max(4, Math.min(16, q));
     return {
         protocol: 'tcp',
-        tcpPayload: JSON.stringify({ command: 'set_peq', filter: band, frequency: freqHz, gain: gainDb, q, type: 'Bell' }) + '\n',
+        tcpPayload: JSON.stringify({ command: 'set_peq', filter: band, frequency: freqHz, gain: gainDb, q: clampedQ, type: 'Bell' }) + '\n',
     };
 }
 function clearPa2Eq(_prefix, band) {

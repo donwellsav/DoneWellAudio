@@ -26,7 +26,7 @@ vi.stubGlobal('Path2D', Path2DStub)
 // ── Mock heavy dependencies to isolate canvas logic ────────────────────────
 
 vi.mock('@/lib/dsp/eqAdvisor', () => ({
-  getSeverityColor: (_severity: string, _isDark?: boolean) => '#ff0000',
+  getSeverityColor: () => '#ff0000',
 }))
 
 vi.mock('@/lib/dsp/severityUtils', () => ({
@@ -54,11 +54,8 @@ import {
   drawMarkers,
   DARK_CANVAS_THEME,
   LIGHT_CANVAS_THEME,
-  DB_MAJOR,
-  DB_MINOR,
-  FREQ_LABELS,
 } from '../spectrumDrawing'
-import type { DbRange, CanvasTheme } from '../spectrumDrawing'
+import type { DbRange } from '../spectrumDrawing'
 import type { Advisory } from '@/types/advisory'
 
 // ── Mock canvas context factory ─────────────────────────────────────────────

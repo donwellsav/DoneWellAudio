@@ -4,11 +4,9 @@
 import { EXP_LUT, HARMONIC_SETTINGS, MSD_SETTINGS, PERSISTENCE_SCORING, MODE_PERSISTENCE_HIGH_MS, SIGNAL_GATE, HYSTERESIS } from './constants'
 import {
   medianInPlace,
-  buildPrefixSum,
   quadraticInterpolation,
   clamp,
   isValidFftSize,
-  generateId
 } from '@/lib/utils/mathHelpers'
 import type { DetectedPeak, AnalysisConfig, DetectorSettings, AlgorithmMode, ContentType } from '@/types/advisory'
 import { DEFAULT_CONFIG } from '@/types/advisory'
@@ -1052,8 +1050,7 @@ export class FeedbackDetector {
     const prominenceThreshold = this.config.prominenceDb
     const clearMs = this.config.clearMs
     const sustainMs = this.config.sustainMs
-    const msdWriteThreshold = effectiveThresholdDb - 6
-    const earlyConfirmThreshold = effectiveThresholdDb - MSD_SETTINGS.THRESHOLD_REDUCTION_DB
+    const msdWriteThreshold = effectiveThresholdDb - 9
     const reTriggerThreshold = effectiveThresholdDb + HYSTERESIS.RE_TRIGGER_DB
     const neighborhoodCount = 2 * nb - 4
     const hzPerBin = this.getSampleRate() / this.config.fftSize
@@ -1078,9 +1075,13 @@ export class FeedbackDetector {
       let valid = isLocalMax && peakDb >= effectiveThresholdDb
       let prominence = -Infinity
 
-      // MSD early detection: if peak is just below threshold but MSD confirms
-      // a howl pattern (consistent growth), lower the threshold to catch it early.
-      // This lets quiet feedback through before it becomes obvious.
+      const freqHz = i * hzPerBin
+      const earlyConfirmReductionDb = freqHz < 250 ? 10 : 8
+      const earlyConfirmThreshold = effectiveThresholdDb - earlyConfirmReductionDb
+
+      // MSD early detection: let a narrow near-miss through when temporal
+      // evidence already looks like feedback. The old 4 dB rescue window was
+      // too tight for real wedges/FOH rings that start just above the floor.
       if (!valid && isLocalMax && peakDb >= earlyConfirmThreshold) {
         const msdResult = this.calculateMsd(i)
         this._msdResultCache.set(i, { gen: this._msdCacheGen, ...msdResult })
@@ -1131,7 +1132,6 @@ export class FeedbackDetector {
         // Adaptive sustain: low frequencies need longer confirmation (room modes),
         // high frequencies confirm faster (almost always feedback, not resonance).
         // Scale: <200Hz = 1.5x sustain, 200-4000Hz = 1.0x, >4000Hz = 0.6x
-        const freqHz = i * hzPerBin
         const sustainScale = freqHz < 200 ? 1.5 : freqHz > 4000 ? 0.6 : 1.0
         if (hold[i] >= sustainMs * sustainScale && active[i] === 0) {
           this._registerPeak(i, now, prominence, effectiveThresholdDb)
@@ -1359,7 +1359,13 @@ export class FeedbackDetector {
     if (this.noiseFloorDb !== null && this.freqDb) {
       const currentDb = this.freqDb[binIndex]
       const energyAboveNoise = currentDb - this.noiseFloorDb
-      if (energyAboveNoise < MSD_SETTINGS.MIN_ENERGY_ABOVE_NOISE_DB) {
+      const minEnergyAboveNoiseDb =
+        this.config.mode === 'monitors' || this.config.mode === 'ringOut'
+          ? 3
+          : this.config.mode === 'speech' || this.config.mode === 'broadcast'
+            ? 4
+            : 5
+      if (energyAboveNoise < minEnergyAboveNoiseDb) {
         return { msd: 999, growthRate: 0, isHowl: false, fastConfirm: false }
       }
     }

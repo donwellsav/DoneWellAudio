@@ -35,9 +35,13 @@ export function useGeneralUIState(
   }, [])
 
   useEffect(() => {
-    if (!isRunning) {
+    if (isRunning) return
+
+    const timeoutId = window.setTimeout(() => {
       setIsFrozen(false)
-    }
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [isRunning])
 
   const resetLayout = useCallback(() => {

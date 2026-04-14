@@ -15,7 +15,6 @@ import {
   DB_MINOR,
   DB_ALL,
   FREQ_LABELS,
-  cachedMeasureText,
 } from './canvasTypes'
 
 // ── Grid Path2D cache — geometry rebuilt only when range or dimensions change ──
@@ -25,7 +24,6 @@ let _gridFreqPath: Path2D | null = null
 let _gridCacheKey = ''
 
 // ── Gradient cache — rebuilt only on canvas resize ──
-let _vignetteGrad: CanvasGradient | null = null
 let _backlightGradDark: CanvasGradient | null = null
 let _backlightGradLight: CanvasGradient | null = null
 let _gradCacheKey = ''
@@ -45,10 +43,6 @@ export function drawGrid(
   const isDark = theme === DARK_CANVAS_THEME
   const gKey = `${plotWidth}|${plotHeight}`
   if (gKey !== _gradCacheKey) {
-    _vignetteGrad = ctx.createRadialGradient(
-      plotWidth / 2, plotHeight / 2, plotWidth * 0.25,
-      plotWidth / 2, plotHeight / 2, plotWidth * 0.75,
-    )
     // Color stops added per-frame below (theme may change without resize)
     _backlightGradDark = ctx.createRadialGradient(
       plotWidth * 0.5, plotHeight * 0.3, 0,

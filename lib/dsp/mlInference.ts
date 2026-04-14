@@ -108,9 +108,7 @@ export class MLInferenceEngine {
       }).catch((err: unknown) => {
         this._consecutiveFailures++
         this._totalFailures++
-        if (this._consecutiveFailures <= 3) {
-          console.warn(`[MLInference] predict() failed (${this._consecutiveFailures} consecutive):`, err)
-        }
+        void err
       })
 
       return result
@@ -181,9 +179,7 @@ export class MLInferenceEngine {
       // Inference error — keep last prediction, track failures
       this._consecutiveFailures++
       this._totalFailures++
-      if (this._consecutiveFailures <= 3) {
-        console.warn(`[MLInference] inference failed (${this._consecutiveFailures} consecutive):`, err)
-      }
+      void err
     }).finally(() => {
       this._inferenceInFlight = false
       // If new features arrived while we were processing, run again
@@ -228,11 +224,9 @@ export class MLInferenceEngine {
       const pathMatch = ML_SETTINGS.MODEL_PATH.match(/dwa-fp-filter-(v\d+)/)
       this._modelVersion = pathMatch ? `dwa-fp-${pathMatch[1]}` : 'dwa-fp-v1'
       this._available = true
-      console.debug(`[MLInference] Model loaded: ${this._modelVersion}`)
-    } catch (err) {
+    } catch {
       // ONNX load failed (network error, unsupported browser, etc.)
       // Fusion continues with 6 algorithms — no user-facing error
-      console.warn('[MLInference] Failed to load ONNX model, ML scoring disabled:', err)
       this._available = false
     } finally {
       this._loading = null

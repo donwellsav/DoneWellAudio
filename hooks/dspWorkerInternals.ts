@@ -4,6 +4,7 @@ import type { MutableRefObject } from 'react'
 import * as Sentry from '@sentry/nextjs'
 import type { DetectedPeak } from '@/types/advisory'
 import type { WorkerInboundMessage, WorkerOutboundMessage } from '@/lib/dsp/dspWorker'
+import { logWarn } from '@/lib/utils/logger'
 import type {
   DSPWorkerCallbacks,
   PendingCollectionRequest,
@@ -229,6 +230,7 @@ export function createDSPWorkerMessageHandler(
         })
         replayPendingCollection(worker, refs)
         replayPendingFeedbackHistory(worker, refs)
+        flushBufferedPeak(refs)
         refs.callbacksRef.current.onReady?.()
         break
       case 'advisory':
@@ -283,7 +285,7 @@ export function createDSPWorkerMessageHandler(
         break
       default:
         if (process.env.NODE_ENV === 'development') {
-          console.warn(
+          logWarn(
             '[useDSPWorker] unhandled message type:',
             (message as { type: string }).type,
           )

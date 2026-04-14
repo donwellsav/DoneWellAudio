@@ -17,7 +17,7 @@
 import { TrackManager } from './trackManager'
 import { classifyTrackWithAlgorithms, shouldReportIssue } from './classifier'
 import { generateEQAdvisory, analyzeSpectralTrends } from './eqAdvisor'
-import { fuseAlgorithmResults, DEFAULT_FUSION_CONFIG, CombStabilityTracker } from './advancedDetection'
+import { fuseAlgorithmResults, DEFAULT_FUSION_CONFIG, CombStabilityTracker, AgreementPersistenceTracker } from './advancedDetection'
 import type { CombPatternResult, FusionConfig } from './advancedDetection'
 import { AlgorithmEngine } from './workerFft'
 import { AdvisoryManager } from './advisoryManager'
@@ -31,6 +31,7 @@ import type {
   RecommendationContext,
   TrackedPeak,
 } from '@/types/advisory'
+import type { RoomDimensionEstimate } from '@/types/calibration'
 import type { SnapshotWorkerInbound, SnapshotWorkerOutbound, MarkerAlgorithmScores, UserFeedback } from '@/types/data'
 import { SnapshotCollector } from '@/lib/data/snapshotCollector'
 import { DEFAULT_SETTINGS, MSD_SETTINGS } from './constants'
@@ -105,7 +106,7 @@ export type WorkerOutboundMessage =
   | { type: 'ready' }
   | { type: 'error'; message: string }
   // Room dimension estimation responses
-  | { type: 'roomEstimate'; estimate: import('@/types/calibration').RoomDimensionEstimate }
+  | { type: 'roomEstimate'; estimate: RoomDimensionEstimate }
   | { type: 'roomMeasurementProgress'; elapsedMs: number; stablePeaks: number }
   // Snapshot collection responses
   | SnapshotWorkerOutbound
@@ -213,7 +214,6 @@ let snapshotCollector: SnapshotCollector | null = null
 
 import { estimateRoomDimensions } from './acousticUtils'
 import { ROOM_ESTIMATION } from './constants'
-import type { RoomDimensionEstimate } from '@/types/calibration'
 
 interface RoomMeasurementState {
   active: boolean
@@ -239,6 +239,8 @@ const decayAnalyzer = new DecayAnalyzer()
 
 /** Per-track comb stability trackers — prevents cross-peak contamination. */
 const combTrackers = new Map<string, CombStabilityTracker>()
+/** Per-track agreement persistence trackers — lift stable borderline feedback over time. */
+const agreementTrackers = new Map<string, AgreementPersistenceTracker>()
 
 /** Pre-allocated scratch array for active track frequencies — avoids .map() allocation per peak. */
 const _peakFreqScratch: number[] = []
@@ -324,6 +326,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       algorithmEngine.init(fftSize)
       trackManager.clear()
       combTrackers.clear()
+      agreementTrackers.clear()
       advisoryManager.reset()
       decayAnalyzer.reset()
       classificationLabelHistory.clear()
@@ -358,6 +361,8 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       algorithmEngine.reset()
       advisoryManager.reset()
       decayAnalyzer.reset()
+      combTrackers.clear()
+      agreementTrackers.clear()
       classificationLabelHistory.clear()
       peakProcessCount = 0
       cachedShelves = null
@@ -375,11 +380,9 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         // Always create a new instance — re-enable may carry new sessionId,
         // fftSize, or sampleRate (e.g., device change, session restart).
         if (snapshotCollector) {
-          console.debug('[DSP Worker] enableCollection: replacing existing collector')
           snapshotCollector.reset()
         }
         snapshotCollector = new SnapshotCollector(msg.sessionId, msg.fftSize, msg.sampleRate)
-        console.debug('[DSP Worker] SnapshotCollector ready')
         const stats = snapshotCollector.getStats()
         self.postMessage({
           type: 'collectionStats',
@@ -388,7 +391,6 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
           bytesCollected: stats.bytesCollected,
         } satisfies WorkerOutboundMessage)
       } catch (err) {
-        console.error('[DSP Worker] Failed to create SnapshotCollector:', err)
         snapshotCollector = null
         self.postMessage({
           type: 'error',
@@ -471,7 +473,6 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
     case 'processPeak': {
       // Guard: worker must be initialized before processing peaks
       if (!sampleRate || !fftSize) {
-        console.warn('[dspWorker] processPeak received before init — ignoring')
         break
       }
       const spectrum = msg.spectrum
@@ -516,6 +517,9 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
           }
           for (const trackId of combTrackers.keys()) {
             if (!trackManager.isActiveTrack(trackId)) combTrackers.delete(trackId)
+          }
+          for (const trackId of agreementTrackers.keys()) {
+            if (!trackManager.isActiveTrack(trackId)) agreementTrackers.delete(trackId)
           }
         }
 
@@ -639,9 +643,20 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         trackCst = new CombStabilityTracker()
         combTrackers.set(track.id, trackCst)
       }
+      let trackAgreement = agreementTrackers.get(track.id)
+      if (!trackAgreement) {
+        if (agreementTrackers.size >= 256) {
+          for (const tid of agreementTrackers.keys()) {
+            if (!trackManager.isActiveTrack(tid)) agreementTrackers.delete(tid)
+          }
+          if (agreementTrackers.size >= 300) agreementTrackers.clear()
+        }
+        trackAgreement = new AgreementPersistenceTracker()
+        agreementTrackers.set(track.id, trackAgreement)
+      }
       const fusionResult = fuseAlgorithmResults(
         algorithmScores, contentType, _cachedFusionConfig, track.trueFrequencyHz, trackCst,
-        undefined, undefined, // agreementTracker, calibrationTable
+        trackAgreement, undefined,
         { combSweepOverride: settings.combSweepOverride, ihrGateOverride: settings.ihrGateOverride, ptmrGateOverride: settings.ptmrGateOverride }
       )
 
@@ -702,9 +717,6 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         )
         if (snapshotCollector.hasPendingBatches) {
           const batch = snapshotCollector.extractBatch()
-          if (batch) {
-            console.debug(`[DSP Worker] Posting snapshot batch: ${batch.snapshots.length} snapshots, event=${batch.event.frequencyHz.toFixed(0)}Hz`)
-          }
           self.postMessage({ type: 'snapshotBatch', batch } satisfies WorkerOutboundMessage)
         }
       }
@@ -814,6 +826,9 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       for (const trackId of combTrackers.keys()) {
         if (!trackManager.getTrack(trackId)) combTrackers.delete(trackId)
       }
+      for (const trackId of agreementTrackers.keys()) {
+        if (!trackManager.getTrack(trackId)) agreementTrackers.delete(trackId)
+      }
       if (trackManager.getActiveTracks().length < 3) {
         publishCombPattern(null)
       }
@@ -832,7 +847,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       // Exhaustiveness check — if a new WorkerInboundMessage variant is added
       // but not handled, TypeScript will error here at compile time.
       const _exhaustive: never = msg
-      console.warn('[DSP Worker] Unhandled message type:', (_exhaustive as { type: string }).type)
+      void _exhaustive
     }
   }
   } catch (err) {

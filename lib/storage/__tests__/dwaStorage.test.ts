@@ -50,7 +50,6 @@ describe('typedStorage', () => {
 
   it('silently handles QuotaExceededError on save', () => {
     const store = typedStorage<string>('test-quota', '')
-    const original = localStorage.setItem.bind(localStorage)
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new DOMException('QuotaExceededError')
     })

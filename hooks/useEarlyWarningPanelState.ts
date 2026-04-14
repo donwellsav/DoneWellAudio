@@ -41,24 +41,23 @@ export function useEarlyWarningPanelState(
   earlyWarning: EarlyWarning | null,
 ): UseEarlyWarningPanelStateResult {
   const [isExpanded, setIsExpanded] = useState(true)
-  const [elapsedSec, setElapsedSec] = useState(0)
+  const [nowMs, setNowMs] = useState(() => Date.now())
   const isVisible = hasEarlyWarningContent(earlyWarning)
   const timestamp = earlyWarning?.timestamp ?? null
 
   useEffect(() => {
-    if (timestamp === null) {
-      setElapsedSec(0)
-      return
-    }
-
-    setElapsedSec(getEarlyWarningElapsedSeconds(timestamp))
+    if (timestamp === null) return
 
     const intervalId = window.setInterval(() => {
-      setElapsedSec(getEarlyWarningElapsedSeconds(timestamp))
+      setNowMs(Date.now())
     }, 1000)
 
     return () => window.clearInterval(intervalId)
   }, [timestamp])
+
+  const elapsedSec = timestamp === null
+    ? 0
+    : Math.max(0, Math.round((nowMs - timestamp) / 1000))
 
   const toggleExpanded = useCallback(() => {
     setIsExpanded((current) => !current)

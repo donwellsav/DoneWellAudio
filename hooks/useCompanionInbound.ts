@@ -32,7 +32,10 @@ export function useCompanionInbound({ enabled, pairingCode, handlers }: UseCompa
   // Keep handlers in a ref so the interval doesn't restart every time the
   // parent rebuilds the handler object (which happens on every render).
   const handlersRef = useRef(handlers)
-  handlersRef.current = handlers
+
+  useEffect(() => {
+    handlersRef.current = handlers
+  }, [handlers])
 
   useEffect(() => {
     if (!enabled || !pairingCode) return

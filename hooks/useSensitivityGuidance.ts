@@ -60,18 +60,19 @@ export function useSensitivityGuidance({
   useEffect(() => {
     if (!enabled || !isRunning) {
       noDetectionSecsRef.current = 0
-      setProlongedSilence(false)
-      return
+      const timeoutId = window.setTimeout(() => {
+        setProlongedSilence(false)
+      }, 0)
+      return () => window.clearTimeout(timeoutId)
     }
 
     const intervalId = setInterval(() => {
       if (activeAdvisoryCount > 0 || inputLevel < -45) {
         noDetectionSecsRef.current = 0
-        setProlongedSilence(false)
-        return
+      } else {
+        noDetectionSecsRef.current += 1
       }
 
-      noDetectionSecsRef.current += 1
       setProlongedSilence(noDetectionSecsRef.current >= 2)
     }, 1000)
 

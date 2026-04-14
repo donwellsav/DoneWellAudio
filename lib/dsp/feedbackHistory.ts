@@ -24,6 +24,7 @@ import {
   savePendingFeedbackHistory,
   type StoredFeedbackHistory,
 } from '@/lib/dsp/feedbackHistoryStorage'
+import { logWarn } from '@/lib/utils/logger'
 
 // ── Secure random hex helper (replaces Math.random for IDs) ─────────────────
 /** Generate `n` random bytes as hex string using crypto.getRandomValues. */
@@ -239,12 +240,21 @@ export class FeedbackHistory {
     if (!hotspotKey) return
 
     const existing = this._companionPendingCuts.get(hotspotKey)
+    let retryCount = 0
+    if (existing && existing.advisoryId === advisoryId && existing.bandIndex === bandIndex) {
+      if (gainDb < existing.gainDb) {
+        retryCount = Math.min(existing.retryCount + 1, COMPANION_MAX_RETRIES)
+      } else if (gainDb === existing.gainDb) {
+        retryCount = existing.retryCount
+      }
+    }
+
     this._companionPendingCuts.set(hotspotKey, {
       appliedAt,
       gainDb,
       bandIndex,
       maxCutDb,
-      retryCount: existing?.retryCount ?? 0,
+      retryCount,
       advisoryId,
     })
 
@@ -339,6 +349,27 @@ export class FeedbackHistory {
       advisoryId: suggestion.advisoryId,
       bandIndex: suggestion.bandIndex,
     }
+  }
+
+  /**
+   * Cancel any pending Companion verification state for an advisory that has
+   * already been cleared from the mixer. This prevents a removed cut from
+   * later being treated as "worked" or from triggering a bogus deeper retry.
+   */
+  clearCompanionPendingCut(advisoryId: string): boolean {
+    let changed = false
+
+    for (const [hotspotKey, pending] of this._companionPendingCuts) {
+      if (pending.advisoryId !== advisoryId) continue
+      this._companionPendingCuts.delete(hotspotKey)
+      changed = true
+    }
+
+    if (changed) {
+      this.saveToStorage()
+    }
+
+    return changed
   }
 
   /**
@@ -834,7 +865,7 @@ export class FeedbackHistory {
       // Record watermark — pagehide only needs events after this point
       this._lastFlushedEventCount = this.events.length
     } catch (e) {
-      console.warn('[FeedbackHistory] Failed to save to IndexedDB:', e)
+      logWarn('[FeedbackHistory] Failed to save to IndexedDB:', e)
     }
   }
 
@@ -921,7 +952,7 @@ export class FeedbackHistory {
       }
     } catch (e) {
       // Invalid/corrupt data — start fresh
-      console.warn('[FeedbackHistory] Failed to load from storage, starting fresh:', e)
+      logWarn('[FeedbackHistory] Failed to load from storage, starting fresh:', e)
     } finally {
       // Mark hydrated and replay any events that arrived during async load
       this._hydrated = true

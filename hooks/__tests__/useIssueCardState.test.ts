@@ -54,8 +54,8 @@ describe('useIssueCardState helpers', () => {
 
   it('resolves action layout from touch and swipe settings', () => {
     expect(resolveIssueCardActionsLayout(false, false)).toBe('desktop')
-    expect(resolveIssueCardActionsLayout(false, true)).toBe('copy-only')
+    expect(resolveIssueCardActionsLayout(false, true)).toBe('desktop')
     expect(resolveIssueCardActionsLayout(true, false)).toBe('mobile')
-    expect(resolveIssueCardActionsLayout(true, true)).toBeNull()
+    expect(resolveIssueCardActionsLayout(true, true)).toBe('mobile')
   })
 })

@@ -62,12 +62,20 @@ describe('useIssueAnnouncement', () => {
       rerender({ entries: [firstEntry] })
     })
 
+    act(() => {
+      vi.runOnlyPendingTimers()
+    })
+
     const firstAnnouncement = result.current
     expect(firstAnnouncement).toMatch(/Feedback detected at/i)
 
     act(() => {
       vi.advanceTimersByTime(1000)
       rerender({ entries: [secondEntry] })
+    })
+
+    act(() => {
+      vi.runOnlyPendingTimers()
     })
 
     expect(result.current).toBe(firstAnnouncement)

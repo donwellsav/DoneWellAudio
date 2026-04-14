@@ -36,8 +36,9 @@ type ModuleToAppMessage = {
     advisoryId: string;
     bandIndex: number;
     appliedGainDb: number;
+    maxCutDb?: number;
     frequencyHz: number;
-    slotIndex: number;
+    slotIndex?: number;
     timestamp: number;
 } | {
     type: 'apply_failed';
@@ -49,12 +50,29 @@ type ModuleToAppMessage = {
     advisoryId: string;
     peqApplied: boolean;
     geqApplied: boolean;
+    bandIndex?: number;
+    appliedGainDb?: number;
+    maxCutDb?: number;
+    frequencyHz?: number;
+    slotIndex?: number;
     failReason: string;
+    timestamp: number;
+} | {
+    type: 'partial_clear';
+    advisoryId: string;
+    peqCleared: boolean;
+    geqCleared: boolean;
+    failReason: string;
+    timestamp: number;
+} | {
+    type: 'clear_failed';
+    advisoryId: string;
+    reason: string;
     timestamp: number;
 } | {
     type: 'cleared';
     advisoryId: string;
-    slotIndex: number;
+    slotIndex?: number;
     timestamp: number;
 } | {
     type: 'command';
@@ -66,6 +84,7 @@ export declare class ModuleInstance extends InstanceBase<ModuleConfig> {
     pendingAdvisories: DwaAdvisory[];
     private pollTimer;
     private mixerOutput;
+    private currentMode;
     init(config: ModuleConfig): Promise<void>;
     configUpdated(config: ModuleConfig): Promise<void>;
     destroy(): Promise<void>;
@@ -80,7 +99,7 @@ export declare class ModuleInstance extends InstanceBase<ModuleConfig> {
     acknowledgeLatest(): void;
     acknowledgeAll(): void;
     applyLatest(): void;
-    clearAll(): void;
+    clearAll(): Promise<void>;
     private refreshState;
     private resetVariables;
 }

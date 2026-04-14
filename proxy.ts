@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { logWarn } from '@/lib/utils/logger'
 
 /**
- * Per-request CSP middleware.
+ * Per-request CSP proxy.
  *
  * Generates a unique nonce for each request and sets a Content-Security-Policy
  * header with `'nonce-{nonce}' 'strict-dynamic'` in script-src, replacing the
@@ -18,12 +19,12 @@ import { NextResponse, type NextRequest } from 'next/server'
  * next.config.mjs → headers(). Changes to security posture may require edits
  * in BOTH files.
  */
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
 
   const isDev = process.env.NODE_ENV === 'development'
   if (isDev && process.env.VERCEL_ENV === 'production') {
-    console.warn('[CSP] WARNING: dev CSP (unsafe-eval) active on production deployment')
+    logWarn('[CSP] WARNING: dev CSP (unsafe-eval) active on production deployment')
   }
   const cspValue = [
     "default-src 'self'",

@@ -13,6 +13,7 @@ export function UpdateVariableDefinitions(self) {
         { variableId: 'note', name: 'Musical Pitch' },
         { variableId: 'severity', name: 'Detection Severity' },
         { variableId: 'confidence', name: 'Detection Confidence' },
+        { variableId: 'current_mode', name: 'Current DWA Mode' },
         // State
         { variableId: 'pending_count', name: 'Pending Advisory Count' },
         { variableId: 'last_updated', name: 'Last Advisory Timestamp' },

@@ -13,7 +13,7 @@ const withSerwist = withSerwistInit({
   disable: process.env.NODE_ENV === "development",
 });
 
-// CSP is handled by middleware.ts (per-request nonce-based script-src).
+// CSP is handled by proxy.ts (per-request nonce-based script-src).
 // Non-CSP security headers remain here as static config.
 const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -31,6 +31,7 @@ const securityHeaders = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  outputFileTracingRoot: __dirname,
   async headers() {
     return [{ source: '/(.*)', headers: securityHeaders }]
   },

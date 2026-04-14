@@ -233,7 +233,7 @@ async function readResponseCapped(response: Response): Promise<string> {
   const chunks: Uint8Array[] = []
   let totalBytes = 0
 
-  while (true) { // eslint-disable-line no-constant-condition -- streaming reader loop
+  for (;;) {
     const { done, value } = await reader.read()
     if (done) break
     totalBytes += value.byteLength

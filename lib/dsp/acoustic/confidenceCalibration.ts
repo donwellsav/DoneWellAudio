@@ -31,8 +31,6 @@ export function calculateCalibratedConfidence(
   adjustedPFeedback: number
   confidenceLabel: 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH'
 } {
-  // Start with the highest probability
-  let confidence = Math.max(pFeedback, pWhistle, pInstrument)
   let adjustedPFeedback = pFeedback
 
   // Apply modal overlap boost to feedback probability
@@ -42,17 +40,19 @@ export function calculateCalibratedConfidence(
   switch (cumulativeGrowthSeverity) {
     case 'RUNAWAY':
       adjustedPFeedback = Math.max(adjustedPFeedback, 0.85)
-      confidence = Math.max(confidence, 0.85)
       break
     case 'GROWING':
       adjustedPFeedback = Math.min(1, adjustedPFeedback + 0.15)
-      confidence = Math.max(confidence, adjustedPFeedback)
       break
     case 'BUILDING':
       adjustedPFeedback = Math.min(1, adjustedPFeedback + 0.08)
-      confidence = Math.max(confidence, adjustedPFeedback)
       break
   }
+
+  // Confidence must describe the same posterior state that the caller returns.
+  // Using the pre-adjustment max here made sharp isolated feedback more
+  // feedback-like without making it any more reportable.
+  const confidence = Math.max(adjustedPFeedback, pWhistle, pInstrument)
 
   // Determine confidence label
   let confidenceLabel: 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH'

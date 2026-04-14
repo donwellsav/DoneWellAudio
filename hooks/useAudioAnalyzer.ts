@@ -3,7 +3,8 @@
 // Advisory state management (Map, sorting, dedup) is delegated to useAdvisoryMap.
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { AudioAnalyzer, createAudioAnalyzer } from '@/lib/audio/createAudioAnalyzer'
+import { createAudioAnalyzer } from '@/lib/audio/createAudioAnalyzer'
+import type { AudioAnalyzer } from '@/lib/audio/createAudioAnalyzer'
 import { useDSPWorker, type DSPWorkerCallbacks, type DSPWorkerHandle } from './useDSPWorker'
 import { useAdvisoryMap } from './useAdvisoryMap'
 import type {
@@ -19,6 +20,9 @@ import { pickAudioRuntimeSettings, pickWorkerRuntimeSettings } from '@/lib/setti
 import type { EarlyWarning, SpectrumStatus } from '@/hooks/audioAnalyzerTypes'
 import { useAnalyzerFrameState } from '@/hooks/useAnalyzerFrameState'
 import { useRoomMeasurement } from '@/hooks/useRoomMeasurement'
+import type { SnapshotBatch } from '@/types/data'
+import type { DwaSessionState, DisplayPrefs } from '@/types/settings'
+import type { UseLayeredSettingsReturn } from '@/hooks/useLayeredSettings'
 
 export type { EarlyWarning, SpectrumStatus } from '@/hooks/audioAnalyzerTypes'
 
@@ -53,9 +57,9 @@ export interface UseAudioAnalyzerReturn extends UseAudioAnalyzerState {
   startRoomMeasurement: () => void
   stopRoomMeasurement: () => void
   clearRoomEstimate: () => void
-  layeredSession: import('@/types/settings').DwaSessionState
-  layeredDisplay: import('@/types/settings').DisplayPrefs
-  layered: import('@/hooks/useLayeredSettings').UseLayeredSettingsReturn
+  layeredSession: DwaSessionState
+  layeredDisplay: DisplayPrefs
+  layered: UseLayeredSettingsReturn
 }
 
 type InternalAnalyzerState = Omit<
@@ -65,7 +69,7 @@ type InternalAnalyzerState = Omit<
 
 export function useAudioAnalyzer(
   initialSettings: Partial<DetectorSettings> = {},
-  externalCallbacks?: { onSnapshotBatch?: (batch: import('@/types/data').SnapshotBatch) => void },
+  externalCallbacks?: { onSnapshotBatch?: (batch: SnapshotBatch) => void },
   frozenRef?: React.RefObject<boolean>,
 ): UseAudioAnalyzerReturn {
   const layered = useLayeredSettings(initialSettings)

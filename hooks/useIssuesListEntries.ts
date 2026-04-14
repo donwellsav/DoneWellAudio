@@ -111,25 +111,33 @@ export function useIssuesListEntries(
 
 export function useStableIssueEntries(latestEntries: IssueListEntry[]): IssueListEntry[] {
   const stableRef = useRef(latestEntries)
-  const lastUpdateRef = useRef(Date.now())
+  const lastUpdateRef = useRef(0)
   const [stableEntries, setStableEntries] = useState(latestEntries)
 
   useEffect(() => {
+    if (lastUpdateRef.current === 0) {
+      lastUpdateRef.current = Date.now()
+    }
+
     const previousIdentity = getEntriesIdentity(stableRef.current)
     const nextIdentity = getEntriesIdentity(latestEntries)
 
     if (previousIdentity === nextIdentity) {
-      stableRef.current = latestEntries
-      setStableEntries(latestEntries)
-      return
+      const timerId = setTimeout(() => {
+        stableRef.current = latestEntries
+        setStableEntries(latestEntries)
+      }, 0)
+      return () => clearTimeout(timerId)
     }
 
     const elapsedMs = Date.now() - lastUpdateRef.current
     if (elapsedMs >= MIN_ISSUE_DISPLAY_MS) {
-      stableRef.current = latestEntries
-      lastUpdateRef.current = Date.now()
-      setStableEntries(latestEntries)
-      return
+      const timerId = setTimeout(() => {
+        stableRef.current = latestEntries
+        lastUpdateRef.current = Date.now()
+        setStableEntries(latestEntries)
+      }, 0)
+      return () => clearTimeout(timerId)
     }
 
     const remainingMs = MIN_ISSUE_DISPLAY_MS - elapsedMs

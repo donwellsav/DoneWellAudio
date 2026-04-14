@@ -14,6 +14,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import type { SnapshotBatch } from '@/types/data'
+import { logError } from '@/lib/utils/logger'
 
 // ─── Configuration ──────────────────────────────────────────────────────────
 
@@ -42,7 +43,7 @@ if (SUPABASE_INGEST_URL) {
 
 // Production environment validation — catch silent misconfiguration early
 if (process.env.NODE_ENV === 'production' && SUPABASE_INGEST_URL && !SUPABASE_INGEST_AUTH_TOKEN) {
-  console.error('[ingest] WARNING: SUPABASE_INGEST_URL set but ingest auth token is missing — forwarding will fail')
+  logError('[ingest] WARNING: SUPABASE_INGEST_URL set but ingest auth token is missing — forwarding will fail')
 }
 
 /** Max payload size: 512KB (batches are typically 2-10KB uncompressed) */
@@ -125,7 +126,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!SUPABASE_INGEST_AUTH_TOKEN) {
-      console.error('[ingest] Missing SUPABASE_INGEST_SHARED_SECRET or SUPABASE_SERVICE_ROLE_KEY')
+      logError('[ingest] Missing SUPABASE_INGEST_SHARED_SECRET or SUPABASE_SERVICE_ROLE_KEY')
       return NextResponse.json(
         { error: 'Storage temporarily unavailable' },
         { status: 503 }
@@ -146,7 +147,7 @@ export async function POST(request: NextRequest) {
     if (!forwardResponse.ok) {
       // Log status only — do not log response body (may contain Supabase internals)
       const errLen = parseInt(forwardResponse.headers.get('content-length') ?? '0', 10)
-      console.error(`[ingest] Storage failed: ${forwardResponse.status} (${errLen} bytes)`)
+      logError(`[ingest] Storage failed: ${forwardResponse.status} (${errLen} bytes)`)
       return NextResponse.json(
         { error: 'Storage temporarily unavailable' },
         { status: 502 }
@@ -155,7 +156,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, stored: true })
   } catch (err) {
-    console.error('[ingest] Unexpected error:', err)
+    logError('[ingest] Unexpected error:', err)
     return NextResponse.json(
       { error: 'Internal error' },
       { status: 500 }

@@ -12,7 +12,6 @@ import type {
   PEQRecommendation, 
   ShelfRecommendation,
   EQAdvisory,
-  PitchInfo,
   RecommendationContext,
 } from '@/types/advisory'
 

@@ -87,7 +87,6 @@ const AudioAnalyzerInner = memo(function AudioAnalyzerInner({
   frozenRef,
 }: AudioAnalyzerInnerProps) {
   const {
-    isRunning,
     error,
     workerError,
     isWorkerPermanentlyDead,
@@ -109,7 +108,10 @@ const AudioAnalyzerInner = memo(function AudioAnalyzerInner({
     >
       <UIProvider rootRef={rootRef}>
         <FrozenSync frozenRef={frozenRef} />
-        <CompanionCommandBridge />
+        <CompanionCommandBridge
+          onRingoutStart={ringOutFlow.startRingOut}
+          onRingoutStop={ringOutFlow.finishWizard}
+        />
         <FullscreenPortalGate rootEl={rootEl}>
           <AnalyzerKeyboardShortcuts />
           <Suspense fallback={null}>

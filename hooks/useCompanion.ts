@@ -29,6 +29,12 @@ interface UseCompanionReturn {
   sendAdvisory: (advisory: Advisory) => Promise<boolean>
   /** Explicit operator send that bypasses minConfidence but still requires pairing/enabled. */
   sendExplicitAdvisory: (advisory: Advisory) => Promise<boolean>
+  /** Notify the module that feedback resolved naturally. */
+  sendResolve: (advisoryId: string) => Promise<boolean>
+  /** Notify the module that the user dismissed an active advisory. */
+  sendDismiss: (advisoryId: string) => Promise<boolean>
+  /** Sync the current DWA mode to the Companion module. */
+  sendModeChange: (mode: string) => Promise<boolean>
   /** Auto-send only advisories that have not already been relayed this session. */
   autoSendAdvisories: (advisories: readonly Advisory[]) => void
   /** Check relay connection */
@@ -67,6 +73,7 @@ const inFlightRelayDispatches = new Set<string>()
 
 type SendOptions = {
   bypassMinConfidence?: boolean
+  allowPossibleRing?: boolean
 }
 
 function loadSettings(): CompanionSettings {
@@ -109,6 +116,11 @@ function getSnapshot(): CompanionSnapshot {
   return ensureSnapshot()
 }
 
+function shouldPublishBridgeState(pairingCode: string): boolean {
+  const current = getSnapshot()
+  return current.settings.enabled && current.settings.pairingCode === pairingCode
+}
+
 function updateCompanionSettings(partial: Partial<CompanionSettings>): void {
   const current = getSnapshot()
   const nextSettings = { ...current.settings, ...partial }
@@ -133,6 +145,24 @@ function updateCompanionSettings(partial: Partial<CompanionSettings>): void {
   })
 }
 
+function clearRelayTrackingForAdvisory(advisoryId: string): void {
+  autoSentPayloadsByIdentity.delete(advisoryId)
+  for (const identity of Array.from(autoSentPayloadsByIdentity.keys())) {
+    if (identity.startsWith(`${advisoryId}:retry:`)) {
+      autoSentPayloadsByIdentity.delete(identity)
+    }
+  }
+
+  for (const dispatchKey of Array.from(inFlightRelayDispatches)) {
+    if (
+      dispatchKey.startsWith(`${advisoryId}|`) ||
+      dispatchKey.startsWith(`${advisoryId}:retry:`)
+    ) {
+      inFlightRelayDispatches.delete(dispatchKey)
+    }
+  }
+}
+
 async function checkCompanionConnection(): Promise<boolean> {
   if (pendingStatusCheck) return pendingStatusCheck
 
@@ -140,12 +170,14 @@ async function checkCompanionConnection(): Promise<boolean> {
   pendingStatusCheck = currentBridge.checkStatus()
     .then((status) => {
       const ok = status !== null
-      const current = getSnapshot()
-      publish({
-        ...current,
-        connected: ok,
-        lastError: ok ? null : currentBridge.lastError,
-      })
+      if (shouldPublishBridgeState(currentBridge.pairingCode)) {
+        const current = getSnapshot()
+        publish({
+          ...current,
+          connected: ok,
+          lastError: ok ? null : currentBridge.lastError,
+        })
+      }
       return ok
     })
     .finally(() => {
@@ -161,6 +193,10 @@ function isExplicitRelayEligibleAdvisory(advisory: Advisory): boolean {
 
 function isAutoRelayEligibleAdvisory(advisory: Advisory): boolean {
   return advisory.label === 'ACOUSTIC_FEEDBACK'
+}
+
+function isRetryRelayEligibleAdvisory(advisory: Advisory): boolean {
+  return isExplicitRelayEligibleAdvisory(advisory)
 }
 
 function buildRelayPayloadKey(advisory: Advisory, autoApply: boolean): string {
@@ -191,11 +227,13 @@ async function sendCompanionAdvisory(advisory: Advisory, options: SendOptions = 
 
   const currentBridge = getBridge()
   const result = await currentBridge.sendAdvisory(advisory)
-  publish({
-    ...getSnapshot(),
-    connected: currentBridge.connected,
-    lastError: currentBridge.lastError,
-  })
+  if (shouldPublishBridgeState(currentBridge.pairingCode)) {
+    publish({
+      ...getSnapshot(),
+      connected: currentBridge.connected,
+      lastError: currentBridge.lastError,
+    })
+  }
   return result.accepted
 }
 
@@ -207,16 +245,21 @@ async function sendCompanionAdvisory(advisory: Advisory, options: SendOptions = 
 async function sendCompanionAutoApply(advisory: Advisory, options: SendOptions = {}): Promise<boolean> {
   const current = getSnapshot()
   if (!current.settings.enabled) return false
-  if (!isAutoRelayEligibleAdvisory(advisory)) return false
+  const relayEligible = options.allowPossibleRing
+    ? isRetryRelayEligibleAdvisory(advisory)
+    : isAutoRelayEligibleAdvisory(advisory)
+  if (!relayEligible) return false
   if (!options.bypassMinConfidence && advisory.confidence < current.settings.minConfidence) return false
 
   const currentBridge = getBridge()
   const result = await currentBridge.sendAutoApply(advisory)
-  publish({
-    ...getSnapshot(),
-    connected: currentBridge.connected,
-    lastError: currentBridge.lastError,
-  })
+  if (shouldPublishBridgeState(currentBridge.pairingCode)) {
+    publish({
+      ...getSnapshot(),
+      connected: currentBridge.connected,
+      lastError: currentBridge.lastError,
+    })
+  }
   return result.accepted
 }
 
@@ -261,7 +304,11 @@ function autoSendCompanionAdvisories(advisories: readonly Advisory[]): void {
     const isRunaway = advisory.severity === 'RUNAWAY'
     const bypassMinConfidence = retry !== null
 
-    if (!retry && !isAutoRelayEligibleAdvisory(advisory)) continue
+    if (retry) {
+      if (!isRetryRelayEligibleAdvisory(advisory)) continue
+    } else if (!isAutoRelayEligibleAdvisory(advisory)) {
+      continue
+    }
     if (!bypassMinConfidence && advisory.confidence < current.settings.minConfidence) continue
 
     const relayIdentity = retry
@@ -288,7 +335,10 @@ function autoSendCompanionAdvisories(advisories: readonly Advisory[]): void {
     inFlightRelayDispatches.add(inFlightKey)
 
     const sendPromise = useAutoApply
-      ? sendCompanionAutoApply(toSend, { bypassMinConfidence })
+      ? sendCompanionAutoApply(toSend, {
+          bypassMinConfidence,
+          allowPossibleRing: retry !== null,
+        })
       : sendCompanionAdvisory(toSend, { bypassMinConfidence })
 
     void sendPromise
@@ -298,9 +348,6 @@ function autoSendCompanionAdvisories(advisories: readonly Advisory[]): void {
           return
         }
         autoSentPayloadsByIdentity.set(relayIdentity, relayPayloadKey)
-        if (retry) {
-          history.consumeRetryCompanionCut?.(advisory.trueFrequencyHz)
-        }
       })
       .catch(() => {
         inFlightRelayDispatches.delete(inFlightKey)
@@ -309,7 +356,77 @@ function autoSendCompanionAdvisories(advisories: readonly Advisory[]): void {
 }
 
 function sendCompanionExplicitAdvisory(advisory: Advisory): Promise<boolean> {
+  if (!isExplicitRelayEligibleAdvisory(advisory)) {
+    return Promise.resolve(false)
+  }
+
+  const relayPayloadKey = buildRelayPayloadKey(advisory, false)
+  const inFlightKey = `${advisory.id}|${relayPayloadKey}`
+  if (inFlightRelayDispatches.has(inFlightKey)) {
+    return Promise.resolve(false)
+  }
+
+  inFlightRelayDispatches.add(inFlightKey)
   return sendCompanionAdvisory(advisory, { bypassMinConfidence: true })
+    .then((accepted) => {
+      if (accepted) {
+        autoSentPayloadsByIdentity.set(advisory.id, relayPayloadKey)
+      }
+      return accepted
+    })
+    .finally(() => {
+      inFlightRelayDispatches.delete(inFlightKey)
+    })
+}
+
+async function sendCompanionModeChange(mode: string): Promise<boolean> {
+  const current = getSnapshot()
+  if (!current.settings.enabled) return false
+
+  const currentBridge = getBridge()
+  const accepted = await currentBridge.sendModeChange(mode)
+  if (shouldPublishBridgeState(currentBridge.pairingCode)) {
+    publish({
+      ...getSnapshot(),
+      connected: currentBridge.connected,
+      lastError: currentBridge.lastError,
+    })
+  }
+  return accepted
+}
+
+async function sendCompanionResolve(advisoryId: string): Promise<boolean> {
+  const current = getSnapshot()
+  if (!current.settings.enabled) return false
+
+  clearRelayTrackingForAdvisory(advisoryId)
+  const currentBridge = getBridge()
+  const accepted = await currentBridge.sendResolve(advisoryId)
+  if (shouldPublishBridgeState(currentBridge.pairingCode)) {
+    publish({
+      ...getSnapshot(),
+      connected: currentBridge.connected,
+      lastError: currentBridge.lastError,
+    })
+  }
+  return accepted
+}
+
+async function sendCompanionDismiss(advisoryId: string): Promise<boolean> {
+  const current = getSnapshot()
+  if (!current.settings.enabled) return false
+
+  clearRelayTrackingForAdvisory(advisoryId)
+  const currentBridge = getBridge()
+  const accepted = await currentBridge.sendDismiss(advisoryId)
+  if (shouldPublishBridgeState(currentBridge.pairingCode)) {
+    publish({
+      ...getSnapshot(),
+      connected: currentBridge.connected,
+      lastError: currentBridge.lastError,
+    })
+  }
+  return accepted
 }
 
 function regenerateCompanionCode(): void {
@@ -322,11 +439,6 @@ export function useCompanion(): UseCompanionReturn {
   useEffect(() => {
     if (current.settings.enabled) {
       void checkCompanionConnection()
-      return
-    }
-
-    if (current.connected || current.lastError !== null) {
-      publish({ ...current, connected: false, lastError: null })
     }
   }, [current.settings.enabled])
 
@@ -337,6 +449,9 @@ export function useCompanion(): UseCompanionReturn {
     lastError: current.lastError,
     sendAdvisory: sendCompanionAdvisory,
     sendExplicitAdvisory: sendCompanionExplicitAdvisory,
+    sendResolve: sendCompanionResolve,
+    sendDismiss: sendCompanionDismiss,
+    sendModeChange: sendCompanionModeChange,
     autoSendAdvisories: autoSendCompanionAdvisories,
     checkConnection: checkCompanionConnection,
     regenerateCode: regenerateCompanionCode,

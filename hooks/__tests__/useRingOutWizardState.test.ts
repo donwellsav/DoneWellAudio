@@ -58,7 +58,7 @@ describe('useRingOutWizardState', () => {
         ringOutAutoSend: false,
       },
       sendAdvisory: vi.fn(),
-      sendExplicitAdvisory: vi.fn(),
+      sendExplicitAdvisory: vi.fn().mockResolvedValue(true),
     })
   })
 
@@ -99,7 +99,7 @@ describe('useRingOutWizardState', () => {
         ringOutAutoSend: true,
       },
       sendAdvisory: vi.fn(),
-      sendExplicitAdvisory,
+      sendExplicitAdvisory: sendExplicitAdvisory.mockResolvedValue(true),
     })
 
     const { result } = renderHook(() =>
@@ -130,6 +130,74 @@ describe('useRingOutWizardState', () => {
     expect(sendExplicitAdvisory).toHaveBeenCalledWith(advisory)
   })
 
+  it('detects a replacement advisory even when the active count stays the same', async () => {
+    const first = makeAdvisory('first', { severity: 'RESONANCE', trueFrequencyHz: 900 })
+    const second = makeAdvisory('second', { severity: 'RUNAWAY', trueFrequencyHz: 1200 })
+
+    const { result, rerender } = renderHook(
+      ({ advisories }) =>
+        useRingOutWizardState({
+          advisories,
+          isRunning: true,
+          roomModes: null,
+        }),
+      {
+        initialProps: {
+          advisories: [first] as Advisory[],
+        },
+      },
+    )
+
+    await waitFor(() => {
+      expect(result.current.currentAdvisory?.id).toBe('first')
+    })
+
+    act(() => {
+      result.current.handleSkip()
+    })
+
+    rerender({ advisories: [second] })
+
+    await waitFor(() => {
+      expect(result.current.phase).toBe('detected')
+      expect(result.current.currentAdvisory?.id).toBe('second')
+    })
+  })
+
+  it('re-detects the same advisory id after it disappears from the active list', async () => {
+    const advisory = makeAdvisory('same-id', { trueFrequencyHz: 950 })
+
+    const { result, rerender } = renderHook(
+      ({ advisories }) =>
+        useRingOutWizardState({
+          advisories,
+          isRunning: true,
+          roomModes: null,
+        }),
+      {
+        initialProps: {
+          advisories: [advisory] as Advisory[],
+        },
+      },
+    )
+
+    await waitFor(() => {
+      expect(result.current.currentAdvisory?.id).toBe('same-id')
+    })
+
+    act(() => {
+      result.current.handleSkip()
+    })
+
+    rerender({ advisories: [] })
+    rerender({ advisories: [advisory] })
+
+    await waitFor(() => {
+      expect(result.current.phase).toBe('detected')
+      expect(result.current.currentAdvisory?.id).toBe('same-id')
+    })
+  })
+
   it('send all relays only accepted notches, not the current advisory list', async () => {
     const sendExplicitAdvisory = vi.fn()
     const accepted = makeAdvisory('accepted', { trueFrequencyHz: 1000 })
@@ -144,7 +212,7 @@ describe('useRingOutWizardState', () => {
         ringOutAutoSend: false,
       },
       sendAdvisory: vi.fn(),
-      sendExplicitAdvisory,
+      sendExplicitAdvisory: sendExplicitAdvisory.mockResolvedValue(true),
     })
 
     const { result, rerender } = renderHook(
@@ -177,6 +245,118 @@ describe('useRingOutWizardState', () => {
 
     expect(sendExplicitAdvisory).toHaveBeenCalledTimes(1)
     expect(sendExplicitAdvisory).toHaveBeenCalledWith(accepted)
+  })
+
+  it('does not resend a notch from send all after ring-out auto-send already accepted it', async () => {
+    const sendExplicitAdvisory = vi.fn().mockResolvedValue(true)
+    const advisory = makeAdvisory('auto-sent')
+
+    useCompanionMock.mockReturnValue({
+      settings: {
+        enabled: true,
+        ringOutAutoSend: true,
+      },
+      sendAdvisory: vi.fn(),
+      sendExplicitAdvisory,
+    })
+
+    const { result } = renderHook(() =>
+      useRingOutWizardState({
+        advisories: [advisory],
+        isRunning: true,
+        roomModes: null,
+      }),
+    )
+
+    await waitFor(() => {
+      expect(result.current.phase).toBe('detected')
+    })
+
+    act(() => {
+      result.current.handleNext()
+    })
+
+    await waitFor(() => {
+      expect(sendExplicitAdvisory).toHaveBeenCalledTimes(1)
+    })
+
+    act(() => {
+      result.current.handleSendAll()
+    })
+
+    expect(sendExplicitAdvisory).toHaveBeenCalledTimes(1)
+  })
+
+  it('re-sends when the same advisory id returns with a different EQ payload', async () => {
+    const sendExplicitAdvisory = vi.fn().mockResolvedValue(true)
+    const first = makeAdvisory('same-id', {
+      advisory: {
+        geq: { bandIndex: 15, bandHz: 1000, suggestedDb: -6 },
+        peq: { type: 'bell', hz: 1000, q: 4, gainDb: -6 },
+        shelves: [],
+        pitch: { note: 'B', octave: 5, cents: 0, midi: 83 },
+      },
+    })
+    const second = makeAdvisory('same-id', {
+      advisory: {
+        geq: { bandIndex: 15, bandHz: 1000, suggestedDb: -9 },
+        peq: { type: 'bell', hz: 1000, q: 5, gainDb: -9 },
+        shelves: [],
+        pitch: { note: 'B', octave: 5, cents: 0, midi: 83 },
+      },
+    })
+
+    useCompanionMock.mockReturnValue({
+      settings: {
+        enabled: true,
+        ringOutAutoSend: true,
+      },
+      sendAdvisory: vi.fn(),
+      sendExplicitAdvisory,
+    })
+
+    const { result, rerender } = renderHook(
+      ({ advisories }) =>
+        useRingOutWizardState({
+          advisories,
+          isRunning: true,
+          roomModes: null,
+        }),
+      {
+        initialProps: {
+          advisories: [first] as Advisory[],
+        },
+      },
+    )
+
+    await waitFor(() => {
+      expect(result.current.phase).toBe('detected')
+    })
+
+    act(() => {
+      result.current.handleNext()
+    })
+
+    await waitFor(() => {
+      expect(sendExplicitAdvisory).toHaveBeenCalledTimes(1)
+    })
+
+    rerender({ advisories: [] })
+    rerender({ advisories: [second] })
+
+    await waitFor(() => {
+      expect(result.current.phase).toBe('detected')
+      expect(result.current.currentAdvisory?.id).toBe('same-id')
+    })
+
+    act(() => {
+      result.current.handleNext()
+    })
+
+    await waitFor(() => {
+      expect(sendExplicitAdvisory).toHaveBeenCalledTimes(2)
+    })
+    expect(sendExplicitAdvisory).toHaveBeenNthCalledWith(2, second)
   })
 
   it('formats export lines and room-mode proximity through pure helpers', () => {

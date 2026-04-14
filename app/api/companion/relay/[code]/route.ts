@@ -1,4 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { logDebug } from '@/lib/utils/logger'
 
 /**
  * Cloud relay for Companion integration (bidirectional).
@@ -95,7 +97,7 @@ const VALID_TO_MODULE_TYPES = new Set([
 
 /** Valid module → DWA message types. */
 const VALID_TO_APP_TYPES = new Set([
-  'ack', 'applied', 'apply_failed', 'partial_apply', 'cleared', 'command', 'pong',
+  'ack', 'applied', 'apply_failed', 'partial_apply', 'partial_clear', 'clear_failed', 'cleared', 'command', 'pong',
 ])
 
 /** Max string field length to prevent oversized payloads */
@@ -283,7 +285,7 @@ export async function POST(
   relay.lastActivity = Date.now()
   // DEBUG: log relay activity to terminal
   const p = payload as Record<string, unknown>
-  console.log(`[RELAY] ${direction === 'app' ? 'module→app' : 'dwa→module'} code=${code} type=${p.type ?? 'advisory'} queue=${queue.length}`)
+  logDebug(`[RELAY] ${direction === 'app' ? 'module→app' : 'dwa→module'} code=${code} type=${p.type ?? 'advisory'} queue=${queue.length}`)
 
   // Cap queue size (drop oldest, keep newest)
   if (queue.length > MAX_QUEUE) {

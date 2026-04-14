@@ -180,7 +180,7 @@ describe('relay route — bidirectional', () => {
 
     it('accepts all known toApp message types', async () => {
       const { POST } = await importRoute()
-      const types = ['ack', 'applied', 'apply_failed', 'partial_apply', 'cleared', 'command', 'pong']
+      const types = ['ack', 'applied', 'apply_failed', 'partial_apply', 'partial_clear', 'clear_failed', 'cleared', 'command', 'pong']
       for (const type of types) {
         const res = await POST(
           makeRequest('POST', { type, timestamp: 1000 }, 'app'),

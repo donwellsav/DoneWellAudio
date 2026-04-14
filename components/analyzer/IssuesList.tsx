@@ -60,7 +60,7 @@ export const IssuesList = memo(function IssuesList({
   const companion = useCompanion()
   const {
     settings: companionSettings,
-    sendAdvisory,
+    sendExplicitAdvisory,
     autoSendAdvisories,
   } = companion
   const { companionState } = useAdvisories()
@@ -143,7 +143,12 @@ export const IssuesList = memo(function IssuesList({
               showAlgorithmScores={showAlgorithmScores}
               showPeqDetails={showPeqDetails}
               onDismiss={onDismiss}
-              onSendToMixer={companionSettings.enabled ? sendAdvisory : undefined}
+              onSendToMixer={
+                companionSettings.enabled &&
+                (advisory.label === 'ACOUSTIC_FEEDBACK' || advisory.label === 'POSSIBLE_RING')
+                  ? sendExplicitAdvisory
+                  : undefined
+              }
               companionState={companionState.get(advisory.id)}
               peekSwipe={index === 0 && showSwipeHint && !!swipeLabeling}
             />

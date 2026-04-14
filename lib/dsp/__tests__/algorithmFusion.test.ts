@@ -24,12 +24,8 @@ import {
 } from '../fusionEngine'
 import type {
   AlgorithmScores,
-  FusedDetectionResult,
-  MINDSResult,
   CalibrationTable,
 } from '../fusionEngine'
-import type { CombPatternResult } from '../combPattern'
-import type { PTMRResult } from '../spectralAlgorithms'
 import { buildScores } from '@/tests/helpers/mockAlgorithmScores'
 
 // ── detectCombPattern ──────────────────────────────────────────────────────
@@ -550,7 +546,7 @@ describe('fuseAlgorithmResults', () => {
 
     const result = fuseAlgorithmResults(scores, 'unknown')
     expect(result.feedbackProbability).toBeLessThan(0.3)
-    expect(['NOT_FEEDBACK', 'UNCERTAIN']).toContain(result.verdict)
+    expect(result.verdict).toBe('NOT_FEEDBACK')
   })
 
   it('lists contributing algorithms', () => {
@@ -887,6 +883,55 @@ describe('AgreementPersistenceTracker', () => {
     const without = fuseAlgorithmResults(scores, 'unknown', DEFAULT_FUSION_CONFIG)
     expect(withTracker.confidence).toBeGreaterThan(without.confidence)
     expect(withTracker.confidence).toBeLessThanOrEqual(1)
+  })
+
+  it('can lift stable borderline evidence from UNCERTAIN to POSSIBLE_FEEDBACK', () => {
+    const scores: AlgorithmScores = {
+      msd: {
+        msd: 0.02,
+        feedbackScore: 1,
+        secondDerivative: 0,
+        isFeedbackLikely: true,
+        framesAnalyzed: 10,
+        meanMagnitudeDb: -24,
+      },
+      phase: {
+        coherence: 0.1,
+        feedbackScore: 0,
+        meanPhaseDelta: 0,
+        phaseDeltaStd: 1,
+        isFeedbackLikely: false,
+      },
+      spectral: {
+        flatness: 0.02,
+        kurtosis: 12,
+        feedbackScore: 1,
+        isFeedbackLikely: true,
+      },
+      comb: null,
+      compression: null,
+      ihr: {
+        interHarmonicRatio: 0.5,
+        isFeedbackLike: false,
+        isMusicLike: false,
+        harmonicsFound: 1,
+        feedbackScore: 0,
+      },
+      ptmr: {
+        ptmrDb: 8,
+        isFeedbackLike: false,
+        feedbackScore: 0,
+      },
+      ml: null,
+    }
+    const tracker = new AgreementPersistenceTracker()
+    for (let i = 0; i < 6; i++) tracker.update(0.9)
+
+    const withoutTracker = fuseAlgorithmResults(scores, 'unknown', DEFAULT_FUSION_CONFIG)
+    const withTracker = fuseAlgorithmResults(scores, 'unknown', DEFAULT_FUSION_CONFIG, undefined, undefined, tracker)
+
+    expect(withoutTracker.verdict).toBe('UNCERTAIN')
+    expect(withTracker.verdict).toBe('POSSIBLE_FEEDBACK')
   })
 })
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { usePanelRef } from '@/components/ui/resizable'
 
 export interface AnalyzerShellState {
@@ -25,13 +25,14 @@ export function useAnalyzerShellState(
   const [issuesPanelOpen, setIssuesPanelOpen] = useState(true)
   const issuesPanelRef = usePanelRef()
 
-  const [isErrorDismissed, setIsErrorDismissed] = useState(false)
-  useEffect(() => {
-    setIsErrorDismissed(false)
+  const [dismissedError, setDismissedError] = useState<string | null>(null)
+  const isErrorDismissed = error !== null && dismissedError === error
+  const setIsErrorDismissed = useCallback((dismissed: boolean) => {
+    setDismissedError(dismissed && error !== null ? error : null)
   }, [error])
 
   const handleRetry = useCallback(() => {
-    setIsErrorDismissed(false)
+    setDismissedError(null)
     void start()
   }, [start])
 

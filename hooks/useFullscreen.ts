@@ -41,6 +41,7 @@ export function useFullscreen(elementRef: RefObject<HTMLDivElement | null>): Use
           .finally(() => {
             el.requestFullscreen().catch(() => {
               // iOS Safari fallback — hide header/nav only
+              setIsOverlayVisible(true)
               setIsFullscreen(true)
             })
           })
@@ -48,10 +49,12 @@ export function useFullscreen(elementRef: RefObject<HTMLDivElement | null>): Use
       }
       el.requestFullscreen().catch(() => {
         // iOS Safari fallback — hide header/nav only
+        setIsOverlayVisible(true)
         setIsFullscreen(true)
       })
     } else {
       // No Fullscreen API (iOS PWA) — app-level fullscreen
+      setIsOverlayVisible(true)
       setIsFullscreen(true)
     }
   }, [elementRef, isApiSupported])
@@ -109,11 +112,12 @@ export function useFullscreen(elementRef: RefObject<HTMLDivElement | null>): Use
   useEffect(() => {
     if (!isFullscreen) {
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
-      setIsOverlayVisible(true)
       return
     }
 
-    resetHideTimer()
+    const initialTimerId = window.setTimeout(() => {
+      resetHideTimer()
+    }, 0)
     const onActivity = () => resetHideTimer()
 
     window.addEventListener('mousemove', onActivity)
@@ -124,9 +128,12 @@ export function useFullscreen(elementRef: RefObject<HTMLDivElement | null>): Use
       window.removeEventListener('mousemove', onActivity)
       window.removeEventListener('touchstart', onActivity)
       window.removeEventListener('keydown', onActivity)
+      window.clearTimeout(initialTimerId)
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
     }
   }, [isFullscreen, resetHideTimer])
 
-  return { isFullscreen, isOverlayVisible, toggle, exit }
+  const effectiveOverlayVisible = !isFullscreen || isOverlayVisible
+
+  return { isFullscreen, isOverlayVisible: effectiveOverlayVisible, toggle, exit }
 }

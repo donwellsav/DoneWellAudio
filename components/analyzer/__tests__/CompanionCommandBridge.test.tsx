@@ -10,7 +10,11 @@ const mocks = vi.hoisted(() => {
   return {
     patchCompanionState: vi.fn(),
     clearCompanionStateForAdvisory: vi.fn(),
+    restoreDismissedAdvisory: vi.fn(),
+    retryCompanionLifecycle: vi.fn(),
+    clearCompanionLifecycle: vi.fn(),
     markCompanionApplied: vi.fn(),
+    clearCompanionPendingCut: vi.fn(),
     syncFeedbackHistory: vi.fn(),
     getFeedbackHotspotSummaries: vi.fn(() => []),
     onClearAll: vi.fn(),
@@ -25,6 +29,8 @@ const mocks = vi.hoisted(() => {
     resetInboundHandlers: () => {
       inboundHandlers = undefined
     },
+    onRingoutStart: vi.fn(),
+    onRingoutStop: vi.fn(),
   }
 })
 
@@ -72,12 +78,16 @@ vi.mock('@/contexts/AdvisoryContext', () => ({
     onClearAll: mocks.onClearAll,
     patchCompanionState: mocks.patchCompanionState,
     clearCompanionStateForAdvisory: mocks.clearCompanionStateForAdvisory,
+    restoreDismissedAdvisory: mocks.restoreDismissedAdvisory,
+    retryCompanionLifecycle: mocks.retryCompanionLifecycle,
+    clearCompanionLifecycle: mocks.clearCompanionLifecycle,
   }),
 }))
 
 vi.mock('@/lib/dsp/feedbackHistory', () => ({
   getFeedbackHistory: () => ({
     markCompanionApplied: mocks.markCompanionApplied,
+    clearCompanionPendingCut: mocks.clearCompanionPendingCut,
   }),
   getFeedbackHotspotSummaries: mocks.getFeedbackHotspotSummaries,
 }))
@@ -88,7 +98,11 @@ describe('CompanionCommandBridge', () => {
   beforeEach(() => {
     mocks.patchCompanionState.mockReset()
     mocks.clearCompanionStateForAdvisory.mockReset()
+    mocks.restoreDismissedAdvisory.mockReset()
+    mocks.retryCompanionLifecycle.mockReset()
+    mocks.clearCompanionLifecycle.mockReset()
     mocks.markCompanionApplied.mockReset()
+    mocks.clearCompanionPendingCut.mockReset()
     mocks.syncFeedbackHistory.mockReset()
     mocks.getFeedbackHotspotSummaries.mockClear()
     mocks.onClearAll.mockReset()
@@ -212,5 +226,92 @@ describe('CompanionCommandBridge', () => {
       maxCutDb: -12,
     })
     expect(mocks.syncFeedbackHistory).toHaveBeenCalled()
+  })
+
+  it('wires remote ring-out commands to the live ring-out callbacks', () => {
+    render(
+      <CompanionCommandBridge
+        onRingoutStart={mocks.onRingoutStart}
+        onRingoutStop={mocks.onRingoutStop}
+      />,
+    )
+
+    const handlers = mocks.getInboundHandlers()
+    expect(handlers?.onRingoutStart).toBeTypeOf('function')
+    expect(handlers?.onRingoutStop).toBeTypeOf('function')
+
+    act(() => {
+      handlers?.onRingoutStart?.()
+      handlers?.onRingoutStop?.()
+    })
+
+    expect(mocks.onRingoutStart).toHaveBeenCalledTimes(1)
+    expect(mocks.onRingoutStop).toHaveBeenCalledTimes(1)
+  })
+
+  it('cancels pending cut verification when the module reports a clear', () => {
+    render(<CompanionCommandBridge />)
+
+    const handlers = mocks.getInboundHandlers()
+    expect(handlers?.onCleared).toBeTypeOf('function')
+
+    act(() => {
+      handlers?.onCleared?.('adv-cleared', 2, 4444)
+    })
+
+    expect(mocks.clearCompanionStateForAdvisory).toHaveBeenCalledWith('adv-cleared')
+    expect(mocks.clearCompanionPendingCut).toHaveBeenCalledWith('adv-cleared')
+    expect(mocks.clearCompanionLifecycle).toHaveBeenCalledWith('adv-cleared')
+  })
+
+  it('restores a dismissed advisory when the module reports a partial clear', () => {
+    render(<CompanionCommandBridge />)
+
+    const handlers = mocks.getInboundHandlers()
+    expect(handlers?.onPartialClear).toBeTypeOf('function')
+
+    act(() => {
+      handlers?.onPartialClear?.({
+        advisoryId: 'adv-partial-clear',
+        peqCleared: true,
+        geqCleared: false,
+        failReason: 'GEQ failed',
+        timestamp: 5000,
+      })
+    })
+
+    expect(mocks.restoreDismissedAdvisory).toHaveBeenCalledWith('adv-partial-clear')
+    expect(mocks.retryCompanionLifecycle).toHaveBeenCalledWith('adv-partial-clear')
+    expect(mocks.patchCompanionState).toHaveBeenCalledWith('adv-partial-clear', {
+      partialClear: {
+        at: 5000,
+        peqCleared: true,
+        geqCleared: false,
+        failReason: 'GEQ failed',
+      },
+      clearFailed: undefined,
+      applied: undefined,
+    })
+  })
+
+  it('restores a dismissed advisory when the module reports a clear failure', () => {
+    render(<CompanionCommandBridge />)
+
+    const handlers = mocks.getInboundHandlers()
+    expect(handlers?.onClearFailed).toBeTypeOf('function')
+
+    act(() => {
+      handlers?.onClearFailed?.('adv-clear-failed', 'No outputs cleared', 6000)
+    })
+
+    expect(mocks.restoreDismissedAdvisory).toHaveBeenCalledWith('adv-clear-failed')
+    expect(mocks.retryCompanionLifecycle).toHaveBeenCalledWith('adv-clear-failed')
+    expect(mocks.patchCompanionState).toHaveBeenCalledWith('adv-clear-failed', {
+      clearFailed: {
+        at: 6000,
+        reason: 'No outputs cleared',
+      },
+      partialClear: undefined,
+    })
   })
 })

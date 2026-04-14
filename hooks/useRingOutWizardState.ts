@@ -43,6 +43,23 @@ const RING_OUT_SEVERITY_ORDER = {
   POSSIBLE_RING: 3,
 } as const
 
+function buildAcceptedAdvisoryKey(advisory: Advisory): string {
+  return JSON.stringify({
+    trueFrequencyHz: advisory.trueFrequencyHz,
+    peq: {
+      type: advisory.advisory.peq.type,
+      hz: advisory.advisory.peq.hz,
+      q: advisory.advisory.peq.q,
+      gainDb: advisory.advisory.peq.gainDb,
+    },
+    geq: {
+      bandHz: advisory.advisory.geq.bandHz,
+      bandIndex: advisory.advisory.geq.bandIndex,
+      suggestedDb: advisory.advisory.geq.suggestedDb,
+    },
+  })
+}
+
 export function findAdjacentMode(
   freqHz: number,
   modes: readonly RoomMode[] | null | undefined,
@@ -114,34 +131,61 @@ export function useRingOutWizardState({
   const [phase, setPhase] = useState<WizardPhase>('listening')
   const [notched, setNotched] = useState<NotchedFreq[]>([])
   const [currentAdvisory, setCurrentAdvisory] = useState<Advisory | null>(null)
-  const prevAdvisoryCountRef = useRef(0)
+  const lastDetectedAdvisoryIdRef = useRef<string | null>(null)
   const acceptedAdvisoriesRef = useRef<Advisory[]>([])
+  const sentAcceptedKeysRef = useRef<Set<string>>(new Set())
+  const inFlightAcceptedKeysRef = useRef<Set<string>>(new Set())
   const companion = useCompanion()
 
   const activeAdvisories = useMemo(
     () => getRingOutActiveAdvisories(advisories),
     [advisories],
   )
+  const detectedAdvisory = useMemo(
+    () => getRingOutDetectedAdvisory(activeAdvisories),
+    [activeAdvisories],
+  )
+
+  const sendAcceptedAdvisory = useCallback((advisory: Advisory) => {
+    if (!companion.settings.enabled) return
+    const advisoryKey = buildAcceptedAdvisoryKey(advisory)
+    if (sentAcceptedKeysRef.current.has(advisoryKey)) return
+    if (inFlightAcceptedKeysRef.current.has(advisoryKey)) return
+
+    inFlightAcceptedKeysRef.current.add(advisoryKey)
+    void companion.sendExplicitAdvisory(advisory)
+      .then((accepted) => {
+        if (accepted) {
+          sentAcceptedKeysRef.current.add(advisoryKey)
+        }
+      })
+      .finally(() => {
+        inFlightAcceptedKeysRef.current.delete(advisoryKey)
+      })
+  }, [companion])
 
   useEffect(() => {
-    if (phase !== 'listening' || !isRunning) return
+    const lastDetectedId = lastDetectedAdvisoryIdRef.current
+    if (!lastDetectedId) return
 
-    if (
-      activeAdvisories.length > prevAdvisoryCountRef.current &&
-      activeAdvisories.length > 0
-    ) {
-      setCurrentAdvisory(getRingOutDetectedAdvisory(activeAdvisories))
+    const stillActive = activeAdvisories.some((advisory) => advisory.id === lastDetectedId)
+    if (!stillActive) {
+      lastDetectedAdvisoryIdRef.current = null
+    }
+  }, [activeAdvisories])
+
+  useEffect(() => {
+    if (phase !== 'listening' || !isRunning || !detectedAdvisory) return
+    if (detectedAdvisory.id === lastDetectedAdvisoryIdRef.current) return
+
+    const timeoutId = window.setTimeout(() => {
+      lastDetectedAdvisoryIdRef.current = detectedAdvisory.id
+      setCurrentAdvisory(detectedAdvisory)
       setPhase('detected')
-    }
+    }, 0)
 
-    prevAdvisoryCountRef.current = activeAdvisories.length
-  }, [activeAdvisories, isRunning, phase])
-
-  useEffect(() => {
-    if (phase === 'listening') {
-      prevAdvisoryCountRef.current = activeAdvisories.length
-    }
-  }, [activeAdvisories, phase])
+    return () => window.clearTimeout(timeoutId)
+  }, [detectedAdvisory, isRunning, phase])
 
   const handleNext = useCallback(() => {
     if (!currentAdvisory) return
@@ -170,12 +214,12 @@ export function useRingOutWizardState({
     ]
 
     if (companion.settings.enabled && companion.settings.ringOutAutoSend) {
-      void companion.sendExplicitAdvisory(currentAdvisory)
+      sendAcceptedAdvisory(currentAdvisory)
     }
 
     setCurrentAdvisory(null)
     setPhase('listening')
-  }, [companion, currentAdvisory, roomModes])
+  }, [companion.settings.enabled, companion.settings.ringOutAutoSend, currentAdvisory, roomModes, sendAcceptedAdvisory])
 
   const handleSkip = useCallback(() => {
     setCurrentAdvisory(null)
@@ -203,9 +247,9 @@ export function useRingOutWizardState({
 
   const handleSendAll = useCallback(() => {
     for (const advisory of acceptedAdvisoriesRef.current) {
-      void companion.sendExplicitAdvisory(advisory)
+      sendAcceptedAdvisory(advisory)
     }
-  }, [companion])
+  }, [sendAcceptedAdvisory])
 
   const companionEnabled = companion.settings.enabled
 

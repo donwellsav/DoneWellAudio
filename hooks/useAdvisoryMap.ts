@@ -114,7 +114,7 @@ export function useAdvisoryMap(
   const onAdvisory = useCallback((advisory: Advisory) => {
     const isFrozen = frozenRef?.current ?? false
 
-    if (isFrozen && advisory.severity !== 'RUNAWAY') {
+    if (isFrozen && advisory.severity !== 'RUNAWAY' && advisory.severity !== 'GROWING') {
       frozenBufferRef.current.updates.push(advisory)
       applyToMap(advisory)
       return

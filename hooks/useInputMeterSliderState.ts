@@ -111,7 +111,9 @@ export function useInputMeterSliderState({
     }
   }, [disableAutoGain, max, min, onChange])
 
-  updateValueFromXRef.current = updateValueFromX
+  useEffect(() => {
+    updateValueFromXRef.current = updateValueFromX
+  }, [updateValueFromX])
 
   useEffect(() => {
     const handleMouseMove = (event: globalThis.MouseEvent) => {

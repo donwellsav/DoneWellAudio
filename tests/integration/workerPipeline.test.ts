@@ -23,13 +23,6 @@ import type { DetectedPeak, Track } from '@/types/advisory'
 import type { AlgorithmScores } from '@/lib/dsp/advancedDetection'
 import {
   buildScores,
-  buildMSDResult,
-  buildPhaseResult,
-  buildSpectralResult,
-  buildCombResult,
-  buildIHRResult,
-  buildPTMRResult,
-  buildCompressionResult,
 } from '@/tests/helpers/mockAlgorithmScores'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -48,22 +41,6 @@ function makePeakSpectrum(peakBin: number, peakDb: number, floorDb: number = -80
     const bin = peakBin + offset
     if (bin >= 0 && bin < NUM_BINS) {
       spectrum[bin] = peakDb - Math.abs(offset) * 3
-    }
-  }
-  return spectrum
-}
-
-/** Create a broad "musical" spectrum with energy spread across many bins */
-function makeBroadSpectrum(centerBin: number, widthBins: number, peakDb: number, floorDb: number = -80): Float32Array {
-  const spectrum = new Float32Array(NUM_BINS)
-  spectrum.fill(floorDb)
-
-  // Broad hump: Gaussian-ish shape
-  for (let offset = -widthBins; offset <= widthBins; offset++) {
-    const bin = centerBin + offset
-    if (bin >= 0 && bin < NUM_BINS) {
-      const rolloff = (offset / widthBins) ** 2
-      spectrum[bin] = peakDb - rolloff * 20
     }
   }
   return spectrum

@@ -230,6 +230,21 @@ describe('freeze/unfreeze buffering', () => {
     expect(ids).toContain('a2')
   })
 
+  it('lets GROWING advisories break through freeze immediately', () => {
+    const frozenRef = { current: true }
+    const { result } = renderHook(() => useAdvisoryMap(50, frozenRef))
+
+    act(() => {
+      result.current.onAdvisory(makeAdvisory({
+        id: 'g1',
+        severity: 'GROWING',
+        trueFrequencyHz: 1800,
+      }))
+    })
+
+    expect(result.current.advisories.map(a => a.id)).toContain('g1')
+  })
+
   it('works without frozenRef (undefined)', () => {
     // This was the source of the variable-length dep array bug —
     // frozenRef being undefined should not cause hook invariant violations

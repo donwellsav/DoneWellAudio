@@ -6,7 +6,7 @@
  * hasPendingBatches, getStats, getLabelBalance, reset, and privacy invariants.
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { SnapshotCollector, quantizeSpectrum } from '@/lib/data/snapshotCollector'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -14,16 +14,6 @@ import { SnapshotCollector, quantizeSpectrum } from '@/lib/data/snapshotCollecto
 /** Create a Float32Array spectrum of `length` bins filled with a constant dB value */
 function makeSpectrum(length: number, dbValue: number): Float32Array {
   return new Float32Array(length).fill(dbValue)
-}
-
-/** Create a spectrum with a known gradient for peak-hold testing */
-function makeGradientSpectrum(length: number): Float32Array {
-  const arr = new Float32Array(length)
-  for (let i = 0; i < length; i++) {
-    // Linearly ramp from -100 to 0
-    arr[i] = -100 + (i / (length - 1)) * 100
-  }
-  return arr
 }
 
 /** Feed N frames into the collector (only every 5th is captured) */

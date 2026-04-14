@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { logWarn } from '@/lib/utils/logger'
 
 export interface RtaFullscreenState {
   rtaContainerRef: (node: HTMLDivElement | null) => void
@@ -39,7 +40,7 @@ export function useRtaFullscreenState(): RtaFullscreenState {
 
     for (const element of rtaContainerRefs.current) {
       if (element.offsetParent !== null && element.requestFullscreen) {
-        element.requestFullscreen().catch((e) => { console.warn('[RTA Fullscreen] requestFullscreen failed:', e) })
+        element.requestFullscreen().catch((e) => { logWarn('[RTA Fullscreen] requestFullscreen failed:', e) })
         break
       }
     }

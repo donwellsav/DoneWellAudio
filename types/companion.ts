@@ -79,8 +79,9 @@ export type ModuleToAppMessage =
       advisoryId: string
       bandIndex: number
       appliedGainDb: number
+      maxCutDb?: number
       frequencyHz: number
-      slotIndex: number
+      slotIndex?: number
       timestamp: number
     }
   /** Apply failed — mixer error, slots full, etc. */
@@ -91,11 +92,32 @@ export type ModuleToAppMessage =
       advisoryId: string
       peqApplied: boolean
       geqApplied: boolean
+      bandIndex?: number
+      appliedGainDb?: number
+      maxCutDb?: number
+      frequencyHz?: number
+      slotIndex?: number
       failReason: string
       timestamp: number
     }
-  /** Slot cleared (resolve/dismiss echo). */
-  | { type: 'cleared'; advisoryId: string; slotIndex: number; timestamp: number }
+  /** Partial clear — one of PEQ/GEQ cleared but the other failed. */
+  | {
+      type: 'partial_clear'
+      advisoryId: string
+      peqCleared: boolean
+      geqCleared: boolean
+      failReason: string
+      timestamp: number
+    }
+  /** Clear failed — the module could not remove any mixer state for the advisory. */
+  | {
+      type: 'clear_failed'
+      advisoryId: string
+      reason: string
+      timestamp: number
+    }
+  /** Slot or band cleared (resolve/dismiss/local-clear echo). */
+  | { type: 'cleared'; advisoryId: string; slotIndex?: number; timestamp: number }
   /** Stream Deck button pressed — DWA should take an action. */
   | {
       type: 'command'

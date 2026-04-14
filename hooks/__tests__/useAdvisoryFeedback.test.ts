@@ -114,4 +114,37 @@ describe('useAdvisoryFeedback', () => {
     expect(sendUserFeedback).toHaveBeenCalledWith(2000, 'confirmed_feedback')
     expect(onCalibrationFalsePositive).toHaveBeenCalledWith('a1')
   })
+
+  it('prunes local false-positive and confirm state when advisories disappear', () => {
+    const sendUserFeedback = vi.fn()
+    const onCalibrationFalsePositive = vi.fn()
+
+    const { result, rerender } = renderHook(
+      ({ advisories }: { advisories: Advisory[] }) =>
+        useAdvisoryFeedback({
+          advisories,
+          dspWorker: { sendUserFeedback },
+          calibration: {
+            calibrationEnabled: false,
+            falsePositiveIds: new Set(),
+            onFalsePositive: onCalibrationFalsePositive,
+          },
+        }),
+      {
+        initialProps: {
+          advisories: [makeAdvisory('a1', 1234)],
+        },
+      },
+    )
+
+    act(() => {
+      result.current.handleFalsePositive('a1')
+      result.current.handleConfirmFeedback('a1')
+    })
+
+    rerender({ advisories: [] })
+
+    expect(result.current.falsePositiveIds.has('a1')).toBe(false)
+    expect(result.current.confirmedIds.has('a1')).toBe(false)
+  })
 })

@@ -143,4 +143,24 @@ describe('IssueCard', () => {
     const progressBar = Array.from(bars).find(el => el.className?.includes?.('h-[3px]'))
     expect(progressBar).toBeUndefined()
   })
+
+  it('renders partial apply status when Companion only applies one side', () => {
+    render(
+      <IssueCard
+        advisory={makeAdvisory()}
+        occurrenceCount={1}
+        companionState={{
+          partialApply: {
+            at: Date.now(),
+            peqApplied: false,
+            geqApplied: true,
+            failReason: 'PEQ slots full',
+          },
+        }}
+      />,
+    )
+
+    expect(screen.getByText('PARTIAL')).toBeDefined()
+    expect(screen.getByLabelText(/partial apply: peq failed, geq applied; peq slots full/i)).toBeDefined()
+  })
 })

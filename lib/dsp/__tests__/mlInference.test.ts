@@ -55,6 +55,7 @@ function resetMockState() {
   // Must be a real function (not arrow) so it's valid as a constructor with `new`
   mockTensorConstructor = vi.fn().mockImplementation(
     function (this: { data: Float32Array }, _type: string, data: Float32Array, _dims: number[]) {
+      void _dims
       this.data = data
     }
   )

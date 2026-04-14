@@ -57,7 +57,6 @@ const MODE_ABSENCE_PENALTY = 0.05
 // Avoids recalculating Schroeder frequency on every peak (~200+ calls/sec during dense feedback).
 let _roomCacheKey = ''
 let _roomCacheSchroeder = 0
-let _roomCacheConfigured = false
 
 /**
  * Maximum absolute delta that room-physics adjustments can cumulatively apply
@@ -98,7 +97,6 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     schroederFreq = roomConfigured ? calculateSchroederFrequency(roomRT60, roomVolume) : 0
     _roomCacheKey = roomKey
     _roomCacheSchroeder = schroederFreq
-    _roomCacheConfigured = roomConfigured
   }
   
   // Get frequency band and modifiers
@@ -532,10 +530,9 @@ export function shouldReportIssue(
       return label !== 'INSTRUMENT'
 
     case 'liveMusic':
-      // Live music — only report clear feedback, skip instruments and possible rings
-      if (label === 'INSTRUMENT') return false
-      if (label === 'POSSIBLE_RING' && confidence < 0.65) return false
-      return true
+      // Live music still needs early rings. Confidence filtering already ran
+      // above, so don't add a second POSSIBLE_RING gate here.
+      return label !== 'INSTRUMENT'
 
     case 'theater':
       // Theater/drama — report feedback and rings, skip instruments
@@ -635,8 +632,6 @@ export function classifyTrackWithAlgorithms(
 
   // Compression context (classifier-only)
   if (algorithmScores.compression && algorithmScores.compression.isCompressed) {
-    const adjustment = algorithmScores.compression.thresholdMultiplier - 1
-    pFeedback = Math.max(0, pFeedback - adjustment * 0.1)
     reasons.push(`Compressed audio (crest: ${algorithmScores.compression.crestFactor.toFixed(1)}dB)`)
   }
 
@@ -679,6 +674,19 @@ export function classifyTrackWithAlgorithms(
   const rejectedFeedback = fusionResult.verdict === 'NOT_FEEDBACK'
   const uncertainFeedback = fusionResult.verdict === 'UNCERTAIN'
   const preserveUrgentFeedback = definitiveFeedback
+  const feedbackWinsPosterior = pFeedback >= pWhistle && pFeedback >= pInstrument
+  const strongFeedbackPrior =
+    baseResult.label === 'ACOUSTIC_FEEDBACK' ||
+    baseResult.severity === 'RUNAWAY' ||
+    baseResult.severity === 'GROWING' ||
+    pFeedback >= 0.45
+  const softRejectedFeedback =
+    rejectedFeedback &&
+    feedbackWinsPosterior &&
+    strongFeedbackPrior &&
+    pFeedback >= 0.45 &&
+    fusionResult.feedbackProbability >= 0.25
+  const hardRejectedFeedback = rejectedFeedback && !softRejectedFeedback
 
   // Re-apply severity overrides AFTER normalization only when fusion still
   // considers feedback plausible. A negative verdict must be able to demote
@@ -711,7 +719,7 @@ export function classifyTrackWithAlgorithms(
   const instrumentWins =
     pInstrument >= CLASSIFIER_WEIGHTS.INSTRUMENT_THRESHOLD && pInstrument > pFeedback
 
-  if (rejectedFeedback) {
+  if (hardRejectedFeedback) {
     if (baseResult.label === 'WHISTLE' || whistleWins) {
       label = 'WHISTLE'
       severity = 'WHISTLE'
@@ -722,6 +730,10 @@ export function classifyTrackWithAlgorithms(
       label = 'POSSIBLE_RING'
       severity = 'POSSIBLE_RING'
     }
+  } else if (softRejectedFeedback) {
+    label = 'ACOUSTIC_FEEDBACK'
+    severity = 'RESONANCE'
+    reasons.push('Fusion soft reject: feedback still dominates posterior')
   } else if (whistleWins) {
     label = 'WHISTLE'
     severity = 'WHISTLE'
@@ -753,8 +765,10 @@ export function classifyTrackWithAlgorithms(
     (baseResult.confidence + fusionResult.confidence) / 2,
   )
   const confidence =
-    rejectedFeedback && label === 'POSSIBLE_RING'
+    hardRejectedFeedback && label === 'POSSIBLE_RING'
       ? Math.min(blendedConfidence, fusionResult.confidence)
+      : softRejectedFeedback
+        ? Math.max(labelProbability, Math.min(blendedConfidence, 0.55))
       : blendedConfidence
   
   return {
@@ -767,7 +781,7 @@ export function classifyTrackWithAlgorithms(
     severity,
     confidence,
     fusionVerdict: fusionResult.verdict,
-    recommendationEligible: !rejectedFeedback,
+    recommendationEligible: !hardRejectedFeedback,
     reasons,
   }
 }

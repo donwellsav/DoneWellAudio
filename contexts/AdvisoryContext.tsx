@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -32,6 +33,10 @@ export interface CompanionAdvisoryState {
   failed?: { at: number; reason: string }
   /** Partial apply — one of PEQ/GEQ succeeded but the other failed (both mode). */
   partialApply?: { at: number; peqApplied: boolean; geqApplied: boolean; failReason: string }
+  /** Clear failed — mixer state could not be removed. */
+  clearFailed?: { at: number; reason: string }
+  /** Partial clear — one of PEQ/GEQ cleared but the other remained. */
+  partialClear?: { at: number; peqCleared: boolean; geqCleared: boolean; failReason: string }
 }
 
 /** High-frequency data — changes on every advisory update from the worker. */
@@ -54,6 +59,9 @@ export interface AdvisoryDataContextValue {
 export interface AdvisoryActionsContextValue {
   patchCompanionState: (advisoryId: string, patch: Partial<CompanionAdvisoryState>) => void
   clearCompanionStateForAdvisory: (advisoryId: string) => void
+  restoreDismissedAdvisory: (advisoryId: string) => void
+  retryCompanionLifecycle: (advisoryId: string) => void
+  clearCompanionLifecycle: (advisoryId: string) => void
   onDismiss: (id: string) => void
   onClearAll: () => void
   onClearResolved: () => void
@@ -68,6 +76,7 @@ export type AdvisoryContextValue = AdvisoryDataContextValue & AdvisoryActionsCon
 
 const AdvisoryDataContext = createContext<AdvisoryDataContextValue | null>(null)
 const AdvisoryActionsContext = createContext<AdvisoryActionsContextValue | null>(null)
+const COMPANION_LIFECYCLE_RETRY_MS = 1000
 
 interface AdvisoryProviderProps {
   onFalsePositive: ((advisoryId: string) => void) | undefined
@@ -92,6 +101,7 @@ export function AdvisoryProvider({
     hasActiveGEQBars,
     hasActiveRTAMarkers,
     onDismiss,
+    restoreDismissed,
     onClearAll,
     onClearResolved,
     onClearGEQ,
@@ -102,8 +112,16 @@ export function AdvisoryProvider({
   // State lives here so IssueCard can subscribe via useAdvisories(). The actual
   // relay polling + dispatch lives in <CompanionCommandBridge> which must be
   // mounted inside UIProvider so it can also handle Stream Deck commands.
-  const { settings: companionSettings } = useCompanion()
+  const {
+    settings: companionSettings,
+    sendDismiss,
+    sendResolve,
+  } = useCompanion()
   const [companionState, setCompanionState] = useState<Map<string, CompanionAdvisoryState>>(() => new Map())
+  const resolvedRelayedIdsRef = useRef<Set<string>>(new Set())
+  const pendingLifecycleActionsRef = useRef<Map<string, 'resolve' | 'dismiss'>>(new Map())
+  const lifecycleInFlightRef = useRef<Set<string>>(new Set())
+  const lastLifecycleActionRef = useRef<Map<string, 'resolve' | 'dismiss'>>(new Map())
 
   const patchCompanionState = useCallback(
     (advisoryId: string, patch: Partial<CompanionAdvisoryState>) => {
@@ -125,9 +143,14 @@ export function AdvisoryProvider({
     })
   }, [])
 
+  const clearCompanionLifecycle = useCallback((advisoryId: string) => {
+    pendingLifecycleActionsRef.current.delete(advisoryId)
+    lifecycleInFlightRef.current.delete(advisoryId)
+    lastLifecycleActionRef.current.delete(advisoryId)
+  }, [])
+
   // Periodically reap expired Companion pending cuts → hotspot learning
   useEffect(() => {
-    if (!companionSettings.enabled) return
     const history = getFeedbackHistory()
     const timerId = setInterval(() => {
       if (history.reapCompanionCuts()) {
@@ -135,7 +158,139 @@ export function AdvisoryProvider({
       }
     }, 1000)
     return () => clearInterval(timerId)
-  }, [companionSettings.enabled, dspWorker])
+  }, [dspWorker])
+
+  const flushPendingLifecycleActions = useCallback(() => {
+    if (!companionSettings.enabled || pendingLifecycleActionsRef.current.size === 0) {
+      return
+    }
+
+    pendingLifecycleActionsRef.current.forEach((action, advisoryId) => {
+      if (lifecycleInFlightRef.current.has(advisoryId)) {
+        return
+      }
+
+      lifecycleInFlightRef.current.add(advisoryId)
+      const send = action === 'dismiss' ? sendDismiss : sendResolve
+
+      void send(advisoryId)
+        .then((accepted) => {
+          if (
+            accepted &&
+            pendingLifecycleActionsRef.current.get(advisoryId) === action
+          ) {
+            pendingLifecycleActionsRef.current.delete(advisoryId)
+          }
+        })
+        .finally(() => {
+          lifecycleInFlightRef.current.delete(advisoryId)
+        })
+    })
+  }, [companionSettings.enabled, sendDismiss, sendResolve])
+
+  const retryCompanionLifecycle = useCallback((advisoryId: string) => {
+    if (!companionSettings.enabled) {
+      return
+    }
+
+    const action = lastLifecycleActionRef.current.get(advisoryId)
+    if (!action) {
+      return
+    }
+
+    pendingLifecycleActionsRef.current.set(advisoryId, action)
+    flushPendingLifecycleActions()
+  }, [companionSettings.enabled, flushPendingLifecycleActions])
+
+  useEffect(() => {
+    if (!companionSettings.enabled) {
+      resolvedRelayedIdsRef.current.clear()
+      pendingLifecycleActionsRef.current.clear()
+      lifecycleInFlightRef.current.clear()
+      lastLifecycleActionRef.current.clear()
+      return
+    }
+
+    const liveIds = new Set<string>()
+    for (const advisory of advisories) {
+      liveIds.add(advisory.id)
+      if (!advisory.resolved || resolvedRelayedIdsRef.current.has(advisory.id)) {
+        continue
+      }
+
+      resolvedRelayedIdsRef.current.add(advisory.id)
+      if (pendingLifecycleActionsRef.current.get(advisory.id) !== 'dismiss') {
+        pendingLifecycleActionsRef.current.set(advisory.id, 'resolve')
+        lastLifecycleActionRef.current.set(advisory.id, 'resolve')
+      }
+    }
+
+    for (const advisoryId of [...resolvedRelayedIdsRef.current]) {
+      if (!liveIds.has(advisoryId) && !pendingLifecycleActionsRef.current.has(advisoryId)) {
+        resolvedRelayedIdsRef.current.delete(advisoryId)
+      }
+    }
+    flushPendingLifecycleActions()
+  }, [advisories, companionSettings.enabled, flushPendingLifecycleActions])
+
+  useEffect(() => {
+    if (!companionSettings.enabled) {
+      return
+    }
+
+    flushPendingLifecycleActions()
+    const timerId = setInterval(flushPendingLifecycleActions, COMPANION_LIFECYCLE_RETRY_MS)
+    return () => clearInterval(timerId)
+  }, [companionSettings.enabled, flushPendingLifecycleActions])
+
+  useEffect(() => {
+    const liveIds = new Set(advisories.map((advisory) => advisory.id))
+
+    setCompanionState((prev) => {
+      if (prev.size === 0) return prev
+
+      let changed = false
+      const next = new Map<string, CompanionAdvisoryState>()
+      prev.forEach((value, advisoryId) => {
+        if (liveIds.has(advisoryId)) {
+          next.set(advisoryId, value)
+        } else {
+          changed = true
+        }
+      })
+
+      return changed ? next : prev
+    })
+  }, [advisories])
+
+  const dismissCompanionAdvisories = useCallback((advisoryIds: readonly string[]) => {
+    if (!companionSettings.enabled) {
+      return
+    }
+
+    for (const advisoryId of advisoryIds) {
+      pendingLifecycleActionsRef.current.set(advisoryId, 'dismiss')
+      lastLifecycleActionRef.current.set(advisoryId, 'dismiss')
+    }
+    flushPendingLifecycleActions()
+  }, [companionSettings.enabled, flushPendingLifecycleActions])
+
+  const onDismissWithCompanion = useCallback((id: string) => {
+    onDismiss(id)
+    const advisory = advisories.find((entry) => entry.id === id)
+    if (advisory && !advisory.resolved) {
+      dismissCompanionAdvisories([id])
+    }
+  }, [advisories, dismissCompanionAdvisories, onDismiss])
+
+  const onClearAllWithCompanion = useCallback(() => {
+    onClearAll()
+    dismissCompanionAdvisories(
+      advisories
+        .filter((advisory) => !advisory.resolved)
+        .map((advisory) => advisory.id),
+    )
+  }, [advisories, dismissCompanionAdvisories, onClearAll])
 
   // Split into two context values — data (high-frequency) vs actions (stable callbacks).
   // Components that only need actions (e.g. CompanionCommandBridge) skip re-renders
@@ -173,8 +328,11 @@ export function AdvisoryProvider({
     () => ({
       patchCompanionState,
       clearCompanionStateForAdvisory,
-      onDismiss,
-      onClearAll,
+      restoreDismissedAdvisory: restoreDismissed,
+      retryCompanionLifecycle,
+      clearCompanionLifecycle,
+      onDismiss: onDismissWithCompanion,
+      onClearAll: onClearAllWithCompanion,
       onClearResolved,
       onClearRTA,
       onClearGEQ,
@@ -184,8 +342,11 @@ export function AdvisoryProvider({
     [
       patchCompanionState,
       clearCompanionStateForAdvisory,
-      onDismiss,
-      onClearAll,
+      restoreDismissed,
+      retryCompanionLifecycle,
+      clearCompanionLifecycle,
+      onDismissWithCompanion,
+      onClearAllWithCompanion,
       onClearResolved,
       onClearRTA,
       onClearGEQ,

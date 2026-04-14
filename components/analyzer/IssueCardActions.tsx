@@ -174,6 +174,15 @@ export const IssueCardActions = memo(function IssueCardActions({
         >
           {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
         </button>
+        {onSendToMixer ? (
+          <button
+            onClick={onSendToMixer}
+            aria-label={`Send ${exactFreqStr} EQ recommendation to mixer via Companion`}
+            className={`${actionButtonClass} text-blue-400/70 hover:text-blue-400 hover:bg-blue-500/10 border border-transparent`}
+          >
+            SEND
+          </button>
+        ) : null}
       </div>
       {copied ? <span className="sr-only" role="status">Frequency info copied</span> : null}
     </div>

@@ -31,12 +31,27 @@ const VALID_MODES = new Set([
   'speech', 'worship', 'liveMusic', 'theater', 'monitors', 'ringOut', 'broadcast', 'outdoor',
 ])
 
-export const CompanionCommandBridge = memo(function CompanionCommandBridge() {
+interface CompanionCommandBridgeProps {
+  onRingoutStart?: () => void
+  onRingoutStop?: () => void
+}
+
+export const CompanionCommandBridge = memo(function CompanionCommandBridge({
+  onRingoutStart,
+  onRingoutStop,
+}: CompanionCommandBridgeProps) {
   const { settings: companionSettings } = useCompanion()
   const engine = useEngine()
   const settingsCtx = useSettings()
   const uiCtx = useUI()
-  const { onClearAll, patchCompanionState, clearCompanionStateForAdvisory } = useAdvisoryActions()
+  const {
+    onClearAll,
+    patchCompanionState,
+    clearCompanionStateForAdvisory,
+    restoreDismissedAdvisory,
+    retryCompanionLifecycle,
+    clearCompanionLifecycle,
+  } = useAdvisoryActions()
   const syncFeedbackHistory = useCallback(() => {
     engine.dspWorker.syncFeedbackHistory(getFeedbackHotspotSummaries())
   }, [engine.dspWorker])
@@ -55,6 +70,10 @@ export const CompanionCommandBridge = memo(function CompanionCommandBridge() {
               : { at: timestamp, gainDb: appliedGainDb }
           patchCompanionState(advisoryId, {
             applied: appliedState,
+            failed: undefined,
+            partialApply: undefined,
+            clearFailed: undefined,
+            partialClear: undefined,
           })
           // Record in FeedbackHistory for closed-loop verification + learning
           getFeedbackHistory().markCompanionApplied({
@@ -68,7 +87,12 @@ export const CompanionCommandBridge = memo(function CompanionCommandBridge() {
           syncFeedbackHistory()
         },
         onApplyFailed: (advisoryId, reason, at) =>
-          patchCompanionState(advisoryId, { failed: { at, reason } }),
+          patchCompanionState(advisoryId, {
+            failed: { at, reason },
+            partialApply: undefined,
+            clearFailed: undefined,
+            partialClear: undefined,
+          }),
         onPartialApply: ({
           advisoryId,
           peqApplied,
@@ -83,6 +107,9 @@ export const CompanionCommandBridge = memo(function CompanionCommandBridge() {
         }) => {
           patchCompanionState(advisoryId, {
             partialApply: { at: timestamp, peqApplied, geqApplied, failReason },
+            failed: undefined,
+            clearFailed: undefined,
+            partialClear: undefined,
             ...(appliedGainDb !== undefined && slotIndex !== undefined
               ? { applied: { at: timestamp, gainDb: appliedGainDb, slotIndex } }
               : {}),
@@ -103,7 +130,34 @@ export const CompanionCommandBridge = memo(function CompanionCommandBridge() {
             syncFeedbackHistory()
           }
         },
-        onCleared: (advisoryId) => clearCompanionStateForAdvisory(advisoryId),
+        onPartialClear: ({
+          advisoryId,
+          peqCleared,
+          geqCleared,
+          failReason,
+          timestamp,
+        }) => {
+          restoreDismissedAdvisory(advisoryId)
+          retryCompanionLifecycle(advisoryId)
+          patchCompanionState(advisoryId, {
+            partialClear: { at: timestamp, peqCleared, geqCleared, failReason },
+            clearFailed: undefined,
+            ...(peqCleared ? { applied: undefined } : {}),
+          })
+        },
+        onClearFailed: (advisoryId, reason, at) => {
+          restoreDismissedAdvisory(advisoryId)
+          retryCompanionLifecycle(advisoryId)
+          patchCompanionState(advisoryId, {
+            clearFailed: { at, reason },
+            partialClear: undefined,
+          })
+        },
+        onCleared: (advisoryId) => {
+          clearCompanionLifecycle(advisoryId)
+          clearCompanionStateForAdvisory(advisoryId)
+          getFeedbackHistory().clearCompanionPendingCut(advisoryId)
+        },
 
         // ── Stream Deck remote control ─────────────────────────────
         onStart: () => { void engine.start() },
@@ -116,22 +170,21 @@ export const CompanionCommandBridge = memo(function CompanionCommandBridge() {
             settingsCtx.setMode(mode as Parameters<typeof settingsCtx.setMode>[0])
           }
         },
-        onRingoutStart: () => {
-          // eslint-disable-next-line no-console
-          console.info('[CompanionCommand] ringout_start received (no handler wired yet)')
-        },
-        onRingoutStop: () => {
-          // eslint-disable-next-line no-console
-          console.info('[CompanionCommand] ringout_stop received (no handler wired yet)')
-        },
+        onRingoutStart: () => { onRingoutStart?.() },
+        onRingoutStop: () => { onRingoutStop?.() },
       }),
       [
         engine,
         settingsCtx,
         uiCtx,
+        onRingoutStart,
+        onRingoutStop,
         onClearAll,
         patchCompanionState,
         clearCompanionStateForAdvisory,
+        restoreDismissedAdvisory,
+        retryCompanionLifecycle,
+        clearCompanionLifecycle,
         syncFeedbackHistory,
       ],
     ),

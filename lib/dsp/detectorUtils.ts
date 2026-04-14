@@ -12,7 +12,6 @@
  */
 
 import { MSD_SETTINGS, HARMONIC_SETTINGS } from './constants'
-import type { MSDPool } from './msdPool'
 import type { AnalysisConfig } from '@/types/advisory'
 
 // ─── Threshold Computation ──────────────────────────────────────────────────
@@ -29,8 +28,28 @@ import type { AnalysisConfig } from '@/types/advisory'
  * @param noiseFloorDb - Current noise floor estimate (null if not yet measured)
  * @returns Effective threshold in dB
  */
+const MODE_RELATIVE_HEADROOM_SCALE: Readonly<Record<string, number>> = {
+  speech: 0.8,
+  worship: 0.65,
+  liveMusic: 0.55,
+  theater: 0.75,
+  monitors: 0.8,
+  ringOut: 0.65,
+  broadcast: 0.8,
+  outdoor: 0.6,
+}
+
+const MIN_RELATIVE_HEADROOM_DB = 10
+const MAX_RELATIVE_HEADROOM_DB = 24
+
+export function normalizeRelativeThresholdDb(relativeThresholdDb: number, mode?: string): number {
+  const scale = mode ? (MODE_RELATIVE_HEADROOM_SCALE[mode] ?? 0.7) : 0.7
+  const normalized = relativeThresholdDb * scale
+  return Math.max(MIN_RELATIVE_HEADROOM_DB, Math.min(MAX_RELATIVE_HEADROOM_DB, normalized))
+}
+
 export function computeEffectiveThreshold(
-  config: Pick<AnalysisConfig, 'thresholdDb' | 'noiseFloorEnabled' | 'relativeThresholdDb' | 'thresholdMode'>,
+  config: Pick<AnalysisConfig, 'thresholdDb' | 'noiseFloorEnabled' | 'relativeThresholdDb' | 'thresholdMode' | 'mode'>,
   noiseFloorDb: number | null,
 ): number {
   const absT = config.thresholdDb
@@ -39,7 +58,7 @@ export function computeEffectiveThreshold(
     return absT
   }
 
-  const relT = noiseFloorDb + config.relativeThresholdDb
+  const relT = noiseFloorDb + normalizeRelativeThresholdDb(config.relativeThresholdDb, config.mode)
   switch (config.thresholdMode) {
     case 'absolute': return absT
     case 'relative': return relT

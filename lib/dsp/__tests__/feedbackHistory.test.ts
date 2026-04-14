@@ -13,7 +13,11 @@ vi.mock('@/lib/dsp/feedbackHistoryStorage', () => ({
   clearPendingFeedbackHistory: vi.fn(),
 }))
 
-import { FeedbackHistory } from '@/lib/dsp/feedbackHistory'
+import {
+  FeedbackHistory,
+  COMPANION_RETRY_MAX_CUT_DB,
+  COMPANION_SUCCESS_WINDOW_MS,
+} from '@/lib/dsp/feedbackHistory'
 import type { FeedbackEvent } from '@/lib/dsp/feedbackHistory'
 import {
   HOTSPOT_COOLDOWN_MS,
@@ -193,5 +197,133 @@ describe('FeedbackHistory — mode and cooldown', () => {
 
     history.recordEvent(makeEvent(1000, base + 100))
     expect(history.getOccurrenceCount(1000)).toBe(1)
+  })
+
+  it('peeks retry depth without mutating pending retry state', () => {
+    const base = 100_000
+
+    history.recordEvent(makeEvent(1000, base))
+    history.markCompanionApplied({
+      frequencyHz: 1000,
+      gainDb: -6,
+      bandIndex: 3,
+      advisoryId: 'adv-1',
+      at: base + 100,
+    })
+
+    const first = history.peekRetryCompanionCut(1000, base + 200)
+    const second = history.peekRetryCompanionCut(1000, base + 200)
+
+    expect(first).toEqual({
+      nextGainDb: -9,
+      retryCount: 1,
+      advisoryId: 'adv-1',
+      bandIndex: 3,
+    })
+    expect(second).toEqual(first)
+  })
+
+  it('clamps retry depth to the live Companion safety ceiling', () => {
+    const base = 100_000
+
+    history.recordEvent(makeEvent(1000, base))
+    history.markCompanionApplied({
+      frequencyHz: 1000,
+      gainDb: COMPANION_RETRY_MAX_CUT_DB,
+      bandIndex: 3,
+      advisoryId: 'adv-1',
+      at: base + 100,
+    })
+
+    expect(history.peekRetryCompanionCut(1000, base + 200)).toBeNull()
+    expect(history.consumeRetryCompanionCut(1000, base + 200)).toBeNull()
+  })
+
+  it('uses the module-reported maxCutDb when calculating retries', () => {
+    const base = 100_000
+
+    history.recordEvent(makeEvent(1000, base))
+    history.markCompanionApplied({
+      frequencyHz: 1000,
+      gainDb: -6,
+      maxCutDb: -9,
+      bandIndex: 3,
+      advisoryId: 'adv-1',
+      at: base + 100,
+    })
+
+    expect(history.peekRetryCompanionCut(1000, base + 200)).toEqual({
+      nextGainDb: -9,
+      retryCount: 1,
+      advisoryId: 'adv-1',
+      bandIndex: 3,
+    })
+    expect(history.consumeRetryCompanionCut(1000, base + 200)).toEqual({
+      nextGainDb: -9,
+      retryCount: 1,
+      advisoryId: 'adv-1',
+      bandIndex: 3,
+    })
+    expect(history.peekRetryCompanionCut(1000, base + 300)).toBeNull()
+  })
+
+  it('advances retry depth only after a deeper cut is actually applied', () => {
+    const base = 100_000
+
+    history.recordEvent(makeEvent(1000, base))
+    history.markCompanionApplied({
+      frequencyHz: 1000,
+      gainDb: -6,
+      bandIndex: 3,
+      advisoryId: 'adv-1',
+      at: base + 100,
+    })
+
+    expect(history.peekRetryCompanionCut(1000, base + 200)).toEqual({
+      nextGainDb: -9,
+      retryCount: 1,
+      advisoryId: 'adv-1',
+      bandIndex: 3,
+    })
+
+    history.markCompanionApplied({
+      frequencyHz: 1000,
+      gainDb: -9,
+      bandIndex: 3,
+      advisoryId: 'adv-1',
+      at: base + 250,
+    })
+
+    expect(history.peekRetryCompanionCut(1000, base + 350)).toEqual({
+      nextGainDb: -12,
+      retryCount: 2,
+      advisoryId: 'adv-1',
+      bandIndex: 3,
+    })
+  })
+
+  it('cancels pending retry verification once a Companion cut is cleared', () => {
+    const base = 100_000
+
+    history.recordEvent(makeEvent(1000, base))
+    history.markCompanionApplied({
+      frequencyHz: 1000,
+      gainDb: -6,
+      bandIndex: 3,
+      advisoryId: 'adv-1',
+      at: base + 100,
+    })
+
+    expect(history.peekRetryCompanionCut(1000, base + 200)).toEqual({
+      nextGainDb: -9,
+      retryCount: 1,
+      advisoryId: 'adv-1',
+      bandIndex: 3,
+    })
+
+    expect(history.clearCompanionPendingCut('adv-1')).toBe(true)
+    expect(history.peekRetryCompanionCut(1000, base + 200)).toBeNull()
+    expect(history.reapCompanionCuts(base + COMPANION_SUCCESS_WINDOW_MS + 200)).toBe(false)
+    expect(history.getHotspots()[0]?.successfulCutCount).toBeUndefined()
   })
 })

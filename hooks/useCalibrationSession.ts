@@ -50,55 +50,84 @@ export function useCalibrationSession(
   isAnalysisRunning: boolean,
   settings: DetectorSettings,
 ): UseCalibrationSessionReturn {
-  const [calibrationEnabled, setCalibrationEnabled] = useState(false)
+  const [calibrationEnabled, setCalibrationEnabledState] = useState(false)
   const [room, setRoom] = useState<RoomProfile>(() => ({ ...EMPTY_ROOM_PROFILE, ...roomStorage.load() }))
   const [ambientCapture, setAmbientCapture] = useState<AmbientCapture | null>(null)
   const [isCapturingAmbient, setIsCapturingAmbient] = useState(false)
   const [stats, setStats] = useState<CalibrationStats>(INITIAL_STATS)
   const [falsePositiveIds, setFalsePositiveIds] = useState<ReadonlySet<string>>(new Set())
-  const [sessionActive, setSessionActive] = useState(false)
 
   const sessionRef = useRef<CalibrationSession | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const ambientCaptureTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const settingsSnapshotRef = useRef<DetectorSettings | null>(null)
+  const settingsSnapshotRef = useRef<DetectorSettings | null>(settings)
   const mountedRef = useRef(true)
+  const lastContentTypeRef = useRef<string>('unknown')
 
   // Keep settings snapshot in sync so session creation guard works
   useEffect(() => { settingsSnapshotRef.current = settings }, [settings])
 
-  const isRecording = calibrationEnabled && isAnalysisRunning && sessionActive
+  const isRecording = calibrationEnabled && isAnalysisRunning
 
-  // Start/stop session lifecycle
-  useEffect(() => {
-    if (calibrationEnabled && isAnalysisRunning) {
-      // Start a new session if none exists
-      if (!sessionRef.current && settingsSnapshotRef.current) {
-        sessionRef.current = new CalibrationSession(settingsSnapshotRef.current)
-        lastContentTypeRef.current = 'unknown'
-        setFalsePositiveIds(new Set())
-        setStats(INITIAL_STATS)
-      }
-      setSessionActive(true)
+  const clearAmbientCaptureTimer = useCallback(() => {
+    if (ambientCaptureTimerRef.current) {
+      clearInterval(ambientCaptureTimerRef.current)
+      ambientCaptureTimerRef.current = null
+    }
+  }, [])
+
+  const clearSamplingTimer = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+  }, [])
+
+  const resetCalibrationUiState = useCallback(() => {
+    setAmbientCapture(null)
+    setIsCapturingAmbient(false)
+    setFalsePositiveIds(new Set())
+    setStats(INITIAL_STATS)
+  }, [])
+
+  const ensureSession = useCallback(() => {
+    if (sessionRef.current || !settingsSnapshotRef.current) return
+    sessionRef.current = new CalibrationSession(settingsSnapshotRef.current)
+    lastContentTypeRef.current = 'unknown'
+  }, [])
+
+  const setCalibrationEnabled = useCallback((enabled: boolean) => {
+    if (enabled === calibrationEnabled) return
+
+    setCalibrationEnabledState(enabled)
+
+    if (!enabled) {
+      clearAmbientCaptureTimer()
+      clearSamplingTimer()
+      sessionRef.current = null
+      lastContentTypeRef.current = 'unknown'
+      resetCalibrationUiState()
       return
     }
 
-    setSessionActive(false)
-
-    // Turning calibration off starts a fresh session next time.
-    if (!calibrationEnabled) {
-      if (ambientCaptureTimerRef.current) {
-        clearInterval(ambientCaptureTimerRef.current)
-        ambientCaptureTimerRef.current = null
-      }
-      sessionRef.current = null
-      lastContentTypeRef.current = 'unknown'
-      setAmbientCapture(null)
-      setIsCapturingAmbient(false)
-      setFalsePositiveIds(new Set())
-      setStats(INITIAL_STATS)
+    resetCalibrationUiState()
+    if (isAnalysisRunning) {
+      ensureSession()
     }
-  }, [calibrationEnabled, isAnalysisRunning])
+  }, [
+    calibrationEnabled,
+    clearAmbientCaptureTimer,
+    clearSamplingTimer,
+    ensureSession,
+    isAnalysisRunning,
+    resetCalibrationUiState,
+  ])
+
+  useEffect(() => {
+    if (calibrationEnabled && isAnalysisRunning) {
+      ensureSession()
+    }
+  }, [calibrationEnabled, ensureSession, isAnalysisRunning])
 
   // Periodic sampling (noise floor + spectrum snapshot every 60s)
   useEffect(() => {
@@ -134,7 +163,6 @@ export function useCalibrationSession(
   }, [isRecording])
 
   // Track content type transitions
-  const lastContentTypeRef = useRef<string>('unknown')
   useEffect(() => {
     if (!isRecording) return
     const pollContentType = () => {
@@ -155,16 +183,10 @@ export function useCalibrationSession(
     mountedRef.current = true
     return () => {
       mountedRef.current = false
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
-      }
-      if (ambientCaptureTimerRef.current) {
-        clearInterval(ambientCaptureTimerRef.current)
-        ambientCaptureTimerRef.current = null
-      }
+      clearSamplingTimer()
+      clearAmbientCaptureTimer()
     }
-  }, [])
+  }, [clearAmbientCaptureTimer, clearSamplingTimer])
 
   const updateRoom = useCallback((partial: Partial<RoomProfile>) => {
     setRoom(prev => {

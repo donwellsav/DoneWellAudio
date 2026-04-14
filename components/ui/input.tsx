@@ -16,7 +16,9 @@ function Input({ className, type, onChange, ...props }: React.ComponentProps<'in
 
   // Store onChange in a ref so the wheel handler always has the latest
   const onChangeRef = React.useRef(onChange)
-  onChangeRef.current = onChange
+  React.useEffect(() => {
+    onChangeRef.current = onChange
+  }, [onChange])
 
   // Parse wheel-step params from the input's min/max/step/value props
   const min = isNumber ? parseFloat(String(props.min ?? 0)) : 0

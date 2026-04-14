@@ -94,6 +94,8 @@ export declare class MixerOutput {
         total: number;
         slots: ActiveSlot[];
     };
+    /** Get all advisory IDs that still own mixer-managed state. */
+    getTrackedAdvisoryIds(): string[];
     /**
      * Find a band number for this advisory.
      * 1. Check if this advisory already has a slot (update in place)

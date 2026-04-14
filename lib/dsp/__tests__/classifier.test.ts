@@ -11,7 +11,8 @@
 import { describe, it, expect } from 'vitest'
 import { classifyTrack, classifyTrackWithAlgorithms, shouldReportIssue, getSeverityText } from '../classifier'
 import { getSeverityUrgency } from '../severityUtils'
-import { DEFAULT_SETTINGS, MAINS_HUM_GATE } from '../constants'
+import { calculateCalibratedConfidence } from '../acoustic/confidenceCalibration'
+import { DEFAULT_SETTINGS } from '../constants'
 import type { ClassificationResult, SeverityLevel, Track, DetectorSettings, FusedDetectionResult } from '@/types/advisory'
 import { buildScores } from '@/tests/helpers/mockAlgorithmScores'
 
@@ -119,6 +120,19 @@ describe('shouldReportIssue', () => {
     expect(shouldReportIssue(classification, makeSettings({ mode: 'liveMusic' }))).toBe(true)
   })
 
+  it('keeps early possible rings reportable in liveMusic once they clear the main confidence gate', () => {
+    const classification = makeClassification({
+      label: 'POSSIBLE_RING',
+      severity: 'POSSIBLE_RING',
+      confidence: 0.58,
+    })
+
+    expect(shouldReportIssue(classification, makeSettings({
+      mode: 'liveMusic',
+      confidenceThreshold: 0.55,
+    }))).toBe(true)
+  })
+
   it('always reports GROWING regardless of confidence', () => {
     const classification = makeClassification({
       severity: 'GROWING',
@@ -192,17 +206,17 @@ describe('shouldReportIssue', () => {
     expect(shouldReportIssue(classification, makeSettings({ mode: 'ringOut' }))).toBe(true)
   })
 
-  it('liveMusic mode requires high confidence for POSSIBLE_RING', () => {
-    // Low confidence POSSIBLE_RING → rejected
+  it('liveMusic mode lets POSSIBLE_RING through once it clears the main confidence gate', () => {
+    // Below the main confidence gate → rejected
     expect(shouldReportIssue(
       makeClassification({ label: 'POSSIBLE_RING', severity: 'POSSIBLE_RING', confidence: 0.5 }),
-      makeSettings({ mode: 'liveMusic' }),
+      makeSettings({ mode: 'liveMusic', confidenceThreshold: 0.55 }),
     )).toBe(false)
 
-    // High confidence POSSIBLE_RING → accepted
+    // Above the main confidence gate → accepted
     expect(shouldReportIssue(
-      makeClassification({ label: 'POSSIBLE_RING', severity: 'POSSIBLE_RING', confidence: 0.7 }),
-      makeSettings({ mode: 'liveMusic' }),
+      makeClassification({ label: 'POSSIBLE_RING', severity: 'POSSIBLE_RING', confidence: 0.58 }),
+      makeSettings({ mode: 'liveMusic', confidenceThreshold: 0.55 }),
     )).toBe(true)
   })
 })
@@ -520,6 +534,49 @@ describe('fusion-driven demotion', () => {
     expect(shouldReportIssue(result, makeSettings({ mode: 'speech' }))).toBe(false)
   })
 
+  it('keeps a feedback-led posterior on the recommendation path despite a soft NOT_FEEDBACK veto', () => {
+    const track = makeTrack({
+      velocityDbPerSec: 10,
+      features: {
+        stabilityCentsStd: 2,
+        harmonicityScore: 0.08,
+        modulationScore: 0.03,
+        noiseSidebandScore: 0.02,
+        meanQ: 38,
+        minQ: 32,
+        meanVelocityDbPerSec: 8,
+        maxVelocityDbPerSec: 10,
+        persistenceMs: 1600,
+      },
+    })
+    const scores = buildScores({
+      msd: 0.42,
+      phase: 0.46,
+      spectral: 0.4,
+      comb: 0.15,
+      ihr: 0.28,
+      ptmr: 0.42,
+      msdFrames: 20,
+    })
+    const fusion: FusedDetectionResult = {
+      feedbackProbability: 0.28,
+      confidence: 0.62,
+      contributingAlgorithms: ['msd', 'phase', 'ptmr'],
+      algorithmScores: scores,
+      verdict: 'NOT_FEEDBACK',
+      reasons: ['borderline rejection'],
+    }
+
+    const result = classifyTrackWithAlgorithms(track, scores, fusion, makeSettings())
+
+    expect(result.label).toBe('ACOUSTIC_FEEDBACK')
+    expect(result.severity).toBe('RESONANCE')
+    expect(result.fusionVerdict).toBe('NOT_FEEDBACK')
+    expect(result.recommendationEligible).toBe(true)
+    expect(result.confidence).toBeGreaterThanOrEqual(0.45)
+    expect(shouldReportIssue(result, makeSettings({ mode: 'speech', confidenceThreshold: 0.4 }))).toBe(true)
+  })
+
   it('removes the urgent bypass when fusion is uncertain about a growing peak', () => {
     const track = makeTrack({
       velocityDbPerSec: 8,
@@ -707,6 +764,13 @@ describe('classifyTrack posterior consistency (F5)', () => {
       Math.max(result.pFeedback, result.pWhistle, result.pInstrument) - 0.01
     )
   })
+
+  it('calibration confidence follows the adjusted feedback posterior', () => {
+    const result = calculateCalibratedConfidence(0.4, 0.2, 0.1, 0.15, 'NONE')
+
+    expect(result.adjustedPFeedback).toBeCloseTo(0.55, 6)
+    expect(result.confidence).toBeCloseTo(0.55, 6)
+  })
 })
 
 // ── Room-physics delta cap (14.6) ────────────────────────────────────────────
@@ -750,7 +814,7 @@ describe('room-physics delta cap', () => {
       ...DEFAULT_SETTINGS,
       roomPreset: 'none',
     }
-    const baselineResult = classifyTrack(track, noRoomSettings)
+    classifyTrack(track, noRoomSettings)
 
     // Get result with room config
     const roomResult = classifyTrack(track, roomSettings)

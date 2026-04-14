@@ -21,6 +21,8 @@ function makeHandlers(): CompanionInboundHandlers & {
     onAck: capture('ack'),
     onApplied: capture('applied'),
     onApplyFailed: capture('applyFailed'),
+    onPartialClear: capture('partialClear'),
+    onClearFailed: capture('clearFailed'),
     onCleared: capture('cleared'),
     onStart: capture('start'),
     onStop: capture('stop'),
@@ -53,6 +55,7 @@ describe('dispatchCompanionMessage', () => {
         advisoryId: 'adv-2',
         bandIndex: 5,
         appliedGainDb: -6,
+        maxCutDb: -9,
         frequencyHz: 1247,
         slotIndex: 3,
         timestamp: 2000,
@@ -63,6 +66,7 @@ describe('dispatchCompanionMessage', () => {
       advisoryId: 'adv-2',
       bandIndex: 5,
       appliedGainDb: -6,
+      maxCutDb: -9,
       frequencyHz: 1247,
       slotIndex: 3,
       timestamp: 2000,
@@ -86,6 +90,11 @@ describe('dispatchCompanionMessage', () => {
         advisoryId: 'adv-pa',
         peqApplied: true,
         geqApplied: false,
+        bandIndex: 9,
+        appliedGainDb: -9,
+        maxCutDb: -12,
+        frequencyHz: 1600,
+        slotIndex: 4,
         failReason: 'GEQ apply failed (check mixer host, model, and GEQ prefix)',
         timestamp: 3500,
       },
@@ -95,9 +104,45 @@ describe('dispatchCompanionMessage', () => {
       advisoryId: 'adv-pa',
       peqApplied: true,
       geqApplied: false,
+      bandIndex: 9,
+      appliedGainDb: -9,
+      maxCutDb: -12,
+      frequencyHz: 1600,
+      slotIndex: 4,
       failReason: 'GEQ apply failed (check mixer host, model, and GEQ prefix)',
       timestamp: 3500,
     }])
+  })
+
+  it('dispatches partial_clear with structured payload', () => {
+    const h = makeHandlers()
+    dispatchCompanionMessage(
+      {
+        type: 'partial_clear',
+        advisoryId: 'adv-pc',
+        peqCleared: true,
+        geqCleared: false,
+        failReason: 'GEQ failed',
+        timestamp: 3600,
+      },
+      h,
+    )
+    expect(h._calls.partialClear).toEqual([{
+      advisoryId: 'adv-pc',
+      peqCleared: true,
+      geqCleared: false,
+      failReason: 'GEQ failed',
+      timestamp: 3600,
+    }])
+  })
+
+  it('dispatches clear_failed with reason', () => {
+    const h = makeHandlers()
+    dispatchCompanionMessage(
+      { type: 'clear_failed', advisoryId: 'adv-cf', reason: 'No outputs cleared', timestamp: 3700 },
+      h,
+    )
+    expect(h._calls.clearFailed).toEqual(['adv-cf', 'No outputs cleared', 3700])
   })
 
   it('dispatches cleared to onCleared', () => {

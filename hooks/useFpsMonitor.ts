@@ -46,7 +46,8 @@ export class CircularTimestampBuffer {
 }
 
 export function useFpsMonitor(enabled: boolean, targetFps?: number): FpsStats {
-  const [stats, setStats] = useState<FpsStats>({ actualFps: 0, droppedPercent: 0 })
+  const initialStats = { actualFps: 0, droppedPercent: 0 }
+  const [stats, setStats] = useState<FpsStats>(initialStats)
   const bufRef = useRef(new CircularTimestampBuffer())
   const rafRef = useRef(0)
   const lastUpdateRef = useRef(0)
@@ -55,12 +56,11 @@ export function useFpsMonitor(enabled: boolean, targetFps?: number): FpsStats {
     if (!enabled) {
       bufRef.current.reset()
       lastUpdateRef.current = 0
-      setStats({ actualFps: 0, droppedPercent: 0 })
       return
     }
 
+    const buf = bufRef.current
     const loop = (now: number) => {
-      const buf = bufRef.current
       buf.push(now)
 
       // Only update React state at throttled interval to avoid churn
@@ -92,10 +92,10 @@ export function useFpsMonitor(enabled: boolean, targetFps?: number): FpsStats {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       rafRef.current = 0
-      bufRef.current.reset()
+      buf.reset()
       lastUpdateRef.current = 0
     }
   }, [enabled, targetFps])
 
-  return stats
+  return enabled ? stats : initialStats
 }

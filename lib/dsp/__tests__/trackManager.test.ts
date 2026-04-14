@@ -496,7 +496,7 @@ describe('TrackManager', () => {
     })
 
     it('computes harmonicityScore 0.8 when harmonicOfHz is set', () => {
-      const track = tm.processPeak(makePeak({
+      tm.processPeak(makePeak({
         binIndex: 50,
         trueFrequencyHz: 880,
         harmonicOfHz: 440,

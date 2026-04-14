@@ -88,4 +88,29 @@ describe('useAdvisoryLogging', () => {
     rerender({ advisories: [advisory] })
     expect(mockRecord).toHaveBeenCalledTimes(1)
   })
+
+  it('records an existing advisory once it later becomes eligible', () => {
+    const advisory = makeAdvisory({
+      id: 'late-eligible',
+      label: 'ACOUSTIC_FEEDBACK',
+      confidence: 0.5,
+    })
+    const { rerender } = renderHook(
+      ({ advisories }) => useAdvisoryLogging(advisories),
+      { initialProps: { advisories: [advisory] } },
+    )
+
+    expect(mockRecord).not.toHaveBeenCalled()
+
+    rerender({
+      advisories: [
+        {
+          ...advisory,
+          confidence: 0.8,
+        },
+      ],
+    })
+
+    expect(mockRecord).toHaveBeenCalledTimes(1)
+  })
 })

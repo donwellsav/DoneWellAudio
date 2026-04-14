@@ -178,7 +178,6 @@ describe('Gemini Vulnerability Scenarios — DEFAULT Profile', () => {
     // but with current weights it exceeds the threshold
     expect(result.feedbackProbability).toBeGreaterThan(0.55)
     // The exact verdict depends on confidence calculation too
-    console.log(`[DEFAULT FP] synth note: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
   })
 
   /**
@@ -195,7 +194,6 @@ describe('Gemini Vulnerability Scenarios — DEFAULT Profile', () => {
       'unknown'
     )
     expect(result.feedbackProbability).toBeLessThan(0.65)
-    console.log(`[DEFAULT FN] reverberant feedback: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
   })
 })
 
@@ -215,7 +213,6 @@ describe('Gemini Vulnerability Scenarios — SPEECH Profile', () => {
       'speech'
     )
     expect(result.feedbackProbability).toBeGreaterThan(0.60)
-    console.log(`[SPEECH FP] sustained vowel: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
   })
 
   /**
@@ -233,7 +230,6 @@ describe('Gemini Vulnerability Scenarios — SPEECH Profile', () => {
       'speech'
     )
     expect(result.feedbackProbability).toBeLessThan(0.65)
-    console.log(`[SPEECH FN] limiter-clamped: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
   })
 })
 
@@ -255,7 +251,6 @@ describe('Gemini Vulnerability Scenarios — MUSIC Profile', () => {
     // This false positive is arguably CORRECT behavior —
     // intentional feedback IS feedback. Documenting, not fixing.
     expect(result.feedbackProbability).toBeGreaterThan(0.60)
-    console.log(`[MUSIC FP] guitar feedback: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
   })
 
   /**
@@ -273,7 +268,6 @@ describe('Gemini Vulnerability Scenarios — MUSIC Profile', () => {
       'music'
     )
     expect(result.feedbackProbability).toBeLessThan(0.60)
-    console.log(`[MUSIC FN] dense mix: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
   })
 })
 
@@ -292,7 +286,6 @@ describe('Gemini Vulnerability Scenarios — COMPRESSED Profile', () => {
       'unknown' // contentType doesn't matter when compressed=true
     )
     expect(result.feedbackProbability).toBeGreaterThan(0.55)
-    console.log(`[COMPRESSED FP] flute: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
   })
 
   /**
@@ -320,7 +313,6 @@ describe('Gemini Vulnerability Scenarios — COMPRESSED Profile', () => {
     // FEEDBACK threshold to 0.90, so verdict stays POSSIBLE_FEEDBACK.
     expect(result.feedbackProbability).toBeGreaterThan(0.60)
     expect(result.verdict).toBe('POSSIBLE_FEEDBACK')
-    console.log(`[COMPRESSED FN IMPROVED] pumping: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
   })
 })
 
@@ -338,7 +330,6 @@ describe('Consensus Vulnerability: DEFAULT Profile', () => {
       'unknown'
     )
     expect(result.feedbackProbability).toBeGreaterThan(0.60)
-    console.log(`[V1 DEFAULT FP] synth: prob=${result.feedbackProbability.toFixed(3)}, conf=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
   })
 
   it('V2 — FN: Spectral-only feedback (MSD+Phase blind)', () => {
@@ -347,7 +338,6 @@ describe('Consensus Vulnerability: DEFAULT Profile', () => {
       'unknown'
     )
     expect(result.feedbackProbability).toBeLessThan(0.35)
-    console.log(`[V2 DEFAULT FN] spectral-only: prob=${result.feedbackProbability.toFixed(3)}, conf=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
   })
 })
 
@@ -362,7 +352,6 @@ describe('Consensus Vulnerability: SPEECH Profile', () => {
     // MSD-only conviction no longer crosses the 0.60 threshold.
     expect(result.feedbackProbability).toBeLessThan(0.60)
     expect(result.verdict).not.toBe('FEEDBACK')
-    console.log(`[V3 SPEECH FP FIXED] msd-only: prob=${result.feedbackProbability.toFixed(3)}, conf=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
   })
 
   it('V4 — FN: No MSD (feedback invisible to dominant algorithm)', () => {
@@ -373,7 +362,6 @@ describe('Consensus Vulnerability: SPEECH Profile', () => {
     // With existing weight removed, non-MSD algos have slightly more influence.
     // Probability rises from ~0.33 to ~0.37 — still a false negative.
     expect(result.feedbackProbability).toBeLessThan(0.40)
-    console.log(`[V4 SPEECH FN] no-msd: prob=${result.feedbackProbability.toFixed(3)}, conf=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
   })
 })
 
@@ -384,7 +372,6 @@ describe('Consensus Vulnerability: MUSIC Profile', () => {
       'music'
     )
     expect(result.feedbackProbability).toBeGreaterThan(0.60)
-    console.log(`[V5 MUSIC FP] phase-dominant: prob=${result.feedbackProbability.toFixed(3)}, conf=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
   })
 
   it('V6 — FN: No phase (feedback invisible to dominant algorithm)', () => {
@@ -393,7 +380,6 @@ describe('Consensus Vulnerability: MUSIC Profile', () => {
       'music'
     )
     expect(result.feedbackProbability).toBeLessThan(0.40)
-    console.log(`[V6 MUSIC FN] no-phase: prob=${result.feedbackProbability.toFixed(3)}, conf=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
   })
 })
 
@@ -410,7 +396,6 @@ describe('Consensus Vulnerability: COMB Pattern', () => {
     const withComb = fuse({ ...scores, comb: 0.80 }, 'unknown')
     expect(withComb.feedbackProbability).toBeGreaterThan(0.60)
 
-    console.log(`[V7 COMB] noComb=${noComb.feedbackProbability.toFixed(3)}, withComb=${withComb.feedbackProbability.toFixed(3)}, delta=${(withComb.feedbackProbability - noComb.feedbackProbability).toFixed(3)}`)
   })
 })
 
@@ -423,7 +408,6 @@ describe('Consensus Vulnerability: COMPRESSED Profile', () => {
     // FIX-005: COMPRESSED phase reduced 0.38→0.30, prob drops below 0.60
     expect(result.feedbackProbability).toBeLessThan(0.60)
     expect(result.verdict).not.toBe('FEEDBACK')
-    console.log(`[V8 COMPRESSED FP FIXED] phase-conviction: prob=${result.feedbackProbability.toFixed(3)}, conf=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
   })
 })
 
@@ -495,7 +479,6 @@ describe('Edge Cases', () => {
     )
     // With only MSD (0.9) contributing (existing weight removed), we want at least POSSIBLE_FEEDBACK
     // Current behavior: confidence may be low due to single-algorithm detection
-    console.log(`[DA-004] MSD-only: probability=${result.feedbackProbability.toFixed(3)}, confidence=${result.confidence.toFixed(3)}, verdict=${result.verdict}`)
     // At minimum, probability should reflect the strong MSD signal
     expect(result.feedbackProbability).toBeGreaterThan(0.5)
   })
@@ -598,7 +581,6 @@ describe('Low-Frequency Phase Suppression (ADV-002)', () => {
 
     // Low-frequency version should have lower probability due to phase × 0.5
     expect(lowFreq.feedbackProbability).toBeLessThan(normal.feedbackProbability)
-    console.log(`[ADV-002] normal=${normal.feedbackProbability.toFixed(3)}, lowFreq=${lowFreq.feedbackProbability.toFixed(3)}`)
   })
 
   it('phase is NOT suppressed at 500 Hz (above 200 Hz threshold)', () => {
@@ -625,7 +607,6 @@ describe('Low-Frequency Phase Suppression (ADV-002)', () => {
     const delta = normal.feedbackProbability - subBass.feedbackProbability
     // Phase score halved × 35% nominal weight → expect noticeable drop
     expect(delta).toBeGreaterThan(0.05)
-    console.log(`[ADV-002 MUSIC] delta=${delta.toFixed(3)} (normal=${normal.feedbackProbability.toFixed(3)}, subBass=${subBass.feedbackProbability.toFixed(3)})`)
   })
 })
 
@@ -716,11 +697,10 @@ describe('ML 7th Algorithm Integration', () => {
   })
 
   it('all weight profiles include ml and sum to 1.0', () => {
-    for (const [name, w] of Object.entries(FUSION_WEIGHTS)) {
+    for (const [, w] of Object.entries(FUSION_WEIGHTS)) {
       const sum = w.msd + w.phase + w.spectral + w.comb + w.ihr + w.ptmr + w.ml
       expect(sum).toBeCloseTo(1.0, 10)
       expect(w.ml).toBe(0.10)
-      console.log(`[ML WEIGHT] ${name}: ml=${w.ml}, sum=${sum.toFixed(4)}`)
     }
   })
 })
@@ -755,37 +735,33 @@ describe.skip('Proposed V2 Weights — Regression Tests', () => {
     )
     // With V2 weights, this should score BELOW threshold
     expect(result.feedbackProbability).toBeLessThan(0.60)
-    console.log(`[V2 SPEECH FP] sustained vowel: probability=${result.feedbackProbability.toFixed(3)}, verdict=${result.verdict}`)
   })
 
   it('V2 SPEECH: limiter-clamped feedback now detected', () => {
-    const result = fuse(
+    fuse(
       { msd: 0.1, phase: 0.9, spectral: 0.9, comb: 0, ihr: 0.9, ptmr: 0.9 },
       'speech',
       { customWeights: { msd: 0.35, phase: 0.20, spectral: 0.10, comb: 0.05, ihr: 0.10, ptmr: 0.20 } as W }
     )
     // With V2 weights, PTMR at 0.15 and IHR at 0.10 should compensate for low MSD
-    console.log(`[V2 SPEECH FN] limiter-clamped: probability=${result.feedbackProbability.toFixed(3)}, verdict=${result.verdict}`)
   })
 
   it('V2 MUSIC: feedback in dense mix now detected', () => {
-    const result = fuse(
+    fuse(
       { msd: 0.6, phase: 0.3, spectral: 0.8, comb: 0, ihr: 0.8, ptmr: 0.7 },
       'music',
       { customWeights: { msd: 0.05, phase: 0.30, spectral: 0.12, comb: 0.10, ihr: 0.18, ptmr: 0.25 } as W }
     )
     // With V2 weights, IHR at 0.18 and PTMR at 0.15 should push this above threshold
-    console.log(`[V2 MUSIC FN] dense mix: probability=${result.feedbackProbability.toFixed(3)}, verdict=${result.verdict}`)
   })
 
   it('V2 COMPRESSED: compressor-pumped feedback now detected', () => {
-    const result = fuse(
+    fuse(
       { msd: 0.8, phase: 0.2, spectral: 0.8, comb: 0, ihr: 0.9, ptmr: 0.8, compressed: true },
       'unknown',
       { customWeights: { msd: 0.08, phase: 0.30, spectral: 0.15, comb: 0.10, ihr: 0.15, ptmr: 0.22 } as W }
     )
     // With V2 weights, reduced phase dependency and increased IHR/spectral
     // should detect feedback even when phase is ruined by compressor pumping
-    console.log(`[V2 COMPRESSED FN] pumping: probability=${result.feedbackProbability.toFixed(3)}, verdict=${result.verdict}`)
   })
 })

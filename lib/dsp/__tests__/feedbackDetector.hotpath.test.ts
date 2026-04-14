@@ -10,7 +10,7 @@
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { FeedbackDetector } from '../feedbackDetector'
 import { DEFAULT_CONFIG } from '@/types/advisory'
 import { EXP_LUT, PERSISTENCE_SCORING, PHPR_SETTINGS, MSD_SETTINGS } from '../constants'
@@ -812,6 +812,44 @@ describe('FeedbackDetector hot path — Part C: Performance optimizations', () =
   // ── MSD result cache ──────────────────────────────────────────────
 
   describe('MSD result cache', () => {
+    it('rescues a low-frequency near-threshold peak when MSD already indicates a howl', () => {
+      const targetBin = hzToBin(180) // Low band: widened early-confirm window applies
+      const thresholdDb = -30
+      const peakDb = thresholdDb - 8
+
+      const detectedPeaks: Array<{ binIndex: number }> = []
+
+      const detector = createReadyDetector(
+        (arr) => {
+          arr.fill(-80)
+          arr[targetBin] = peakDb
+        },
+        {
+          thresholdDb,
+          prominenceDb: 5,
+          sustainMs: 60,
+        },
+      )
+
+      ;(detector as any).callbacks = {
+        onPeakDetected: (peak: { binIndex: number }) => detectedPeaks.push(peak),
+      }
+
+      const calculateMsdSpy = vi.spyOn(detector as any, 'calculateMsd').mockReturnValue({
+        msd: 0.02,
+        growthRate: 1.2,
+        isHowl: true,
+        fastConfirm: true,
+      })
+
+      for (let frame = 0; frame < 10; frame++) {
+        ;(detector as any).analyze(frame * 20, 20)
+      }
+
+      expect(detectedPeaks.some((peak) => peak.binIndex === targetBin)).toBe(true)
+      calculateMsdSpy.mockRestore()
+    })
+
     it('caches calculateMsd result from early detection and reuses it in _registerPeak', () => {
       // Strategy: Place a peak slightly below threshold so that the MSD early-detection
       // path fires (line ~1127-1132), caching the result. Then when the peak sustains
@@ -882,7 +920,6 @@ describe('FeedbackDetector hot path — Part C: Performance optimizations', () =
         //
         // Verify no frame produced a double-call by checking the cache was populated.
         // The simplest check: after all frames, the cache should have targetBin's result.
-        const cache = (detector as any)._msdResultCache as Map<number, unknown>
         // Cache is cleared each frame, so after the last frame it should contain
         // targetBin if early detection fired on the last frame.
         // More robust: check that total calls equals number of frames where early detection fired.

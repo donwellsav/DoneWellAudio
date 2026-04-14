@@ -167,9 +167,10 @@ function clearAhEq(prefix: string, band: number): EqMessage {
 // ═══ PA2 TCP ═══
 
 function buildPa2Eq(_prefix: string, band: number, freqHz: number, gainDb: number, q: number): EqMessage {
+  const clampedQ = Math.max(4, Math.min(16, q))
   return {
     protocol: 'tcp',
-    tcpPayload: JSON.stringify({ command: 'set_peq', filter: band, frequency: freqHz, gain: gainDb, q, type: 'Bell' }) + '\n',
+    tcpPayload: JSON.stringify({ command: 'set_peq', filter: band, frequency: freqHz, gain: gainDb, q: clampedQ, type: 'Bell' }) + '\n',
   }
 }
 

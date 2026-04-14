@@ -145,7 +145,7 @@ export function drawNotchOverlays(
   clearedIds: Set<string> | undefined,
   theme: CanvasTheme = DARK_CANVAS_THEME,
 ): Set<string> {
-  const isDark = theme === DARK_CANVAS_THEME
+  void theme
   const notchedIds = new Set<string>()
   const visible = advisories
     .filter(a => !clearedIds?.has(a.id))

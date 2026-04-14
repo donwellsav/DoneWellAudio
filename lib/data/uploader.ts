@@ -16,6 +16,7 @@
  */
 
 import type { SnapshotBatch, UploadResult, QueuedBatch } from '@/types/data'
+import { logDebug, logWarn } from '@/lib/utils/logger'
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -37,7 +38,7 @@ export class SnapshotUploader {
 
   /** Queue a batch for upload (respects rate limit + session cap) */
   enqueue(batch: SnapshotBatch): void {
-    console.debug(`[Uploader] Enqueued batch: ${batch.snapshots.length} snapshots, event=${batch.event.frequencyHz.toFixed(0)}Hz`)
+    logDebug(`[Uploader] Enqueued batch: ${batch.snapshots.length} snapshots, event=${batch.event.frequencyHz.toFixed(0)}Hz`)
     this._pendingQueue.push(batch)
     this._processQueue()
   }
@@ -135,14 +136,14 @@ export class SnapshotUploader {
 
         if (response.ok) {
           this._sessionBytes += payloadBytes.length
-          console.debug(`[Uploader] Upload SUCCESS (${response.status}), ${payloadBytes.length} bytes`)
+          logDebug(`[Uploader] Upload SUCCESS (${response.status}), ${payloadBytes.length} bytes`)
           return { ok: true, status: response.status }
         }
 
         // 4xx = client error, don't retry (bad payload)
         if (response.status >= 400 && response.status < 500) {
           const errBody = await response.text().catch(() => '')
-          console.warn(`[Uploader] Upload FAILED ${response.status}: ${errBody}`)
+          logWarn(`[Uploader] Upload FAILED ${response.status}: ${errBody}`)
           return { ok: false, status: response.status, error: `Client error: ${response.status}` }
         }
 

@@ -13,7 +13,6 @@
 import { renderHook, act } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useLayeredSettings } from '@/hooks/useLayeredSettings'
-import { OPERATION_MODES } from '@/lib/dsp/constants'
 import { MODE_BASELINES } from '@/lib/settings/modeBaselines'
 import { DEFAULT_DISPLAY_PREFS } from '@/lib/settings/defaults'
 import { ENVIRONMENT_TEMPLATES } from '@/lib/settings/environmentTemplates'

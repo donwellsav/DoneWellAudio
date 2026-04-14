@@ -8,8 +8,7 @@
  * Extracted from algorithmFusion.ts for maintainability.
  */
 
-import type { AlgorithmMode } from '@/types/advisory'
-import { COMPRESSION_SETTINGS } from './constants'
+import type { AlgorithmMode, ContentType } from '@/types/advisory'
 import type { MSDResult } from '@/types/advisory'
 import { MSD_CONSTANTS } from './constants'
 import type { PhaseCoherenceResult } from './phaseCoherence'
@@ -215,7 +214,7 @@ export const DEFAULT_FUSION_CONFIG: FusionConfig = {
  */
 export function fuseAlgorithmResults(
   scores: AlgorithmScores,
-  contentType: import('@/types/advisory').ContentType = 'unknown',
+  contentType: ContentType = 'unknown',
   config: FusionConfig = DEFAULT_FUSION_CONFIG,
   /** Peak frequency in Hz. When provided, enables frequency-aware scoring. */
   peakFrequencyHz?: number,
@@ -442,11 +441,12 @@ export function fuseAlgorithmResults(
   )
 
   let verdict: FusedDetectionResult['verdict']
-  if (feedbackProbability >= config.feedbackThreshold && confidence >= 0.6) {
+  const possibleFeedbackThreshold = Math.max(config.feedbackThreshold * 0.6, 0.35)
+  if (feedbackProbability >= config.feedbackThreshold && confidence >= 0.55) {
     verdict = 'FEEDBACK'
-  } else if (feedbackProbability >= config.feedbackThreshold * 0.7 && confidence >= 0.4) {
+  } else if (feedbackProbability >= possibleFeedbackThreshold && confidence >= 0.3) {
     verdict = 'POSSIBLE_FEEDBACK'
-  } else if (feedbackProbability < 0.3 && confidence >= 0.6) {
+  } else if (feedbackProbability < 0.2 && agreement >= 0.8 && effCount >= 3) {
     verdict = 'NOT_FEEDBACK'
   } else {
     verdict = 'UNCERTAIN'

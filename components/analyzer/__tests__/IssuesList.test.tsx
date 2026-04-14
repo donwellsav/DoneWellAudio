@@ -20,7 +20,7 @@ vi.mock('next-themes', () => ({
 vi.mock('@/hooks/useCompanion', () => ({
   useCompanion: () => ({
     settings: { enabled: false, autoSend: false },
-    sendAdvisory: vi.fn(),
+    sendExplicitAdvisory: vi.fn(),
     autoSendAdvisories: vi.fn(),
   }),
 }))
@@ -124,5 +124,19 @@ describe('IssuesList', () => {
     render(<IssuesList advisories={[]} isRunning={true} />)
     const liveRegion = document.querySelector('[aria-live="polite"]')
     expect(liveRegion).not.toBeNull()
+  })
+
+  it('does not render Send to Mixer for relay-ineligible advisories', () => {
+    const advisories = [
+      makeAdvisory('a1', 'POSSIBLE_RING', { label: 'WHISTLE' as Advisory['label'] }),
+    ]
+
+    render(<IssuesList advisories={advisories} isRunning={true} />)
+
+    expect(
+      screen.queryByRole('button', {
+        name: /send .* eq recommendation to mixer via companion/i,
+      }),
+    ).toBeNull()
   })
 })

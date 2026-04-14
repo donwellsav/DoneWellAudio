@@ -85,7 +85,7 @@ export class AdvisoryManager {
       this.advisoriesByBand.delete(deletedAdvisory.advisory.geq.bandIndex)
     }
     this.advisories.delete(existingId)
-    this.trackToAdvisoryId.delete(trackId)
+    this.removeTrackMappingsForAdvisory(existingId)
     return existingId
   }
 
@@ -97,29 +97,27 @@ export class AdvisoryManager {
    */
   clearByFrequency(frequencyHz: number, timestamp: number): string | null {
     // Find the nearest advisory within tolerance — not just the first match
-    let bestTrackId: string | null = null
     let bestAdvisoryId: string | null = null
     let bestCents = Infinity
 
-    for (const [trackId, advisoryId] of this.trackToAdvisoryId.entries()) {
+    for (const advisoryId of this.trackToAdvisoryId.values()) {
       const advisory = this.advisories.get(advisoryId)
       if (!advisory) continue
       const cents = Math.abs(1200 * Math.log2(advisory.trueFrequencyHz / frequencyHz))
       if (cents <= CLEAR_PEAK_TOLERANCE_CENTS && cents < bestCents) {
         bestCents = cents
-        bestTrackId = trackId
         bestAdvisoryId = advisoryId
       }
     }
 
-    if (bestAdvisoryId && bestTrackId) {
+    if (bestAdvisoryId) {
       const advisory = this.advisories.get(bestAdvisoryId)!
       if (advisory.advisory?.geq?.bandIndex != null) {
         this.bandClearedAt.set(advisory.advisory.geq.bandIndex, timestamp)
         this.advisoriesByBand.delete(advisory.advisory.geq.bandIndex)
       }
       this.advisories.delete(bestAdvisoryId)
-      this.trackToAdvisoryId.delete(bestTrackId)
+      this.removeTrackMappingsForAdvisory(bestAdvisoryId)
       return bestAdvisoryId
     }
     return null
@@ -141,7 +139,12 @@ export class AdvisoryManager {
     settings: DetectorSettings,
   ): AdvisoryAction[] {
     const actions: AdvisoryAction[] = []
-    const existingId = this.trackToAdvisoryId.get(track.id)
+    const mappedExistingId = this.trackToAdvisoryId.get(track.id)
+    const existingAdvisory = mappedExistingId ? this.advisories.get(mappedExistingId) : undefined
+    if (mappedExistingId && !existingAdvisory) {
+      this.trackToAdvisoryId.delete(track.id)
+    }
+    const existingId = existingAdvisory ? mappedExistingId : undefined
     let mergedClusterCount = 1
     let mergedClusterMinHz: number | undefined
     let mergedClusterMaxHz: number | undefined
@@ -207,7 +210,7 @@ export class AdvisoryManager {
           this.advisoriesByBand.delete(dup.advisory.geq.bandIndex)
         }
         this.advisories.delete(dup.id)
-        this.trackToAdvisoryId.delete(dup.trackId)
+        this.removeTrackMappingsForAdvisory(dup.id)
         actions.push({ type: 'advisoryCleared', advisoryId: dup.id })
       }
     }
@@ -255,8 +258,17 @@ export class AdvisoryManager {
     }
 
     this.advisories.set(advisoryId, advisory)
-    if (eqAdvisory?.geq?.bandIndex !== undefined) {
-      this.advisoriesByBand.set(eqAdvisory.geq.bandIndex, advisoryId)
+    const previousBandIndex = existingAdvisory?.advisory?.geq?.bandIndex
+    const nextBandIndex = advisory.advisory?.geq?.bandIndex
+    if (
+      previousBandIndex !== undefined &&
+      previousBandIndex !== nextBandIndex &&
+      this.advisoriesByBand.get(previousBandIndex) === advisoryId
+    ) {
+      this.advisoriesByBand.delete(previousBandIndex)
+    }
+    if (nextBandIndex !== undefined) {
+      this.advisoriesByBand.set(nextBandIndex, advisoryId)
     }
     if (!existingId) {
       this.trackToAdvisoryId.set(track.id, advisoryId)
@@ -314,9 +326,20 @@ export class AdvisoryManager {
     const advisoryId = this.advisoriesByBand.get(bandIndex)
     if (!advisoryId) return null
     const advisory = this.advisories.get(advisoryId)
-    if (!advisory) return null
+    if (!advisory) {
+      this.advisoriesByBand.delete(bandIndex)
+      return null
+    }
     if (advisory.trackId === excludeTrackId) return null
     return advisory
+  }
+
+  private removeTrackMappingsForAdvisory(advisoryId: string): void {
+    for (const [trackId, mappedAdvisoryId] of this.trackToAdvisoryId) {
+      if (mappedAdvisoryId === advisoryId) {
+        this.trackToAdvisoryId.delete(trackId)
+      }
+    }
   }
 
   private pruneOldest(excludeId: string): string | null {

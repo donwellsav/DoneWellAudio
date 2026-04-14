@@ -4,7 +4,7 @@
  */
 
 import { hzToPitch, formatFrequency, formatPitch } from '@/lib/utils/pitchUtils'
-import type { SessionSummary, FrequencyHotspot, FeedbackEvent } from '@/lib/dsp/feedbackHistory'
+import type { SessionSummary, FrequencyHotspot } from '@/lib/dsp/feedbackHistory'
 import type { ExportMetadata } from '@/types/export'
 
 const LINE = '=' .repeat(76)

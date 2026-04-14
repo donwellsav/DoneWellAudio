@@ -122,12 +122,19 @@ export class CompanionBridge {
   /** Notify relay that an advisory was resolved (feedback stopped) */
   async sendResolve(advisoryId: string): Promise<boolean> {
     try {
-      await fetch(this.relayUrl(), {
+      const response = await fetch(this.relayUrl(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'resolve', advisoryId }),
         signal: AbortSignal.timeout(3000),
       })
+      if (!response.ok) {
+        this._connected = false
+        this._lastError = `HTTP ${response.status}`
+        return false
+      }
+      this._connected = true
+      this._lastError = null
       return true
     } catch (err) {
       this._connected = false
@@ -139,12 +146,19 @@ export class CompanionBridge {
   /** Notify relay that an advisory was dismissed by the user */
   async sendDismiss(advisoryId: string): Promise<boolean> {
     try {
-      await fetch(this.relayUrl(), {
+      const response = await fetch(this.relayUrl(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'dismiss', advisoryId }),
         signal: AbortSignal.timeout(3000),
       })
+      if (!response.ok) {
+        this._connected = false
+        this._lastError = `HTTP ${response.status}`
+        return false
+      }
+      this._connected = true
+      this._lastError = null
       return true
     } catch (err) {
       this._connected = false
@@ -156,12 +170,19 @@ export class CompanionBridge {
   /** Notify relay of a mode change so Companion can reconfigure the mixer */
   async sendModeChange(mode: string): Promise<boolean> {
     try {
-      await fetch(this.relayUrl(), {
+      const response = await fetch(this.relayUrl(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'mode_change', mode }),
         signal: AbortSignal.timeout(3000),
       })
+      if (!response.ok) {
+        this._connected = false
+        this._lastError = `HTTP ${response.status}`
+        return false
+      }
+      this._connected = true
+      this._lastError = null
       return true
     } catch (err) {
       this._connected = false

@@ -60,7 +60,6 @@ describe('earlyWarning', () => {
 
       // Should have a warning by now
       expect(state.earlyWarning).not.toBeNull()
-      const warningLevel = state.earlyWarning
 
       // Now feed falling probabilities to clear the warning
       // Need smoothedDpdt to drop below CLEAR_DPDT_THRESHOLD for CLEAR_FRAME_COUNT frames
