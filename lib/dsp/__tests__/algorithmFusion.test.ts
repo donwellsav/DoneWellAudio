@@ -667,6 +667,21 @@ describe('confidence formula', () => {
     // Higher variance → lower agreement → confidence scaled down toward 0.5 * probability
     expect(mixedResult.confidence).toBeLessThan(uniform.confidence)
   })
+
+  it('maximally conflicting algorithms can push confidence near the 0.5× floor', () => {
+    const conflicting = uniformScores(0)
+    if (conflicting.msd) conflicting.msd.feedbackScore = 1
+    if (conflicting.phase) conflicting.phase.feedbackScore = 0
+    if (conflicting.spectral) conflicting.spectral.feedbackScore = 1
+    if (conflicting.ihr) conflicting.ihr.feedbackScore = 0
+    if (conflicting.ptmr) conflicting.ptmr.feedbackScore = 0
+
+    const result = fuseAlgorithmResults(conflicting, 'unknown')
+    const confidenceScale = result.confidence / result.feedbackProbability
+
+    expect(confidenceScale).toBeGreaterThanOrEqual(0.5)
+    expect(confidenceScale).toBeLessThan(0.6)
+  })
 })
 
 // ── Verdict boundary ───────────────────────────────────────────────────────
@@ -703,6 +718,25 @@ describe('verdict boundaries', () => {
     expect(['NOT_FEEDBACK', 'UNCERTAIN']).toContain(result.verdict)
   })
 
+  it('no algorithm evidence returns NOT_FEEDBACK instead of UNCERTAIN', () => {
+    const empty: AlgorithmScores = {
+      msd: null,
+      phase: null,
+      spectral: null,
+      comb: null,
+      compression: null,
+      ihr: null,
+      ptmr: null,
+      ml: null,
+    }
+
+    const result = fuseAlgorithmResults(empty, 'unknown')
+
+    expect(result.feedbackProbability).toBe(0)
+    expect(result.confidence).toBe(0)
+    expect(result.verdict).toBe('NOT_FEEDBACK')
+  })
+
   it('very high scores → FEEDBACK', () => {
     const result = fuseAlgorithmResults(uniformScores(0.95), 'unknown')
     expect(result.verdict).toBe('FEEDBACK')
@@ -711,6 +745,145 @@ describe('verdict boundaries', () => {
   it('moderate scores → POSSIBLE_FEEDBACK or UNCERTAIN', () => {
     const result = fuseAlgorithmResults(uniformScores(0.5), 'unknown')
     expect(['POSSIBLE_FEEDBACK', 'UNCERTAIN', 'FEEDBACK']).toContain(result.verdict)
+  })
+
+  it('conflicting mid-probability evidence stays UNCERTAIN instead of escalating to POSSIBLE_FEEDBACK', () => {
+    const conflicting = uniformScores(0)
+    if (conflicting.msd) conflicting.msd.feedbackScore = 1
+    if (conflicting.phase) conflicting.phase.feedbackScore = 0
+    if (conflicting.spectral) conflicting.spectral.feedbackScore = 1
+    if (conflicting.ihr) conflicting.ihr.feedbackScore = 0
+    if (conflicting.ptmr) conflicting.ptmr.feedbackScore = 0
+
+    const result = fuseAlgorithmResults(conflicting, 'unknown')
+
+    expect(result.feedbackProbability).toBeGreaterThanOrEqual(0.35)
+    expect(result.confidence).toBeLessThan(0.3)
+    expect(result.verdict).toBe('UNCERTAIN')
+  })
+
+  it('strong corroboration can promote clear feedback to FEEDBACK even when agreement-scaled confidence is conservative', () => {
+    const result = fuseAlgorithmResults(
+      buildScores({ msd: 0.4, phase: 0.5, spectral: 0.9, ihr: 0.9, ptmr: 0.8 }),
+      'unknown',
+    )
+
+    expect(result.feedbackProbability).toBeGreaterThanOrEqual(DEFAULT_FUSION_CONFIG.feedbackThreshold)
+    expect(result.confidence).toBeLessThan(0.55)
+    expect(result.verdict).toBe('FEEDBACK')
+    expect(result.reasons).toContain('Strong multi-algorithm corroboration')
+  })
+
+  it('strong harmonic disagreement still blocks promotion for sustained non-feedback', () => {
+    const result = fuseAlgorithmResults(
+      buildScores({ msd: 0.95, phase: 0.4, spectral: 0.8, ihr: 0.2, ptmr: 0.8 }),
+      'speech',
+    )
+
+    expect(result.feedbackProbability).toBeLessThan(DEFAULT_FUSION_CONFIG.feedbackThreshold)
+    expect(result.verdict).toBe('UNCERTAIN')
+    expect(result.reasons).toContain('Sustained tonal-source gate: low harmonic cleanliness')
+  })
+
+  it('strong corroboration can still produce POSSIBLE_FEEDBACK when early algorithms are missing', () => {
+    const result = fuseAlgorithmResults(
+      buildScores({ msd: 0, phase: 0, spectral: 0.8, ihr: 0.8, ptmr: 0.8 }),
+      'unknown',
+    )
+
+    expect(result.feedbackProbability).toBeGreaterThanOrEqual(0.3)
+    expect(result.confidence).toBeLessThan(0.3)
+    expect(result.verdict).toBe('POSSIBLE_FEEDBACK')
+    expect(result.reasons).toContain('Strong corroboration despite limited algorithm availability')
+  })
+
+  it('feedback promotion still requires shape or stability corroboration', () => {
+    const result = fuseAlgorithmResults(
+      buildScores({ msd: 0.1, phase: 0.8, spectral: 0.7, ihr: 0.8, ptmr: 0.3, compressed: true }),
+      'unknown',
+    )
+
+    expect(result.feedbackProbability).toBeGreaterThanOrEqual(DEFAULT_FUSION_CONFIG.feedbackThreshold)
+    expect(result.confidence).toBeGreaterThan(0.4)
+    expect(result.verdict).toBe('POSSIBLE_FEEDBACK')
+    expect(result.reasons).not.toContain('Strong multi-algorithm corroboration')
+  })
+
+  it('near-threshold dense feedback can promote to FEEDBACK when corroboration is strong', () => {
+    const result = fuseAlgorithmResults(
+      buildScores({ msd: 0.6, phase: 0.3, spectral: 0.8, ihr: 0.8, ptmr: 0.7 }),
+      'music',
+    )
+
+    expect(result.feedbackProbability).toBeLessThan(DEFAULT_FUSION_CONFIG.feedbackThreshold)
+    expect(result.feedbackProbability).toBeGreaterThanOrEqual(
+      DEFAULT_FUSION_CONFIG.feedbackThreshold - 0.03,
+    )
+    expect(result.confidence).toBeLessThan(0.66)
+    expect(result.verdict).toBe('FEEDBACK')
+    expect(result.reasons).toContain('Strong multi-algorithm corroboration')
+  })
+
+  it('compressed feedback can still promote when phase is destroyed but corroboration is overwhelming', () => {
+    const result = fuseAlgorithmResults(
+      buildScores({ msd: 0.8, phase: 0.2, spectral: 0.8, ihr: 0.9, ptmr: 0.8, compressed: true }),
+      'unknown',
+    )
+
+    expect(result.feedbackProbability).toBeGreaterThanOrEqual(DEFAULT_FUSION_CONFIG.feedbackThreshold)
+    expect(result.confidence).toBeGreaterThanOrEqual(0.4)
+    expect(result.verdict).toBe('FEEDBACK')
+    expect(result.reasons).toContain('Compression-resistant corroboration despite phase damage')
+  })
+
+  it('sustained speech-like tonal sources stay UNCERTAIN', () => {
+    const result = fuseAlgorithmResults(
+      buildScores({ msd: 0.9, phase: 0.8, spectral: 0.5, ihr: 0.2, ptmr: 0.6 }),
+      'speech',
+    )
+
+    expect(result.verdict).toBe('UNCERTAIN')
+    expect(result.reasons).toContain('Sustained tonal-source gate: low harmonic cleanliness')
+  })
+
+  it('phase-dominant music without MSD support stays UNCERTAIN', () => {
+    const result = fuseAlgorithmResults(
+      buildScores({ msd: 0, phase: 1.0, spectral: 0.8, ihr: 0.6, ptmr: 0.4 }),
+      'music',
+    )
+
+    expect(result.verdict).toBe('UNCERTAIN')
+    expect(result.reasons).toContain('Phase-dominant music gate: missing MSD support')
+  })
+
+  it('compressed phase-dominant tonal sources no longer escalate to FEEDBACK', () => {
+    const result = fuseAlgorithmResults(
+      buildScores({ msd: 0.7, phase: 0.95, spectral: 0.85, ihr: 0.5, ptmr: 0.7, compressed: true }),
+      'unknown',
+    )
+
+    expect(result.verdict).not.toBe('FEEDBACK')
+    expect(result.reasons).toContain('Compressed tonal-source gate: phase-dominant sustained source')
+  })
+
+  it('music comb modulation effects stay UNCERTAIN instead of escalating', () => {
+    const result = fuseAlgorithmResults(
+      buildScores({ msd: 0.7, phase: 0.8, spectral: 0.7, comb: 0.8, ihr: 0.4, ptmr: 0.6 }),
+      'music',
+    )
+
+    expect(result.verdict).toBe('UNCERTAIN')
+    expect(result.reasons).toContain('Music comb-effect gate: modulation pattern suspicion')
+  })
+
+  it('compressed voiced tonal sources stay UNCERTAIN instead of POSSIBLE_FEEDBACK', () => {
+    const result = fuseAlgorithmResults(
+      buildScores({ msd: 0.7, phase: 0.95, spectral: 0.85, ihr: 0.5, ptmr: 0.7, compressed: true }),
+      'unknown',
+    )
+
+    expect(result.verdict).toBe('UNCERTAIN')
+    expect(result.reasons).toContain('Compressed voiced-source gate: phase-stable voiced source')
   })
 })
 

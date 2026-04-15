@@ -117,7 +117,7 @@ export const GuideTab = memo(function GuideTab() {
               </div>
               <div>
                 <p className="font-medium text-foreground text-sm mb-1">Slow or Laggy Display</p>
-                <p className="text-sm">Check the FPS counter in the status bar — amber means drops, red means severe. Reduce FFT Size to 4096. Close other browser tabs to free CPU.</p>
+                <p className="text-sm">Check the FPS counter in the lower info bar — amber means drops, red means severe. Reduce FFT Size to 4096. Close other browser tabs to free CPU.</p>
               </div>
             </div>
           </HelpSection>

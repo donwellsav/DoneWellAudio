@@ -51,6 +51,28 @@ function makeTrack(overrides: Partial<Track> = {}): Track {
   } as Track
 }
 
+function makeVibratoHistory(
+  baseFrequencyHz: number = 1000,
+  rateHz: number = 6,
+  depthCents: number = 45,
+  samples: number = 20,
+  stepMs: number = 50
+): Track['history'] {
+  return Array.from({ length: samples }, (_, index) => {
+    const time = index * stepMs
+    const centsOffset = Math.sin(2 * Math.PI * rateHz * (time / 1000)) * depthCents
+    const freqHz = baseFrequencyHz * Math.pow(2, centsOffset / 1200)
+
+    return {
+      time,
+      freqHz,
+      ampDb: -20,
+      prominenceDb: 10,
+      qEstimate: 8,
+    }
+  })
+}
+
 /** Minimal ClassificationResult fixture for shouldReportIssue */
 function makeClassification(overrides: Partial<ClassificationResult> = {}): ClassificationResult {
   return {
@@ -161,6 +183,43 @@ describe('shouldReportIssue', () => {
     expect(shouldReportIssue(classification, makeSettings())).toBe(false)
   })
 
+  it('suppresses UNCERTAIN fusion verdicts before confidence gating', () => {
+    const classification = makeClassification({
+      fusionVerdict: 'UNCERTAIN',
+      confidence: 0.95,
+      label: 'ACOUSTIC_FEEDBACK',
+      severity: 'RESONANCE',
+    })
+
+    expect(shouldReportIssue(classification, makeSettings())).toBe(false)
+  })
+
+  it('suppresses speech-mode borderline possible feedback when instrument posterior stays high', () => {
+    const classification = makeClassification({
+      fusionVerdict: 'POSSIBLE_FEEDBACK',
+      label: 'ACOUSTIC_FEEDBACK',
+      severity: 'RESONANCE',
+      pFeedback: 0.38,
+      pInstrument: 0.33,
+      confidence: 0.8,
+    })
+
+    expect(shouldReportIssue(classification, makeSettings({ mode: 'speech' }))).toBe(false)
+  })
+
+  it('keeps speech-mode possible feedback reportable when feedback still clearly dominates', () => {
+    const classification = makeClassification({
+      fusionVerdict: 'POSSIBLE_FEEDBACK',
+      label: 'ACOUSTIC_FEEDBACK',
+      severity: 'RESONANCE',
+      pFeedback: 0.6,
+      pInstrument: 0.18,
+      confidence: 0.8,
+    })
+
+    expect(shouldReportIssue(classification, makeSettings({ mode: 'speech' }))).toBe(true)
+  })
+
   it('filters WHISTLE when ignoreWhistle is true', () => {
     const classification = makeClassification({
       label: 'WHISTLE',
@@ -268,6 +327,58 @@ describe('classifyTrack', () => {
     })
 
     const result = classifyTrack(track)
+    expect(result.pWhistle).toBeGreaterThan(result.pFeedback)
+  })
+
+  it('uses history-based vibrato confirmation for ambiguous modulation tracks', () => {
+    const track = makeTrack({
+      trueFrequencyHz: 1000,
+      history: makeVibratoHistory(),
+      features: {
+        stabilityCentsStd: 45,
+        harmonicityScore: 0.02,
+        modulationScore: 0.32,
+        noiseSidebandScore: 0.1,
+        meanQ: 6,
+        minQ: 4,
+        meanVelocityDbPerSec: 0.2,
+        maxVelocityDbPerSec: 0.4,
+        persistenceMs: 1800,
+      },
+      velocityDbPerSec: 0.2,
+      prominenceDb: 5,
+      qEstimate: 4,
+    })
+
+    const result = classifyTrack(track)
+
+    expect(result.reasons.some((reason) => reason.includes('Vibrato confirmation'))).toBe(true)
+    expect(result.pWhistle).toBeGreaterThan(result.pFeedback)
+  })
+
+  it('skips history-based vibrato confirmation when modulation is already decisive', () => {
+    const track = makeTrack({
+      trueFrequencyHz: 1000,
+      history: makeVibratoHistory(),
+      features: {
+        stabilityCentsStd: 70,
+        harmonicityScore: 0.02,
+        modulationScore: 0.92,
+        noiseSidebandScore: 0.5,
+        meanQ: 6,
+        minQ: 4,
+        meanVelocityDbPerSec: 0.1,
+        maxVelocityDbPerSec: 0.2,
+        persistenceMs: 2000,
+      },
+      velocityDbPerSec: 0.1,
+      prominenceDb: 4,
+      qEstimate: 4,
+    })
+
+    const result = classifyTrack(track)
+
+    expect(result.reasons.some((reason) => reason.includes('Vibrato confirmation'))).toBe(false)
     expect(result.pWhistle).toBeGreaterThan(result.pFeedback)
   })
 

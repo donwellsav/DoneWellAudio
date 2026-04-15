@@ -100,13 +100,11 @@ export class AdvisoryManager {
     let bestAdvisoryId: string | null = null
     let bestCents = Infinity
 
-    for (const advisoryId of this.trackToAdvisoryId.values()) {
-      const advisory = this.advisories.get(advisoryId)
-      if (!advisory) continue
+    for (const advisory of this.advisories.values()) {
       const cents = Math.abs(1200 * Math.log2(advisory.trueFrequencyHz / frequencyHz))
       if (cents <= CLEAR_PEAK_TOLERANCE_CENTS && cents < bestCents) {
         bestCents = cents
-        bestAdvisoryId = advisoryId
+        bestAdvisoryId = advisory.id
       }
     }
 
@@ -314,12 +312,18 @@ export class AdvisoryManager {
 
   private findDuplicateAdvisory(freqHz: number, excludeTrackId: string, settings: DetectorSettings): Advisory | null {
     const mergeCents = settings.peakMergeCents
+    let nearest: Advisory | null = null
+    let bestCents = Infinity
+
     for (const advisory of this.advisories.values()) {
       if (advisory.trackId === excludeTrackId) continue
       const centsDistance = Math.abs(1200 * Math.log2(freqHz / advisory.trueFrequencyHz))
-      if (centsDistance <= mergeCents) return advisory
+      if (centsDistance <= mergeCents && centsDistance < bestCents) {
+        nearest = advisory
+        bestCents = centsDistance
+      }
     }
-    return null
+    return nearest
   }
 
   private findAdvisoryForSameBand(bandIndex: number, excludeTrackId: string): Advisory | null {

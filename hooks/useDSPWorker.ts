@@ -23,7 +23,7 @@ import * as Sentry from '@sentry/nextjs'
 import type { WorkerInboundMessage } from '@/lib/dsp/dspWorker'
 import type { WorkerRuntimeSettings } from '@/lib/settings/runtimeSettings'
 import {
-  clonePendingPeak,
+  bufferPendingPeak,
   createDSPWorker,
   createDSPWorkerErrorHandler,
   createDSPWorkerMessageHandler,
@@ -70,6 +70,11 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
   const tdPoolRef = useRef<Float32Array[]>([])
   const poolFftSizeRef = useRef(0)
   const specUpdatePoolRef = useRef<Float32Array[]>([])
+  const outboundMessagesRef = useRef(0)
+  const inboundMessagesRef = useRef(0)
+  const tracksUpdatesRef = useRef(0)
+  const lastTracksPayloadBytesRef = useRef(0)
+  const maxTracksPayloadBytesRef = useRef(0)
 
   useEffect(() => {
     callbacksRef.current = callbacks
@@ -93,6 +98,11 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
       tdPoolRef,
       specUpdatePoolRef,
       poolFftSizeRef,
+      outboundMessagesRef,
+      inboundMessagesRef,
+      tracksUpdatesRef,
+      lastTracksPayloadBytesRef,
+      maxTracksPayloadBytesRef,
     }
 
     worker.onmessage = createDSPWorkerMessageHandler(worker, handlerRefs)
@@ -142,8 +152,11 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
       return
     }
 
-    workerRef.current?.postMessage(message)
-  }, [])
+      if (workerRef.current) {
+        outboundMessagesRef.current++
+        workerRef.current.postMessage(message)
+      }
+    }, [])
 
   const init = useCallback(
     (settings: WorkerRuntimeSettings, sampleRate: number, fftSize: number) => {
@@ -161,6 +174,11 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
       Sentry.setContext('audio', { mode: settings.mode, fftSize, sampleRate })
 
       permanentlyDeadRef.current = false
+      outboundMessagesRef.current = 0
+      inboundMessagesRef.current = 0
+      tracksUpdatesRef.current = 0
+      lastTracksPayloadBytesRef.current = 0
+      maxTracksPayloadBytesRef.current = 0
       if (!workerRef.current) {
         spawnWorker()
       }
@@ -197,7 +215,8 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
           && !permanentlyDeadRef.current
           && lastInitRef.current
         ) {
-          pendingPeakRef.current = clonePendingPeak(
+          pendingPeakRef.current = bufferPendingPeak(
+            pendingPeakRef.current,
             peak,
             spectrum,
             sampleRate,
@@ -222,7 +241,10 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
         },
         timeDomain,
       )
-      workerRef.current?.postMessage(message, transferList)
+      if (workerRef.current) {
+        outboundMessagesRef.current++
+        workerRef.current.postMessage(message, transferList)
+      }
     },
     [],
   )
@@ -240,7 +262,10 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
         fftSize,
         specUpdatePoolRef,
       )
-      workerRef.current?.postMessage(message, transferList)
+      if (workerRef.current) {
+        outboundMessagesRef.current++
+        workerRef.current.postMessage(message, transferList)
+      }
     },
     [],
   )
@@ -257,6 +282,11 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
     pendingPeakRef.current = null
     droppedFramesRef.current = 0
     totalFramesRef.current = 0
+    outboundMessagesRef.current = 0
+    inboundMessagesRef.current = 0
+    tracksUpdatesRef.current = 0
+    lastTracksPayloadBytesRef.current = 0
+    maxTracksPayloadBytesRef.current = 0
     postMessage({ type: 'reset' })
   }, [postMessage])
 
@@ -332,6 +362,13 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
           totalFramesRef.current > 0
             ? droppedFramesRef.current / totalFramesRef.current
             : 0,
+      }),
+      getTransportStats: () => ({
+        outbound: outboundMessagesRef.current,
+        inbound: inboundMessagesRef.current,
+        tracksUpdates: tracksUpdatesRef.current,
+        lastTracksPayloadBytes: lastTracksPayloadBytesRef.current,
+        maxTracksPayloadBytes: maxTracksPayloadBytesRef.current,
       }),
       init,
       updateSettings,

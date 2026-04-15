@@ -15,8 +15,10 @@ import {
   normalizeTrackInput,
   belowSchroederWeight,
   countFormantBands,
+  countNearbyFrequencies,
   isChromaticallyQuantized,
   detectMainsHum,
+  getRecentFrequencyHistory,
   CHROMATIC_PHASE_THRESHOLD,
   CHROMATIC_PHASE_REDUCTION,
   MODE_PRESENCE_BONUS,
@@ -70,6 +72,10 @@ const FORMANT_Q_MIN = 3
 const FORMANT_Q_MAX = 20
 const FORMANT_MIN_MATCHES = 2     // Need peaks in at least 2 distinct bands
 const FORMANT_GATE_MULTIPLIER = 0.65
+const VIBRATO_CONFIRMATION_MIN_MODULATION = CLASSIFIER_WEIGHTS.MODULATION_THRESHOLD * 0.5
+const VIBRATO_CONFIRMATION_MAX_MODULATION = 0.75
+const VIBRATO_CONFIRMATION_MAX_BOOST = 0.2
+const VIBRATO_CONFIRMATION_FEEDBACK_PENALTY = 0.4
 
 /**
  * Classify a track as feedback, whistle, or instrument
@@ -112,6 +118,7 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     features.amplitudeDb,
     features.persistenceMs
   )
+  const qThreshold = SEVERITY_THRESHOLDS.HIGH_Q * freqBand.qThresholdMultiplier
 
   // Initialize confidence scores with context-aware priors
   let pFeedback = PRIOR_FEEDBACK
@@ -157,24 +164,41 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     reasons.push(`Vibrato/modulation: ${(features.modulationScore * 100).toFixed(0)}%`)
   }
 
+  const strongWhistleModulation =
+    features.modulationScore >= 0.8 &&
+    features.harmonicityScore < CLASSIFIER_WEIGHTS.HARMONICITY_THRESHOLD &&
+    features.minQ < qThreshold
+  if (strongWhistleModulation) {
+    pWhistle += 0.12
+    pFeedback = Math.max(0, pFeedback - 0.08)
+    reasons.push(`Strong whistle modulation: ${(features.modulationScore * 100).toFixed(0)}%`)
+  }
+
   // 4. Sideband noise (breath = whistle)
   if (features.noiseSidebandScore > CLASSIFIER_WEIGHTS.SIDEBAND_THRESHOLD) {
     pWhistle += CLASSIFIER_WEIGHTS.SIDEBAND_WHISTLE * features.noiseSidebandScore
     reasons.push(`Breath noise detected: ${(features.noiseSidebandScore * 100).toFixed(0)}%`)
   }
 
-  // 4b. NEW: Enhanced vibrato detection for whistle discrimination
-  // Check frequency history for characteristic 4-8 Hz vibrato
-  if ('history' in track && Array.isArray(track.history) && track.history.length >= 10) {
-    const frequencyHistory = track.history.map((h: { time: number; frequency?: number; freqHz?: number }) => ({
-      time: h.time,
-      frequency: h.frequency ?? h.freqHz ?? 0,
-    }))
-    const vibratoAnalysis = analyzeVibrato(frequencyHistory)
-    if (vibratoAnalysis.hasVibrato) {
-      pWhistle += vibratoAnalysis.whistleProbability
-      pFeedback -= vibratoAnalysis.whistleProbability * 0.5 // Reduce feedback probability
-      reasons.push(`Vibrato detected: ${vibratoAnalysis.vibratoRateHz?.toFixed(1)}Hz rate, ${vibratoAnalysis.vibratoDepthCents?.toFixed(0)}¢ depth`)
+  // 4b. Vibrato confirmation: use history only for ambiguous whistle candidates.
+  // This avoids re-running vibrato analysis on clearly stable feedback and
+  // avoids double-counting obvious high-modulation whistles.
+  const shouldConfirmVibrato =
+    features.modulationScore >= VIBRATO_CONFIRMATION_MIN_MODULATION &&
+    features.modulationScore < VIBRATO_CONFIRMATION_MAX_MODULATION
+  if (shouldConfirmVibrato) {
+    const frequencyHistory = getRecentFrequencyHistory(track)
+    if (frequencyHistory) {
+      const vibratoAnalysis = analyzeVibrato(frequencyHistory)
+      if (vibratoAnalysis.hasVibrato) {
+        const vibratoBoost = Math.min(
+          vibratoAnalysis.whistleProbability * 0.5,
+          VIBRATO_CONFIRMATION_MAX_BOOST
+        )
+        pWhistle += vibratoBoost
+        pFeedback = Math.max(0, pFeedback - vibratoBoost * VIBRATO_CONFIRMATION_FEEDBACK_PENALTY)
+        reasons.push(`Vibrato confirmation: ${vibratoAnalysis.vibratoRateHz?.toFixed(1)}Hz, ${vibratoAnalysis.vibratoDepthCents?.toFixed(0)} cents`)
+      }
     }
   }
 
@@ -188,7 +212,6 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
   }
 
   // 6. Q factor with frequency-dependent threshold
-  const qThreshold = SEVERITY_THRESHOLDS.HIGH_Q * freqBand.qThresholdMultiplier
   if (features.minQ > qThreshold) {
     pFeedback += 0.15
     reasons.push(`Narrow Q: ${features.minQ.toFixed(1)} (band: ${freqBand.band})`)
@@ -250,9 +273,7 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
   if (activeFrequencies && activeFrequencies.length > 1 && features.minQ > 0) {
     const bandwidth3dB = features.frequencyHz / features.minQ
     const clusterRadius = CLUSTERING_BANDWIDTH_MULTIPLIER * bandwidth3dB
-    const neighbors = activeFrequencies.filter(f =>
-      f !== features.frequencyHz && Math.abs(f - features.frequencyHz) <= clusterRadius
-    ).length
+    const neighbors = countNearbyFrequencies(activeFrequencies, features.frequencyHz, clusterRadius)
     if (neighbors >= 2) {
       pFeedback -= MODE_PRESENCE_BONUS
       reasons.push(`Mode cluster: ${neighbors + 1} peaks within ${clusterRadius.toFixed(0)} Hz — coupled modes`)
@@ -492,6 +513,25 @@ export function shouldReportIssue(
   // Always report GROWING severity regardless of confidence (early warning)
   if (severity === 'GROWING') {
     return true
+  }
+
+  // Fusion never became decisive enough to justify a corrective advisory.
+  // Keep the UI quiet for uncertain cases instead of surfacing low-trust cuts.
+  if (classification.fusionVerdict === 'UNCERTAIN') {
+    return false
+  }
+
+  // Speech and worship are the highest false-positive-risk paths for sustained
+  // voiced tones. When fusion only reaches POSSIBLE_FEEDBACK and instrument-like
+  // posterior mass is still materially present, suppress the corrective advisory.
+  if (
+    (mode === 'speech' || mode === 'worship')
+    && classification.fusionVerdict === 'POSSIBLE_FEEDBACK'
+    && label === 'ACOUSTIC_FEEDBACK'
+    && classification.pFeedback < 0.45
+    && classification.pInstrument >= 0.30
+  ) {
+    return false
   }
 
   // Filter by confidence threshold (reduces low-confidence alerts)
@@ -827,3 +867,4 @@ export function getAlgorithmSummary(scores: AlgorithmScores): string[] {
 
   return summary
 }
+

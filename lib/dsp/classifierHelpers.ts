@@ -2,7 +2,7 @@
 // Extracted helper functions and constants used by classifier.ts
 
 import { MAINS_HUM_GATE } from './constants'
-import type { Track, TrackedPeak } from '@/types/advisory'
+import type { Track, TrackSummary, TrackedPeak } from '@/types/advisory'
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -30,7 +30,13 @@ export const FORMANT_BANDS = [
 ] as const
 
 // ── Type union for track input ─────────────────────────────────────────────
-export type TrackInput = Track | TrackedPeak
+export type TrackInput = Track | TrackSummary | TrackedPeak
+
+type HistoryLikeEntry = {
+  time: number
+  frequency?: number
+  freqHz?: number
+}
 
 // ── Helper Functions ───────────────────────────────────────────────────────
 
@@ -64,7 +70,7 @@ export function normalizeTrackInput(input: TrackInput) {
   return {
     frequencyHz: input.frequency,
     amplitudeDb: input.amplitude,
-    onsetDb: input.history[0]?.amplitude ?? input.amplitude,
+    onsetDb: ('history' in input ? input.history[0]?.amplitude : undefined) ?? input.onsetAmplitudeDb ?? input.amplitude,
     onsetTime: input.onsetTime,
     velocityDbPerSec: input.features.velocityDbPerSec,
     stabilityCentsStd: input.features.stabilityCentsStd,
@@ -85,11 +91,75 @@ export function normalizeTrackInput(input: TrackInput) {
  * Ref: Fant (1960), "Acoustic Theory of Speech Production".
  */
 export function countFormantBands(frequencies: number[]): number {
-  let count = 0
-  for (const band of FORMANT_BANDS) {
-    if (frequencies.some(f => f >= band.min && f <= band.max)) count++
+  let mask = 0
+
+  for (let i = 0; i < frequencies.length; i++) {
+    const frequency = frequencies[i]
+    if (frequency >= FORMANT_BANDS[0].min && frequency <= FORMANT_BANDS[0].max) mask |= 1
+    if (frequency >= FORMANT_BANDS[1].min && frequency <= FORMANT_BANDS[1].max) mask |= 2
+    if (frequency >= FORMANT_BANDS[2].min && frequency <= FORMANT_BANDS[2].max) mask |= 4
+    if (mask === 0b111) break
   }
+
+  let count = 0
+  if (mask & 1) count++
+  if (mask & 2) count++
+  if (mask & 4) count++
   return count
+}
+
+/**
+ * Count active peaks within a frequency window without allocating an intermediate array.
+ */
+export function countNearbyFrequencies(
+  frequencies: number[],
+  centerHz: number,
+  radiusHz: number
+): number {
+  let count = 0
+
+  for (let i = 0; i < frequencies.length; i++) {
+    const frequency = frequencies[i]
+    const distanceHz = Math.abs(frequency - centerHz)
+    if (distanceHz > 0.001 && distanceHz <= radiusHz) {
+      count++
+    }
+  }
+
+  return count
+}
+
+/**
+ * Read only the recent frequency history needed for vibrato confirmation.
+ * This keeps the classifier from mapping the full track history on every peak.
+ */
+export function getRecentFrequencyHistory(
+  input: TrackInput,
+  minSamples: number = 10,
+  maxSamples: number = 20
+): Array<{ time: number; frequency: number }> | null {
+  if (!('history' in input) || !Array.isArray(input.history)) {
+    return null
+  }
+
+  const history = input.history as HistoryLikeEntry[]
+  const length = history.length
+  if (length < minSamples) {
+    return null
+  }
+
+  const startIndex = Math.max(0, length - maxSamples)
+  const recentHistory = new Array<{ time: number; frequency: number }>(length - startIndex)
+
+  for (let i = startIndex, j = 0; i < length; i++, j++) {
+    const entry = history[i]
+    recentHistory[j] = {
+      time: entry.time,
+      frequency: entry.frequency ?? entry.freqHz ?? 0,
+    }
+  }
+
+  return recentHistory
 }
 
 /**
@@ -144,6 +214,18 @@ export function detectMainsHum(
   const fundamentals = fundamentalSetting === 'auto'
     ? MAINS_HUM_GATE.FUNDAMENTALS
     : [fundamentalSetting]
+
+  let minSeriesHz = Infinity
+  let maxSeriesHz = 0
+  for (let i = 0; i < fundamentals.length; i++) {
+    const fundamental = fundamentals[i]
+    if (fundamental < minSeriesHz) minSeriesHz = fundamental
+    const seriesMax = fundamental * MAINS_HUM_GATE.MAX_HARMONIC
+    if (seriesMax > maxSeriesHz) maxSeriesHz = seriesMax
+  }
+  if (frequencyHz < minSeriesHz - tol || frequencyHz > maxSeriesHz + tol) {
+    return noMatch
+  }
 
   for (const fund of fundamentals) {
     // Check if the current peak is on this mains series

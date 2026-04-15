@@ -308,8 +308,8 @@ export interface AnalyzerState {
   advisories: Advisory[]
 }
 
-// TrackedPeak - represents a tracked frequency peak
-export interface TrackedPeak {
+// TrackSummary - compact worker -> UI track payload
+export interface TrackSummary {
   id: string
   frequency: number
   amplitude: number
@@ -319,13 +319,9 @@ export interface TrackedPeak {
   classification: Severity
   severity: Severity
   onsetTime: number
+   onsetAmplitudeDb: number
   lastUpdateTime: number
   active: boolean
-  history: Array<{
-    time: number
-    frequency: number
-    amplitude: number
-  }>
   features: {
     stabilityCentsStd: number
     harmonicityScore: number
@@ -336,6 +332,15 @@ export interface TrackedPeak {
   msd?: number
   msdIsHowl?: boolean
   persistenceFrames?: number
+}
+
+// TrackedPeak - legacy detailed track shape with history
+export interface TrackedPeak extends TrackSummary {
+  history: Array<{
+    time: number
+    frequency: number
+    amplitude: number
+  }>
 }
 
 // DetectorSettings - primary settings interface for the analyzer

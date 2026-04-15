@@ -153,8 +153,6 @@ const AudioAnalyzerInner = memo(function AudioAnalyzerInner({
             closeIssuesPanel={shellState.closeIssuesPanel}
             closeIssuesPanelToIssues={shellState.closeIssuesPanelToIssues}
             setIssuesPanelOpen={shellState.setIssuesPanelOpen}
-            actualFps={actualFps}
-            droppedPercent={droppedPercent}
             calibration={calibrationTabProps}
             dataCollection={dataCollectionTabProps}
             isWizardActive={ringOutFlow.isWizardActive}
@@ -163,7 +161,7 @@ const AudioAnalyzerInner = memo(function AudioAnalyzerInner({
             onStartRingOut={ringOutFlow.startRingOut}
           />
         </FullscreenPortalGate>
-        <AudioAnalyzerFooter />
+        <AudioAnalyzerFooter actualFps={actualFps} droppedPercent={droppedPercent} />
       </UIProvider>
     </AdvisoryProvider>
   )

@@ -383,6 +383,21 @@ describe('TrackManager', () => {
       expect(tm.getRawTracks()).toHaveLength(1)
       expect(tm.getAllTracks()).toHaveLength(2)
     })
+
+    it('getActiveTrackSummaries omits history while preserving onset metadata', () => {
+      tm.processPeak(makePeak({ binIndex: 50, trueFrequencyHz: 440, trueAmplitudeDb: -22, timestamp: 1000 }))
+      tm.processPeak(makePeak({ binIndex: 50, trueFrequencyHz: 442, trueAmplitudeDb: -18, timestamp: 1100 }))
+
+      const summaries = tm.getActiveTrackSummaries()
+      expect(summaries).toHaveLength(1)
+      expect(summaries[0]).toMatchObject({
+        frequency: 442,
+        amplitude: -18,
+        onsetTime: 1000,
+        onsetAmplitudeDb: -22,
+      })
+      expect('history' in summaries[0]).toBe(false)
+    })
   })
 
   // ================================================================
@@ -534,6 +549,23 @@ describe('TrackManager', () => {
       const track = tm.processPeak({ ...makePeak({ binIndex: 50, timestamp: 1200 }), qEstimate: 10 })
 
       expect(track.features.meanQ).toBe(20)
+      expect(track.features.minQ).toBe(10)
+    })
+
+    it('keeps rolling Q statistics correct after the history buffer wraps', () => {
+      const tmSmall = new TrackManager({ historySize: 4 })
+      const qValues = [40, 30, 20, 10, 50, 60]
+
+      for (let i = 0; i < qValues.length; i++) {
+        tmSmall.processPeak({
+          ...makePeak({ binIndex: 50, timestamp: 1000 + i * 100 }),
+          qEstimate: qValues[i],
+        })
+      }
+
+      const [track] = tmSmall.getRawTracks()
+      expect(track.history).toHaveLength(4)
+      expect(track.features.meanQ).toBe(35)
       expect(track.features.minQ).toBe(10)
     })
   })

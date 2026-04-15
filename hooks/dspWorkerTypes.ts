@@ -5,7 +5,7 @@ import type {
   AlgorithmMode,
   ContentType,
   DetectedPeak,
-  TrackedPeak,
+  TrackSummary,
 } from '@/types/advisory'
 import type { SnapshotBatch } from '@/types/data'
 import type { RoomDimensionEstimate } from '@/types/calibration'
@@ -17,7 +17,7 @@ export interface DSPWorkerCallbacks {
   onAdvisory?: (advisory: Advisory) => void
   onAdvisoryCleared?: (advisoryId: string) => void
   onTracksUpdate?: (
-    tracks: TrackedPeak[],
+    tracks: TrackSummary[],
     status?: {
       contentType?: ContentType
       algorithmMode?: AlgorithmMode
@@ -43,6 +43,13 @@ export interface DSPWorkerHandle {
   isCrashed: boolean
   isPermanentlyDead: boolean
   getBackpressureStats: () => { dropped: number; total: number; ratio: number }
+  getTransportStats: () => {
+    outbound: number
+    inbound: number
+    tracksUpdates: number
+    lastTracksPayloadBytes: number
+    maxTracksPayloadBytes: number
+  }
   init: (
     settings: WorkerRuntimeSettings,
     sampleRate: number,

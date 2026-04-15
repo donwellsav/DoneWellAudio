@@ -24,8 +24,6 @@ interface DesktopLayoutProps {
   closeIssuesPanel: () => void
   closeIssuesPanelToIssues: () => void
   setIssuesPanelOpen: (open: boolean) => void
-  actualFps?: number
-  droppedPercent?: number
   calibration?: Omit<CalibrationTabProps, 'settings'>
   dataCollection?: DataCollectionTabProps
   isWizardActive?: boolean
