@@ -8,8 +8,7 @@
  * Extracted from algorithmFusion.ts for maintainability.
  */
 
-import type { AlgorithmMode, ContentType } from '@/types/advisory'
-import type { MSDResult } from '@/types/advisory'
+import type { AlgorithmMode, ContentType, DetectorSettings, MSDResult } from '@/types/advisory'
 import { MSD_CONSTANTS } from './constants'
 import type { PhaseCoherenceResult } from './phaseCoherence'
 import { PHASE_CONSTANTS } from './phaseCoherence'
@@ -17,6 +16,7 @@ import type { SpectralFlatnessResult, CompressionResult } from './compressionDet
 import type { CombPatternResult } from './combPattern'
 import { CombStabilityTracker, COMB_SWEEP_PENALTY } from './combPattern'
 import type { InterHarmonicResult, PTMRResult } from './spectralAlgorithms'
+import { getMsdMinFramesForMode } from './detectorUtils'
 
 // Re-export from canonical source so existing imports from advancedDetection still work
 export type { AlgorithmMode } from '@/types/advisory'
@@ -78,6 +78,11 @@ export interface MINDSResult {
   recommendation: string
 }
 
+export type FusionRuntimeSettings = Pick<
+  DetectorSettings,
+  'mode' | 'algorithmMode' | 'enabledAlgorithms' | 'mlEnabled'
+>
+
 // ── Calibration ─────────────────────────────────────────────────────────────
 
 // 14.3: Post-gate probability calibration types and function
@@ -136,6 +141,49 @@ const _weights = { msd: 0, phase: 0, spectral: 0, comb: 0, ihr: 0, ptmr: 0, ml: 
 // Pre-allocated Set + algorithm list — reused per call to avoid GC pressure (~500 calls/sec)
 const _ALL_ALGORITHMS = ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml'] as const
 const _active = new Set<string>()
+const MAX_EFFECTIVE_SCORE_STDDEV = 0.5
+const STRONG_SIGNAL_THRESHOLD = 0.7
+const CORE_CONSENSUS_MSD_THRESHOLD = 0.85
+const CORE_CONSENSUS_PHASE_THRESHOLD = 0.85
+const CORE_CONSENSUS_SPECTRAL_THRESHOLD = 0.75
+const BASE_FEEDBACK_CONFIDENCE_THRESHOLD = 0.66
+const STRONG_CORROBORATION_CONFIDENCE_THRESHOLD = 0.4
+const STRONG_IHR_CORROBORATION_THRESHOLD = 0.75
+const STRONG_SHAPE_OR_STABILITY_THRESHOLD = 0.7
+const STRONG_CORROBORATION_PROBABILITY_MARGIN = 0.03
+const STRONG_CORROBORATION_POSSIBLE_THRESHOLD = 0.3
+const STRONG_CORROBORATION_POSSIBLE_CONFIDENCE_THRESHOLD = 0.18
+const PHASE_DOMINANT_MUSIC_MSD_MAX = 0.15
+const PHASE_DOMINANT_MUSIC_PHASE_MIN = 0.95
+const PHASE_DOMINANT_MUSIC_GATE_PENALTY = 0.60
+const MUSIC_COMB_EFFECT_PHASE_MIN = 0.75
+const MUSIC_COMB_EFFECT_SPECTRAL_MIN = 0.65
+const MUSIC_COMB_EFFECT_IHR_MAX = 0.55
+const MUSIC_COMB_EFFECT_PTMR_MAX = 0.65
+const MUSIC_COMB_EFFECT_GATE_PENALTY = 0.48
+const TONAL_SOURCE_MSD_MIN = 0.80
+const TONAL_SOURCE_PHASE_MIN = 0.40
+const TONAL_SOURCE_SPECTRAL_MIN = 0.40
+const TONAL_SOURCE_IHR_MAX = 0.25
+const TONAL_SOURCE_PTMR_MAX = 0.80
+const TONAL_SOURCE_GATE_PENALTY = 0.55
+const COMPRESSED_PHASE_TONE_PHASE_MIN = 0.90
+const COMPRESSED_PHASE_TONE_MSD_MIN = 0.50
+const COMPRESSED_PHASE_TONE_SPECTRAL_MIN = 0.60
+const COMPRESSED_PHASE_TONE_IHR_MAX = 0.55
+const COMPRESSED_PHASE_TONE_PTMR_MAX = 0.70
+const COMPRESSED_PHASE_TONE_GATE_PENALTY = 0.50
+const COMPRESSED_PHASE_DEGRADED_PHASE_MAX = 0.35
+const COMPRESSED_PHASE_DEGRADED_MSD_MIN = 0.75
+const COMPRESSED_PHASE_DEGRADED_SPECTRAL_MIN = 0.75
+const COMPRESSED_PHASE_DEGRADED_IHR_MIN = 0.85
+const COMPRESSED_PHASE_DEGRADED_PTMR_MIN = 0.75
+const COMPRESSED_VOICED_SOURCE_PHASE_MIN = 0.90
+const COMPRESSED_VOICED_SOURCE_MSD_MIN = 0.65
+const COMPRESSED_VOICED_SOURCE_SPECTRAL_MIN = 0.80
+const COMPRESSED_VOICED_SOURCE_IHR_MAX = 0.50
+const COMPRESSED_VOICED_SOURCE_PTMR_MAX = 0.70
+const COMPRESSED_VOICED_SOURCE_GATE_PENALTY = 0.75
 
 // ── Fusion Weights ──────────────────────────────────────────────────────────
 
@@ -202,6 +250,24 @@ export const DEFAULT_FUSION_CONFIG: FusionConfig = {
   phaseThreshold: PHASE_CONSTANTS.HIGH_COHERENCE,
   enableCompressionDetection: true,
   feedbackThreshold: 0.60,
+}
+
+/**
+ * Build the runtime fusion config from detector settings.
+ * Keep offline replay and tests aligned with the worker's production path.
+ */
+export function buildFusionConfig(
+  settings?: Partial<FusionRuntimeSettings>,
+): FusionConfig {
+  return {
+    ...DEFAULT_FUSION_CONFIG,
+    mode: settings?.algorithmMode ?? 'auto',
+    enabledAlgorithms: settings?.enabledAlgorithms,
+    msdMinFrames: settings?.mode
+      ? getMsdMinFramesForMode(settings.mode)
+      : DEFAULT_FUSION_CONFIG.msdMinFrames,
+    mlEnabled: settings?.mlEnabled ?? true,
+  }
 }
 
 // ── Algorithm Fusion ────────────────────────────────────────────────────────
@@ -416,6 +482,88 @@ export function fuseAlgorithmResults(
     feedbackProbability *= (gateOverrides?.ptmrGateOverride ?? 0.80)
   }
 
+  const noCombPattern = scores.comb?.hasPattern !== true
+  const msdScore = scores.msd?.feedbackScore ?? 0
+  const phaseScore = scores.phase?.feedbackScore ?? 0
+  const spectralScore = scores.spectral?.feedbackScore ?? 0
+  const ihrScore = scores.ihr?.feedbackScore ?? 1
+  const ptmrScore = scores.ptmr?.feedbackScore ?? 1
+
+  // Narrow phase-only music gate: a zero-MSD, high-phase tonal source is
+  // often a stable musical pitch rather than acoustic feedback.
+  if (
+    noCombPattern &&
+    contentType === 'music' &&
+    msdScore <= PHASE_DOMINANT_MUSIC_MSD_MAX &&
+    phaseScore >= PHASE_DOMINANT_MUSIC_PHASE_MIN
+  ) {
+    feedbackProbability *= PHASE_DOMINANT_MUSIC_GATE_PENALTY
+    reasons.push('Phase-dominant music gate: missing MSD support')
+  }
+
+  if (
+    contentType === 'music' &&
+    scores.comb?.hasPattern === true &&
+    phaseScore >= MUSIC_COMB_EFFECT_PHASE_MIN &&
+    spectralScore >= MUSIC_COMB_EFFECT_SPECTRAL_MIN &&
+    ihrScore <= MUSIC_COMB_EFFECT_IHR_MAX &&
+    ptmrScore <= MUSIC_COMB_EFFECT_PTMR_MAX
+  ) {
+    feedbackProbability *= MUSIC_COMB_EFFECT_GATE_PENALTY
+    reasons.push('Music comb-effect gate: modulation pattern suspicion')
+  }
+
+  // Sustained speech/synth sources can look extremely stable without being
+  // feedback. Suppress only the narrow low-IHR / no-comb / moderate-PTMR case.
+  if (
+    noCombPattern &&
+    contentType !== 'music' &&
+    msdScore >= TONAL_SOURCE_MSD_MIN &&
+    phaseScore >= TONAL_SOURCE_PHASE_MIN &&
+    spectralScore >= TONAL_SOURCE_SPECTRAL_MIN &&
+    ihrScore <= TONAL_SOURCE_IHR_MAX &&
+    ptmrScore <= TONAL_SOURCE_PTMR_MAX &&
+    !(
+      msdScore >= CORE_CONSENSUS_MSD_THRESHOLD &&
+      phaseScore >= CORE_CONSENSUS_PHASE_THRESHOLD &&
+      spectralScore >= CORE_CONSENSUS_SPECTRAL_THRESHOLD
+    )
+  ) {
+    feedbackProbability *= TONAL_SOURCE_GATE_PENALTY
+    reasons.push('Sustained tonal-source gate: low harmonic cleanliness')
+  }
+
+  // Compressed tonal sources can retain extremely high phase coherence even
+  // when they are not feedback. Penalize that pattern unless cleaner evidence
+  // shows up elsewhere.
+  if (
+    noCombPattern &&
+    scores.compression?.isCompressed === true &&
+    phaseScore >= COMPRESSED_PHASE_TONE_PHASE_MIN &&
+    (
+      msdScore >= COMPRESSED_PHASE_TONE_MSD_MIN ||
+      spectralScore >= COMPRESSED_PHASE_TONE_SPECTRAL_MIN
+    ) &&
+    ihrScore <= COMPRESSED_PHASE_TONE_IHR_MAX &&
+    ptmrScore <= COMPRESSED_PHASE_TONE_PTMR_MAX
+  ) {
+    feedbackProbability *= COMPRESSED_PHASE_TONE_GATE_PENALTY
+    reasons.push('Compressed tonal-source gate: phase-dominant sustained source')
+  }
+
+  if (
+    noCombPattern &&
+    scores.compression?.isCompressed === true &&
+    phaseScore >= COMPRESSED_VOICED_SOURCE_PHASE_MIN &&
+    msdScore >= COMPRESSED_VOICED_SOURCE_MSD_MIN &&
+    spectralScore >= COMPRESSED_VOICED_SOURCE_SPECTRAL_MIN &&
+    ihrScore <= COMPRESSED_VOICED_SOURCE_IHR_MAX &&
+    ptmrScore <= COMPRESSED_VOICED_SOURCE_PTMR_MAX
+  ) {
+    feedbackProbability *= COMPRESSED_VOICED_SOURCE_GATE_PENALTY
+    reasons.push('Compressed voiced-source gate: phase-stable voiced source')
+  }
+
   // 14.3: Apply post-gate calibration (identity by default — zero behavior change)
   feedbackProbability = calibrateProbability(feedbackProbability, calibrationTable)
   // Final clamp — gates can only reduce, but calibration tables can extrapolate beyond [0, 1]
@@ -426,25 +574,94 @@ export function fuseAlgorithmResults(
   let _effSum = 0
   for (let i = 0; i < effCount; i++) _effSum += _effScores[i]
   const mean = effCount > 0 ? _effSum / effCount : 0
+  let strongSignalCount = 0
+  for (let i = 0; i < effCount; i++) {
+    if (_effScores[i] >= STRONG_SIGNAL_THRESHOLD) strongSignalCount++
+  }
   let _effVarSum = 0
   for (let i = 0; i < effCount; i++) {
     const d = _effScores[i] - mean
     _effVarSum += d * d
   }
   const variance = effCount > 0 ? _effVarSum / effCount : 0
-  const agreement = 1 - Math.sqrt(variance)
-  // 14.8: Update agreement tracker and add persistence bonus to confidence
-  agreementTracker?.update(agreement)
+  // Normalize disagreement against the maximum possible stddev for bounded
+  // [0,1] scores. This gives agreement the full [0,1] range instead of
+  // bottoming out around 0.5, so contradictory algorithms meaningfully
+  // suppress confidence and verdict certainty.
+  const disagreement = Math.min(Math.sqrt(variance) / MAX_EFFECTIVE_SCORE_STDDEV, 1)
+  const agreement = 1 - disagreement
+  // 14.8: Use the accumulated persistence bonus from prior frames for the
+  // current decision, then fold this frame's agreement into the tracker for
+  // subsequent frames. Otherwise one contradictory frame erases the very
+  // persistence signal we want to use to stabilize that frame's verdict.
+  const persistenceBonus = agreementTracker?.persistenceBonus ?? 0
   const confidence = Math.min(
-    feedbackProbability * (0.5 + 0.5 * agreement) + (agreementTracker?.persistenceBonus ?? 0),
+    feedbackProbability * (0.5 + 0.5 * agreement) + persistenceBonus,
     1,
   )
+  agreementTracker?.update(agreement)
 
   let verdict: FusedDetectionResult['verdict']
   const possibleFeedbackThreshold = Math.max(config.feedbackThreshold * 0.6, 0.35)
-  if (feedbackProbability >= config.feedbackThreshold && confidence >= 0.55) {
+  const coreConsensus =
+    (scores.msd?.feedbackScore ?? 0) >= CORE_CONSENSUS_MSD_THRESHOLD &&
+    (scores.phase?.feedbackScore ?? 0) >= CORE_CONSENSUS_PHASE_THRESHOLD &&
+    (scores.spectral?.feedbackScore ?? 0) >= CORE_CONSENSUS_SPECTRAL_THRESHOLD
+  const shapeOrStabilityCorroboration =
+    (scores.msd?.feedbackScore ?? 0) >= STRONG_SHAPE_OR_STABILITY_THRESHOLD ||
+    (scores.ptmr?.feedbackScore ?? 0) >= STRONG_SHAPE_OR_STABILITY_THRESHOLD ||
+    scores.comb?.hasPattern === true
+  const harmonicStrongCorroboration =
+    (scores.ihr?.feedbackScore ?? 0) >= STRONG_IHR_CORROBORATION_THRESHOLD &&
+    strongSignalCount >= 3
+  const compressedFeedbackPromotionAllowed =
+    (scores.compression?.thresholdMultiplier ?? 1) <= 1
+  const strongCorroboratedFeedback =
+    compressedFeedbackPromotionAllowed &&
+    feedbackProbability >= (config.feedbackThreshold - STRONG_CORROBORATION_PROBABILITY_MARGIN) &&
+    confidence >= STRONG_CORROBORATION_CONFIDENCE_THRESHOLD &&
+    (
+      coreConsensus ||
+      (harmonicStrongCorroboration && shapeOrStabilityCorroboration)
+    )
+  const compressedPhaseDegradedFeedback =
+    !compressedFeedbackPromotionAllowed &&
+    feedbackProbability >= config.feedbackThreshold &&
+    confidence >= STRONG_CORROBORATION_CONFIDENCE_THRESHOLD &&
+    phaseScore <= COMPRESSED_PHASE_DEGRADED_PHASE_MAX &&
+    msdScore >= COMPRESSED_PHASE_DEGRADED_MSD_MIN &&
+    spectralScore >= COMPRESSED_PHASE_DEGRADED_SPECTRAL_MIN &&
+    ihrScore >= COMPRESSED_PHASE_DEGRADED_IHR_MIN &&
+    ptmrScore >= COMPRESSED_PHASE_DEGRADED_PTMR_MIN
+  const strongCorroboratedPossible =
+    feedbackProbability >= STRONG_CORROBORATION_POSSIBLE_THRESHOLD &&
+    confidence >= STRONG_CORROBORATION_POSSIBLE_CONFIDENCE_THRESHOLD &&
+    harmonicStrongCorroboration
+  const persistenceLiftEligible =
+    persistenceBonus >= 0.04 &&
+    feedbackProbability >= possibleFeedbackThreshold &&
+    confidence >= 0.22
+  if (effCount === 0) {
+    verdict = 'NOT_FEEDBACK'
+  } else if (
+    (feedbackProbability >= config.feedbackThreshold && confidence >= BASE_FEEDBACK_CONFIDENCE_THRESHOLD) ||
+    strongCorroboratedFeedback ||
+    compressedPhaseDegradedFeedback
+  ) {
+    if (strongCorroboratedFeedback && confidence < BASE_FEEDBACK_CONFIDENCE_THRESHOLD) {
+      reasons.push('Strong multi-algorithm corroboration')
+    }
+    if (compressedPhaseDegradedFeedback) {
+      reasons.push('Compression-resistant corroboration despite phase damage')
+    }
     verdict = 'FEEDBACK'
-  } else if (feedbackProbability >= possibleFeedbackThreshold && confidence >= 0.3) {
+  } else if (
+    feedbackProbability >= possibleFeedbackThreshold &&
+    (confidence >= 0.3 || persistenceLiftEligible)
+  ) {
+    verdict = 'POSSIBLE_FEEDBACK'
+  } else if (strongCorroboratedPossible) {
+    reasons.push('Strong corroboration despite limited algorithm availability')
     verdict = 'POSSIBLE_FEEDBACK'
   } else if (feedbackProbability < 0.2 && agreement >= 0.8 && effCount >= 3) {
     verdict = 'NOT_FEEDBACK'

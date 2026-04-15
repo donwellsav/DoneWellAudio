@@ -216,6 +216,81 @@ describe('useDSPWorker', () => {
     expect(flushedMessages[1].peak.binIndex).toBe(3)
   })
 
+  it('flushes a buffered peak when peak buffers return without a tracksUpdate', () => {
+    const { result } = renderHook(() => useDSPWorker({}))
+    const worker = MockWorker.instances[0]
+
+    act(() => {
+      result.current.init(DEFAULT_SETTINGS, 48000, 8192)
+      worker.emitMessage({ type: 'ready' })
+    })
+
+    const spectrum = new Float32Array([1, 2, 3, 4])
+    const timeDomain = new Float32Array([0.1, 0.2, 0.3, 0.4])
+
+    act(() => {
+      result.current.processPeak(makePeak({ binIndex: 10 }), spectrum, 48000, 8192, timeDomain)
+      result.current.processPeak(makePeak({ binIndex: 11 }), spectrum, 48000, 8192, timeDomain)
+    })
+
+    act(() => {
+      worker.emitMessage({
+        type: 'returnBuffers',
+        spectrum: new Float32Array([9, 8, 7, 6]),
+        timeDomain: new Float32Array([0.4, 0.3, 0.2, 0.1]),
+        source: 'peak',
+      })
+    })
+
+    const flushedMessages = worker.messages.filter((message): message is { type: 'processPeak'; peak: DetectedPeak } =>
+      typeof message === 'object' && message !== null && 'type' in message && message.type === 'processPeak'
+    )
+
+    expect(flushedMessages).toHaveLength(2)
+    expect(flushedMessages[1].peak.binIndex).toBe(11)
+  })
+
+  it('tracks transport counters for tracksUpdate messages', () => {
+    const { result } = renderHook(() => useDSPWorker({}))
+    const worker = MockWorker.instances[0]
+
+    act(() => {
+      result.current.init(DEFAULT_SETTINGS, 48000, 8192)
+      worker.emitMessage({ type: 'ready' })
+      worker.emitMessage({
+        type: 'tracksUpdate',
+        tracks: [
+          {
+            id: 'track-1',
+            frequency: 1000,
+            amplitude: -18,
+            prominenceDb: 12,
+            qEstimate: 20,
+            bandwidthHz: 50,
+            classification: 'unknown',
+            severity: 'unknown',
+            onsetTime: 1000,
+            onsetAmplitudeDb: -24,
+            lastUpdateTime: 1020,
+            active: true,
+            features: {
+              stabilityCentsStd: 0,
+              harmonicityScore: 0,
+              modulationScore: 0,
+              velocityDbPerSec: 0,
+            },
+          },
+        ],
+      })
+    })
+
+    const stats = result.current.getTransportStats()
+    expect(stats.inbound).toBeGreaterThanOrEqual(2)
+    expect(stats.tracksUpdates).toBe(1)
+    expect(stats.lastTracksPayloadBytes).toBeGreaterThan(0)
+    expect(stats.maxTracksPayloadBytes).toBeGreaterThanOrEqual(stats.lastTracksPayloadBytes)
+  })
+
   it('restarts with the latest settings after a worker crash and cleans up the replacement worker', () => {
     vi.useFakeTimers()
 

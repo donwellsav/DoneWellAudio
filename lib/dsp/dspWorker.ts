@@ -17,7 +17,7 @@
 import { TrackManager } from './trackManager'
 import { classifyTrackWithAlgorithms, shouldReportIssue } from './classifier'
 import { generateEQAdvisory, analyzeSpectralTrends } from './eqAdvisor'
-import { fuseAlgorithmResults, DEFAULT_FUSION_CONFIG, CombStabilityTracker, AgreementPersistenceTracker } from './advancedDetection'
+import { fuseAlgorithmResults, buildFusionConfig, CombStabilityTracker, AgreementPersistenceTracker } from './advancedDetection'
 import type { CombPatternResult, FusionConfig } from './advancedDetection'
 import { AlgorithmEngine } from './workerFft'
 import { AdvisoryManager } from './advisoryManager'
@@ -29,12 +29,12 @@ import type {
   DetectedPeak,
   DetectorSettings,
   RecommendationContext,
-  TrackedPeak,
+  TrackSummary,
 } from '@/types/advisory'
 import type { RoomDimensionEstimate } from '@/types/calibration'
 import type { SnapshotWorkerInbound, SnapshotWorkerOutbound, MarkerAlgorithmScores, UserFeedback } from '@/types/data'
 import { SnapshotCollector } from '@/lib/data/snapshotCollector'
-import { DEFAULT_SETTINGS, MSD_SETTINGS } from './constants'
+import { DEFAULT_SETTINGS } from './constants'
 import type { WorkerRuntimeSettings } from '@/lib/settings/runtimeSettings'
 import {
   isWithinFeedbackHistoryTolerance,
@@ -99,7 +99,7 @@ export type WorkerInboundMessage =
 export type WorkerOutboundMessage =
   | { type: 'advisory'; advisory: Advisory }
   | { type: 'advisoryCleared'; advisoryId: string }
-  | { type: 'tracksUpdate'; tracks: TrackedPeak[]; contentType?: ContentType; algorithmMode?: AlgorithmMode; isCompressed?: boolean; compressionRatio?: number }
+  | { type: 'tracksUpdate'; tracks: TrackSummary[]; contentType?: ContentType; algorithmMode?: AlgorithmMode; isCompressed?: boolean; compressionRatio?: number }
   | { type: 'combPatternUpdate'; pattern: CombPatternResult | null }
   | { type: 'returnBuffers'; spectrum: Float32Array; timeDomain?: Float32Array; source?: 'peak' | 'spectrumUpdate' }
   | { type: 'contentTypeUpdate'; contentType: ContentType; isCompressed: boolean; compressionRatio: number }
@@ -118,13 +118,6 @@ let sampleRate = 48000
 let fftSize = 8192
 let peakProcessCount = 0
 
-/** Compute MSD min frames from operation mode — mirrors FeedbackDetector.updateMsdMinFrames() */
-function getMsdMinFramesForMode(mode?: string): number {
-  if (mode === 'speech' || mode === 'broadcast') return MSD_SETTINGS.MIN_FRAMES_SPEECH
-  if (mode === 'liveMusic' || mode === 'worship' || mode === 'outdoor') return MSD_SETTINGS.MIN_FRAMES_MUSIC
-  return MSD_SETTINGS.DEFAULT_MIN_FRAMES
-}
-
 // ─── Cached FusionConfig (rebuilt only on settings change, not per-peak) ─────
 let _cachedFusionConfig: FusionConfig | null = null
 
@@ -141,6 +134,7 @@ let lastIsCompressed = false
 let lastCompressionRatio = 1
 let lastCombPattern: CombPatternResult | null = null
 let feedbackHotspotSummaries: FeedbackHotspotSummary[] = []
+let lastTracksUpdateFrameId = -1
 
 function findFeedbackHistorySummary(frequencyHz: number): FeedbackHotspotSummary | null {
   let bestMatch: FeedbackHotspotSummary | null = null
@@ -200,6 +194,19 @@ function publishCombPattern(pattern: CombPatternResult | null | undefined): void
   if (combPatternEquals(lastCombPattern, normalized)) return
   lastCombPattern = normalized
   self.postMessage({ type: 'combPatternUpdate', pattern: normalized } satisfies WorkerOutboundMessage)
+}
+
+function publishTracksUpdate(force: boolean = false): void {
+  if (!force && lastTracksUpdateFrameId === peakProcessCount) return
+  lastTracksUpdateFrameId = peakProcessCount
+  self.postMessage({
+    type: 'tracksUpdate',
+    tracks: trackManager.getActiveTrackSummaries(),
+    contentType: lastContentType,
+    algorithmMode: settings?.algorithmMode ?? 'auto',
+    isCompressed: lastIsCompressed,
+    compressionRatio: lastCompressionRatio,
+  } satisfies WorkerOutboundMessage)
 }
 
 // ─── Snapshot collection (free tier only) ────────────────────────────────────
@@ -334,6 +341,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       cachedShelves = null
       cachedShelvesFrameId = -1
       lastCombPattern = null
+      lastTracksUpdateFrameId = -1
 
       self.postMessage({ type: 'ready' } satisfies WorkerOutboundMessage)
       break
@@ -370,6 +378,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       _cachedFusionConfig = null
       snapshotCollector?.reset()
       publishCombPattern(null)
+      lastTracksUpdateFrameId = -1
       break
     }
 
@@ -445,13 +454,13 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
     case 'spectrumUpdate': {
       const suSpectrum = msg.spectrum
       try {
-        const changed = algorithmEngine.updateContentType(
+        const stateChanged = algorithmEngine.updateContentType(
           suSpectrum, msg.crestFactor, msg.sampleRate, msg.fftSize
         )
         lastContentType = algorithmEngine.getContentType()
         lastIsCompressed = algorithmEngine.getIsCompressed()
         lastCompressionRatio = algorithmEngine.getCompressionRatio()
-        if (changed !== null) {
+        if (stateChanged) {
           self.postMessage({
             type: 'contentTypeUpdate',
             contentType: lastContentType,
@@ -620,13 +629,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
 
       // Fuse algorithm results with user-selected mode (cached — rebuilt only on settings change)
       if (!_cachedFusionConfig) {
-        _cachedFusionConfig = {
-          ...DEFAULT_FUSION_CONFIG,
-          mode: settings?.algorithmMode ?? 'auto',
-          enabledAlgorithms: settings?.enabledAlgorithms,
-          msdMinFrames: getMsdMinFramesForMode(settings?.mode),
-          mlEnabled: settings?.mlEnabled ?? true,
-        }
+        _cachedFusionConfig = buildFusionConfig(settings)
       }
       // Get or create per-track comb stability tracker
       // Fix 13 (AI Fight Club): Cap at 256 entries to prevent unbounded growth during broadband transients
@@ -727,7 +730,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         if (clearedId) {
           self.postMessage({ type: 'advisoryCleared', advisoryId: clearedId } satisfies WorkerOutboundMessage)
         }
-        self.postMessage({ type: 'tracksUpdate', tracks: trackManager.getActiveTracks(), contentType: lastContentType, algorithmMode: settings?.algorithmMode ?? 'auto', isCompressed: lastIsCompressed, compressionRatio: lastCompressionRatio } satisfies WorkerOutboundMessage)
+        publishTracksUpdate()
         break
       }
 
@@ -794,7 +797,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
 
       // Post tracks update if any advisory was created/updated
       if (actions.length > 0) {
-        self.postMessage({ type: 'tracksUpdate', tracks: trackManager.getActiveTracks(), contentType: lastContentType, algorithmMode: settings?.algorithmMode ?? 'auto', isCompressed: lastIsCompressed, compressionRatio: lastCompressionRatio } satisfies WorkerOutboundMessage)
+        publishTracksUpdate()
       }
 
       break
@@ -829,7 +832,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
       for (const trackId of agreementTrackers.keys()) {
         if (!trackManager.getTrack(trackId)) agreementTrackers.delete(trackId)
       }
-      if (trackManager.getActiveTracks().length < 3) {
+      if (trackManager.getRawTracks().length < 3) {
         publishCombPattern(null)
       }
 
@@ -839,7 +842,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
         self.postMessage({ type: 'advisoryCleared', advisoryId: clearedId } satisfies WorkerOutboundMessage)
       }
 
-      self.postMessage({ type: 'tracksUpdate', tracks: trackManager.getActiveTracks(), contentType: lastContentType, algorithmMode: settings?.algorithmMode ?? 'auto', isCompressed: lastIsCompressed, compressionRatio: lastCompressionRatio } satisfies WorkerOutboundMessage)
+      publishTracksUpdate(true)
       break
     }
 

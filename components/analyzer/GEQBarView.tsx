@@ -86,7 +86,7 @@ export const GEQBarView = memo(function GEQBarView({
   }, [])
 
   const render = useCallback(() => {
-    if (!dirtyRef.current && bandRecommendations.size >= 31) {
+    if (!dirtyRef.current) {
       return
     }
     dirtyRef.current = false

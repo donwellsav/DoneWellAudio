@@ -477,6 +477,43 @@ describe('AdvisoryManager', () => {
       expect(adv.trackId).toBe('track-d2')
       expect(adv.clusterCount).toBeUndefined() // not merged
     })
+
+    it('merges into the nearest existing advisory when multiple advisories are within tolerance', () => {
+      const noRateLimitGap = makeSettings({ peakMergeCents: 100 })
+      const lowTrack = makeTrack({ id: 'track-near-low', trueFrequencyHz: 1000, trueAmplitudeDb: -24 })
+      const highTrack = makeTrack({ id: 'track-near-high', trueFrequencyHz: 1090, trueAmplitudeDb: -23 })
+      const incomingTrack = makeTrack({ id: 'track-near-new', trueFrequencyHz: 1088, trueAmplitudeDb: -30 })
+
+      mgr.createOrUpdate(
+        lowTrack,
+        makePeak({ timestamp: 10000, trueFrequencyHz: 1000 }),
+        makeClassification({ severity: 'GROWING' }),
+        makeEQAdvisory({ geq: { bandHz: 1000, bandIndex: 15, suggestedDb: -6 } }),
+        noRateLimitGap,
+      )
+
+      mgr.createOrUpdate(
+        highTrack,
+        makePeak({ timestamp: 10300, trueFrequencyHz: 1090 }),
+        makeClassification({ severity: 'GROWING' }),
+        makeEQAdvisory({ geq: { bandHz: 1120, bandIndex: 16, suggestedDb: -6 } }),
+        noRateLimitGap,
+      )
+
+      const actions = mgr.createOrUpdate(
+        incomingTrack,
+        makePeak({ timestamp: 10600, trueFrequencyHz: 1088 }),
+        makeClassification({ severity: 'RESONANCE' }),
+        makeEQAdvisory({ geq: { bandHz: 1120, bandIndex: 16, suggestedDb: -6 } }),
+        noRateLimitGap,
+      )
+
+      expect(actions).toHaveLength(1)
+      expect(actions[0].type).toBe('advisory')
+      const advisory = (actions[0] as { type: 'advisory'; advisory: { trackId: string; clusterCount: number } }).advisory
+      expect(advisory.trackId).toBe('track-near-high')
+      expect(advisory.clusterCount).toBe(2)
+    })
   })
 
   // ── 4. GEQ band dedup ────────────────────────────────────────────────────
@@ -796,6 +833,31 @@ describe('AdvisoryManager', () => {
 
       expect(mgr.getAdvisoryIdForTrack('track-cf-merged-1')).toBeUndefined()
       expect(mgr.getAdvisoryIdForTrack('track-cf-merged-2')).toBeUndefined()
+    })
+
+    it('clears the nearest advisory when multiple advisories are within tolerance', () => {
+      mgr.createOrUpdate(
+        makeTrack({ id: 'track-cf-near-1', trueFrequencyHz: 1000 }),
+        makePeak({ timestamp: 10000, trueFrequencyHz: 1000 }),
+        makeClassification(),
+        makeEQAdvisory({ geq: { bandHz: 1000, bandIndex: 15, suggestedDb: -6 } }),
+        makeSettings({ peakMergeCents: 0 }),
+      )
+
+      mgr.createOrUpdate(
+        makeTrack({ id: 'track-cf-near-2', trueFrequencyHz: 1085 }),
+        makePeak({ timestamp: 10300, trueFrequencyHz: 1085 }),
+        makeClassification(),
+        makeEQAdvisory({ geq: { bandHz: 1120, bandIndex: 16, suggestedDb: -6 } }),
+        makeSettings({ peakMergeCents: 0 }),
+      )
+
+      const expectedId = mgr.getAdvisoryIdForTrack('track-cf-near-2')
+      const cleared = mgr.clearByFrequency(1082, 20000)
+
+      expect(cleared).toBe(expectedId)
+      expect(mgr.getAdvisoryIdForTrack('track-cf-near-1')).toBeDefined()
+      expect(mgr.getAdvisoryIdForTrack('track-cf-near-2')).toBeUndefined()
     })
   })
 

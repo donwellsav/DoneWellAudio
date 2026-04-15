@@ -2,7 +2,7 @@
 
 import { createContext, useContext } from 'react'
 import type { SpectrumStatus } from '@/hooks/audioAnalyzerTypes'
-import type { SpectrumData, TrackedPeak } from '@/types/advisory'
+import type { SpectrumData, TrackSummary } from '@/types/advisory'
 
 // ── Context value ───────────────────────────────────────────────────────────
 
@@ -10,7 +10,7 @@ export interface MeteringContextValue {
   /** Live spectrum data (Float32Arrays). Read imperatively from canvas at 30fps. */
   spectrumRef: React.RefObject<SpectrumData | null>
   /** Tracked peaks by frequency */
-  tracksRef: React.RefObject<TrackedPeak[]>
+  tracksRef: React.RefObject<TrackSummary[]>
   /** Frame-level metadata: algorithm mode, compression, MSD count, peak dB */
   spectrumStatus: SpectrumStatus | null
   /** Ambient noise floor estimate in dB */

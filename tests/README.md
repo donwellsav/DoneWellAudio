@@ -72,4 +72,28 @@ lib/storage/__tests__/         # dwaStorage + settingsStorageV2 tests
 lib/export/__tests__/          # Export module tests (txt, pdf, downloadFile)
 lib/dsp/__tests__/             # mlInference unit tests
 lib/data/__tests__/            # Consent module tests
+tests/fixtures/snapshots/      # Labeled snapshot fixture corpora for replay-based accuracy checks
 ```
+
+## Snapshot Fixture Workflow
+
+- The speech/worship accuracy lane lives under `tests/fixtures/snapshots/speech-worship/` and replays labeled `SnapshotBatch` fixtures through the worker-side fusion, classifier, and advisory path.
+- Run the snapshot lane directly with:
+
+```bash
+npx tsx --tsconfig autoresearch/tsconfig.json autoresearch/evaluateSnapshots.ts
+```
+
+- Normalize newly exported snapshot batches with:
+
+```bash
+npx tsx --tsconfig autoresearch/tsconfig.json autoresearch/normalizeSnapshotFixture.ts \
+  --input path/to/exported-batch.json \
+  --output tests/fixtures/snapshots/speech-worship/my-fixture.json \
+  --mode worship \
+  --verdict FEEDBACK \
+  --expect-advisory
+```
+
+- Keep explicit `acceptableVerdicts` and `expectAdvisory` labels in the fixture wrapper. Do not infer them from `userFeedback`.
+- The checked-in corpus currently begins with seed fixtures shaped like `SnapshotBatch`; treat real exported batches as higher-trust additions when they become available.

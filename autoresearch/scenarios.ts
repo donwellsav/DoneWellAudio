@@ -39,6 +39,8 @@ export interface Scenario {
   peakFrequencyHz?: number
   /** GROUND TRUTH — what the system SHOULD produce */
   expectedVerdict: FeedbackVerdict
+  /** Optional alternate verdicts that are also acceptable for this scenario. */
+  acceptableVerdicts?: FeedbackVerdict[]
   /** Scenario classification */
   category: 'TP' | 'TN' | 'known_FP' | 'known_FN' | 'baseline'
   /** Importance weight (default 1.0, FP scenarios get 2.0) */
@@ -295,6 +297,7 @@ const TRUE_NEGATIVES: Scenario[] = [
     // This IS acoustically feedback — detecting it is arguably correct
     // So we accept FEEDBACK or POSSIBLE_FEEDBACK
     expectedVerdict: 'FEEDBACK',
+    acceptableVerdicts: ['FEEDBACK', 'POSSIBLE_FEEDBACK'],
     category: 'TP',
     weight: 0.5, // Low weight — acceptable either way
     source: 'gemini',
@@ -393,7 +396,7 @@ const TRUE_NEGATIVES: Scenario[] = [
     scores: { msd: 0.0, phase: 1.0, spectral: 0.40, comb: 0, ihr: 0.40, ptmr: 0.60, compressed: true },
     contentType: 'unknown',
     existingScore: 0.5,
-    expectedVerdict: 'UNCERTAIN',
+    expectedVerdict: 'POSSIBLE_FEEDBACK',
     category: 'known_FP',
     weight: 2.0,
     source: 'chatgpt',

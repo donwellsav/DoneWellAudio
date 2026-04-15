@@ -17,7 +17,8 @@
  *   scenarios: 52/60 correct
  */
 
-import { fuseAlgorithmResults, FUSION_WEIGHTS } from '@/lib/dsp/fusionEngine'
+import { pathToFileURL } from 'node:url'
+import { DEFAULT_FUSION_CONFIG, fuseAlgorithmResults, FUSION_WEIGHTS } from '@/lib/dsp/fusionEngine'
 import { buildScores } from '@/tests/helpers/mockAlgorithmScores'
 import { SCENARIOS, type Scenario, type FeedbackVerdict } from './scenarios'
 
@@ -57,6 +58,10 @@ function verdictLoss(expected: FeedbackVerdict, actual: FeedbackVerdict): number
   return 2.0 // d === 3
 }
 
+function acceptableVerdictsForScenario(scenario: Scenario): readonly FeedbackVerdict[] {
+  return scenario.acceptableVerdicts ?? [scenario.expectedVerdict]
+}
+
 /**
  * Margin loss for a single scenario.
  *
@@ -90,26 +95,121 @@ function isFalsePositive(expected: FeedbackVerdict, actual: FeedbackVerdict): bo
 
 // ── Weight constraint validation ─────────────────────────────────────────────
 
-function constraintPenalty(): number {
-  let penalty = 0
-  const profiles = ['DEFAULT', 'SPEECH', 'MUSIC', 'COMPRESSED'] as const
+const WEIGHT_PROFILES = ['DEFAULT', 'SPEECH', 'MUSIC', 'COMPRESSED'] as const
+const MIN_WEIGHT = 0.01
+const MAX_WEIGHT = 0.50
+const MIN_FEEDBACK_THRESHOLD = 0.40
+const MAX_FEEDBACK_THRESHOLD = 0.80
 
-  for (const key of profiles) {
-    const w = FUSION_WEIGHTS[key]
-    const values = [w.msd, w.phase, w.spectral, w.comb, w.ihr, w.ptmr]
-    const sum = values.reduce((a, b) => a + b, 0)
+export interface ConstraintIssue {
+  message: string
+  profile?: (typeof WEIGHT_PROFILES)[number]
+  metric: string
+  value: number
+}
 
-    // Sum-to-1 constraint (with floating point tolerance)
+export interface ScenarioContradiction {
+  signature: string
+  scenarios: Array<Pick<Scenario, 'id' | 'expectedVerdict' | 'category' | 'source'>>
+}
+
+function scenarioSignature(scenario: Scenario): string {
+  return JSON.stringify({
+    msd: scenario.scores.msd ?? null,
+    phase: scenario.scores.phase ?? null,
+    spectral: scenario.scores.spectral ?? null,
+    comb: scenario.scores.comb ?? null,
+    ihr: scenario.scores.ihr ?? null,
+    ptmr: scenario.scores.ptmr ?? null,
+    compressed: scenario.scores.compressed ?? null,
+    msdFrames: scenario.scores.msdFrames ?? null,
+    contentType: scenario.contentType,
+    peakFrequencyHz: scenario.peakFrequencyHz ?? null,
+  })
+}
+
+export function findScenarioContradictions(
+  scenarios: readonly Scenario[] = SCENARIOS,
+): ScenarioContradiction[] {
+  const grouped = new Map<string, ScenarioContradiction['scenarios']>()
+
+  for (const scenario of scenarios) {
+    const signature = scenarioSignature(scenario)
+    const matches = grouped.get(signature) ?? []
+    matches.push({
+      id: scenario.id,
+      expectedVerdict: scenario.expectedVerdict,
+      category: scenario.category,
+      source: scenario.source,
+    })
+    grouped.set(signature, matches)
+  }
+
+  const contradictions: ScenarioContradiction[] = []
+  for (const [signature, matches] of grouped) {
+    const verdicts = new Set(matches.map((match) => match.expectedVerdict))
+    if (matches.length > 1 && verdicts.size > 1) {
+      contradictions.push({ signature, scenarios: matches })
+    }
+  }
+
+  return contradictions
+}
+
+export function validateWeightConstraints(): ConstraintIssue[] {
+  const issues: ConstraintIssue[] = []
+
+  for (const profile of WEIGHT_PROFILES) {
+    const weights = FUSION_WEIGHTS[profile]
+    const values = Object.entries(weights) as Array<[string, number]>
+    const sum = values.reduce((acc, [, value]) => acc + value, 0)
+
     const drift = Math.abs(sum - 1.0)
     if (drift > 0.001) {
-      penalty += drift * 10.0
+      issues.push({
+        profile,
+        metric: 'sum',
+        value: sum,
+        message: `${profile} weights must sum to 1.0 (got ${sum.toFixed(6)})`,
+      })
     }
 
-    // Range constraint: all weights in [0, 1]
-    for (const v of values) {
-      if (v < 0 || v > 1) {
-        penalty += 100.0 // Hard violation
+    for (const [metric, value] of values) {
+      if (value < MIN_WEIGHT || value > MAX_WEIGHT) {
+        issues.push({
+          profile,
+          metric,
+          value,
+          message: `${profile}.${metric} must stay in [${MIN_WEIGHT}, ${MAX_WEIGHT}] (got ${value.toFixed(6)})`,
+        })
       }
+    }
+  }
+
+  if (
+    DEFAULT_FUSION_CONFIG.feedbackThreshold < MIN_FEEDBACK_THRESHOLD ||
+    DEFAULT_FUSION_CONFIG.feedbackThreshold > MAX_FEEDBACK_THRESHOLD
+  ) {
+    issues.push({
+      metric: 'feedbackThreshold',
+      value: DEFAULT_FUSION_CONFIG.feedbackThreshold,
+      message:
+        `feedbackThreshold must stay in [${MIN_FEEDBACK_THRESHOLD}, ${MAX_FEEDBACK_THRESHOLD}] ` +
+        `(got ${DEFAULT_FUSION_CONFIG.feedbackThreshold.toFixed(6)})`,
+    })
+  }
+
+  return issues
+}
+
+export function constraintPenalty(issues: readonly ConstraintIssue[] = validateWeightConstraints()): number {
+  let penalty = 0
+
+  for (const issue of issues) {
+    if (issue.metric === 'sum') {
+      penalty += Math.abs(issue.value - 1.0) * 10.0
+    } else {
+      penalty += 100.0
     }
   }
 
@@ -129,6 +229,17 @@ interface ScenarioResult {
   correct: boolean
 }
 
+export interface EvaluationSummary {
+  loss: number
+  verdictLoss: number
+  marginLoss: number
+  fpPenalty: number
+  constraintOk: boolean
+  scenariosCorrect: number
+  scenariosTotal: number
+  results: ScenarioResult[]
+}
+
 function evaluateScenario(scenario: Scenario): ScenarioResult {
   const scores = buildScores(scenario.scores)
   const result = fuseAlgorithmResults(
@@ -139,10 +250,11 @@ function evaluateScenario(scenario: Scenario): ScenarioResult {
   )
 
   const actual = result.verdict as FeedbackVerdict
-  const vLoss = verdictLoss(scenario.expectedVerdict, actual)
-  const mLoss = marginLoss(scenario.expectedVerdict, result.feedbackProbability)
+  const accepted = scenarioAcceptsVerdict(scenario, actual)
+  const vLoss = accepted ? 0 : verdictLoss(scenario.expectedVerdict, actual)
+  const mLoss = accepted ? 0 : marginLoss(scenario.expectedVerdict, result.feedbackProbability)
   const fp = isFalsePositive(scenario.expectedVerdict, actual)
-  const correct = vLoss === 0
+  const correct = accepted
 
   return {
     scenario,
@@ -156,7 +268,19 @@ function evaluateScenario(scenario: Scenario): ScenarioResult {
   }
 }
 
-function evaluate(verbose: boolean): void {
+export function evaluate(verbose: boolean): EvaluationSummary {
+  const contradictions = findScenarioContradictions()
+  if (contradictions.length > 0) {
+    if (verbose) {
+      console.error('Scenario contradictions detected:')
+      for (const contradiction of contradictions) {
+        console.error(contradiction.signature)
+        console.error(JSON.stringify(contradiction.scenarios, null, 2))
+      }
+    }
+    throw new Error(`Scenario dataset contains ${contradictions.length} contradictory signature(s)`)
+  }
+
   const results = SCENARIOS.map(evaluateScenario)
 
   // Weighted loss calculations
@@ -178,7 +302,8 @@ function evaluate(verbose: boolean): void {
   const avgVerdictLoss = weightedVerdictLoss / totalWeight
   const avgMarginLoss = weightedMarginLoss / totalWeight
   const avgFpPenalty = weightedFpPenalty / totalWeight
-  const cPenalty = constraintPenalty()
+  const constraintIssues = validateWeightConstraints()
+  const cPenalty = constraintPenalty(constraintIssues)
 
   const loss = (1.0 * avgVerdictLoss) + (0.3 * avgMarginLoss) + (2.0 * avgFpPenalty) + (10.0 * cPenalty)
 
@@ -215,6 +340,14 @@ function evaluate(verbose: boolean): void {
       }
       console.log()
     }
+
+    if (constraintIssues.length > 0) {
+      console.log('Constraint issues:')
+      for (const issue of constraintIssues) {
+        console.log(`- ${issue.message}`)
+      }
+      console.log()
+    }
   }
 
   console.log('---')
@@ -222,11 +355,34 @@ function evaluate(verbose: boolean): void {
   console.log(`verdict_loss:  ${avgVerdictLoss.toFixed(6)}`)
   console.log(`margin_loss:   ${avgMarginLoss.toFixed(6)}`)
   console.log(`fp_penalty:    ${avgFpPenalty.toFixed(6)}`)
-  console.log(`constraint_ok: ${cPenalty === 0}`)
+  console.log(`constraint_ok: ${constraintIssues.length === 0}`)
   console.log(`scenarios:     ${correctCount}/${results.length} correct`)
+
+  return {
+    loss,
+    verdictLoss: avgVerdictLoss,
+    marginLoss: avgMarginLoss,
+    fpPenalty: avgFpPenalty,
+    constraintOk: constraintIssues.length === 0,
+    scenariosCorrect: correctCount,
+    scenariosTotal: results.length,
+    results,
+  }
+}
+
+function scenarioAcceptsVerdict(scenario: Scenario, actual: FeedbackVerdict): boolean {
+  return acceptableVerdictsForScenario(scenario).includes(actual)
 }
 
 // ── Entry point ──────────────────────────────────────────────────────────────
 
-const verbose = process.argv.includes('--verbose')
-evaluate(verbose)
+function isDirectExecution(): boolean {
+  const entry = process.argv[1]
+  if (!entry) return false
+  return import.meta.url === pathToFileURL(entry).href
+}
+
+if (isDirectExecution()) {
+  const verbose = process.argv.includes('--verbose')
+  evaluate(verbose)
+}

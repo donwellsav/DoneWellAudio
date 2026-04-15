@@ -5,7 +5,7 @@ import type {
   AlgorithmMode,
   ContentType,
   SpectrumData,
-  TrackedPeak,
+  TrackSummary,
 } from '@/types/advisory'
 import type { CombPatternResult } from '@/lib/dsp/advancedDetection'
 import type { SpectrumStatus } from '@/hooks/audioAnalyzerTypes'
@@ -70,7 +70,7 @@ export function mergeFrameState(
 
 export function useAnalyzerFrameState() {
   const spectrumRef = useRef<SpectrumData | null>(null)
-  const tracksRef = useRef<TrackedPeak[]>([])
+  const tracksRef = useRef<TrackSummary[]>([])
   const workerStatusRef = useRef<WorkerStatusSnapshot>({})
   const lastStatusUpdateRef = useRef(0)
   const [frameState, setFrameState] = useState<AnalyzerFrameState>({
@@ -90,7 +90,7 @@ export function useAnalyzerFrameState() {
     setFrameState((previous) => mergeFrameState(previous, spectrum, workerStatusRef.current))
   }, [])
 
-  const handleTracksUpdate = useCallback((tracks: TrackedPeak[], status?: WorkerStatusSnapshot) => {
+  const handleTracksUpdate = useCallback((tracks: TrackSummary[], status?: WorkerStatusSnapshot) => {
     tracksRef.current = tracks
     if (!status) return
 

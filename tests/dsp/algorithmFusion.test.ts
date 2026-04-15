@@ -153,10 +153,10 @@ describe('Single-Algorithm Isolation', () => {
 })
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 4. GEMINI VULNERABILITY SCENARIOS — CURRENT WEIGHTS
+// 4. GEMINI HISTORICAL VULNERABILITY SCENARIOS
 //
-// These document KNOWN vulnerabilities in the current weight profiles.
-// When weights are improved, update the expected verdicts accordingly.
+// These scenarios used to expose the old fusion failures. They now serve as
+// regression coverage for the fixed behavior.
 // ═════════════════════════════════════════════════════════════════════════════
 
 describe('Gemini Vulnerability Scenarios — DEFAULT Profile', () => {
@@ -169,15 +169,13 @@ describe('Gemini Vulnerability Scenarios — DEFAULT Profile', () => {
    * EXPECTED: FALSE POSITIVE — music incorrectly classified as feedback.
    * Gemini calculated: 0.650 (above 0.60 threshold)
    */
-  it('FALSE POSITIVE: sustained synth note scores above threshold', () => {
+  it('FIXED: sustained synth note now stays UNCERTAIN', () => {
     const result = fuse(
       { msd: 0.8, phase: 0.9, spectral: 0.4, comb: 0, ihr: 0.1, ptmr: 0.7 },
       'unknown'
     )
-    // Document the vulnerability: this SHOULD be NOT_FEEDBACK or UNCERTAIN
-    // but with current weights it exceeds the threshold
-    expect(result.feedbackProbability).toBeGreaterThan(0.55)
-    // The exact verdict depends on confidence calculation too
+    expect(result.feedbackProbability).toBeLessThan(0.42)
+    expect(result.verdict).toBe('UNCERTAIN')
   })
 
   /**
@@ -188,11 +186,12 @@ describe('Gemini Vulnerability Scenarios — DEFAULT Profile', () => {
    * EXPECTED: FALSE NEGATIVE — real feedback missed.
    * Gemini calculated: 0.571 (below 0.60 threshold)
    */
-  it('FALSE NEGATIVE: low-freq reverberant feedback scores below threshold', () => {
+  it('FIXED: low-freq reverberant feedback now reaches FEEDBACK', () => {
     const result = fuse(
       { msd: 0.4, phase: 0.5, spectral: 0.9, comb: 0, ihr: 0.9, ptmr: 0.8 },
       'unknown'
     )
+    expect(result.verdict).toBe('FEEDBACK')
     expect(result.feedbackProbability).toBeLessThan(0.65)
   })
 })
@@ -207,12 +206,13 @@ describe('Gemini Vulnerability Scenarios — SPEECH Profile', () => {
    * Gemini calculated: 0.710 (well above threshold)
    * ROOT CAUSE: MSD weight of 0.40 makes any stable amplitude trigger detection.
    */
-  it('FALSE POSITIVE: sustained vowel scores well above threshold', () => {
+  it('FIXED: sustained vowel now stays UNCERTAIN', () => {
     const result = fuse(
       { msd: 0.9, phase: 0.8, spectral: 0.5, comb: 0, ihr: 0.2, ptmr: 0.6 },
       'speech'
     )
-    expect(result.feedbackProbability).toBeGreaterThan(0.60)
+    expect(result.feedbackProbability).toBeLessThan(0.42)
+    expect(result.verdict).toBe('UNCERTAIN')
   })
 
   /**
@@ -224,11 +224,12 @@ describe('Gemini Vulnerability Scenarios — SPEECH Profile', () => {
    * Gemini calculated: 0.525 (below threshold)
    * ROOT CAUSE: MSD weight of 0.40 means zero-growth feedback can't compensate.
    */
-  it('FALSE NEGATIVE: limiter-clamped feedback scores below threshold', () => {
+  it('FIXED: limiter-clamped feedback now reaches FEEDBACK', () => {
     const result = fuse(
       { msd: 0.1, phase: 0.9, spectral: 0.9, comb: 0, ihr: 0.9, ptmr: 0.9 },
       'speech'
     )
+    expect(result.verdict).toBe('FEEDBACK')
     expect(result.feedbackProbability).toBeLessThan(0.65)
   })
 })
@@ -243,14 +244,13 @@ describe('Gemini Vulnerability Scenarios — MUSIC Profile', () => {
    * feedback IS acoustically identical to unwanted feedback.
    * Gemini calculated: 0.711
    */
-  it('FALSE POSITIVE: intentional guitar feedback (expected and acceptable)', () => {
+  it('Intentional guitar feedback remains acceptable as POSSIBLE or FEEDBACK', () => {
     const result = fuse(
       { msd: 0.8, phase: 0.95, spectral: 0.6, comb: 0, ihr: 0.2, ptmr: 0.8 },
       'music'
     )
-    // This false positive is arguably CORRECT behavior —
-    // intentional feedback IS feedback. Documenting, not fixing.
     expect(result.feedbackProbability).toBeGreaterThan(0.60)
+    expect(['POSSIBLE_FEEDBACK', 'FEEDBACK']).toContain(result.verdict)
   })
 
   /**
@@ -262,12 +262,13 @@ describe('Gemini Vulnerability Scenarios — MUSIC Profile', () => {
    * Gemini calculated: 0.496 (well below threshold)
    * ROOT CAUSE: Phase weight of 0.35 means dense mixes that mask phase cause failure.
    */
-  it('FALSE NEGATIVE: feedback hidden in dense mix', () => {
+  it('FIXED: feedback hidden in dense mix now reaches FEEDBACK', () => {
     const result = fuse(
       { msd: 0.6, phase: 0.3, spectral: 0.8, comb: 0, ihr: 0.8, ptmr: 0.7 },
       'music'
     )
     expect(result.feedbackProbability).toBeLessThan(0.60)
+    expect(result.verdict).toBe('FEEDBACK')
   })
 })
 
@@ -280,12 +281,13 @@ describe('Gemini Vulnerability Scenarios — COMPRESSED Profile', () => {
    * EXPECTED: FALSE POSITIVE — clean flute classified as feedback.
    * Gemini calculated: 0.663
    */
-  it('FALSE POSITIVE: compressed flute sample scores above threshold', () => {
+  it('FIXED: compressed flute sample now stays UNCERTAIN', () => {
     const result = fuse(
       { msd: 0.5, phase: 0.95, spectral: 0.6, comb: 0, ihr: 0.3, ptmr: 0.6, compressed: true },
       'unknown' // contentType doesn't matter when compressed=true
     )
-    expect(result.feedbackProbability).toBeGreaterThan(0.55)
+    expect(result.feedbackProbability).toBeLessThan(0.35)
+    expect(result.verdict).toBe('UNCERTAIN')
   })
 
   /**
@@ -303,33 +305,31 @@ describe('Gemini Vulnerability Scenarios — COMPRESSED Profile', () => {
    * means the strong non-phase signals (spectral=0.8, ihr=0.9, ptmr=0.8)
    * now carry enough weight to cross the threshold. Real feedback detected!
    */
-  it('FN IMPROVED: compressor-pumped feedback now detected (FIX-005)', () => {
+  it('FN FIXED: compressor-pumped feedback now reaches FEEDBACK', () => {
     const result = fuse(
       { msd: 0.8, phase: 0.2, spectral: 0.8, comb: 0, ihr: 0.9, ptmr: 0.8, compressed: true },
       'unknown'
     )
-    // FIX-005: phase redistribution allows non-phase algorithms to detect.
-    // Prob crosses 0.60 but compressed thresholdMultiplier (1.5) raises
-    // FEEDBACK threshold to 0.90, so verdict stays POSSIBLE_FEEDBACK.
     expect(result.feedbackProbability).toBeGreaterThan(0.60)
-    expect(result.verdict).toBe('POSSIBLE_FEEDBACK')
+    expect(result.verdict).toBe('FEEDBACK')
   })
 })
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 5. THREE-MODEL CONSENSUS VULNERABILITY SCENARIOS (TEST-004)
+// 5. THREE-MODEL CONSENSUS HISTORICAL VULNERABILITY SCENARIOS (TEST-004)
 //
-// 8 scenarios from cross-validation audit. These document CURRENT behavior
-// as a regression baseline — they are NOT desired behavior.
+// These scenarios used to pin cross-validation failures. Keep them aligned
+// with the corrected runtime behavior.
 // ═════════════════════════════════════════════════════════════════════════════
 
 describe('Consensus Vulnerability: DEFAULT Profile', () => {
-  it('V1 — FP: Synth note (MSD+Phase dominant)', () => {
+  it('V1 — FIXED: Synth note (MSD+Phase dominant) stays UNCERTAIN', () => {
     const result = fuse(
       { msd: 0.85, phase: 0.80, spectral: 0.55, ihr: 0.20, ptmr: 0.35, comb: 0 },
       'unknown'
     )
-    expect(result.feedbackProbability).toBeGreaterThan(0.60)
+    expect(result.feedbackProbability).toBeLessThan(0.40)
+    expect(result.verdict).toBe('UNCERTAIN')
   })
 
   it('V2 — FN: Spectral-only feedback (MSD+Phase blind)', () => {
@@ -366,12 +366,13 @@ describe('Consensus Vulnerability: SPEECH Profile', () => {
 })
 
 describe('Consensus Vulnerability: MUSIC Profile', () => {
-  it('V5 — FP: Phase-dominant (phase alone convicts)', () => {
+  it('V5 — FIXED: Phase-dominant music no longer convicts on phase alone', () => {
     const result = fuse(
       { msd: 0, phase: 1.0, spectral: 0.80, ihr: 0.60, ptmr: 0.40, comb: 0 },
       'music'
     )
-    expect(result.feedbackProbability).toBeGreaterThan(0.60)
+    expect(result.feedbackProbability).toBeLessThan(0.45)
+    expect(result.verdict).toBe('UNCERTAIN')
   })
 
   it('V6 — FN: No phase (feedback invisible to dominant algorithm)', () => {

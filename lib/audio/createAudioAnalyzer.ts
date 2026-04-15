@@ -3,6 +3,7 @@
 // via AudioAnalyzerCallbacks.onPeakDetected / onPeakCleared wiring in useAudioAnalyzer.
 
 import { FeedbackDetector } from '@/lib/dsp/feedbackDetector'
+import { dbToLinearLut } from '@/lib/dsp/expLut'
 import type { 
   Advisory, 
   DetectedPeak,
@@ -13,11 +14,13 @@ import type { CombPatternResult } from '@/lib/dsp/advancedDetection'
 import { DEFAULT_SETTINGS } from '@/lib/dsp/constants'
 import type { AudioRuntimeSettings } from '@/lib/settings/runtimeSettings'
 
+const EMPTY_POWER = new Float32Array(0)
+
 export interface AudioAnalyzerCallbacks {
   onSpectrum?: (data: SpectrumData) => void
   /** Raw peak detected — route to DSP worker for classification */
   onPeakDetected?: (peak: DetectedPeak, spectrum: Float32Array, sampleRate: number, fftSize: number, timeDomain?: Float32Array) => void
-  /** Periodic spectrum snapshot for worker content-type detection (~500ms cadence) */
+  /** Periodic spectrum snapshot for worker content-type/compression detection (~100ms cadence) */
   onSpectrumUpdate?: (spectrum: Float32Array, crestFactor: number, sampleRate: number, fftSize: number) => void
   /** Peak cleared — route to DSP worker */
   onPeakCleared?: (peak: { binIndex: number; frequencyHz: number; timestamp: number }) => void
@@ -50,7 +53,7 @@ export class AudioAnalyzer {
   private lastSpectrumTime: number = 0
   private spectrumIntervalMs: number = 33 // ~30fps for spectrum display
   private lastSpectrumUpdateTime: number = 0
-  private spectrumUpdateIntervalMs: number = 500 // ~2fps for content-type detection
+  private spectrumUpdateIntervalMs: number = 100 // ~10fps for content-type/compression detection
 
   private _isRunning: boolean = false
   private _hasPermission: boolean = false
@@ -157,15 +160,33 @@ export class AudioAnalyzer {
       const state = this.detector.getState()
 
       if (spectrum) {
-        // Calculate peak level for metering
-        let peak = -100
-        for (let i = 0; i < spectrum.length; i++) {
-          if (spectrum[i] > peak) peak = spectrum[i]
+        const shouldSendSpectrumUpdate =
+          timestamp - this.lastSpectrumUpdateTime >= this.spectrumUpdateIntervalMs
+        const needsPeakScan = !Number.isFinite(state.rawPeakDb)
+        const needsSpectrumStats = shouldSendSpectrumUpdate && state.isSignalPresent
+        let sumLinear = 0
+        let validBins = 0
+
+        let peak = needsPeakScan
+          ? -100
+          : state.rawPeakDb
+
+        if (needsPeakScan || needsSpectrumStats) {
+          for (let i = 0; i < spectrum.length; i++) {
+            const value = spectrum[i]
+            if (needsPeakScan && value > peak) {
+              peak = value
+            }
+            if (needsSpectrumStats && Number.isFinite(value)) {
+              sumLinear += dbToLinearLut(value)
+              validBins++
+            }
+          }
         }
 
         const spectrumData: SpectrumData = {
           freqDb: spectrum,
-          power: new Float32Array(0), // Not needed for display
+          power: EMPTY_POWER, // Not needed for display
           noiseFloorDb: state.noiseFloorDb,
           effectiveThresholdDb: state.effectiveThresholdDb,
           sampleRate: state.sampleRate,
@@ -177,8 +198,7 @@ export class AudioAnalyzer {
           autoGainDb: state.autoGainDb,
           autoGainLocked: state.autoGainLocked,
           rawPeakDb: state.rawPeakDb,
-          // Advanced algorithm state - contentType computed on main thread (every ~500ms),
-          // algorithmMode populated by worker
+          // Advanced algorithm state is populated by the worker.
           algorithmMode: undefined,
           contentType: state.contentType,
           msdFrameCount: state.msdFrameCount,
@@ -189,23 +209,14 @@ export class AudioAnalyzer {
 
         this.callbacks.onSpectrum?.(spectrumData)
 
-        // S7: Periodic spectrum feed for worker content-type detection (~500ms)
-        if (timestamp - this.lastSpectrumUpdateTime >= this.spectrumUpdateIntervalMs) {
+        // S7: Periodic spectrum feed for worker content-type/compression detection.
+        if (shouldSendSpectrumUpdate) {
           this.lastSpectrumUpdateTime = timestamp
-          let specMax = -Infinity
-          let sumLinear = 0
-          let validBins = 0
-          for (let i = 0; i < spectrum.length; i++) {
-            const v = spectrum[i]
-            if (Number.isFinite(v)) {
-              if (v > specMax) specMax = v
-              sumLinear += Math.pow(10, v / 10)
-              validBins++
-            }
-          }
-          if (validBins > 0 && specMax > -100) {
+          if (!state.isSignalPresent) {
+            this.callbacks.onSpectrumUpdate?.(spectrum, 0, state.sampleRate, state.fftSize)
+          } else if (validBins > 0 && peak > -100) {
             const rmsDb = 10 * Math.log10(sumLinear / validBins)
-            const crestFactor = specMax - rmsDb
+            const crestFactor = peak - rmsDb
             this.callbacks.onSpectrumUpdate?.(spectrum, crestFactor, state.sampleRate, state.fftSize)
           }
         }

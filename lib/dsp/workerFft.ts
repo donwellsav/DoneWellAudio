@@ -28,6 +28,7 @@ import type { ContentType, DetectedPeak, Track, MSDResult } from '@/types/adviso
 
 const SIDEBAND_NOISE_OFFSET_DB = 3
 const SIDEBAND_NOISE_RANGE_DB = 9
+const CONTENT_TYPE_SILENCE_RESET_FRAMES = 5
 
 // ── Pure helper functions (exported for testability) ────────────────────────
 
@@ -204,6 +205,15 @@ export interface AlgorithmResult {
   contentType: ContentType
 }
 
+function hashActivePeakFrequencies(activePeakFrequencies: number[]): number {
+  let hash = 2166136261 ^ activePeakFrequencies.length
+  for (let i = 0; i < activePeakFrequencies.length; i++) {
+    hash ^= Math.round(activePeakFrequencies[i] * 10)
+    hash = Math.imul(hash, 16777619)
+  }
+  return hash >>> 0
+}
+
 /**
  * Encapsulates all algorithm history buffers and score computation.
  * Stateful — maintains MSD, phase, and amplitude histories across frames.
@@ -234,6 +244,7 @@ export class AlgorithmEngine {
   private _ctWelfordMean = 0
   private _ctWelfordM2 = 0
   private _ctSilentFrameCount = 0
+  private _ctConsecutiveSilentFrames = 0
   // Fix 1: Circular buffer replaces push/shift — O(1) vs O(n)
   private _ctHistoryBuf: ContentType[] = new Array<ContentType>(10).fill('unknown')
   private _ctHistoryPos = 0
@@ -243,20 +254,26 @@ export class AlgorithmEngine {
   private _ctSilenceThresholdDb = -65
   private _ctIsCompressed = false
   private _ctCompressionRatio = 1
+  private _compressionCacheFrameTimestamp = -1
+  private _compressionCacheResult: AlgorithmScores['compression'] = null
+  private _combCacheFrameTimestamp = -1
+  private _combCacheHash = 0
+  private _combCacheCount = 0
+  private _combCacheResult: AlgorithmScores['comb'] = null
 
   /**
    * Update content-type classification from a periodic spectrum snapshot.
    * Includes temporal envelope analysis and majority-vote smoothing,
    * previously done on the main thread in feedbackDetector.ts.
    *
-   * @returns The smoothed content type, or null if unchanged.
+   * @returns True when the published content/compression state changed.
    */
   updateContentType(
     spectrum: Float32Array,
     crestFactor: number,
     sampleRateParam: number,
     fftSizeParam: number,
-  ): ContentType | null {
+  ): boolean {
     const startBin = Math.max(1, Math.floor(150 * fftSizeParam / sampleRateParam))
     const endBin = Math.min(spectrum.length - 1, Math.ceil(10000 * fftSizeParam / sampleRateParam))
     let specMax = -Infinity
@@ -268,12 +285,16 @@ export class AlgorithmEngine {
         validBins++
       }
     }
-    if (validBins === 0 || specMax <= this._ctSilenceThresholdDb) return null
+
+    const frameEnergyDb =
+      validBins === 0 || !Number.isFinite(specMax)
+        ? this._ctSilenceThresholdDb - 1
+        : specMax
+    const isSilent = validBins === 0 || frameEnergyDb <= this._ctSilenceThresholdDb
 
     // Write energy to temporal ring buffer + Welford's online variance (O(1) per frame)
     const bufSize = TEMPORAL_ENVELOPE.BUFFER_SIZE
     const writeIdx = this._ctEnergyPos % bufSize
-    const isSilent = specMax < this._ctSilenceThresholdDb
 
     if (this._ctEnergyFilled) {
       // Ring buffer full — subtract the evicted sample from Welford accumulators
@@ -281,9 +302,9 @@ export class AlgorithmEngine {
       // Reverse Welford: remove evicted sample (count stays constant)
       const n = this._ctWelfordCount
       const oldMean = this._ctWelfordMean
-      const newMean = oldMean + (specMax - evicted) / n
+      const newMean = oldMean + (frameEnergyDb - evicted) / n
       // Update M2: add new sample's contribution, remove evicted sample's
-      this._ctWelfordM2 += (specMax - newMean) * (specMax - oldMean)
+      this._ctWelfordM2 += (frameEnergyDb - newMean) * (frameEnergyDb - oldMean)
         - (evicted - newMean) * (evicted - oldMean)
       if (this._ctWelfordM2 < 0) this._ctWelfordM2 = 0 // Clamp numerical drift
       this._ctWelfordMean = newMean
@@ -294,16 +315,43 @@ export class AlgorithmEngine {
       // Buffer filling — standard Welford add
       this._ctWelfordCount++
       const n = this._ctWelfordCount
-      const delta = specMax - this._ctWelfordMean
+      const delta = frameEnergyDb - this._ctWelfordMean
       this._ctWelfordMean += delta / n
-      const delta2 = specMax - this._ctWelfordMean
+      const delta2 = frameEnergyDb - this._ctWelfordMean
       this._ctWelfordM2 += delta * delta2
       if (isSilent) this._ctSilentFrameCount++
     }
 
-    this._ctEnergyBuffer[writeIdx] = specMax
+    this._ctEnergyBuffer[writeIdx] = frameEnergyDb
     this._ctEnergyPos++
     if (this._ctEnergyPos >= bufSize) this._ctEnergyFilled = true
+
+    if (isSilent) {
+      this._ctConsecutiveSilentFrames++
+      if (this._ctConsecutiveSilentFrames < CONTENT_TYPE_SILENCE_RESET_FRAMES) {
+        return false
+      }
+
+      const prevContentType = this._contentType
+      const prevCompressed = this._ctIsCompressed
+      const prevCompressionRatio = this._ctCompressionRatio
+
+      this._contentType = 'unknown'
+      this._ctIsCompressed = false
+      this._ctCompressionRatio = 1
+      this.ampBuffer.reset()
+      this._compressionCacheFrameTimestamp = -1
+      this._compressionCacheResult = null
+      this._resetContentTypeTracking()
+
+      return (
+        this._contentType !== prevContentType
+        || this._ctIsCompressed !== prevCompressed
+        || this._ctCompressionRatio !== prevCompressionRatio
+      )
+    }
+
+    this._ctConsecutiveSilentFrames = 0
 
     // Read temporal metrics in O(1) from accumulators
     let temporalMetrics: { energyVariance: number; silenceGapRatio: number } | undefined
@@ -334,6 +382,8 @@ export class AlgorithmEngine {
       if (ctCounts[key] > bestCount) { bestCount = ctCounts[key]; bestKey = key }
     }
     const prev = this._contentType
+    const prevCompressed = this._ctIsCompressed
+    const prevCompressionRatio = this._ctCompressionRatio
     this._contentType = bestKey && bestCount >= 3 ? bestKey as ContentType : (this._contentType ?? 'unknown')
 
     // Update compression status
@@ -341,7 +391,11 @@ export class AlgorithmEngine {
     this._ctIsCompressed = compressionResult?.isCompressed ?? false
     this._ctCompressionRatio = compressionResult?.estimatedRatio ?? 1
 
-    return this._contentType !== prev ? this._contentType : null
+    return (
+      this._contentType !== prev
+      || this._ctIsCompressed !== prevCompressed
+      || this._ctCompressionRatio !== prevCompressionRatio
+    )
   }
 
   /** Get the worker's authoritative content type. */
@@ -351,6 +405,20 @@ export class AlgorithmEngine {
   /** Estimated compression ratio. */
   getCompressionRatio(): number { return this._ctCompressionRatio }
 
+  private _resetContentTypeTracking(): void {
+    this._ctEnergyBuffer.fill(this._ctSilenceThresholdDb - 1)
+    this._ctEnergyPos = 0
+    this._ctEnergyFilled = false
+    this._ctWelfordCount = 0
+    this._ctWelfordMean = 0
+    this._ctWelfordM2 = 0
+    this._ctSilentFrameCount = 0
+    this._ctConsecutiveSilentFrames = 0
+    this._ctHistoryBuf.fill('unknown')
+    this._ctHistoryPos = 0
+    this._ctHistoryFilled = false
+  }
+
   /** Allocate buffers for the given FFT size. */
   init(fftSize: number): void {
     const numBins = Math.floor(fftSize / 2)
@@ -359,6 +427,16 @@ export class AlgorithmEngine {
     this.ampBuffer.reset()
     ensureFftBuffers(fftSize)
     this.lastFrameTimestamp = -1
+    this._resetContentTypeTracking()
+    this._contentType = 'unknown'
+    this._ctIsCompressed = false
+    this._ctCompressionRatio = 1
+    this._compressionCacheFrameTimestamp = -1
+    this._compressionCacheResult = null
+    this._combCacheFrameTimestamp = -1
+    this._combCacheHash = 0
+    this._combCacheCount = 0
+    this._combCacheResult = null
     this._mlEngine.warmup() // Non-blocking async ONNX load
   }
 
@@ -397,6 +475,8 @@ export class AlgorithmEngine {
     }
     this.rmsDb = validBins > 0 ? 10 * Math.log10(sumLinearPower / validBins) : -100
     this.ampBuffer.addSample(this.specMax, this.rmsDb)
+    this._compressionCacheFrameTimestamp = timestamp
+    this._compressionCacheResult = this.ampBuffer.detectCompression()
 
     // Phase coherence: adaptive skip when MSD is decisive in MSD-led modes
     if (timeDomain && this.phaseBuffer) {
@@ -467,12 +547,37 @@ export class AlgorithmEngine {
     }
 
     // Compression detection
-    const compressionResult = this.ampBuffer.detectCompression()
+    let compressionResult = this._compressionCacheResult
+    if (this._compressionCacheFrameTimestamp !== this.lastFrameTimestamp) {
+      compressionResult = this.ampBuffer.detectCompression()
+      this._compressionCacheFrameTimestamp = this.lastFrameTimestamp
+      this._compressionCacheResult = compressionResult
+    }
 
     // Comb filter pattern from active track frequencies
-    const combResult = activePeakFrequencies.length >= 3
-      ? detectCombPattern(activePeakFrequencies, sampleRate)
-      : null
+    let combResult: AlgorithmScores['comb'] = null
+    if (activePeakFrequencies.length >= 3) {
+      const frequencyHash = hashActivePeakFrequencies(activePeakFrequencies)
+      const canReuseComb =
+        this._combCacheFrameTimestamp === this.lastFrameTimestamp
+        && this._combCacheHash === frequencyHash
+        && this._combCacheCount === activePeakFrequencies.length
+
+      if (canReuseComb) {
+        combResult = this._combCacheResult
+      } else {
+        combResult = detectCombPattern(activePeakFrequencies, sampleRate)
+        this._combCacheFrameTimestamp = this.lastFrameTimestamp
+        this._combCacheHash = frequencyHash
+        this._combCacheCount = activePeakFrequencies.length
+        this._combCacheResult = combResult
+      }
+    } else {
+      this._combCacheFrameTimestamp = this.lastFrameTimestamp
+      this._combCacheHash = 0
+      this._combCacheCount = activePeakFrequencies.length
+      this._combCacheResult = null
+    }
 
     // Noise sideband score for whistle discrimination
     const sidebandScore = computeNoiseSidebandScore(spectrum, binIndex)
@@ -545,18 +650,15 @@ export class AlgorithmEngine {
     this._mlEngine.dispose()
     this._mlEngine = new MLInferenceEngine()
     this._mlEngine.warmup()
-    this._ctEnergyBuffer.fill(-100)
-    this._ctEnergyPos = 0
-    this._ctEnergyFilled = false
-    this._ctWelfordCount = 0
-    this._ctWelfordMean = 0
-    this._ctWelfordM2 = 0
-    this._ctSilentFrameCount = 0
-    this._ctHistoryBuf.fill('unknown')
-    this._ctHistoryPos = 0
-    this._ctHistoryFilled = false
+    this._resetContentTypeTracking()
     this._contentType = 'unknown'
     this._ctIsCompressed = false
     this._ctCompressionRatio = 1
+    this._compressionCacheFrameTimestamp = -1
+    this._compressionCacheResult = null
+    this._combCacheFrameTimestamp = -1
+    this._combCacheHash = 0
+    this._combCacheCount = 0
+    this._combCacheResult = null
   }
 }

@@ -2,8 +2,16 @@
 
 import { TRACK_SETTINGS } from './constants'
 import { hzToCents } from '@/lib/utils/pitchUtils'
-import { standardDeviation, autocorrelation, generateId } from '@/lib/utils/mathHelpers'
-import type { Track, TrackHistoryEntry, TrackFeatures, DetectedPeak, TrackedPeak, Severity } from '@/types/advisory'
+import { generateId } from '@/lib/utils/mathHelpers'
+import type {
+  DetectedPeak,
+  Severity,
+  Track,
+  TrackFeatures,
+  TrackHistoryEntry,
+  TrackSummary,
+  TrackedPeak,
+} from '@/types/advisory'
 
 // Maximum number of confirmed partials used to normalise the harmonicity score (0..1)
 const MAX_HARMONICS_FOR_SCORE = 4
@@ -15,6 +23,11 @@ const HARMONIC_ROOT_TOLERANCE_CENTS = 20
 // Minimum delta-time (seconds) for velocity calculation to avoid division by near-zero
 const MIN_VELOCITY_DT_SEC = 0.05
 
+const VELOCITY_WINDOW_MS = 500
+const MIN_MODULATION_SAMPLES = 20
+const MAX_MODULATION_SAMPLES = 48
+const ARRAY_INDEX_PATTERN = /^(0|[1-9]\d*)$/
+
 /** Snapshot of an evicted track for fast restoration */
 interface EvictedTrackSnapshot {
   frequencyHz: number
@@ -23,8 +36,115 @@ interface EvictedTrackSnapshot {
   evictedAt: number
 }
 
+interface TrackHistoryState {
+  buffer: TrackHistoryEntry[]
+  start: number
+  count: number
+  capacity: number
+  sumFreqHz: number
+  sumQ: number
+  minQ: number
+  minQDirty: boolean
+  velocityWindowStart: number
+}
+
 const EVICTION_CACHE_SIZE = 16
 const EVICTION_CACHE_TTL_MS = 5000
+
+function parseArrayIndex(prop: PropertyKey): number | null {
+  if (typeof prop !== 'string' || !ARRAY_INDEX_PATTERN.test(prop)) return null
+  return Number(prop)
+}
+
+function getHistoryEntry(state: TrackHistoryState, index: number): TrackHistoryEntry {
+  return state.buffer[(state.start + index) % state.capacity]
+}
+
+function createHistoryProxy(state: TrackHistoryState): TrackHistoryEntry[] {
+  const target: TrackHistoryEntry[] = []
+
+  return new Proxy(target, {
+    get(innerTarget, prop, receiver) {
+      if (prop === 'length') return state.count
+      if (prop === Symbol.iterator) {
+        return function* historyIterator(): IterableIterator<TrackHistoryEntry> {
+          for (let i = 0; i < state.count; i++) {
+            yield getHistoryEntry(state, i)
+          }
+        }
+      }
+
+      const index = parseArrayIndex(prop)
+      if (index !== null) {
+        return index >= 0 && index < state.count ? getHistoryEntry(state, index) : undefined
+      }
+
+      return Reflect.get(innerTarget, prop, receiver)
+    },
+    has(innerTarget, prop) {
+      const index = parseArrayIndex(prop)
+      if (index !== null) return index >= 0 && index < state.count
+      if (prop === 'length') return true
+      return Reflect.has(innerTarget, prop)
+    },
+    ownKeys(innerTarget) {
+      const keys = Reflect.ownKeys(innerTarget).filter((key) => key !== 'length')
+      for (let i = 0; i < state.count; i++) {
+        keys.push(String(i))
+      }
+      keys.push('length')
+      return keys
+    },
+    getOwnPropertyDescriptor(innerTarget, prop) {
+      if (prop === 'length') {
+        return {
+          configurable: false,
+          enumerable: false,
+          value: state.count,
+          writable: false,
+        }
+      }
+
+      const index = parseArrayIndex(prop)
+      if (index !== null && index >= 0 && index < state.count) {
+        return {
+          configurable: true,
+          enumerable: true,
+          value: getHistoryEntry(state, index),
+          writable: false,
+        }
+      }
+
+      return Reflect.getOwnPropertyDescriptor(innerTarget, prop)
+    },
+  })
+}
+
+function createTrackSummaryShell(): TrackSummary {
+  return {
+    id: '',
+    frequency: 0,
+    amplitude: 0,
+    prominenceDb: 0,
+    qEstimate: 0,
+    bandwidthHz: 0,
+    classification: 'unknown',
+    severity: 'unknown',
+    onsetTime: 0,
+    onsetAmplitudeDb: 0,
+    lastUpdateTime: 0,
+    active: false,
+    features: {
+      stabilityCentsStd: 0,
+      harmonicityScore: 0,
+      modulationScore: 0,
+      velocityDbPerSec: 0,
+    },
+    msd: undefined,
+    msdIsHowl: undefined,
+    persistenceFrames: undefined,
+  }
+}
 
 export class TrackManager {
   private tracks: Map<string, Track> = new Map()
@@ -34,10 +154,15 @@ export class TrackManager {
   private associationToleranceCents: number
   private trackTimeoutMs: number
   private _activeTracksCache: Track[] = []
-  /** Reusable array for getActiveTracks() — avoids per-call .map() allocation */
-  private _activePeaksPool: TrackedPeak[] = []
+  private _activeTrackIndex: Map<string, number> = new Map()
+  /** Reusable objects for getActiveTrackSummaries() */
+  private _activePeaksPool: TrackSummary[] = []
   /** Recently evicted tracks — restore history on re-detection instead of starting cold */
   private _evictedCache: EvictedTrackSnapshot[] = []
+  /** Per-track circular history state */
+  private _historyStates: WeakMap<Track, TrackHistoryState> = new WeakMap()
+  /** Reusable scratch buffer for modulation autocorrelation */
+  private _deviationScratch: Float64Array
 
   constructor(options: Partial<{
     maxTracks: number
@@ -49,6 +174,7 @@ export class TrackManager {
     this.historySize = options.historySize ?? TRACK_SETTINGS.HISTORY_SIZE
     this.associationToleranceCents = options.associationToleranceCents ?? TRACK_SETTINGS.ASSOCIATION_TOLERANCE_CENTS
     this.trackTimeoutMs = options.trackTimeoutMs ?? TRACK_SETTINGS.TRACK_TIMEOUT_MS
+    this._deviationScratch = new Float64Array(this.historySize)
   }
 
   /**
@@ -63,9 +189,8 @@ export class TrackManager {
    * Process a detected peak and associate/create a track
    */
   processPeak(peak: DetectedPeak & { qEstimate?: number; bandwidthHz?: number; msd?: number; msdGrowthRate?: number; msdIsHowl?: boolean; msdFastConfirm?: boolean }): Track {
-    // Check if there's an existing track for this bin
     const existingTrackId = this.binToTrackId.get(peak.binIndex)
-    
+
     if (existingTrackId) {
       const track = this.tracks.get(existingTrackId)
       if (track) {
@@ -73,12 +198,10 @@ export class TrackManager {
       }
     }
 
-    // Try to associate with nearby track by frequency
     const nearestTrack = this.findNearestTrack(peak.trueFrequencyHz)
     if (nearestTrack) {
       const cents = Math.abs(hzToCents(peak.trueFrequencyHz, nearestTrack.trueFrequencyHz))
       if (cents <= this.associationToleranceCents) {
-        // Update bin association
         this.binToTrackId.delete(nearestTrack.binIndex)
         this.binToTrackId.set(peak.binIndex, nearestTrack.id)
         nearestTrack.binIndex = peak.binIndex
@@ -86,7 +209,6 @@ export class TrackManager {
       }
     }
 
-    // Create new track
     return this.createTrack(peak)
   }
 
@@ -100,18 +222,19 @@ export class TrackManager {
     const track = this.tracks.get(trackId)
     if (track) {
       const lastAmplitude = track.trueAmplitudeDb
-      track.isActive = false
+      if (track.isActive) {
+        track.isActive = false
+        this._removeActiveTrack(track.id)
+      }
       track.lastUpdateTime = timestamp
-      this._rebuildActiveCache()
       return lastAmplitude
     }
     return null
   }
 
   /**
-   * Get all active tracks as TrackedPeak objects for UI consumption.
-   * Returns a fresh array snapshot (not the internal pool) so callers
-   * can safely store, memoize, or compare by reference.
+   * Legacy detailed active-track snapshots with history.
+   * Avoid using this on the worker hot path.
    */
   getActiveTracks(): TrackedPeak[] {
     const cache = this._activeTracksCache
@@ -123,12 +246,30 @@ export class TrackManager {
   }
 
   /**
+   * Compact active-track snapshots for worker -> UI transport.
+   */
+  getActiveTrackSummaries(): TrackSummary[] {
+    const cache = this._activeTracksCache
+    const result: TrackSummary[] = new Array(cache.length)
+
+    for (let i = 0; i < cache.length; i++) {
+      let pooled = this._activePeaksPool[i]
+      if (!pooled) {
+        pooled = createTrackSummaryShell()
+        this._activePeaksPool[i] = pooled
+      }
+      result[i] = this.trackToTrackSummary(cache[i], pooled)
+    }
+
+    return result
+  }
+
+  /**
    * Check if a track ID is currently active. O(1) Map lookup.
    * Used by combTracker prune to avoid allocating a Set of active IDs.
    */
   isActiveTrack(id: string): boolean {
-    const track = this.tracks.get(id)
-    return track !== undefined && track.isActive
+    return this._activeTrackIndex.has(id)
   }
 
   /**
@@ -136,36 +277,6 @@ export class TrackManager {
    */
   getRawTracks(): Track[] {
     return this._activeTracksCache
-  }
-
-  /**
-   * Convert internal Track to TrackedPeak for UI
-   */
-  private trackToTrackedPeak(track: Track): TrackedPeak {
-    return {
-      id: track.id,
-      frequency: track.trueFrequencyHz,
-      amplitude: track.trueAmplitudeDb,
-      prominenceDb: track.prominenceDb,
-      qEstimate: track.qEstimate,
-      bandwidthHz: track.bandwidthHz,
-      classification: 'unknown' as Severity, // Will be set by classifier
-      severity: 'unknown' as Severity,
-      onsetTime: track.onsetTime,
-      lastUpdateTime: track.lastUpdateTime,
-      active: track.isActive,
-      history: track.history.map(h => ({
-        time: h.time,
-        frequency: h.freqHz,
-        amplitude: h.ampDb,
-      })),
-      features: {
-        stabilityCentsStd: track.features.stabilityCentsStd,
-        harmonicityScore: track.features.harmonicityScore,
-        modulationScore: track.features.modulationScore,
-        velocityDbPerSec: track.velocityDbPerSec,
-      },
-    }
   }
 
   /**
@@ -198,7 +309,6 @@ export class TrackManager {
     for (const id of toDelete) {
       const evicted = this.tracks.get(id)
       if (evicted && evicted.trueFrequencyHz > 0) {
-        // Save to eviction cache for fast restoration
         this._evictedCache.push({
           frequencyHz: evicted.trueFrequencyHz,
           cumulativeGrowthDb: evicted.trueAmplitudeDb - evicted.onsetDb,
@@ -209,27 +319,26 @@ export class TrackManager {
       }
       this.tracks.delete(id)
     }
-    // Prune stale eviction cache entries
-    this._evictedCache = this._evictedCache.filter(e => currentTime - e.evictedAt < EVICTION_CACHE_TTL_MS)
 
-    // Also limit total tracks — evict by quality-weighted staleness score.
-    // High-confidence tracks (high prominence, high Q, stable pitch) survive longer.
+    this._evictedCache = this._evictedCache.filter((entry) => currentTime - entry.evictedAt < EVICTION_CACHE_TTL_MS)
+
     if (this.tracks.size > this.maxTracks) {
       const sorted = Array.from(this.tracks.values())
         .sort((a, b) => {
           const scoreA = this._evictionScore(a, currentTime)
           const scoreB = this._evictionScore(b, currentTime)
-          return scoreB - scoreA // highest eviction score first
+          return scoreB - scoreA
         })
 
       const toRemove = sorted.slice(0, this.tracks.size - this.maxTracks)
       for (const track of toRemove) {
         this.tracks.delete(track.id)
         this.binToTrackId.delete(track.binIndex)
+        if (track.isActive) {
+          this._removeActiveTrack(track.id)
+        }
       }
     }
-
-    this._rebuildActiveCache()
   }
 
   /**
@@ -239,22 +348,11 @@ export class TrackManager {
     this.tracks.clear()
     this.binToTrackId.clear()
     this._activeTracksCache = []
+    this._activeTrackIndex.clear()
+    this._activePeaksPool = []
+    this._historyStates = new WeakMap()
   }
 
-  // ==================== Private Methods ====================
-
-  /**
-   * Compute eviction score for overflow pruning.
-   * Higher score = more likely to be evicted.
-   *
-   * evictionScore = staleness - clarity * 0.5
-   *
-   * staleness: (now - lastUpdateTime) / trackTimeoutMs, normalised 0..1+
-   * clarity:   average of normalised prominence, Q, and pitch stability
-   *
-   * This preserves high-confidence feedback tracks (high prominence,
-   * narrow Q, stable pitch) longer than low-quality transient tracks.
-   */
   private _evictionScore(track: Track, now: number): number {
     const staleness = (now - track.lastUpdateTime) / this.trackTimeoutMs
 
@@ -266,14 +364,99 @@ export class TrackManager {
     return staleness - clarity * 0.5
   }
 
-  private _rebuildActiveCache(): void {
-    this._activeTracksCache = Array.from(this.tracks.values()).filter(t => t.isActive)
+  private _addActiveTrack(track: Track): void {
+    if (this._activeTrackIndex.has(track.id)) return
+    this._activeTrackIndex.set(track.id, this._activeTracksCache.length)
+    this._activeTracksCache.push(track)
+  }
+
+  private _removeActiveTrack(trackId: string): void {
+    const index = this._activeTrackIndex.get(trackId)
+    if (index === undefined) return
+
+    const lastIndex = this._activeTracksCache.length - 1
+    const lastTrack = this._activeTracksCache[lastIndex]
+
+    if (index !== lastIndex) {
+      this._activeTracksCache[index] = lastTrack
+      this._activeTrackIndex.set(lastTrack.id, index)
+    }
+
+    this._activeTracksCache.pop()
+    this._activeTrackIndex.delete(trackId)
+  }
+
+  private getHistoryState(track: Track): TrackHistoryState {
+    const state = this._historyStates.get(track)
+    if (!state) {
+      throw new Error(`Missing history state for track ${track.id}`)
+    }
+    return state
+  }
+
+  private appendHistory(track: Track, entry: TrackHistoryEntry): TrackHistoryState {
+    const state = this.getHistoryState(track)
+    const writeIndex = (state.start + state.count) % state.capacity
+
+    if (state.count < state.capacity) {
+      state.buffer[writeIndex] = entry
+      state.count++
+    } else {
+      const evicted = state.buffer[state.start]
+      state.sumFreqHz -= evicted.freqHz
+      state.sumQ -= evicted.qEstimate
+      if (evicted.qEstimate <= state.minQ) {
+        state.minQDirty = true
+      }
+      state.buffer[state.start] = entry
+      state.start = (state.start + 1) % state.capacity
+      if (state.velocityWindowStart > 0) {
+        state.velocityWindowStart--
+      }
+    }
+
+    state.sumFreqHz += entry.freqHz
+    state.sumQ += entry.qEstimate
+    if (entry.qEstimate <= state.minQ) {
+      state.minQ = entry.qEstimate
+      state.minQDirty = false
+    }
+
+    const newest = getHistoryEntry(state, state.count - 1)
+    while (
+      state.velocityWindowStart < state.count - 1
+      && newest.time - getHistoryEntry(state, state.velocityWindowStart).time > VELOCITY_WINDOW_MS
+    ) {
+      state.velocityWindowStart++
+    }
+
+    return state
   }
 
   private createTrack(peak: DetectedPeak & { qEstimate?: number; bandwidthHz?: number; msd?: number; msdGrowthRate?: number; msdIsHowl?: boolean; msdFastConfirm?: boolean; persistenceFrames?: number; persistenceBoost?: number; isPersistent?: boolean; isHighlyPersistent?: boolean }): Track {
     const id = generateId()
     const qEstimate = peak.qEstimate ?? 10
     const bandwidthHz = peak.bandwidthHz ?? 100
+    const historyEntry: TrackHistoryEntry = {
+      time: peak.timestamp,
+      freqHz: peak.trueFrequencyHz,
+      ampDb: peak.trueAmplitudeDb,
+      prominenceDb: peak.prominenceDb,
+      qEstimate,
+    }
+
+    const historyState: TrackHistoryState = {
+      buffer: new Array<TrackHistoryEntry>(this.historySize),
+      start: 0,
+      count: 1,
+      capacity: this.historySize,
+      sumFreqHz: historyEntry.freqHz,
+      sumQ: historyEntry.qEstimate,
+      minQ: historyEntry.qEstimate,
+      minQDirty: false,
+      velocityWindowStart: 0,
+    }
+    historyState.buffer[0] = historyEntry
 
     const track: Track = {
       id,
@@ -284,13 +467,7 @@ export class TrackManager {
       onsetTime: peak.timestamp,
       onsetDb: peak.trueAmplitudeDb,
       lastUpdateTime: peak.timestamp,
-      history: [{
-        time: peak.timestamp,
-        freqHz: peak.trueFrequencyHz,
-        ampDb: peak.trueAmplitudeDb,
-        prominenceDb: peak.prominenceDb,
-        qEstimate,
-      }],
+      history: createHistoryProxy(historyState),
       features: this.initializeFeatures(),
       qEstimate,
       bandwidthHz,
@@ -299,41 +476,38 @@ export class TrackManager {
       harmonicOfHz: peak.harmonicOfHz,
       isSubHarmonicRoot: peak.isSubHarmonicRoot ?? false,
       isActive: true,
-      // MSD data from feedbackDetector
       msd: peak.msd,
       msdGrowthRate: peak.msdGrowthRate,
       msdIsHowl: peak.msdIsHowl,
       msdFastConfirm: peak.msdFastConfirm,
-      // Phase 2: Persistence scoring
       persistenceFrames: peak.persistenceFrames,
       persistenceBoost: peak.persistenceBoost,
       isPersistent: peak.isPersistent,
       isHighlyPersistent: peak.isHighlyPersistent,
     }
 
-    // Check eviction cache — restore cumulative growth if this peak matches a recently evicted track
-    const evictedIdx = this._evictedCache.findIndex(e =>
-      Math.abs(1200 * Math.log2(peak.trueFrequencyHz / e.frequencyHz)) < 50 // within 50 cents
+    this._historyStates.set(track, historyState)
+
+    const evictedIdx = this._evictedCache.findIndex((entry) =>
+      Math.abs(1200 * Math.log2(peak.trueFrequencyHz / entry.frequencyHz)) < 50
     )
     if (evictedIdx !== -1) {
       const restored = this._evictedCache[evictedIdx]
-      // Restore growth by adjusting onsetDb so (currentDb - onsetDb) reflects prior growth
       track.onsetDb = track.trueAmplitudeDb - restored.cumulativeGrowthDb
       this._evictedCache.splice(evictedIdx, 1)
     }
 
     this.tracks.set(id, track)
     this.binToTrackId.set(peak.binIndex, id)
-
-    this._rebuildActiveCache()
+    this._addActiveTrack(track)
     return track
   }
 
   private updateTrack(track: Track, peak: DetectedPeak & { qEstimate?: number; bandwidthHz?: number; msd?: number; msdGrowthRate?: number; msdIsHowl?: boolean; msdFastConfirm?: boolean; persistenceFrames?: number; persistenceBoost?: number; isPersistent?: boolean; isHighlyPersistent?: boolean }): Track {
     const qEstimate = peak.qEstimate ?? track.qEstimate
     const bandwidthHz = peak.bandwidthHz ?? track.bandwidthHz
+    const wasActive = track.isActive
 
-    // Add to history (ring buffer)
     const entry: TrackHistoryEntry = {
       time: peak.timestamp,
       freqHz: peak.trueFrequencyHz,
@@ -342,12 +516,8 @@ export class TrackManager {
       qEstimate,
     }
 
-    track.history.push(entry)
-    if (track.history.length > this.historySize) {
-      track.history.shift()
-    }
+    this.appendHistory(track, entry)
 
-    // Update track properties
     track.trueFrequencyHz = peak.trueFrequencyHz
     track.trueAmplitudeDb = peak.trueAmplitudeDb
     track.prominenceDb = peak.prominenceDb
@@ -356,46 +526,33 @@ export class TrackManager {
     track.bandwidthHz = bandwidthHz
     track.phpr = peak.phpr ?? track.phpr
     track.harmonicOfHz = peak.harmonicOfHz
-    // Once a sub-harmonic root is identified, keep that flag sticky on the track
     if (peak.isSubHarmonicRoot) track.isSubHarmonicRoot = true
     track.isActive = true
-    
-    // Update MSD data from feedbackDetector
+
     track.msd = peak.msd
     track.msdGrowthRate = peak.msdGrowthRate
     track.msdIsHowl = peak.msdIsHowl
     track.msdFastConfirm = peak.msdFastConfirm
-    
-    // Phase 2: Persistence scoring
+
     track.persistenceFrames = peak.persistenceFrames
     track.persistenceBoost = peak.persistenceBoost
     track.isPersistent = peak.isPersistent
     track.isHighlyPersistent = peak.isHighlyPersistent
-    
-    // Calculate velocity (dB/sec) from recent history window (~500ms)
-    // Uses recent slope instead of onset-to-now average to capture current growth rate
-    const VELOCITY_WINDOW_MS = 500
-    const now = peak.timestamp
-    const hist = track.history
-    if (hist.length >= 2) {
-      // Find the oldest entry within the velocity window
-      let windowStart = hist.length - 1
-      for (let j = hist.length - 2; j >= 0; j--) {
-        if (now - hist[j].time > VELOCITY_WINDOW_MS) break
-        windowStart = j
-      }
-      const oldest = hist[windowStart]
-      const newest = hist[hist.length - 1]
-      const dtSec = Math.max((newest.time - oldest.time) / 1000, MIN_VELOCITY_DT_SEC)
-      if (dtSec > MIN_VELOCITY_DT_SEC) {
-        track.velocityDbPerSec = (newest.ampDb - oldest.ampDb) / dtSec
-      }
+
+    const historyState = this.getHistoryState(track)
+    const newest = getHistoryEntry(historyState, historyState.count - 1)
+    const oldest = getHistoryEntry(historyState, historyState.velocityWindowStart)
+    const dtSec = Math.max((newest.time - oldest.time) / 1000, MIN_VELOCITY_DT_SEC)
+    if (dtSec > MIN_VELOCITY_DT_SEC) {
+      track.velocityDbPerSec = (newest.ampDb - oldest.ampDb) / dtSec
     }
 
-    // Extract features
-    track.features = this.extractFeatures(track)
+    track.features = this.extractFeatures(track, historyState)
 
-    this._rebuildActiveCache()
+    if (!wasActive) {
+      this._addActiveTrack(track)
+    }
+
     return track
   }
 
@@ -413,79 +570,75 @@ export class TrackManager {
     }
   }
 
-  private extractFeatures(track: Track): TrackFeatures {
-    const history = track.history
-    if (history.length < 2) {
+  private extractFeatures(track: Track, historyState: TrackHistoryState): TrackFeatures {
+    const count = historyState.count
+    if (count < 2) {
       return this.initializeFeatures()
     }
 
-    // Stability (cents std deviation from mean frequency)
-    const meanFreq = history.reduce((sum, h) => sum + h.freqHz, 0) / history.length
-    const centsDiffs = history.map(h => hzToCents(h.freqHz, meanFreq))
-    const stabilityCentsStd = standardDeviation(centsDiffs)
+    let sumVelocity = 0
+    let velocityCount = 0
+    let maxAbsVelocity = 0
 
-    // Q statistics
-    const qValues = history.map(h => h.qEstimate)
-    const meanQ = qValues.reduce((sum, q) => sum + q, 0) / qValues.length
-    const minQ = Math.min(...qValues)
+    let previous = getHistoryEntry(historyState, 0)
+    for (let i = 1; i < count; i++) {
+      const current = getHistoryEntry(historyState, i)
 
-    // Velocity statistics
-    const velocities: number[] = []
-    for (let i = 1; i < history.length; i++) {
-      const dt = (history[i].time - history[i - 1].time) / 1000
+      const dt = (current.time - previous.time) / 1000
       if (dt > 0.01) {
-        const dDb = history[i].ampDb - history[i - 1].ampDb
-        velocities.push(dDb / dt)
+        const velocity = (current.ampDb - previous.ampDb) / dt
+        sumVelocity += velocity
+        velocityCount++
+        const absVelocity = Math.abs(velocity)
+        if (absVelocity > maxAbsVelocity) maxAbsVelocity = absVelocity
       }
+
+      previous = current
     }
 
-    const meanVelocityDbPerSec = velocities.length > 0
-      ? velocities.reduce((sum, v) => sum + v, 0) / velocities.length
-      : 0
-    const maxVelocityDbPerSec = velocities.length > 0
-      ? Math.max(...velocities.map(Math.abs))
-      : 0
+    const meanFreq = historyState.sumFreqHz / count
+    let centsMean = 0
+    let centsM2 = 0
 
-    // Persistence
+    for (let i = 0; i < count; i++) {
+      const cents = hzToCents(getHistoryEntry(historyState, i).freqHz, meanFreq)
+      const sampleCount = i + 1
+      const delta = cents - centsMean
+      centsMean += delta / sampleCount
+      const delta2 = cents - centsMean
+      centsM2 += delta * delta2
+    }
+
     const persistenceMs = track.lastUpdateTime - track.onsetTime
-
-    // Harmonicity score (look for coherent harmonic structure)
     const harmonicityScore = this.computeHarmonicityScore(track)
-
-    // Modulation score (vibrato detection via autocorrelation)
-    const modulationScore = this.computeModulationScore(track)
-
-    // Sideband noise score (placeholder - would need spectrum access)
-    const noiseSidebandScore = 0
+    const modulationScore = this.computeModulationScore(historyState)
+    const minQ = this.resolveMinQ(historyState)
 
     return {
-      stabilityCentsStd,
-      meanQ,
+      stabilityCentsStd: Math.sqrt(centsM2 / (count - 1)),
+      meanQ: historyState.sumQ / count,
       minQ,
-      meanVelocityDbPerSec,
-      maxVelocityDbPerSec,
+      meanVelocityDbPerSec: velocityCount > 0 ? sumVelocity / velocityCount : 0,
+      maxVelocityDbPerSec: maxAbsVelocity,
       persistenceMs,
       harmonicityScore,
       modulationScore,
-      noiseSidebandScore,
+      noiseSidebandScore: 0,
     }
   }
 
   private computeHarmonicityScore(track: Track): number {
-    // Track is a detected overtone of a known root → strong harmonic content
     if (track.harmonicOfHz !== null) {
       return 0.8
     }
 
-    // Track is the fundamental of a harmonic series already active → also harmonic content
     if (track.isSubHarmonicRoot) {
       return 0.75
     }
 
-    // Check if other active tracks have registered this track's frequency as their harmonic root
     let harmonicCount = 0
-    for (const other of this.tracks.values()) {
-      if (other.id === track.id || !other.isActive) continue
+    for (const other of this._activeTracksCache) {
+      if (other.id === track.id) continue
       if (other.harmonicOfHz !== null) {
         const cents = Math.abs(hzToCents(other.harmonicOfHz, track.trueFrequencyHz))
         if (cents < HARMONIC_ROOT_TOLERANCE_CENTS) {
@@ -494,49 +647,90 @@ export class TrackManager {
       }
     }
 
-    // More confirmed partials → higher score (cap at 1.0)
     return Math.min(harmonicCount / MAX_HARMONICS_FOR_SCORE, 1)
   }
 
-  private computeModulationScore(track: Track): number {
-    // Detect vibrato (3-10 Hz modulation) via frequency variation autocorrelation
-    const history = track.history
-    if (history.length < 20) return 0
+  private resolveMinQ(historyState: TrackHistoryState): number {
+    if (!historyState.minQDirty) {
+      return historyState.minQ
+    }
 
-    // Extract frequency deviations from mean
-    const meanFreq = history.reduce((sum, h) => sum + h.freqHz, 0) / history.length
-    const deviations = history.map(h => h.freqHz - meanFreq)
+    let minQ = Infinity
+    for (let i = 0; i < historyState.count; i++) {
+      const qEstimate = getHistoryEntry(historyState, i).qEstimate
+      if (qEstimate < minQ) minQ = qEstimate
+    }
 
-    // Calculate average time step
-    const totalTime = history[history.length - 1].time - history[0].time
-    const avgStepMs = totalTime / (history.length - 1)
+    historyState.minQ = minQ === Infinity ? 10 : minQ
+    historyState.minQDirty = false
+    return historyState.minQ
+  }
 
-    // Look for autocorrelation peaks at 3-10 Hz (100-333ms period)
+  private computeModulationScore(historyState: TrackHistoryState): number {
+    const recentCount = Math.min(historyState.count, MAX_MODULATION_SAMPLES)
+    if (recentCount < MIN_MODULATION_SAMPLES) return 0
+
+    const startIndex = historyState.count - recentCount
+    let meanFreq = 0
+    for (let i = startIndex; i < historyState.count; i++) {
+      meanFreq += getHistoryEntry(historyState, i).freqHz
+    }
+    meanFreq /= recentCount
+
+    const deviations = this._deviationScratch
+    let devMean = 0
+    let devM2 = 0
+
+    for (let i = 0; i < recentCount; i++) {
+      const deviation = getHistoryEntry(historyState, startIndex + i).freqHz - meanFreq
+      deviations[i] = deviation
+
+      const sampleCount = i + 1
+      const delta = deviation - devMean
+      devMean += delta / sampleCount
+      const delta2 = deviation - devMean
+      devM2 += delta * delta2
+    }
+
+    const first = getHistoryEntry(historyState, startIndex)
+    const last = getHistoryEntry(historyState, historyState.count - 1)
+    const totalTime = last.time - first.time
+    const avgStepMs = totalTime / (recentCount - 1)
+    if (avgStepMs <= 0) return 0
+
     const minLag = Math.floor(100 / avgStepMs)
     const maxLag = Math.ceil(333 / avgStepMs)
 
     let maxAutocorr = 0
-    for (let lag = minLag; lag <= maxLag && lag < history.length / 2; lag++) {
-      const ac = autocorrelation(deviations, lag)
-      if (ac > maxAutocorr) {
-        maxAutocorr = ac
+    for (let lag = minLag; lag <= maxLag && lag < recentCount / 2; lag++) {
+      let sum = 0
+      let sumSq1 = 0
+      let sumSq2 = 0
+
+      for (let i = 0; i < recentCount - lag; i++) {
+        const a = deviations[i]
+        const b = deviations[i + lag]
+        sum += a * b
+        sumSq1 += a * a
+        sumSq2 += b * b
+      }
+
+      const denom = Math.sqrt(sumSq1 * sumSq2)
+      const autocorr = denom > 0 ? sum / denom : 0
+      if (autocorr > maxAutocorr) {
+        maxAutocorr = autocorr
       }
     }
 
-    // Also check that there's enough frequency variation to be vibrato
-    const freqStd = standardDeviation(deviations)
-    const hasEnoughVariation = freqStd > 2 // At least 2 Hz variation
-
-    return hasEnoughVariation ? maxAutocorr : 0
+    const freqStd = Math.sqrt(devM2 / (recentCount - 1))
+    return freqStd > 2 ? maxAutocorr : 0
   }
 
   private findNearestTrack(frequencyHz: number): Track | null {
     let nearest: Track | null = null
     let minCents = Infinity
 
-    for (const track of this.tracks.values()) {
-      if (!track.isActive) continue
-
+    for (const track of this._activeTracksCache) {
       const cents = Math.abs(hzToCents(frequencyHz, track.trueFrequencyHz))
       if (cents < minCents) {
         minCents = cents
@@ -545,5 +739,40 @@ export class TrackManager {
     }
 
     return nearest
+  }
+
+  private trackToTrackSummary(track: Track, target?: TrackSummary): TrackSummary {
+    const summary = target ?? createTrackSummaryShell()
+    summary.id = track.id
+    summary.frequency = track.trueFrequencyHz
+    summary.amplitude = track.trueAmplitudeDb
+    summary.prominenceDb = track.prominenceDb
+    summary.qEstimate = track.qEstimate
+    summary.bandwidthHz = track.bandwidthHz
+    summary.classification = 'unknown' as Severity
+    summary.severity = 'unknown' as Severity
+    summary.onsetTime = track.onsetTime
+    summary.onsetAmplitudeDb = track.onsetDb
+    summary.lastUpdateTime = track.lastUpdateTime
+    summary.active = track.isActive
+    summary.features.stabilityCentsStd = track.features.stabilityCentsStd
+    summary.features.harmonicityScore = track.features.harmonicityScore
+    summary.features.modulationScore = track.features.modulationScore
+    summary.features.velocityDbPerSec = track.velocityDbPerSec
+    summary.msd = track.msd
+    summary.msdIsHowl = track.msdIsHowl
+    summary.persistenceFrames = track.persistenceFrames
+    return summary
+  }
+
+  private trackToTrackedPeak(track: Track): TrackedPeak {
+    return {
+      ...this.trackToTrackSummary(track),
+      history: track.history.map((entry) => ({
+        time: entry.time,
+        frequency: entry.freqHz,
+        amplitude: entry.ampDb,
+      })),
+    }
   }
 }

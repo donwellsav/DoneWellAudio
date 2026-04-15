@@ -25,7 +25,15 @@ const CONTENT_LABELS: Record<ContentType, string> = {
 /** Shared footer text style — matches the DoneWell branding */
 const FOOTER_TEXT = 'font-mono text-[9px] font-bold tracking-[0.2em] text-muted-foreground/40 uppercase'
 
-export const AudioAnalyzerFooter = memo(function AudioAnalyzerFooter() {
+interface AudioAnalyzerFooterProps {
+  actualFps?: number
+  droppedPercent?: number
+}
+
+export const AudioAnalyzerFooter = memo(function AudioAnalyzerFooter({
+  actualFps = 0,
+  droppedPercent = 0,
+}: AudioAnalyzerFooterProps) {
   const { isRunning } = useEngine()
   const { spectrumStatus } = useMetering()
   const { settings } = useSettings()
@@ -34,6 +42,11 @@ export const AudioAnalyzerFooter = memo(function AudioAnalyzerFooter() {
   const contentType = spectrumStatus?.contentType ?? 'unknown'
   const msdFrameCount = spectrumStatus?.msdFrameCount ?? 0
   const msdReady = msdFrameCount >= 7
+  const fpsToneClass = droppedPercent > 20
+    ? 'text-red-400'
+    : droppedPercent > 5
+      ? 'text-amber-400'
+      : 'text-muted-foreground/40'
 
   return (
     <div className="hidden tablet:flex flex-shrink-0 items-center py-0.5 px-3 bg-card/60 border-t border-border/30">
@@ -66,8 +79,14 @@ export const AudioAnalyzerFooter = memo(function AudioAnalyzerFooter() {
         </span>
       </div>
 
-      {/* Right: spacer for symmetry */}
-      <div className="flex-1" />
+      {/* Right: FPS */}
+      <div className="flex-1 flex items-center justify-end">
+        {actualFps > 0 ? (
+          <span className={`${FOOTER_TEXT} tabular-nums ${fpsToneClass}`}>
+            FPS {actualFps}
+          </span>
+        ) : null}
+      </div>
     </div>
   )
 })

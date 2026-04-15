@@ -10,7 +10,7 @@ import { useAdvisoryMap } from './useAdvisoryMap'
 import type {
   Advisory,
   SpectrumData,
-  TrackedPeak,
+  TrackSummary,
   DetectorSettings,
 } from '@/types/advisory'
 import type { RoomDimensionEstimate } from '@/types/calibration'
@@ -49,7 +49,7 @@ export interface UseAudioAnalyzerReturn extends UseAudioAnalyzerState {
   resetSettings: () => void
   settings: DetectorSettings
   spectrumRef: React.RefObject<SpectrumData | null>
-  tracksRef: React.RefObject<TrackedPeak[]>
+  tracksRef: React.RefObject<TrackSummary[]>
   dspWorker: DSPWorkerHandle
   roomEstimate: RoomDimensionEstimate | null
   roomMeasuring: boolean

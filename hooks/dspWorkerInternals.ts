@@ -15,6 +15,8 @@ import type {
 
 const MAX_RESTARTS = 3
 const RESTART_DELAY_MS = 500
+const SHOULD_PROFILE_TRACK_PAYLOAD = process.env.NODE_ENV !== 'production'
+const TRACK_PAYLOAD_ENCODER = SHOULD_PROFILE_TRACK_PAYLOAD ? new TextEncoder() : null
 
 interface PeakPoolRefs {
   specPoolRef: MutableRefObject<Float32Array[]>
@@ -36,6 +38,11 @@ export interface DSPWorkerHandlerRefs extends PeakPoolRefs {
   pendingCollectionRef: MutableRefObject<PendingCollectionRequest | null>
   pendingHistorySyncRef: MutableRefObject<PendingHistorySyncRequest | null>
   specUpdatePoolRef: MutableRefObject<Float32Array[]>
+  outboundMessagesRef: MutableRefObject<number>
+  inboundMessagesRef: MutableRefObject<number>
+  tracksUpdatesRef: MutableRefObject<number>
+  lastTracksPayloadBytesRef: MutableRefObject<number>
+  maxTracksPayloadBytesRef: MutableRefObject<number>
 }
 
 export function createDSPWorker(): Worker {
@@ -44,20 +51,42 @@ export function createDSPWorker(): Worker {
   })
 }
 
-export function clonePendingPeak(
+export function bufferPendingPeak(
+  existing: PendingPeakFrame | null,
   peak: DetectedPeak,
   spectrum: Float32Array,
   sampleRate: number,
   fftSize: number,
   timeDomain?: Float32Array,
 ): PendingPeakFrame {
-  return {
-    peak,
-    spectrum: new Float32Array(spectrum),
-    sampleRate,
-    fftSize,
-    timeDomain: timeDomain ? new Float32Array(timeDomain) : undefined,
+  let pending = existing
+
+  if (!pending || pending.spectrum.length !== spectrum.length || (!!pending.timeDomain) !== (!!timeDomain)) {
+    pending = {
+      peak: { ...peak },
+      spectrum: new Float32Array(spectrum.length),
+      sampleRate,
+      fftSize,
+      timeDomain: timeDomain ? new Float32Array(timeDomain.length) : undefined,
+    }
+  } else {
+    pending.peak = { ...peak }
   }
+
+  pending.sampleRate = sampleRate
+  pending.fftSize = fftSize
+  pending.spectrum.set(spectrum)
+
+  if (timeDomain) {
+    if (!pending.timeDomain || pending.timeDomain.length !== timeDomain.length) {
+      pending.timeDomain = new Float32Array(timeDomain.length)
+    }
+    pending.timeDomain.set(timeDomain)
+  } else {
+    pending.timeDomain = undefined
+  }
+
+  return pending
 }
 
 export function preparePeakTransfer(
@@ -155,6 +184,7 @@ function flushBufferedPeak(refs: DSPWorkerHandlerRefs) {
     transferList.push(buffered.timeDomain.buffer as ArrayBuffer)
   }
 
+  refs.outboundMessagesRef.current++
   refs.workerRef.current.postMessage(
     {
       type: 'processPeak',
@@ -172,7 +202,10 @@ function recycleReturnedBuffers(
   refs: DSPWorkerHandlerRefs,
   message: Extract<WorkerOutboundMessage, { type: 'returnBuffers' }>,
 ) {
-  refs.busyRef.current = false
+  const isPeakReturn = message.source !== 'spectrumUpdate'
+  if (isPeakReturn) {
+    refs.busyRef.current = false
+  }
 
   if (
     message.spectrum.buffer.byteLength > 0 &&
@@ -187,6 +220,10 @@ function recycleReturnedBuffers(
 
   if (message.timeDomain && message.timeDomain.buffer.byteLength > 0) {
     refs.tdPoolRef.current.push(message.timeDomain)
+  }
+
+  if (isPeakReturn) {
+    flushBufferedPeak(refs)
   }
 }
 
@@ -215,6 +252,7 @@ export function createDSPWorkerMessageHandler(
   refs: DSPWorkerHandlerRefs,
 ): (event: MessageEvent<WorkerOutboundMessage>) => void {
   return (event) => {
+    refs.inboundMessagesRef.current++
     const message = event.data
 
     switch (message.type) {
@@ -241,6 +279,14 @@ export function createDSPWorkerMessageHandler(
         break
       case 'tracksUpdate':
         refs.busyRef.current = false
+        refs.tracksUpdatesRef.current++
+        if (TRACK_PAYLOAD_ENCODER) {
+          const payloadBytes = TRACK_PAYLOAD_ENCODER.encode(JSON.stringify(message.tracks)).length
+          refs.lastTracksPayloadBytesRef.current = payloadBytes
+          if (payloadBytes > refs.maxTracksPayloadBytesRef.current) {
+            refs.maxTracksPayloadBytesRef.current = payloadBytes
+          }
+        }
         refs.callbacksRef.current.onTracksUpdate?.(message.tracks, {
           contentType: message.contentType,
           algorithmMode: message.algorithmMode,
