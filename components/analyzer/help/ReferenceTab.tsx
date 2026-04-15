@@ -1,9 +1,14 @@
 'use client'
 
 import { memo } from 'react'
+import { DEFAULT_SETTINGS } from '@/lib/dsp/constants'
 import { HelpSection, HelpGroup } from './HelpShared'
 
 export const ReferenceTab = memo(function ReferenceTab() {
+  const formatHz = (value: number) => (value >= 1000 ? `${value / 1000} kHz` : `${value} Hz`)
+  const smoothingPercent = Math.round(DEFAULT_SETTINGS.smoothingTimeConstant * 100)
+  const fftBinWidthHz = (48_000 / DEFAULT_SETTINGS.fftSize).toFixed(2)
+
   return (
     <>
       {/* Group: Quick Reference */}
@@ -30,24 +35,27 @@ export const ReferenceTab = memo(function ReferenceTab() {
           <HelpSection title="Startup Defaults" color="amber">
             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
               <span className="text-muted-foreground">Mode</span><span className="font-mono">Speech</span>
-              <span className="text-muted-foreground">Frequency range</span><span className="font-mono">150 Hz – 10 kHz</span>
-              <span className="text-muted-foreground">FFT size</span><span className="font-mono">8192 (5.86 Hz/bin @ 48 kHz)</span>
-              <span className="text-muted-foreground">Smoothing</span><span className="font-mono">50%</span>
-              <span className="text-muted-foreground">Feedback threshold</span><span className="font-mono">25 dB</span>
-              <span className="text-muted-foreground">Ring threshold</span><span className="font-mono">5 dB</span>
-              <span className="text-muted-foreground">Growth rate</span><span className="font-mono">1.0 dB/s</span>
-              <span className="text-muted-foreground">Sustain / clear</span><span className="font-mono">300 ms / 400 ms</span>
-              <span className="text-muted-foreground">Input gain</span><span className="font-mono">0 dB</span>
+              <span className="text-muted-foreground">Frequency range</span><span className="font-mono">{`${formatHz(DEFAULT_SETTINGS.minFrequency)} – ${formatHz(DEFAULT_SETTINGS.maxFrequency)}`}</span>
+              <span className="text-muted-foreground">FFT size</span><span className="font-mono">{`${DEFAULT_SETTINGS.fftSize} (${fftBinWidthHz} Hz/bin @ 48 kHz)`}</span>
+              <span className="text-muted-foreground">Smoothing</span><span className="font-mono">{`${smoothingPercent}%`}</span>
+              <span className="text-muted-foreground">Feedback threshold</span><span className="font-mono">{`${DEFAULT_SETTINGS.feedbackThresholdDb} dB`}</span>
+              <span className="text-muted-foreground">Ring threshold</span><span className="font-mono">{`${DEFAULT_SETTINGS.ringThresholdDb} dB`}</span>
+              <span className="text-muted-foreground">Growth rate</span><span className="font-mono">{`${DEFAULT_SETTINGS.growthRateThreshold.toFixed(1)} dB/s`}</span>
+              <span className="text-muted-foreground">Sustain / clear</span><span className="font-mono">{`${DEFAULT_SETTINGS.sustainMs} ms / ${DEFAULT_SETTINGS.clearMs} ms`}</span>
+              <span className="text-muted-foreground">Input gain</span><span className="font-mono">{`${DEFAULT_SETTINGS.inputGainDb} dB`}</span>
               <span className="text-muted-foreground">Auto gain</span><span className="font-mono">Off by default</span>
-              <span className="text-muted-foreground">Confidence threshold</span><span className="font-mono">35%</span>
+              <span className="text-muted-foreground">Confidence threshold</span><span className="font-mono">{`${Math.round(DEFAULT_SETTINGS.confidenceThreshold * 100)}%`}</span>
               <span className="text-muted-foreground">Algorithm mode</span><span className="font-mono">Auto (content-adaptive)</span>
               <span className="text-muted-foreground">A-weighting</span><span className="font-mono">Enabled</span>
               <span className="text-muted-foreground">Mic calibration</span><span className="font-mono">None (ECM8000 / RTA-M / Smartphone available)</span>
               <span className="text-muted-foreground">Threshold mode</span><span className="font-mono">Hybrid</span>
-              <span className="text-muted-foreground">Prominence</span><span className="font-mono">8 dB</span>
-              <span className="text-muted-foreground">Max tracks</span><span className="font-mono">64</span>
-              <span className="text-muted-foreground">Track timeout</span><span className="font-mono">1000 ms</span>
+              <span className="text-muted-foreground">Prominence</span><span className="font-mono">{`${DEFAULT_SETTINGS.prominenceDb} dB`}</span>
+              <span className="text-muted-foreground">Max tracks</span><span className="font-mono">{DEFAULT_SETTINGS.maxTracks}</span>
+              <span className="text-muted-foreground">Track timeout</span><span className="font-mono">{`${DEFAULT_SETTINGS.trackTimeoutMs} ms`}</span>
             </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              These values describe the fresh-start Speech profile. Switching modes changes mode-owned defaults such as thresholds, timing, and track timeout.
+            </p>
           </HelpSection>
         </div>
       </HelpGroup>

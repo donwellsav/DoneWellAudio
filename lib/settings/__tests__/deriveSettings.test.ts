@@ -7,7 +7,7 @@
  * Values are sourced from:
  *   - OPERATION_MODES in lib/dsp/constants.ts (lines 417-632)
  *   - ROOM_PRESETS in lib/dsp/constants.ts (lines 709-766)
- *   - DEFAULT_SETTINGS in lib/dsp/constants.ts (lines 640-705)
+ *   - DEFAULT_SETTINGS in lib/dsp/constants.ts (derived Speech snapshot)
  *   - Mode baselines in lib/settings/modeBaselines.ts
  *   - Environment templates in lib/settings/environmentTemplates.ts
  *

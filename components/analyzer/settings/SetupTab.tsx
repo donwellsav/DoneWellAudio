@@ -11,6 +11,8 @@ import { RoomTab } from './RoomTab'
 import { SessionExportSection } from './SessionExportSection'
 import { useSetupTabExport } from '@/hooks/useSetupTabExport'
 import { useSettings } from '@/contexts/SettingsContext'
+import { DEFAULT_LIVE_OVERRIDES } from '@/lib/settings/defaults'
+import { deriveDefaultDetectorSettings } from '@/lib/settings/defaultDetectorSettings'
 import type { DetectorSettings } from '@/types/advisory'
 import type { CalibrationTabProps } from './CalibrationTab'
 
@@ -53,6 +55,7 @@ export const SetupTab = memo(function SetupTab({
   handleLoadPreset,
 }: SetupTabProps) {
   const ctx = useSettings()
+  const modeDefaults = deriveDefaultDetectorSettings(ctx.session.modeId)
   const {
     metadata,
     isExporting,
@@ -141,7 +144,8 @@ export const SetupTab = memo(function SetupTab({
           sliderValue={settings.autoGainTargetDb}
           onChange={(value) => ctx.setAutoGain(settings.autoGainEnabled, value)}
           color="green"
-          defaultValue={-18}
+          defaultValue={modeDefaults.autoGainTargetDb}
+          onResetToDefault={() => ctx.setAutoGain(settings.autoGainEnabled, DEFAULT_LIVE_OVERRIDES.autoGainTargetDb)}
         />
       )}
 

@@ -1,5 +1,4 @@
-import { DEFAULT_SETTINGS } from '@/lib/dsp/constants/presetConstants'
-import { MODE_BASELINES } from '@/lib/settings/modeBaselines'
+import { deriveDefaultDetectorSettings } from '@/lib/settings/defaultDetectorSettings'
 import {
   classifyTrackWithAlgorithms,
   shouldReportIssue,
@@ -198,26 +197,7 @@ export function reconstructAlgorithmScores(batch: SnapshotBatch): AlgorithmScore
 }
 
 function buildSettingsForMode(mode: SnapshotFixtureMode): DetectorSettings {
-  const baseline = MODE_BASELINES[mode]
-  return {
-    ...DEFAULT_SETTINGS,
-    mode,
-    fftSize: baseline.fftSize,
-    minFrequency: baseline.minFrequency,
-    maxFrequency: baseline.maxFrequency,
-    feedbackThresholdDb: baseline.feedbackThresholdDb,
-    ringThresholdDb: baseline.ringThresholdDb,
-    growthRateThreshold: baseline.growthRateThreshold,
-    sustainMs: baseline.sustainMs,
-    clearMs: baseline.clearMs,
-    confidenceThreshold: baseline.confidenceThreshold,
-    prominenceDb: baseline.prominenceDb,
-    eqPreset: baseline.eqPreset,
-    aWeightingEnabled: baseline.aWeightingEnabled,
-    inputGainDb: baseline.defaultInputGainDb,
-    trackTimeoutMs: baseline.defaultTrackTimeoutMs,
-    ignoreWhistle: baseline.ignoreWhistle,
-  }
+  return deriveDefaultDetectorSettings(mode)
 }
 
 function buildTrackFromFixture(fixture: LabeledSnapshotFixture): Track {

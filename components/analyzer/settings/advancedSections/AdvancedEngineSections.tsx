@@ -10,12 +10,16 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Section } from '@/components/analyzer/settings/SettingsShared'
+import { DEFAULT_DIAGNOSTICS } from '@/lib/settings/defaults'
+import { deriveDefaultDetectorSettings } from '@/lib/settings/defaultDetectorSettings'
 import { parseFftSize, type AdvancedSectionProps, type DiagnosticsProfile } from './shared'
 
 export const AdvancedNoiseFloorSection = memo(function AdvancedNoiseFloorSection({
   settings,
   actions,
 }: AdvancedSectionProps) {
+  const modeDefaults = deriveDefaultDetectorSettings(settings.mode)
+
   return (
     <Section
       title="Noise Floor"
@@ -34,7 +38,7 @@ export const AdvancedNoiseFloorSection = memo(function AdvancedNoiseFloorSection
           step={25}
           sliderValue={settings.noiseFloorAttackMs}
           onChange={(value) => actions.updateDiagnosticField('noiseFloorAttackMs', value)}
-          defaultValue={200}
+          defaultValue={DEFAULT_DIAGNOSTICS.noiseFloorAttackMs}
         />
         <ConsoleSlider
           label="Release Time"
@@ -46,7 +50,7 @@ export const AdvancedNoiseFloorSection = memo(function AdvancedNoiseFloorSection
           step={100}
           sliderValue={settings.noiseFloorReleaseMs}
           onChange={(value) => actions.updateDiagnosticField('noiseFloorReleaseMs', value)}
-          defaultValue={1000}
+          defaultValue={DEFAULT_DIAGNOSTICS.noiseFloorReleaseMs}
         />
       </div>
     </Section>
@@ -57,6 +61,8 @@ export const AdvancedPeakDetectionSection = memo(function AdvancedPeakDetectionS
   settings,
   actions,
 }: AdvancedSectionProps) {
+  const modeDefaults = deriveDefaultDetectorSettings(settings.mode)
+
   return (
     <Section
       title="Peak Detection"
@@ -75,7 +81,7 @@ export const AdvancedPeakDetectionSection = memo(function AdvancedPeakDetectionS
           step={5}
           sliderValue={settings.peakMergeCents}
           onChange={(value) => actions.updateDiagnosticField('peakMergeCents', value)}
-          defaultValue={100}
+          defaultValue={DEFAULT_DIAGNOSTICS.peakMergeCents}
         />
         <Section
           title="Threshold Mode"
@@ -107,7 +113,8 @@ export const AdvancedPeakDetectionSection = memo(function AdvancedPeakDetectionS
           step={1}
           sliderValue={settings.prominenceDb}
           onChange={(value) => actions.updateDiagnosticField('prominenceDbOverride', value)}
-          defaultValue={8}
+          defaultValue={modeDefaults.prominenceDb}
+          onResetToDefault={() => actions.updateDiagnosticField('prominenceDbOverride', undefined)}
         />
       </div>
     </Section>
@@ -118,6 +125,8 @@ export const AdvancedTrackManagementSection = memo(function AdvancedTrackManagem
   settings,
   actions,
 }: AdvancedSectionProps) {
+  const modeDefaults = deriveDefaultDetectorSettings(settings.mode)
+
   return (
     <Section
       title="Track Management"
@@ -136,7 +145,7 @@ export const AdvancedTrackManagementSection = memo(function AdvancedTrackManagem
           step={8}
           sliderValue={settings.maxTracks}
           onChange={(value) => actions.updateDiagnosticField('maxTracks', value)}
-          defaultValue={64}
+          defaultValue={DEFAULT_DIAGNOSTICS.maxTracks}
         />
         <ConsoleSlider
           label="Track Timeout"
@@ -148,7 +157,8 @@ export const AdvancedTrackManagementSection = memo(function AdvancedTrackManagem
           step={100}
           sliderValue={settings.trackTimeoutMs}
           onChange={(value) => actions.updateDiagnosticField('trackTimeoutMs', value)}
-          defaultValue={2000}
+          defaultValue={modeDefaults.trackTimeoutMs}
+          onResetToDefault={() => actions.updateDiagnosticField('trackTimeoutMs', 'mode-default')}
         />
         <ConsoleSlider
           label="Harmonic Tolerance"
@@ -160,7 +170,7 @@ export const AdvancedTrackManagementSection = memo(function AdvancedTrackManagem
           step={25}
           sliderValue={settings.harmonicToleranceCents}
           onChange={(value) => actions.updateDiagnosticField('harmonicToleranceCents', value)}
-          defaultValue={200}
+          defaultValue={DEFAULT_DIAGNOSTICS.harmonicToleranceCents}
         />
       </div>
     </Section>
@@ -171,6 +181,8 @@ export const AdvancedDspSection = memo(function AdvancedDspSection({
   settings,
   actions,
 }: AdvancedSectionProps) {
+  const modeDefaults = deriveDefaultDetectorSettings(settings.mode)
+
   return (
     <Section
       title="DSP"
@@ -209,7 +221,8 @@ export const AdvancedDspSection = memo(function AdvancedDspSection({
           step={0.05}
           sliderValue={settings.smoothingTimeConstant}
           onChange={(value) => actions.updateDiagnosticField('smoothingTimeConstantOverride', value)}
-          defaultValue={0.3}
+          defaultValue={modeDefaults.smoothingTimeConstant}
+          onResetToDefault={() => actions.updateDiagnosticField('smoothingTimeConstantOverride', undefined)}
         />
       </div>
     </Section>

@@ -106,6 +106,27 @@ describe('useDSPWorker', () => {
     })
   })
 
+  it('initializes the worker with the canonical startup defaults', () => {
+    const { result } = renderHook(() => useDSPWorker({}))
+    const worker = MockWorker.instances[0]
+
+    act(() => {
+      result.current.init(DEFAULT_SETTINGS, 48000, 8192)
+    })
+
+    expect(worker.messages[0]).toMatchObject({
+      type: 'init',
+      settings: expect.objectContaining({
+        mode: 'speech',
+        feedbackThresholdDb: 20,
+        ringThresholdDb: 5,
+        trackTimeoutMs: 1000,
+      }),
+      sampleRate: 48000,
+      fftSize: 8192,
+    })
+  })
+
   it('queues feedback history sync until the worker is ready', () => {
     const { result } = renderHook(() => useDSPWorker({}))
     const worker = MockWorker.instances[0]

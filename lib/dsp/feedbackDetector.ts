@@ -151,10 +151,10 @@ export class FeedbackDetector {
   // Harmonic detection — runtime override (set via updateSettings)
   private harmonicToleranceCents: number = HARMONIC_SETTINGS.TOLERANCE_CENTS
 
-  // Smoothing time constant for AnalyserNode (0-1, matches DEFAULT_SETTINGS)
+  // Smoothing time constant for AnalyserNode (0-1) before the first settings sync.
   private smoothingTimeConstant: number = 0.5
 
-  // Ring/growth detection thresholds (mapped from DetectorSettings, matches DEFAULT_SETTINGS)
+  // Conservative bootstrap thresholds before updateSettings() applies runtime settings.
   private ringThresholdDb: number = 3
   private growthRateThreshold: number = 1.0
 

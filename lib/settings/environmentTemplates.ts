@@ -1,15 +1,17 @@
 /**
  * Environment Templates — room preset data with relative offsets.
  *
- * Offsets are relative to the mode baseline, NOT absolute thresholds.
- * Computed from the current ROOM_PRESETS in constants.ts using speech mode
- * (feedbackThresholdDb=27, ringThresholdDb=5) as the reference.
+ * Offsets are relative to the active mode baseline, not absolute thresholds.
+ * They are derived from ROOM_PRESETS using the current Speech startup profile
+ * as the reference:
+ *   feedbackThresholdDb = 20
+ *   ringThresholdDb = 5
  *
- * Example: small room has feedbackThresholdDb=22 in ROOM_PRESETS.
- *   offset = 22 - 27 = -5 (more sensitive than baseline)
+ * Example: small room has feedbackThresholdDb=15 in ROOM_PRESETS.
+ *   offset = 15 - 20 = -5
  *
- * This means "small room" makes you 5 dB MORE sensitive than your current
- * mode's baseline — regardless of which mode you're in.
+ * This means "small room" makes you 5 dB more sensitive than whichever mode
+ * baseline is currently active.
  *
  * @see types/settings.ts for EnvironmentTemplate interface
  * @see lib/settings/deriveSettings.ts for how offsets compose
@@ -18,16 +20,16 @@
 import type { EnvironmentTemplate, RoomTemplateId } from '@/types/settings'
 
 /**
- * Frozen environment templates. Offsets computed relative to speech baseline.
+ * Frozen environment templates. Offsets stay relative to the Speech baseline.
  *
- * Derivation math (using speech baseline as reference):
- *   none:    30 - 27 = +3 → normalized to 0 (neutral, no room physics)
- *   small:   22 - 27 = -5
- *   medium:  30 - 27 = +3
- *   large:   32 - 27 = +5
- *   arena:   38 - 27 = +11
- *   worship: 35 - 27 = +8
- *   custom:  30 - 27 = +3
+ * Derivation math (using Speech baseline as reference):
+ *   none:    23 - 20 = +3 → normalized to 0 (neutral, no room physics)
+ *   small:   15 - 20 = -5
+ *   medium:  23 - 20 = +3
+ *   large:   25 - 20 = +5
+ *   arena:   31 - 20 = +11
+ *   worship: 28 - 20 = +8
+ *   custom:  23 - 20 = +3
  */
 export const ENVIRONMENT_TEMPLATES: Readonly<Record<RoomTemplateId, EnvironmentTemplate>> = {
   none: {

@@ -52,7 +52,7 @@ export interface ModeBaseline {
   readonly eqPreset: 'surgical' | 'heavy'
   readonly aWeightingEnabled: boolean
   readonly defaultInputGainDb: number
-  /** Only ringOut and broadcast override this; others inherit DEFAULT_SETTINGS value */
+  /** Only ringOut and broadcast override this; others inherit the shared -18 dBFS target. */
   readonly defaultAutoGainTargetDb?: number
   readonly ignoreWhistle: boolean
   /** Per-mode track inactivity timeout. Used when diagnostics.trackTimeoutMs is 'mode-default'. */

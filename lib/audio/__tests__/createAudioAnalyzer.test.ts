@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { dbToLinearLut } from '@/lib/dsp/expLut'
 import { createAudioAnalyzer } from '@/lib/audio/createAudioAnalyzer'
+import { DEFAULT_SETTINGS } from '@/lib/dsp/constants'
 import type { SpectrumData } from '@/types/advisory'
 
 interface MockDetectorState {
@@ -117,5 +118,17 @@ describe('createAudioAnalyzer', () => {
     expect(spectrumData.peak).toBeCloseTo(mockState.rawPeakDb, 5)
     expect(spectrumData.rawPeakDb).toBeCloseTo(mockState.rawPeakDb, 5)
     expect(seenCrestFactor).toBeCloseTo(mockState.rawPeakDb - expectedRmsDb, 5)
+  })
+
+  it('boots the detector with the canonical startup defaults', () => {
+    createAudioAnalyzer()
+
+    expect(updateSettingsMock).toHaveBeenCalledWith(expect.objectContaining({
+      mode: DEFAULT_SETTINGS.mode,
+      feedbackThresholdDb: DEFAULT_SETTINGS.feedbackThresholdDb,
+      ringThresholdDb: DEFAULT_SETTINGS.ringThresholdDb,
+      autoGainTargetDb: DEFAULT_SETTINGS.autoGainTargetDb,
+      trackTimeoutMs: DEFAULT_SETTINGS.trackTimeoutMs,
+    }))
   })
 })
