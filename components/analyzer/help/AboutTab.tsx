@@ -5,6 +5,8 @@ import { CHANGELOG } from '@/lib/changelog'
 import { HelpSection, HelpGroup, TYPE_STYLES } from './HelpShared'
 
 export const AboutTab = memo(function AboutTab() {
+  const formatEntryVersion = (version: string) => (/^[0-9]/.test(version) ? `v${version}` : version)
+
   return (
     <>
       <div className="flex flex-col items-center text-center py-6 space-y-3">
@@ -57,7 +59,7 @@ export const AboutTab = memo(function AboutTab() {
           {CHANGELOG.map((entry, i) => (
             <div key={`${entry.version}-${i}`} className="bg-card/80 rounded border p-2.5">
               <div className="flex items-center gap-2 mb-1.5">
-                <span className="font-mono text-sm font-bold text-foreground">v{entry.version}</span>
+                <span className="font-mono text-sm font-bold text-foreground">{formatEntryVersion(entry.version)}</span>
                 <span className="text-xs text-muted-foreground font-mono">{entry.date}</span>
                 {entry.highlights && (
                   <span className="text-xs font-mono" style={{ color: 'var(--console-blue)' }}>· {entry.highlights}</span>

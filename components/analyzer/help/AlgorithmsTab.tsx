@@ -10,9 +10,10 @@ export const AlgorithmsTab = memo(function AlgorithmsTab() {
       <HelpGroup title="Overview">
         <HelpSection title="7-Algorithm Fusion System" color="amber">
           <p>
-            DoneWell Audio uses 7 detection algorithms from peer-reviewed acoustic research. Each exploits
-            a different physical property of feedback vs. musical content. They vote together with
-            content-aware weighting for maximum accuracy and minimal false positives.
+            DoneWell Audio uses 7 feedback signals from peer-reviewed acoustic research and project-specific
+            tuning work. Each signal measures a different physical or statistical property of feedback,
+            then the worker fuses them with content-aware weights and reporting rules. No single algorithm
+            gets to decide on its own when the rest of the evidence disagrees.
           </p>
         </HelpSection>
       </HelpGroup>
@@ -289,18 +290,19 @@ export const AlgorithmsTab = memo(function AlgorithmsTab() {
       {/* Group: Fusion & Analysis */}
       <HelpGroup title="Fusion & Analysis">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-        <HelpSection title="Fusion Engine — Weighted Voting" color="amber">
+        <HelpSection title="Fusion Engine — Content-Aware Voting" color="amber">
           <div className="space-y-2.5 pt-2">
             <p className="text-sm text-muted-foreground">
-              All 6 algorithms vote together with content-aware weighting. The system automatically
-              detects content type (speech, music, compressed) and applies appropriate weights:
+              All 7 signals vote together. In Auto mode, the worker activates the available algorithms,
+              detects whether the content looks like speech, music, or compressed program material, and
+              applies the matching weight profile:
             </p>
             <div className="bg-background/80 p-3 rounded text-sm font-mono space-y-1 border border-border/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
-              <p className="font-semibold text-foreground">Weights: [MSD, Phase, Spectral, Comb, IHR, PTMR]</p>
-              <p>Speech:     [0.33, 0.24, 0.10, 0.05, 0.10, 0.18]</p>
-              <p>Music:      [0.08, 0.35, 0.10, 0.08, 0.24, 0.15]</p>
-              <p>Compressed: [0.12, 0.30, 0.18, 0.08, 0.18, 0.14]</p>
-              <p>Default:    [0.30, 0.25, 0.12, 0.08, 0.13, 0.12]</p>
+              <p className="font-semibold text-foreground">Weights: [MSD, Phase, Spectral, Comb, IHR, PTMR, ML]</p>
+              <p>Speech:     [0.30, 0.22, 0.09, 0.04, 0.09, 0.16, 0.10]</p>
+              <p>Music:      [0.07, 0.32, 0.09, 0.07, 0.22, 0.13, 0.10]</p>
+              <p>Compressed: [0.11, 0.27, 0.16, 0.07, 0.16, 0.13, 0.10]</p>
+              <p>Default:    [0.27, 0.23, 0.11, 0.07, 0.12, 0.10, 0.10]</p>
             </div>
 
             <div className="bg-background/80 px-3 py-2 rounded font-mono text-sm border border-border/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)] space-y-0.5">
@@ -310,26 +312,25 @@ export const AlgorithmsTab = memo(function AlgorithmsTab() {
             </div>
             <div className="bg-background/80 px-3 py-2 rounded font-mono text-sm border border-border/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)] space-y-0.5">
               <p className="text-foreground font-semibold">Agreement (Inter-Algorithm Consensus)</p>
-              <p>agreement = 1 - √[ var(S₁, S₂, ..., S₆) ]</p>
-              <p className="mt-1 text-muted-foreground">High agreement = algorithms agree → high confidence. Low agreement = disagreement → uncertainty.</p>
+              <p>agreement = 1 - min(stddev(scores) / 0.5, 1)</p>
+              <p className="mt-1 text-muted-foreground">High agreement means the active algorithms are telling the same story. Sharp disagreement deliberately suppresses confidence.</p>
             </div>
             <div className="bg-background/80 px-3 py-2 rounded font-mono text-sm border border-border/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)] space-y-0.5">
               <p className="text-foreground font-semibold">Confidence Calculation</p>
               <p>confidence = P<sub>feedback</sub> · (0.5 + 0.5 · agreement) + persistenceBonus</p>
-              <p className="mt-1 text-muted-foreground">High agreement amplifies confidence toward P<sub>feedback</sub>. Low agreement halves it. Persistence bonus rewards sustained detections.</p>
+              <p className="mt-1 text-muted-foreground">Persistence bonus comes from prior-frame agreement, so one noisy frame does not erase a stable detection immediately.</p>
             </div>
             <div className="bg-background/80 px-3 py-2 rounded font-mono text-sm border border-border/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)] space-y-0.5">
               <p className="text-foreground font-semibold">Verdict Thresholds</p>
-              <p>FEEDBACK:     P ≥ T AND confidence ≥ 0.6</p>
-              <p>POSSIBLE:     P ≥ 0.7·T AND confidence ≥ 0.4</p>
-              <p>NOT_FEEDBACK: P &lt; 0.30 AND confidence ≥ 0.6</p>
-              <p>UNCERTAIN:    all other cases</p>
-              <p className="mt-1 text-muted-foreground">T = feedbackThreshold (default 0.60, configurable per mode)</p>
+              <p>FEEDBACK: probability clears the configured threshold with enough confidence, or strong corroboration rescues a near-threshold real event.</p>
+              <p>POSSIBLE_FEEDBACK: borderline but still plausible evidence, including limited-data cases with strong corroboration.</p>
+              <p>NOT_FEEDBACK: no active evidence, or consistently low probability with strong agreement.</p>
+              <p>UNCERTAIN: conflicting, incomplete, or conservative evidence that should not become a decisive cut yet.</p>
             </div>
             <div className="bg-background/80 px-3 py-2 rounded font-mono text-sm border border-border/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
-              <p className="text-foreground font-semibold">Comb Pattern Boost (Flaw 6 Fix)</p>
-              <p>When comb pattern detected: weight × 2 applied to BOTH numerator AND denominator</p>
-              <p className="text-muted-foreground">Ensures P<sub>feedback</sub> stays in [0,1] while boosting comb&apos;s influence on the final vote.</p>
+              <p className="text-foreground font-semibold">Comb Pattern Boost</p>
+              <p>When a stable comb is present, comb confidence gets a doubled numerator contribution without diluting the rest of the vote.</p>
+              <p className="text-muted-foreground">That makes a real acoustic loop matter more, but still requires the rest of the evidence to agree.</p>
             </div>
           </div>
         </HelpSection>

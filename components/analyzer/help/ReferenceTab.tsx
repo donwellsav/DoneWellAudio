@@ -27,23 +27,22 @@ export const ReferenceTab = memo(function ReferenceTab() {
               <li><strong className="text-green-500">INSTRUMENT:</strong> Likely musical content, not feedback</li>
             </ul>
           </HelpSection>
-          <HelpSection title="Default Configuration (Speech Mode)" color="amber">
+          <HelpSection title="Startup Defaults" color="amber">
             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
-              <span className="text-muted-foreground">Mode</span><span className="font-mono">Speech — Corporate &amp; Conference</span>
+              <span className="text-muted-foreground">Mode</span><span className="font-mono">Speech</span>
               <span className="text-muted-foreground">Frequency range</span><span className="font-mono">150 Hz – 10 kHz</span>
               <span className="text-muted-foreground">FFT size</span><span className="font-mono">8192 (5.86 Hz/bin @ 48 kHz)</span>
               <span className="text-muted-foreground">Smoothing</span><span className="font-mono">50%</span>
-              <span className="text-muted-foreground">Feedback threshold</span><span className="font-mono">30 dB</span>
+              <span className="text-muted-foreground">Feedback threshold</span><span className="font-mono">25 dB</span>
               <span className="text-muted-foreground">Ring threshold</span><span className="font-mono">5 dB</span>
               <span className="text-muted-foreground">Growth rate</span><span className="font-mono">1.0 dB/s</span>
-              <span className="text-muted-foreground">Hold time</span><span className="font-mono">4 s</span>
+              <span className="text-muted-foreground">Sustain / clear</span><span className="font-mono">300 ms / 400 ms</span>
               <span className="text-muted-foreground">Input gain</span><span className="font-mono">0 dB</span>
+              <span className="text-muted-foreground">Auto gain</span><span className="font-mono">Off by default</span>
               <span className="text-muted-foreground">Confidence threshold</span><span className="font-mono">35%</span>
               <span className="text-muted-foreground">Algorithm mode</span><span className="font-mono">Auto (content-adaptive)</span>
               <span className="text-muted-foreground">A-weighting</span><span className="font-mono">Enabled</span>
               <span className="text-muted-foreground">Mic calibration</span><span className="font-mono">None (ECM8000 / RTA-M / Smartphone available)</span>
-              <span className="text-muted-foreground">Sustain time</span><span className="font-mono">300 ms</span>
-              <span className="text-muted-foreground">Clear time</span><span className="font-mono">400 ms</span>
               <span className="text-muted-foreground">Threshold mode</span><span className="font-mono">Hybrid</span>
               <span className="text-muted-foreground">Prominence</span><span className="font-mono">8 dB</span>
               <span className="text-muted-foreground">Max tracks</span><span className="font-mono">64</span>
@@ -121,7 +120,7 @@ export const ReferenceTab = memo(function ReferenceTab() {
           <HelpSection title="Browser Requirements" color="blue">
             <ul className="space-y-2 text-sm">
               <li><strong>Web Audio API + getUserMedia:</strong> Required for real-time audio processing</li>
-              <li><strong>Supported:</strong> Chrome 74+, Firefox 76+, Safari 14.1+, Edge 79+</li>
+              <li><strong>Supported:</strong> Modern Chromium browsers, Firefox 76+, Safari 14.1+, Edge 89+</li>
               <li><strong>Sample rate:</strong> System default (typically 44.1 kHz or 48 kHz)</li>
               <li><strong>HTTPS:</strong> Required for microphone access in production</li>
             </ul>

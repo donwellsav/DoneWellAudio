@@ -13,56 +13,56 @@ export const ModesTab = memo(function ModesTab() {
             <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Speech</div>
             <div className="text-xs text-muted-foreground mt-0.5">Default — Corporate conferences, lectures</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
-              30dB · Ring 5dB · 1.0dB/s · A-wt · 150–10kHz
+              20dB · Ring 5dB · 1.0dB/s · 8192 FFT · 150–10kHz
             </div>
           </div>
           <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
             <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Worship</div>
             <div className="text-xs text-muted-foreground mt-0.5">Churches, reverberant spaces</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
-              35dB · Ring 5dB · 2.0dB/s · Music · 100–12kHz
+              35dB · Ring 5dB · 2.0dB/s · 8192 FFT · 100–12kHz
             </div>
           </div>
           <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
             <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Live Music</div>
             <div className="text-xs text-muted-foreground mt-0.5">Concerts, clubs, festivals</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
-              42dB · Ring 8dB · 4.0dB/s · Music · 60–16kHz
+              42dB · Ring 8dB · 4.0dB/s · 4096 FFT · 60–16kHz
             </div>
           </div>
           <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
             <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Theater</div>
             <div className="text-xs text-muted-foreground mt-0.5">Drama, musicals, body mics</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
-              28dB · Ring 4dB · 1.5dB/s · Auto · 150–10kHz
+              28dB · Ring 4dB · 1.5dB/s · 8192 FFT · 150–10kHz
             </div>
           </div>
           <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
             <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Monitors</div>
             <div className="text-xs text-muted-foreground mt-0.5">Stage wedges, sidefills</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
-              15dB · Ring 3dB · 0.8dB/s · Fast · 200–6kHz
+              15dB · Ring 3dB · 0.8dB/s · 4096 FFT · 200–6kHz
             </div>
           </div>
           <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
             <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Ring Out</div>
             <div className="text-xs text-muted-foreground mt-0.5">System calibration, sound check</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
-              12dB · Ring 2dB · 0.5dB/s · Max · 60–16kHz
+              27dB · Ring 2dB · 0.5dB/s · 16384 FFT · 60–16kHz
             </div>
           </div>
           <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
             <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Broadcast</div>
             <div className="text-xs text-muted-foreground mt-0.5">Studio, podcast, radio</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
-              22dB · Ring 3dB · 1.0dB/s · A-wt · 80–12kHz
+              22dB · Ring 3dB · 1.0dB/s · 8192 FFT · 80–12kHz
             </div>
           </div>
           <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
             <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Outdoor</div>
             <div className="text-xs text-muted-foreground mt-0.5">Open air, festivals</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
-              38dB · Ring 6dB · 2.5dB/s · Wind · 100–12kHz
+              38dB · Ring 6dB · 2.5dB/s · 4096 FFT · 100–12kHz
             </div>
           </div>
         </div>
@@ -83,23 +83,23 @@ export const ModesTab = memo(function ModesTab() {
             </ul>
           </HelpSection>
 
-          <HelpSection title="Auto Music-Aware" color="green">
+          <HelpSection title="How Modes Shift Detection" color="green">
             <p>
-              Automatically switches sensitivity based on signal level. When signal rises above the noise floor
-              by the configured hysteresis (default 15 dB), enters music-aware mode. Returns to base mode
-              after signal drops back for 1 second.
+              Modes do more than change one threshold. They shift the usable frequency range, FFT size,
+              sustain/clear timing, confidence requirements, and whether the detector should be more willing
+              to suppress voiced or instrument-like content.
             </p>
           </HelpSection>
 
           <HelpSection title="Workflow Best Practices" color="amber">
             <ol className="list-decimal list-inside space-y-2">
               <li>Start with <strong>Ring Out</strong> mode during initial system setup</li>
-              <li>Watch the <strong>Algorithm Status Bar</strong> — Auto mode highlights which algorithms are active</li>
+              <li>Watch the <strong>lower info bar</strong> — it shows algorithm mode, content type, MSD frames, and FPS</li>
               <li>Watch the <strong>MSD frame count</strong> — wait for 15+ frames before trusting results</li>
-              <li>If status bar shows <strong>COMPRESSED</strong>, phase coherence is most reliable</li>
+              <li>If the lower info bar shows <strong>COMPRESSED</strong>, lean harder on phase plus corroborating shape cues</li>
               <li>Use <strong>Comb Pattern</strong> predictions to preemptively address upcoming feedback frequencies</li>
               <li>Switch to <strong>Speech</strong> for general PA monitoring</li>
-              <li>Enable <strong>Auto Music-Aware</strong> so sensitivity adjusts automatically during shows</li>
+              <li>Use <strong>CONFIRM</strong> and <strong>Missed Feedback</strong> during tuning when the detector is too conservative</li>
               <li>Apply cuts conservatively — start with 3 dB and increase only if needed</li>
             </ol>
           </HelpSection>

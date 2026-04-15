@@ -194,7 +194,20 @@ describe('shouldReportIssue', () => {
     expect(shouldReportIssue(classification, makeSettings())).toBe(false)
   })
 
-  it('suppresses speech-mode borderline possible feedback when instrument posterior stays high', () => {
+  it('suppresses speech-mode borderline possible feedback when instrument posterior stays materially high', () => {
+    const classification = makeClassification({
+      fusionVerdict: 'POSSIBLE_FEEDBACK',
+      label: 'ACOUSTIC_FEEDBACK',
+      severity: 'RESONANCE',
+      pFeedback: 0.36,
+      pInstrument: 0.36,
+      confidence: 0.8,
+    })
+
+    expect(shouldReportIssue(classification, makeSettings({ mode: 'speech' }))).toBe(false)
+  })
+
+  it('keeps speech-mode borderline possible feedback reportable when feedback still edges out instrument mass', () => {
     const classification = makeClassification({
       fusionVerdict: 'POSSIBLE_FEEDBACK',
       label: 'ACOUSTIC_FEEDBACK',
@@ -204,7 +217,7 @@ describe('shouldReportIssue', () => {
       confidence: 0.8,
     })
 
-    expect(shouldReportIssue(classification, makeSettings({ mode: 'speech' }))).toBe(false)
+    expect(shouldReportIssue(classification, makeSettings({ mode: 'speech' }))).toBe(true)
   })
 
   it('keeps speech-mode possible feedback reportable when feedback still clearly dominates', () => {
@@ -730,6 +743,50 @@ describe('fusion-driven demotion', () => {
     expect(result.recommendationEligible).toBe(true)
     expect(result.confidence).toBeLessThan(0.8)
     expect(shouldReportIssue(result, settings)).toBe(false)
+  })
+
+  it('keeps urgent growing feedback reportable when the posterior still strongly favors feedback', () => {
+    const track = makeTrack({
+      velocityDbPerSec: 7,
+      features: {
+        stabilityCentsStd: 2,
+        harmonicityScore: 0.08,
+        modulationScore: 0.03,
+        noiseSidebandScore: 0.02,
+        meanQ: 34,
+        minQ: 28,
+        meanVelocityDbPerSec: 6,
+        maxVelocityDbPerSec: 7,
+        persistenceMs: 1400,
+      },
+    })
+    const scores = buildScores({
+      msd: 0.58,
+      phase: 0.48,
+      spectral: 0.42,
+      comb: 0,
+      ihr: 0.55,
+      ptmr: 0.62,
+      msdFrames: 20,
+    })
+    const fusion: FusedDetectionResult = {
+      feedbackProbability: 0.38,
+      confidence: 0.28,
+      contributingAlgorithms: ['msd', 'phase', 'ptmr'],
+      algorithmScores: scores,
+      verdict: 'UNCERTAIN',
+      reasons: ['conservative mixed evidence'],
+    }
+
+    const settings = makeSettings({ confidenceThreshold: 0.8 })
+    const result = classifyTrackWithAlgorithms(track, scores, fusion, settings)
+
+    expect(result.label).toBe('ACOUSTIC_FEEDBACK')
+    expect(result.severity).toBe('GROWING')
+    expect(result.fusionVerdict).toBe('UNCERTAIN')
+    expect(result.recommendationEligible).toBe(true)
+    expect(result.reasons).toContain('Urgent growth retained despite conservative fusion verdict')
+    expect(shouldReportIssue(result, settings)).toBe(true)
   })
 })
 

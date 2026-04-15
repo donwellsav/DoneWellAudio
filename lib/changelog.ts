@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: 'Current Branch',
+    date: '2026-04-14',
+    highlights: 'Recall-focused detection retune, snapshot replay lane, production audit script, docs refresh',
+    changes: [
+      { type: 'fix', description: 'Classifier and reporting logic now back off sooner from over-conservative false-positive suppression when feedback still dominates the posterior' },
+      { type: 'feat', description: 'Snapshot-based speech/worship replay lane added for worker-side fusion, classifier, and advisory evaluation' },
+      { type: 'fix', description: 'Production dependency audit now uses the repo-owned bulk-advisory workflow instead of the retired pnpm audit endpoint' },
+      { type: 'ui', description: 'Lower info bar now includes the live FPS counter alongside algorithm mode, content type, and MSD frames' },
+      { type: 'refactor', description: 'README, tests docs, in-app help, and wiki pages refreshed against the current code path and operating presets' },
+    ],
+  },
+  {
     version: '0.96.0',
     date: '2026-04-14',
     changes: [
