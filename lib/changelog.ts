@@ -14,6 +14,49 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.101.0',
+    date: '2026-04-15',
+    highlights: 'Docs/help refresh, shadcn settings cleanup, and safer feedback reporting',
+    changes: [
+      { type: 'fix', description: 'Relax the overly conservative uncertain-reporting gate so feedback-dominant cases are less likely to be hidden while borderline speech-like material still stays suppressed' },
+      { type: 'ui', description: 'Move analyzer settings and help surfaces onto the repo-standard shadcn composition patterns, including Tabs, ToggleGroup, SelectGroup, Card, and Badge usage' },
+      { type: 'refactor', description: 'Refresh the in-app help tabs and long-form docs so they describe the current analyzer architecture, layered settings defaults, and Companion workflow' },
+      { type: 'fix', description: 'Mode reference content now derives from the canonical defaults path instead of drifting on stale hardcoded values' },
+      { type: 'feat', description: 'Add regression coverage for mode-derived help content, settings panel behavior, and the classifier reporting path' },
+      { type: 'feat', description: '`npx tsc --noEmit`' },
+      { type: 'feat', description: '`pnpm test`' },
+    ],
+  },
+  {
+    version: '0.100.0',
+    date: '2026-04-15',
+    changes: [
+      { type: 'feat', description: 'retuned feedback reporting so the classifier/reporting path backs off earlier from over-conservative suppression when the posterior is still dominated by feedback evidence' },
+      { type: 'feat', description: 'refreshed README, help tabs, changelog content, and test docs so the surfaced guidance matches the current code path and release history' },
+      { type: 'feat', description: 'introduced a canonical layered-default helper and made the derived Speech snapshot the single compatibility source for `DEFAULT_SETTINGS`' },
+      { type: 'feat', description: 'aligned analyzer bootstrap, worker init, snapshot replay, settings reset/default behavior, and help/reference copy with the same computed defaults' },
+      { type: 'feat', description: 'added regression coverage for canonical defaults, visible reset behavior, runtime bootstrap defaults, and startup-defaults help content' },
+      { type: 'feat', description: 'fresh-start behavior stays centered on `Speech`, but all default consumers now resolve from the same layered model' },
+      { type: 'feat', description: 'mode-owned controls reset to the active mode baseline instead of freezing Speech-era values' },
+      { type: 'feat', description: 'global display and diagnostics controls reset from the layered display/diagnostic defaults' },
+      { type: 'feat', description: 'startup-defaults help text now reflects the canonical derived settings instead of stale literals' },
+      { type: 'feat', description: 'feedback reporting is slightly less likely to hide obvious growing feedback behind overly conservative suppression' },
+      { type: 'feat', description: '`npx tsc --noEmit`' },
+      { type: 'feat', description: '`pnpm test`' },
+    ],
+  },
+  {
+    version: '0.99.0',
+    date: '2026-04-15',
+    changes: [
+      { type: 'feat', description: 'retune classifier/reporting so true growing feedback is less likely to be hidden by over-conservative suppression' },
+      { type: 'feat', description: 'refresh in-app help, root docs, and app changelog to match the current detection pipeline, presets, and tooling' },
+      { type: 'feat', description: 'mark older markdown references as historical where they are no longer safe as live operational docs' },
+      { type: 'feat', description: '`npx tsc --noEmit`' },
+      { type: 'feat', description: '`pnpm test`' },
+    ],
+  },
+  {
     version: '0.98.0',
     date: '2026-04-15',
     highlights: 'Detection pipeline retune, snapshot replay lane, footer FPS, docs refresh',
