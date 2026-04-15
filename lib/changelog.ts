@@ -14,6 +14,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.100.0',
+    date: '2026-04-15',
+    changes: [
+      { type: 'feat', description: 'retuned feedback reporting so the classifier/reporting path backs off earlier from over-conservative suppression when the posterior is still dominated by feedback evidence' },
+      { type: 'feat', description: 'refreshed README, help tabs, changelog content, and test docs so the surfaced guidance matches the current code path and release history' },
+      { type: 'feat', description: 'introduced a canonical layered-default helper and made the derived Speech snapshot the single compatibility source for `DEFAULT_SETTINGS`' },
+      { type: 'feat', description: 'aligned analyzer bootstrap, worker init, snapshot replay, settings reset/default behavior, and help/reference copy with the same computed defaults' },
+      { type: 'feat', description: 'added regression coverage for canonical defaults, visible reset behavior, runtime bootstrap defaults, and startup-defaults help content' },
+      { type: 'feat', description: 'fresh-start behavior stays centered on `Speech`, but all default consumers now resolve from the same layered model' },
+      { type: 'feat', description: 'mode-owned controls reset to the active mode baseline instead of freezing Speech-era values' },
+      { type: 'feat', description: 'global display and diagnostics controls reset from the layered display/diagnostic defaults' },
+      { type: 'feat', description: 'startup-defaults help text now reflects the canonical derived settings instead of stale literals' },
+      { type: 'feat', description: 'feedback reporting is slightly less likely to hide obvious growing feedback behind overly conservative suppression' },
+      { type: 'feat', description: '`npx tsc --noEmit`' },
+      { type: 'feat', description: '`pnpm test`' },
+    ],
+  },
+  {
     version: '0.99.0',
     date: '2026-04-15',
     changes: [
