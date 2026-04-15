@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.99.0',
+    date: '2026-04-15',
+    changes: [
+      { type: 'feat', description: 'retune classifier/reporting so true growing feedback is less likely to be hidden by over-conservative suppression' },
+      { type: 'feat', description: 'refresh in-app help, root docs, and app changelog to match the current detection pipeline, presets, and tooling' },
+      { type: 'feat', description: 'mark older markdown references as historical where they are no longer safe as live operational docs' },
+      { type: 'feat', description: 'npx tsc --noEmit' },
+      { type: 'feat', description: 'pnpm test' },
+    ],
+  },
+  {
     version: '0.98.0',
     date: '2026-04-15',
     highlights: 'Detection pipeline retune, snapshot replay lane, footer FPS, docs refresh',
