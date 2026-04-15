@@ -3,6 +3,7 @@
 import { memo } from 'react'
 import { Zap, Wrench, Monitor, FlaskConical, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { ResetConfirmDialog } from '../ResetConfirmDialog'
 import { LiveTab } from './LiveTab'
@@ -61,61 +62,62 @@ export const SettingsPanel = memo(function SettingsPanel({
 
   return (
     <TooltipProvider delayDuration={400}>
-      <div className="@container space-y-1.5">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as SettingsTab)}
+        className="@container gap-1.5"
+      >
         {!controlledTab && (
-          <div className="flex gap-1 mb-2" role="tablist" aria-label="Settings tabs">
+          <TabsList
+            aria-label="Settings tabs"
+            className="mb-2 grid h-auto w-full grid-cols-4 gap-1 border-0 bg-transparent p-0"
+          >
             {SETTINGS_TABS.map(({ id, label, shortLabel, Icon }) => (
-              <button
+              <TabsTrigger
                 key={id}
-                role="tab"
-                aria-selected={activeTab === id}
-                onClick={() => setActiveTab(id)}
-                className={`flex-1 flex items-center justify-center gap-1 py-2 rounded text-[10px] font-mono font-bold uppercase tracking-wider transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
-                  activeTab === id
-                    ? 'bg-[var(--console-amber)]/15 text-[var(--console-amber)] border border-[var(--console-amber)]/30'
-                    : 'text-muted-foreground hover:text-foreground border border-transparent'
-                }`}
+                value={id}
+                className="min-h-9 gap-1 rounded border border-transparent py-2 text-[10px] uppercase tracking-wider text-muted-foreground shadow-none hover:text-foreground data-[state=active]:border-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.30)] data-[state=active]:bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.15)] data-[state=active]:text-[var(--console-amber)]"
               >
-                <Icon className="w-3 h-3" />
+                <Icon className="h-3 w-3" />
                 {shortLabel ?? label}
                 {id === 'advanced' && hasCustomGates && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--console-amber)]" />
+                  <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[var(--console-amber)]" />
                 )}
-              </button>
+              </TabsTrigger>
             ))}
-          </div>
+          </TabsList>
         )}
 
-        <div key={activeTab} className="tab-content-fade">
-          {activeTab === 'live' && <LiveTab settings={settings} />}
+        <TabsContent value="live" className="tab-content-fade mt-0">
+          <LiveTab settings={settings} />
+        </TabsContent>
 
-          {activeTab === 'setup' && (
-            <SetupTab
-              settings={settings}
-              calibration={calibration}
-              customPresets={customPresets}
-              canSavePreset={canSavePreset}
-              showSaveInput={showSaveInput}
-              setShowSaveInput={setShowSaveInput}
-              presetName={presetName}
-              setPresetName={setPresetName}
-              handleSavePreset={handleSavePreset}
-              handleDeletePreset={handleDeletePreset}
-              handleLoadPreset={handleLoadPreset}
-            />
-          )}
+        <TabsContent value="setup" className="tab-content-fade mt-0">
+          <SetupTab
+            settings={settings}
+            calibration={calibration}
+            customPresets={customPresets}
+            canSavePreset={canSavePreset}
+            showSaveInput={showSaveInput}
+            setShowSaveInput={setShowSaveInput}
+            presetName={presetName}
+            setPresetName={setPresetName}
+            handleSavePreset={handleSavePreset}
+            handleDeletePreset={handleDeletePreset}
+            handleLoadPreset={handleLoadPreset}
+          />
+        </TabsContent>
 
-          {activeTab === 'display' && (
-            <DisplayTab settings={settings} updateDisplay={updateDisplay} />
-          )}
+        <TabsContent value="display" className="tab-content-fade mt-0">
+          <DisplayTab settings={settings} updateDisplay={updateDisplay} />
+        </TabsContent>
 
-          {activeTab === 'advanced' && (
-            <AdvancedTab
-              settings={settings}
-              {...(dataCollection ?? {})}
-            />
-          )}
-        </div>
+        <TabsContent value="advanced" className="tab-content-fade mt-0">
+          <AdvancedTab
+            settings={settings}
+            {...(dataCollection ?? {})}
+          />
+        </TabsContent>
 
         <div className="panel-groove pt-2 mt-2">
           <ResetConfirmDialog
@@ -128,7 +130,7 @@ export const SettingsPanel = memo(function SettingsPanel({
             )}
           />
         </div>
-      </div>
+      </Tabs>
     </TooltipProvider>
   )
 })

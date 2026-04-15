@@ -4,6 +4,7 @@ import { memo } from 'react'
 import { HelpCircle } from 'lucide-react'
 import { ConsoleSlider } from '@/components/ui/console-slider'
 import { ChannelSection } from '@/components/ui/channel-section'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { CalibrationTab } from './CalibrationTab'
 import { RigPresetsSection } from './RigPresetsSection'
@@ -116,21 +117,29 @@ export const SetupTab = memo(function SetupTab({
             </Tooltip>
           )}
         </div>
-        <div className="flex items-center gap-1">
+        <ToggleGroup
+          type="single"
+          value={settings.eqPreset}
+          onValueChange={(value) => {
+            if (value) {
+              ctx.setEqStyle(value as DetectorSettings['eqPreset'])
+            }
+          }}
+          variant="outline"
+          size="sm"
+          aria-label="EQ Style"
+          className="w-full gap-1"
+        >
           {([['surgical', 'Surgical'], ['heavy', 'Heavy']] as const).map(([style, label]) => (
-            <button
+            <ToggleGroupItem
               key={style}
-              onClick={() => ctx.setEqStyle(style)}
-              className={`min-h-11 flex-1 px-2 rounded text-xs font-mono font-bold tracking-wide transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
-                settings.eqPreset === style
-                  ? 'bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.12)] text-[var(--console-amber)] border border-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.38)]'
-                  : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.18)]'
-              }`}
+              value={style}
+              className="min-h-11 flex-1 px-2 text-xs font-mono font-bold tracking-wide text-muted-foreground hover:text-foreground data-[state=on]:border-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.38)] data-[state=on]:bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.12)] data-[state=on]:text-[var(--console-amber)]"
             >
               {label}
-            </button>
+            </ToggleGroupItem>
           ))}
-        </div>
+        </ToggleGroup>
       </div>
 
       {settings.autoGainEnabled && (

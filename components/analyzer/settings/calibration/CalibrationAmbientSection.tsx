@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -76,10 +77,12 @@ export const CalibrationAmbientSection = memo(function CalibrationAmbientSection
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">None</SelectItem>
-              <SelectItem value="ecm8000">Behringer ECM8000 (CSL 746)</SelectItem>
-              <SelectItem value="rta-m">dbx RTA-M</SelectItem>
-              <SelectItem value="smartphone">Smartphone (Generic MEMS)</SelectItem>
+              <SelectGroup>
+                <SelectItem value="none">None</SelectItem>
+                <SelectItem value="ecm8000">Behringer ECM8000 (CSL 746)</SelectItem>
+                <SelectItem value="rta-m">dbx RTA-M</SelectItem>
+                <SelectItem value="smartphone">Smartphone (Generic MEMS)</SelectItem>
+              </SelectGroup>
             </SelectContent>
           </Select>
 

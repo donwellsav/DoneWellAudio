@@ -3,31 +3,27 @@
 import { memo, type ReactNode } from 'react'
 import {
   Accordion,
+  AccordionContent,
   AccordionItem,
   AccordionTrigger,
-  AccordionContent,
 } from '@/components/ui/accordion'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { ChangeType } from '@/lib/changelog'
-
-// ── Color vocabulary (mirrors controls sidecar) ───────────────────────────────
-// amber = detection  |  blue = scope/range  |  green = system/processing
 
 type HelpColor = 'amber' | 'blue' | 'green'
 
 const COLOR_VAR: Record<HelpColor, string> = {
   amber: 'var(--console-amber)',
-  blue:  'var(--console-blue)',
+  blue: 'var(--console-blue)',
   green: 'var(--console-green)',
 }
 
 const BORDER_ALPHA: Record<HelpColor, string> = {
   amber: 'rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.45)',
-  blue:  'rgba(75,146,255,0.45)',
+  blue: 'rgba(75,146,255,0.45)',
   green: 'rgba(74,222,128,0.45)',
 }
-
-// ── HelpSection ───────────────────────────────────────────────────────────────
-// Card with optional operator-color title + left-border accent.
 
 export const HelpSection = memo(function HelpSection({
   title,
@@ -44,18 +40,18 @@ export const HelpSection = memo(function HelpSection({
     : undefined
 
   return (
-    <div className="bg-card/80 rounded border p-3" style={borderStyle}>
-      <h3 className="section-label mb-2" style={titleStyle ?? { color: 'var(--console-blue)' }}>
-        {title}
-      </h3>
-      <div className="text-sm text-muted-foreground leading-relaxed">{children}</div>
-    </div>
+    <Card className="gap-0 rounded border bg-card/80 py-0 shadow-none" style={borderStyle}>
+      <CardHeader className="px-3 pt-3 pb-0">
+        <CardTitle className="section-label" style={titleStyle ?? { color: 'var(--console-blue)' }}>
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-3 pt-2 pb-3 text-sm leading-relaxed text-muted-foreground">
+        {children}
+      </CardContent>
+    </Card>
   )
 })
-
-// ── HelpGroup ─────────────────────────────────────────────────────────────────
-// Collapsible accordion group header — panel-groove style matching the controls
-// sidecar: amber glow on groove, left-bar accent when open.
 
 export const HelpGroup = memo(function HelpGroup({
   title,
@@ -83,12 +79,27 @@ export const HelpGroup = memo(function HelpGroup({
   )
 })
 
-// ── Changelog type badge styles ────────────────────────────────────────────────
-
 export const TYPE_STYLES: Record<ChangeType, { label: string; className: string }> = {
-  feat:     { label: 'Feature',  className: 'bg-emerald-500/15 text-emerald-400' },
-  fix:      { label: 'Fix',      className: 'bg-orange-500/15 text-orange-400' },
-  perf:     { label: 'Perf',     className: 'bg-cyan-500/15 text-cyan-400' },
-  refactor: { label: 'Refactor', className: 'bg-violet-500/15 text-violet-400' },
-  ui:       { label: 'UI',       className: 'bg-pink-500/15 text-pink-400' },
+  feat: { label: 'Feature', className: 'border-[rgba(74,222,128,0.35)] bg-card/70 text-[var(--console-green)]' },
+  fix: { label: 'Fix', className: 'border-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.35)] bg-card/70 text-[var(--console-amber)]' },
+  perf: { label: 'Perf', className: 'border-[rgba(75,146,255,0.35)] bg-card/70 text-[var(--console-blue)]' },
+  refactor: { label: 'Refactor', className: 'border-border/50 bg-card/70 text-foreground' },
+  ui: { label: 'UI', className: 'border-border/50 bg-muted/50 text-foreground' },
 }
+
+export const HelpTypeBadge = memo(function HelpTypeBadge({
+  type,
+}: {
+  type: ChangeType
+}) {
+  const style = TYPE_STYLES[type]
+
+  return (
+    <Badge
+      variant="outline"
+      className={`mt-0.5 shrink-0 px-1.5 py-0.5 font-mono text-[10px] font-medium leading-none ${style.className}`}
+    >
+      {style.label}
+    </Badge>
+  )
+})

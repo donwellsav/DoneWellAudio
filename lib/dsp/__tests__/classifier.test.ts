@@ -183,15 +183,33 @@ describe('shouldReportIssue', () => {
     expect(shouldReportIssue(classification, makeSettings())).toBe(false)
   })
 
-  it('suppresses UNCERTAIN fusion verdicts before confidence gating', () => {
+  it('suppresses UNCERTAIN fusion verdicts when feedback does not clearly dominate the posterior', () => {
     const classification = makeClassification({
       fusionVerdict: 'UNCERTAIN',
       confidence: 0.95,
       label: 'ACOUSTIC_FEEDBACK',
       severity: 'RESONANCE',
+      pFeedback: 0.41,
+      pInstrument: 0.34,
+      pWhistle: 0.20,
     })
 
     expect(shouldReportIssue(classification, makeSettings())).toBe(false)
+  })
+
+  it('reports UNCERTAIN fusion verdicts when feedback still clearly dominates and confidence clears the main gate', () => {
+    const classification = makeClassification({
+      fusionVerdict: 'UNCERTAIN',
+      confidence: 0.7,
+      label: 'ACOUSTIC_FEEDBACK',
+      severity: 'RESONANCE',
+      pFeedback: 0.58,
+      pInstrument: 0.18,
+      pWhistle: 0.1,
+      pUnknown: 0.14,
+    })
+
+    expect(shouldReportIssue(classification, makeSettings({ mode: 'liveMusic', confidenceThreshold: 0.55 }))).toBe(true)
   })
 
   it('suppresses speech-mode borderline possible feedback when instrument posterior stays materially high', () => {
@@ -201,6 +219,21 @@ describe('shouldReportIssue', () => {
       severity: 'RESONANCE',
       pFeedback: 0.36,
       pInstrument: 0.36,
+      confidence: 0.8,
+    })
+
+    expect(shouldReportIssue(classification, makeSettings({ mode: 'speech' }))).toBe(false)
+  })
+
+  it('suppresses speech-mode borderline uncertain feedback when instrument posterior stays materially high', () => {
+    const classification = makeClassification({
+      fusionVerdict: 'UNCERTAIN',
+      label: 'ACOUSTIC_FEEDBACK',
+      severity: 'RESONANCE',
+      pFeedback: 0.39,
+      pInstrument: 0.36,
+      pWhistle: 0.1,
+      pUnknown: 0.15,
       confidence: 0.8,
     })
 

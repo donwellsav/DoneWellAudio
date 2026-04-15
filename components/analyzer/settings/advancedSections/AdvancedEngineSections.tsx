@@ -5,6 +5,7 @@ import { ConsoleSlider } from '@/components/ui/console-slider'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -97,9 +98,11 @@ export const AdvancedPeakDetectionSection = memo(function AdvancedPeakDetectionS
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="absolute">Absolute - Fixed dB</SelectItem>
-              <SelectItem value="relative">Relative - Above Noise</SelectItem>
-              <SelectItem value="hybrid">Hybrid (Recommended)</SelectItem>
+              <SelectGroup>
+                <SelectItem value="absolute">Absolute - Fixed dB</SelectItem>
+                <SelectItem value="relative">Relative - Above Noise</SelectItem>
+                <SelectItem value="hybrid">Hybrid (Recommended)</SelectItem>
+              </SelectGroup>
             </SelectContent>
           </Select>
         </Section>
@@ -205,9 +208,11 @@ export const AdvancedDspSection = memo(function AdvancedDspSection({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="4096">4096 - Fast</SelectItem>
-              <SelectItem value="8192">8192 - Balanced</SelectItem>
-              <SelectItem value="16384">16384 - High Res</SelectItem>
+              <SelectGroup>
+                <SelectItem value="4096">4096 - Fast</SelectItem>
+                <SelectItem value="8192">8192 - Balanced</SelectItem>
+                <SelectItem value="16384">16384 - High Res</SelectItem>
+              </SelectGroup>
             </SelectContent>
           </Select>
         </Section>

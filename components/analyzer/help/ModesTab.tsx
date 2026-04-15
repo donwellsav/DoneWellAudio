@@ -1,116 +1,164 @@
-'use client'
+﻿'use client'
 
 import { memo } from 'react'
-import { HelpSection, HelpGroup } from './HelpShared'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { deriveDefaultDetectorSettings } from '@/lib/settings/defaultDetectorSettings'
+import { MODE_BASELINES } from '@/lib/settings/modeBaselines'
+import type { ModeId } from '@/types/settings'
+import { HelpGroup, HelpSection } from './HelpShared'
+
+const MODE_ORDER: ModeId[] = [
+  'speech',
+  'worship',
+  'liveMusic',
+  'theater',
+  'monitors',
+  'ringOut',
+  'broadcast',
+  'outdoor',
+]
+
+const MODE_GUIDANCE: Record<ModeId, { useCase: string; operatorNote: string }> = {
+  speech: {
+    useCase: 'Corporate conferences, lecterns, spoken word PA',
+    operatorNote: 'Startup mode and the safest default when the source is mostly speech.',
+  },
+  worship: {
+    useCase: 'Reverberant sanctuaries and mixed vocal/instrument worship sets',
+    operatorNote: 'More conservative thresholds and longer tracking for reflective rooms.',
+  },
+  liveMusic: {
+    useCase: 'Concerts, clubs, dense backline, and louder musical stages',
+    operatorNote: 'Higher thresholds and heavier EQ preset for harmonic material.',
+  },
+  theater: {
+    useCase: 'Drama, musicals, lavaliers, and intelligibility-focused reinforcement',
+    operatorNote: 'Wide spoken-word coverage with a little more gain support at startup.',
+  },
+  monitors: {
+    useCase: 'Stage wedges, sidefills, and fast monitor-engineer intervention',
+    operatorNote: 'Fastest practical response and the shortest track timeout.',
+  },
+  ringOut: {
+    useCase: 'Controlled system tuning, notch finding, and pre-show ring-out',
+    operatorNote: 'Most analysis detail, lowest ring threshold, and a hotter auto-gain target.',
+  },
+  broadcast: {
+    useCase: 'Podcast, studio, and conservative spoken-word monitoring',
+    operatorNote: 'Lower auto-gain target and tighter suppression of nuisance events.',
+  },
+  outdoor: {
+    useCase: 'Open-air stages, festivals, and noisier environmental conditions',
+    operatorNote: 'Stronger thresholds for wind, spill, and less stable open-air conditions.',
+  },
+}
+
+function formatFrequency(hz: number): string {
+  if (hz >= 1000) {
+    const khz = hz / 1000
+    return Number.isInteger(khz) ? `${khz} kHz` : `${khz.toFixed(1)} kHz`
+  }
+  return `${hz} Hz`
+}
+
+function formatRange(minHz: number, maxHz: number): string {
+  return `${formatFrequency(minHz)}-${formatFrequency(maxHz)}`
+}
 
 export const ModesTab = memo(function ModesTab() {
+  const modeCards = MODE_ORDER.map((modeId) => {
+    const baseline = MODE_BASELINES[modeId]
+    const defaults = deriveDefaultDetectorSettings(modeId)
+    const guidance = MODE_GUIDANCE[modeId]
+
+    return {
+      modeId,
+      label: baseline.label,
+      description: baseline.description,
+      guidance,
+      defaults,
+    }
+  })
+
   return (
     <>
-      {/* Mode cards in responsive grid */}
       <HelpGroup title="Operation Modes">
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-1.5">
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
-            <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Speech</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Default — Corporate conferences, lectures</div>
-            <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
-              20dB · Ring 5dB · 1.0dB/s · 8192 FFT · 150–10kHz
-            </div>
-          </div>
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
-            <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Worship</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Churches, reverberant spaces</div>
-            <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
-              35dB · Ring 5dB · 2.0dB/s · 8192 FFT · 100–12kHz
-            </div>
-          </div>
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
-            <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Live Music</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Concerts, clubs, festivals</div>
-            <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
-              42dB · Ring 8dB · 4.0dB/s · 4096 FFT · 60–16kHz
-            </div>
-          </div>
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
-            <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Theater</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Drama, musicals, body mics</div>
-            <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
-              28dB · Ring 4dB · 1.5dB/s · 8192 FFT · 150–10kHz
-            </div>
-          </div>
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
-            <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Monitors</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Stage wedges, sidefills</div>
-            <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
-              15dB · Ring 3dB · 0.8dB/s · 4096 FFT · 200–6kHz
-            </div>
-          </div>
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
-            <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Ring Out</div>
-            <div className="text-xs text-muted-foreground mt-0.5">System calibration, sound check</div>
-            <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
-              27dB · Ring 2dB · 0.5dB/s · 16384 FFT · 60–16kHz
-            </div>
-          </div>
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
-            <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Broadcast</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Studio, podcast, radio</div>
-            <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
-              22dB · Ring 3dB · 1.0dB/s · 8192 FFT · 80–12kHz
-            </div>
-          </div>
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
-            <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Outdoor</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Open air, festivals</div>
-            <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
-              38dB · Ring 6dB · 2.5dB/s · 4096 FFT · 100–12kHz
-            </div>
-          </div>
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 xl:grid-cols-4">
+          {modeCards.map(({ modeId, label, description, guidance, defaults }) => (
+            <Card
+              key={modeId}
+              className="gap-0 rounded border bg-card/80 py-0 shadow-none"
+              style={{ borderLeftColor: 'rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)', borderLeftWidth: '2px' }}
+            >
+              <CardHeader className="px-3 pt-3 pb-0">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="grid gap-0.5">
+                    <CardTitle className="text-sm" style={{ color: 'var(--console-blue)' }}>
+                      {label}
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground">{description}</p>
+                  </div>
+                  {modeId === 'speech' ? <Badge variant="outline" className="font-mono text-[10px]">Startup default</Badge> : null}
+                </div>
+              </CardHeader>
+              <CardContent className="grid gap-1.5 px-3 pt-2 pb-3 text-xs text-muted-foreground">
+                <p>{guidance.useCase}</p>
+                <p className="font-mono text-muted-foreground/80">
+                  Feedback {defaults.feedbackThresholdDb} dB | Ring {defaults.ringThresholdDb} dB | Growth {defaults.growthRateThreshold.toFixed(1)} dB/s
+                </p>
+                <p className="font-mono text-muted-foreground/80">
+                  {defaults.fftSize} FFT | {formatRange(defaults.minFrequency, defaults.maxFrequency)} | Sustain {defaults.sustainMs} ms | Conf {Math.round(defaults.confidenceThreshold * 100)}%
+                </p>
+                <p className="font-mono text-muted-foreground/80">
+                  AG {defaults.autoGainTargetDb} dBFS | Track {defaults.trackTimeoutMs} ms | {defaults.eqPreset === 'heavy' ? 'Heavy EQ' : 'Surgical EQ'}
+                </p>
+                <p>{guidance.operatorNote}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </HelpGroup>
 
-      {/* Group: Usage Tips */}
-      <HelpGroup title="Usage Tips">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-          <HelpSection title="Choosing a Mode" color="amber">
-            <ul className="space-y-2">
-              <li>Corporate conference / lecture → <strong>Speech</strong> (default)</li>
-              <li>Initial system ring-out / sound check → <strong>Ring Out</strong></li>
-              <li>Stage wedge tuning → <strong>Monitors</strong></li>
-              <li>Church / reverberant space → <strong>Worship</strong></li>
-              <li>Concert / festival → <strong>Live Music</strong> or <strong>Outdoor</strong></li>
-              <li>Drama / musical / body mics → <strong>Theater</strong></li>
-              <li>Studio / podcast / radio → <strong>Broadcast</strong></li>
+      <HelpGroup title="How Mode Defaults Work">
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+          <HelpSection title="Choosing A Mode" color="amber">
+            <ul className="grid gap-2">
+              <li>Speech for spoken word and day-one startup.</li>
+              <li>Ring Out for controlled notch finding and system setup.</li>
+              <li>Monitors for wedges and fast response monitor work.</li>
+              <li>Worship or Theater for reflective rooms and voice-heavy reinforcement.</li>
+              <li>Live Music or Outdoor when harmonic program material or environmental noise would make speech tuning too optimistic.</li>
+              <li>Broadcast for conservative spoken-word monitoring in studio-style workflows.</li>
             </ul>
           </HelpSection>
 
-          <HelpSection title="How Modes Shift Detection" color="green">
-            <p>
-              Modes do more than change one threshold. They shift the usable frequency range, FFT size,
-              sustain/clear timing, confidence requirements, and whether the detector should be more willing
-              to suppress voiced or instrument-like content.
-            </p>
+          <HelpSection title="Ownership Rules" color="green">
+            <ul className="grid gap-2">
+              <li>Switching modes resets mode-owned controls to that mode's baseline, not to a frozen Speech-era number.</li>
+              <li>Environment and live overrides stack on top of the mode baseline instead of replacing it wholesale.</li>
+              <li>Display preferences such as canvas FPS, graph font size, and swipe labeling are global display defaults, not mode tuning.</li>
+              <li>Advanced diagnostics can still override the baseline when you intentionally need expert-only behavior.</li>
+            </ul>
           </HelpSection>
 
-          <HelpSection title="Workflow Best Practices" color="amber">
-            <ol className="list-decimal list-inside space-y-2">
-              <li>Start with <strong>Ring Out</strong> mode during initial system setup</li>
-              <li>Watch the <strong>lower info bar</strong> — it shows algorithm mode, content type, MSD frames, and FPS</li>
-              <li>Watch the <strong>MSD frame count</strong> — wait for 15+ frames before trusting results</li>
-              <li>If the lower info bar shows <strong>COMPRESSED</strong>, lean harder on phase plus corroborating shape cues</li>
-              <li>Use <strong>Comb Pattern</strong> predictions to preemptively address upcoming feedback frequencies</li>
-              <li>Switch to <strong>Speech</strong> for general PA monitoring</li>
-              <li>Use <strong>CONFIRM</strong> and <strong>Missed Feedback</strong> during tuning when the detector is too conservative</li>
-              <li>Apply cuts conservatively — start with 3 dB and increase only if needed</li>
+          <HelpSection title="Workflow Tips" color="amber">
+            <ol className="grid gap-2 list-decimal list-inside">
+              <li>Start with the correct mode before touching sensitivity.</li>
+              <li>Use the footer readouts to confirm what kind of content the worker thinks it is hearing.</li>
+              <li>Wait for enough MSD history before assuming a borderline peak is truly stable.</li>
+              <li>Use Ring Out for deliberate setup work, then switch back to the operating mode you will actually run.</li>
+              <li>Use labels and replay fixtures when you think the detector is drifting instead of tuning by memory.</li>
             </ol>
           </HelpSection>
 
-          <HelpSection title="Common Feedback Frequency Ranges" color="blue">
-            <ul className="space-y-2">
-              <li><strong>200–500 Hz:</strong> Muddy buildup, boxy vocals, room modes</li>
-              <li><strong>500 Hz–1 kHz:</strong> Nasal/honky tones, vocal feedback zone</li>
-              <li><strong>1–3 kHz:</strong> Presence/intelligibility range, harsh feedback</li>
-              <li><strong>3–6 kHz:</strong> Sibilance, cymbal harshness, piercing feedback</li>
-              <li><strong>6–8 kHz:</strong> Air/brightness, high-frequency ringing</li>
+          <HelpSection title="Common Feedback Zones" color="blue">
+            <ul className="grid gap-2">
+              <li><strong>200-500 Hz:</strong> boxiness, mud, and room buildup.</li>
+              <li><strong>500 Hz-1 kHz:</strong> honk, nasal buildup, and vocal resonance.</li>
+              <li><strong>1-3 kHz:</strong> intelligibility and many harsh vocal feedback problems.</li>
+              <li><strong>3-6 kHz:</strong> presence, bite, and more piercing ring behavior.</li>
+              <li><strong>6-8 kHz:</strong> air, brightness, and higher-frequency ringing.</li>
             </ul>
           </HelpSection>
         </div>

@@ -497,6 +497,11 @@ export function shouldReportIssue(
   const mode = settings.mode
   const ignoreWhistle = settings.ignoreWhistle ?? true
   const { label, severity, confidence } = classification
+  const feedbackDominatesUncertainPosterior =
+    label === 'ACOUSTIC_FEEDBACK' &&
+    classification.pFeedback >= 0.45 &&
+    classification.pFeedback >= classification.pInstrument + 0.10 &&
+    classification.pFeedback >= classification.pWhistle + 0.10
 
   if (!classification.recommendationEligible) {
     return false
@@ -515,9 +520,14 @@ export function shouldReportIssue(
     return true
   }
 
-  // Fusion never became decisive enough to justify a corrective advisory.
-  // Keep the UI quiet for uncertain cases instead of surfacing low-trust cuts.
-  if (classification.fusionVerdict === 'UNCERTAIN') {
+  // Fusion uncertainty is still a useful conservative signal, but a blanket
+  // rejection proved too recall-hostile once the classifier posterior still
+  // strongly favored feedback. Only suppress uncertain cases when the
+  // posterior does not clearly keep feedback in front.
+  if (
+    classification.fusionVerdict === 'UNCERTAIN' &&
+    !feedbackDominatesUncertainPosterior
+  ) {
     return false
   }
 
@@ -526,7 +536,7 @@ export function shouldReportIssue(
   // posterior mass is still materially present, suppress the corrective advisory.
   if (
     (mode === 'speech' || mode === 'worship')
-    && classification.fusionVerdict === 'POSSIBLE_FEEDBACK'
+    && classification.fusionVerdict !== 'FEEDBACK'
     && label === 'ACOUSTIC_FEEDBACK'
     && classification.pFeedback < 0.40
     && classification.pInstrument >= 0.35

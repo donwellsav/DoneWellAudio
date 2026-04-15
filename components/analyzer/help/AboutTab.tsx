@@ -1,8 +1,9 @@
 'use client'
 
 import { memo } from 'react'
+import { Card, CardContent } from '@/components/ui/card'
 import { CHANGELOG } from '@/lib/changelog'
-import { HelpSection, HelpGroup, TYPE_STYLES } from './HelpShared'
+import { HelpSection, HelpGroup, HelpTypeBadge } from './HelpShared'
 
 export const AboutTab = memo(function AboutTab() {
   const formatEntryVersion = (version: string) => (/^[0-9]/.test(version) ? `v${version}` : version)
@@ -65,15 +66,12 @@ export const AboutTab = memo(function AboutTab() {
             </div>
             <div className="space-y-1.5">
               {latestEntry.changes.map((change) => {
-                const style = TYPE_STYLES[change.type]
                 return (
                   <div
                     key={`${latestEntry.version}-${change.type}-${change.description}`}
                     className="flex items-start gap-2 text-sm text-muted-foreground"
                   >
-                    <span className={`mt-0.5 inline-flex shrink-0 items-center rounded px-1.5 py-0.5 font-mono text-[10px] font-medium leading-none ${style.className}`}>
-                      {style.label}
-                    </span>
+                    <HelpTypeBadge type={change.type} />
                     <span>{change.description}</span>
                   </div>
                 )
@@ -86,31 +84,28 @@ export const AboutTab = memo(function AboutTab() {
       <HelpGroup title="Release History" defaultOpen={false}>
         <div className="space-y-1.5">
           {olderEntries.map((entry, i) => (
-            <div key={`${entry.version}-${i}`} className="rounded border bg-card/80 p-2.5">
-              <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span className="font-mono text-sm font-bold text-foreground">{formatEntryVersion(entry.version)}</span>
-                <span className="font-mono text-xs text-muted-foreground">{entry.date}</span>
-                {entry.highlights && (
-                  <span className="font-mono text-xs" style={{ color: 'var(--console-blue)' }}>&middot; {entry.highlights}</span>
-                )}
-              </div>
-              <div className="space-y-1">
-                {entry.changes.map((change) => {
-                  const style = TYPE_STYLES[change.type]
-                  return (
+            <Card key={`${entry.version}-${i}`} className="gap-0 rounded border bg-card/80 py-0 shadow-none">
+              <CardContent className="px-2.5 py-2.5">
+                <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="font-mono text-sm font-bold text-foreground">{formatEntryVersion(entry.version)}</span>
+                  <span className="font-mono text-xs text-muted-foreground">{entry.date}</span>
+                  {entry.highlights && (
+                    <span className="font-mono text-xs" style={{ color: 'var(--console-blue)' }}>- {entry.highlights}</span>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  {entry.changes.map((change) => (
                     <div
                       key={`${entry.version}-${change.type}-${change.description}`}
                       className="flex items-start gap-2 text-sm text-muted-foreground"
                     >
-                      <span className={`mt-0.5 inline-flex shrink-0 items-center rounded px-1.5 py-0.5 font-mono text-[10px] font-medium leading-none ${style.className}`}>
-                        {style.label}
-                      </span>
+                      <HelpTypeBadge type={change.type} />
                       <span>{change.description}</span>
                     </div>
-                  )
-                })}
-              </div>
-            </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       </HelpGroup>

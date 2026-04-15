@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -147,11 +148,13 @@ export const CalibrationRoomProfileSection = memo(function CalibrationRoomProfil
             <Select value={room.floor} onValueChange={(value: FloorMaterial) => updateRoom({ floor: value })}>
               <SelectTrigger className="text-xs font-mono"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {FLOOR_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value} className="text-xs font-mono">
-                    {option.label}
-                  </SelectItem>
-                ))}
+                <SelectGroup>
+                  {FLOOR_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value} className="text-xs font-mono">
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
           </div>
@@ -160,11 +163,13 @@ export const CalibrationRoomProfileSection = memo(function CalibrationRoomProfil
             <Select value={room.walls} onValueChange={(value: WallMaterial) => updateRoom({ walls: value })}>
               <SelectTrigger className="text-xs font-mono"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {WALL_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value} className="text-xs font-mono">
-                    {option.label}
-                  </SelectItem>
-                ))}
+                <SelectGroup>
+                  {WALL_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value} className="text-xs font-mono">
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
           </div>
@@ -173,11 +178,13 @@ export const CalibrationRoomProfileSection = memo(function CalibrationRoomProfil
             <Select value={room.ceiling} onValueChange={(value: CeilingMaterial) => updateRoom({ ceiling: value })}>
               <SelectTrigger className="text-xs font-mono"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {CEILING_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value} className="text-xs font-mono">
-                    {option.label}
-                  </SelectItem>
-                ))}
+                <SelectGroup>
+                  {CEILING_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value} className="text-xs font-mono">
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
           </div>

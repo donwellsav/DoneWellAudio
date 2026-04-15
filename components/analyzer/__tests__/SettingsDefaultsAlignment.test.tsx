@@ -209,4 +209,36 @@ describe('settings default alignment', () => {
 
     expect(setAutoGain).toHaveBeenCalledWith(true, -18)
   })
+
+  it('uses the shared toggle-group control for the two-option EQ style selector', () => {
+    const setMode = vi.fn()
+    const setEqStyle = vi.fn()
+    const setAutoGain = vi.fn()
+
+    mockUseSettings.mockReturnValue({
+      session: { modeId: 'speech' },
+      setMode,
+      setEqStyle,
+      setAutoGain,
+    })
+
+    render(
+      <SetupTab
+        settings={deriveDefaultDetectorSettings('speech')}
+        customPresets={[]}
+        canSavePreset={false}
+        showSaveInput={false}
+        setShowSaveInput={vi.fn()}
+        presetName=""
+        setPresetName={vi.fn()}
+        handleSavePreset={vi.fn()}
+        handleDeletePreset={vi.fn()}
+        handleLoadPreset={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Heavy' }))
+
+    expect(setEqStyle).toHaveBeenCalledWith('heavy')
+  })
 })
