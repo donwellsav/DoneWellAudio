@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.98.0',
+    date: '2026-04-15',
+    changes: [
+      { type: 'feat', description: 'improve the detection-to-correction pipeline for both accuracy and runtime cost' },
+      { type: 'feat', description: 'reduce hot-path transport and recomputation overhead in worker and track management' },
+      { type: 'feat', description: 'add a snapshot-based speech/worship evaluation lane and related regression coverage' },
+      { type: 'feat', description: 'move the analyzer FPS readout into the lower footer and align replay fusion config with production settings' },
+      { type: 'feat', description: 'npx tsc --noEmit' },
+      { type: 'feat', description: 'pnpm test' },
+    ],
+  },
+  {
     version: '0.97.0',
     date: '2026-04-14',
     highlights: 'Help menu changelog surfaced and expanded',
