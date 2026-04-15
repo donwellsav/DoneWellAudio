@@ -13,8 +13,8 @@ interface ResetDefaultProps {
   current: number
   /** Default value to reset to */
   defaultValue: number
-  /** Called with defaultValue when clicked */
-  onReset: (v: number) => void
+  /** Called when the reset button is clicked */
+  onReset: () => void
   /** Comparison tolerance for floating-point (default: step/2 or 0.001) */
   tolerance?: number
   /** Label shown in tooltip (default: "Reset to default ({defaultValue})") */
@@ -41,7 +41,7 @@ export const ResetDefault = memo(function ResetDefault({
     <Tooltip>
       <TooltipTrigger asChild>
         <button
-          onClick={() => onReset(defaultValue)}
+          onClick={onReset}
           className="inline-flex items-center justify-center w-4 h-4 rounded-sm text-muted-foreground/40 hover:text-muted-foreground transition-colors cursor-pointer flex-shrink-0 focus-visible:outline-none focus-visible:ring-[2px] focus-visible:ring-ring/50"
           aria-label={label ?? `Reset to default (${defaultValue})`}
         >

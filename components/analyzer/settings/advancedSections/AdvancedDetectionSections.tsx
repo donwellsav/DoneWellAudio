@@ -4,6 +4,8 @@ import { memo } from 'react'
 import { ConsoleSlider } from '@/components/ui/console-slider'
 import { LEDToggle } from '@/components/ui/led-toggle'
 import { Section } from '@/components/analyzer/settings/SettingsShared'
+import { DEFAULT_DISPLAY_PREFS } from '@/lib/settings/defaults'
+import { deriveDefaultDetectorSettings } from '@/lib/settings/defaultDetectorSettings'
 import { AVAILABLE_ALGORITHMS, type AdvancedSectionProps } from './shared'
 
 export const AdvancedFaderLinkSection = memo(function AdvancedFaderLinkSection({
@@ -28,7 +30,7 @@ export const AdvancedFaderLinkSection = memo(function AdvancedFaderLinkSection({
           step={0.1}
           sliderValue={settings.faderLinkRatio}
           onChange={(value) => actions.updateDisplayField('faderLinkRatio', value)}
-          defaultValue={1.0}
+          defaultValue={DEFAULT_DISPLAY_PREFS.faderLinkRatio}
         />
         <ConsoleSlider
           label="Center Gain"
@@ -40,7 +42,7 @@ export const AdvancedFaderLinkSection = memo(function AdvancedFaderLinkSection({
           step={1}
           sliderValue={settings.faderLinkCenterGainDb}
           onChange={(value) => actions.updateDisplayField('faderLinkCenterGainDb', value)}
-          defaultValue={0}
+          defaultValue={DEFAULT_DISPLAY_PREFS.faderLinkCenterGainDb}
         />
         <ConsoleSlider
           label="Center Sens"
@@ -52,7 +54,7 @@ export const AdvancedFaderLinkSection = memo(function AdvancedFaderLinkSection({
           step={1}
           sliderValue={settings.faderLinkCenterSensDb}
           onChange={(value) => actions.updateDisplayField('faderLinkCenterSensDb', value)}
-          defaultValue={25}
+          defaultValue={DEFAULT_DISPLAY_PREFS.faderLinkCenterSensDb}
         />
       </div>
     </Section>
@@ -63,6 +65,8 @@ export const AdvancedDetectionPolicySection = memo(function AdvancedDetectionPol
   settings,
   actions,
 }: AdvancedSectionProps) {
+  const modeDefaults = deriveDefaultDetectorSettings(settings.mode)
+
   return (
     <Section
       title="Detection Policy"
@@ -81,7 +85,8 @@ export const AdvancedDetectionPolicySection = memo(function AdvancedDetectionPol
           step={0.5}
           sliderValue={settings.ringThresholdDb}
           onChange={(value) => actions.updateDiagnosticField('ringThresholdDbOverride', value)}
-          defaultValue={5}
+          defaultValue={modeDefaults.ringThresholdDb}
+          onResetToDefault={() => actions.updateDiagnosticField('ringThresholdDbOverride', undefined)}
         />
         <ConsoleSlider
           label="Growth"
@@ -93,7 +98,8 @@ export const AdvancedDetectionPolicySection = memo(function AdvancedDetectionPol
           step={0.5}
           sliderValue={settings.growthRateThreshold}
           onChange={(value) => actions.updateDiagnosticField('growthRateThresholdOverride', value)}
-          defaultValue={1.0}
+          defaultValue={modeDefaults.growthRateThreshold}
+          onResetToDefault={() => actions.updateDiagnosticField('growthRateThresholdOverride', undefined)}
         />
         <ConsoleSlider
           label="Confidence"
@@ -105,7 +111,8 @@ export const AdvancedDetectionPolicySection = memo(function AdvancedDetectionPol
           step={0.05}
           sliderValue={settings.confidenceThreshold ?? 0.35}
           onChange={(value) => actions.updateDiagnosticField('confidenceThresholdOverride', value)}
-          defaultValue={0.35}
+          defaultValue={modeDefaults.confidenceThreshold}
+          onResetToDefault={() => actions.updateDiagnosticField('confidenceThresholdOverride', undefined)}
         />
         <LEDToggle
           color="amber"
@@ -130,6 +137,8 @@ export const AdvancedTimingSection = memo(function AdvancedTimingSection({
   settings,
   actions,
 }: AdvancedSectionProps) {
+  const modeDefaults = deriveDefaultDetectorSettings(settings.mode)
+
   return (
     <Section
       title="Timing"
@@ -148,7 +157,8 @@ export const AdvancedTimingSection = memo(function AdvancedTimingSection({
           step={50}
           sliderValue={settings.sustainMs}
           onChange={(value) => actions.updateDiagnosticField('sustainMsOverride', value)}
-          defaultValue={500}
+          defaultValue={modeDefaults.sustainMs}
+          onResetToDefault={() => actions.updateDiagnosticField('sustainMsOverride', undefined)}
         />
         <ConsoleSlider
           label="Clear Time"
@@ -160,7 +170,8 @@ export const AdvancedTimingSection = memo(function AdvancedTimingSection({
           step={50}
           sliderValue={settings.clearMs}
           onChange={(value) => actions.updateDiagnosticField('clearMsOverride', value)}
-          defaultValue={500}
+          defaultValue={modeDefaults.clearMs}
+          onResetToDefault={() => actions.updateDiagnosticField('clearMsOverride', undefined)}
         />
       </div>
     </Section>

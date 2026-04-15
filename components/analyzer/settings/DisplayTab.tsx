@@ -9,6 +9,7 @@ import { ChannelSection } from '@/components/ui/channel-section'
 
 import type { DetectorSettings } from '@/types/advisory'
 import type { DisplayPrefs } from '@/types/settings'
+import { DEFAULT_DISPLAY_PREFS } from '@/lib/settings/defaults'
 import { onboardingStorage } from '@/lib/storage/dwaStorage'
 
 // ── Legacy compat: still accept TabSettingsProps for transition period ────
@@ -88,7 +89,7 @@ export const DisplayTab = memo(function DisplayTab({
           <ConsoleSlider label="Max Issues" value={`${settings.maxDisplayedIssues}`}
             tooltip={settings.showTooltips ? 'How many feedback issues display at once (desktop only).' : undefined}
             min={3} max={12} step={1} sliderValue={settings.maxDisplayedIssues}
-            onChange={(v) => setDisplay({ maxDisplayedIssues: v })} defaultValue={8} />
+            onChange={(v) => setDisplay({ maxDisplayedIssues: v })} defaultValue={DEFAULT_DISPLAY_PREFS.maxDisplayedIssues} />
         </div>
       </div>
 
@@ -98,27 +99,27 @@ export const DisplayTab = memo(function DisplayTab({
           <ConsoleSlider label="RTA Range (Min)" value={`${settings.rtaDbMin} dB`}
             tooltip={settings.showTooltips ? 'Lower bound of the visible RTA amplitude range.' : undefined}
             min={-120} max={-60} step={5} sliderValue={settings.rtaDbMin}
-            onChange={(v) => setDisplay({ rtaDbMin: v })} defaultValue={-100} />
+            onChange={(v) => setDisplay({ rtaDbMin: v })} defaultValue={DEFAULT_DISPLAY_PREFS.rtaDbMin} />
 
           <ConsoleSlider label="RTA Range (Max)" value={`${settings.rtaDbMax} dB`}
             tooltip={settings.showTooltips ? 'Upper bound of the visible RTA amplitude range.' : undefined}
             min={-20} max={0} step={5} sliderValue={settings.rtaDbMax}
-            onChange={(v) => setDisplay({ rtaDbMax: v })} defaultValue={0} />
+            onChange={(v) => setDisplay({ rtaDbMax: v })} defaultValue={DEFAULT_DISPLAY_PREFS.rtaDbMax} />
 
           <ConsoleSlider label="Line Width" value={`${settings.spectrumLineWidth.toFixed(1)} px`}
             tooltip={settings.showTooltips ? 'Spectrum curve thickness. Thinner for detail, thicker for distance.' : undefined}
             min={0.5} max={4} step={0.5} sliderValue={settings.spectrumLineWidth}
-            onChange={(v) => setDisplay({ spectrumLineWidth: v })} defaultValue={0.5} />
+            onChange={(v) => setDisplay({ spectrumLineWidth: v })} defaultValue={DEFAULT_DISPLAY_PREFS.spectrumLineWidth} />
 
           <ConsoleSlider label="Canvas FPS" value={`${settings.canvasTargetFps} fps`}
             tooltip={settings.showTooltips ? 'Target frame rate. Lower = less CPU/GPU usage.' : undefined}
             min={15} max={60} step={5} sliderValue={settings.canvasTargetFps}
-            onChange={(v) => setDisplay({ canvasTargetFps: v })} defaultValue={15} />
+            onChange={(v) => setDisplay({ canvasTargetFps: v })} defaultValue={DEFAULT_DISPLAY_PREFS.canvasTargetFps} />
 
           <ConsoleSlider label="Label Size" value={`${settings.graphFontSize} px`}
             tooltip={settings.showTooltips ? 'Font size for RTA/GEQ labels. Increase for distance viewing.' : undefined}
             min={8} max={26} step={1} sliderValue={settings.graphFontSize}
-            onChange={(v) => setDisplay({ graphFontSize: v })} defaultValue={15} />
+            onChange={(v) => setDisplay({ graphFontSize: v })} defaultValue={DEFAULT_DISPLAY_PREFS.graphFontSize} />
 
           {/* showThresholdLine is now in the quick toggles section above */}
         </div>

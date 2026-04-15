@@ -1,9 +1,9 @@
 /**
- * Preset Constants — Operation Modes, Default Settings, Room Presets
+ * Preset Constants — Operation Modes, canonical default snapshot, Room Presets
  *
  * 8 operation mode presets (speech, worship, liveMusic, theater, monitors,
- * ringOut, broadcast, outdoor), the DEFAULT_SETTINGS object, room size
- * presets, and frequency range presets.
+ * ringOut, broadcast, outdoor), the DEFAULT_SETTINGS compatibility export,
+ * room size presets, and frequency range presets.
  *
  * @see DBX AFS whitepaper — mode-specific detection strategies
  * @see Smaart v8 measurement guide — calibration modes
@@ -12,6 +12,7 @@
  */
 
 import type { DetectorSettings } from '@/types/advisory'
+import { DEFAULT_DETECTOR_SETTINGS } from '@/lib/settings/defaultDetectorSettings'
 
 // ── Mode Preset Interface ───────────────────────────────────────────────────
 
@@ -36,7 +37,7 @@ export interface ModePreset {
   eqPreset: 'surgical' | 'heavy'
   aWeightingEnabled: boolean
   inputGainDb: number
-  autoGainTargetDb?: number // Optional — inherits from DEFAULT_SETTINGS when absent
+  autoGainTargetDb?: number // Optional — falls back to the shared default target when absent
   ignoreWhistle: boolean
 }
 
@@ -200,69 +201,9 @@ export const OPERATION_MODES: Record<string, ModePreset> = {
 
 // ── Default Settings ────────────────────────────────────────────────────────
 
-// Default settings for the analyzer — OPTIMIZED FOR CORPORATE/CONFERENCE SPEECH SYSTEMS
-export const DEFAULT_SETTINGS: DetectorSettings = {
-  mode: 'speech' as const,
-  fftSize: 8192 as const,
-  smoothingTimeConstant: 0.5,
-  minFrequency: 150,
-  maxFrequency: 10000,
-  feedbackThresholdDb: 25,
-  ringThresholdDb: 5,
-  growthRateThreshold: 1.0,
-  peakMergeCents: 100,
-  maxDisplayedIssues: 8,
-  eqPreset: 'surgical' as const,
-  inputGainDb: 0,
-  autoGainEnabled: false,
-  autoGainTargetDb: -18,
-  graphFontSize: 15,
-  harmonicToleranceCents: 200,
-  showTooltips: true,
-  aWeightingEnabled: true,
-  micCalibrationProfile: 'none' as const,
-  confidenceThreshold: 0.35,
-  roomRT60: 1.0,
-  roomVolume: 1000,
-  roomPreset: 'none' as const,
-  roomTreatment: 'typical' as const,
-  algorithmMode: 'auto' as const,
-  enabledAlgorithms: ['msd', 'phase', 'spectral', 'comb', 'ihr', 'ptmr', 'ml'] as ('msd' | 'phase' | 'spectral' | 'comb' | 'ihr' | 'ptmr' | 'ml')[],
-  mlEnabled: true,
-  adaptivePhaseSkip: true,
-  showAlgorithmScores: false,
-  showPeqDetails: false,
-  showFreqZones: false,
-  showRoomModeLines: true,
-  spectrumWarmMode: true,
-  roomLengthM: 15,
-  roomWidthM: 12,
-  roomHeightM: 5,
-  roomDimensionsUnit: 'meters' as const,
-  mainsHumEnabled: true,
-  mainsHumFundamental: 'auto' as const,
-  sustainMs: 300,
-  clearMs: 400,
-  thresholdMode: 'hybrid' as const,
-  prominenceDb: 8,
-  noiseFloorAttackMs: 200,
-  noiseFloorReleaseMs: 1000,
-  maxTracks: 64,
-  trackTimeoutMs: 1000,
-  ignoreWhistle: true,
-  rtaDbMin: -100,
-  rtaDbMax: 0,
-  spectrumLineWidth: 0.5,
-  showThresholdLine: true,
-  canvasTargetFps: 30,
-  faderMode: 'sensitivity' as const,
-  faderLinkMode: 'unlinked' as const,
-  faderLinkRatio: 1.0,
-  faderLinkCenterGainDb: 0,
-  faderLinkCenterSensDb: 25,
-  swipeLabeling: false,
-  signalTintEnabled: true,
-}
+// Speech-mode compatibility snapshot derived from the layered defaults.
+// Keep the exported symbol for legacy runtime consumers and tests.
+export const DEFAULT_SETTINGS: DetectorSettings = DEFAULT_DETECTOR_SETTINGS
 
 // ── Room Presets ─────────────────────────────────────────────────────────────
 

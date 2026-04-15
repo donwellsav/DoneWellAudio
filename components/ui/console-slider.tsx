@@ -73,6 +73,8 @@ interface ConsoleSliderProps {
   className?: string
   /** When provided, shows a reset icon when value differs from default */
   defaultValue?: number
+  /** Optional custom reset behavior for mode-derived defaults */
+  onResetToDefault?: () => void
 }
 
 /**
@@ -95,6 +97,7 @@ export const ConsoleSlider = memo(function ConsoleSlider({
   color = 'amber',
   className,
   defaultValue,
+  onResetToDefault,
 }: ConsoleSliderProps) {
   const c = COLOR_CONFIG[color]
   const [isDragging, setIsDragging] = useState(false)
@@ -122,7 +125,12 @@ export const ConsoleSlider = memo(function ConsoleSlider({
           <div className="flex items-center gap-1">
             <span className="section-label" style={{ color: c.text }}>{label}</span>
             {defaultValue != null && (
-              <ResetDefault current={sliderValue} defaultValue={defaultValue} onReset={onChange} tolerance={step / 2} />
+              <ResetDefault
+                current={sliderValue}
+                defaultValue={defaultValue}
+                onReset={onResetToDefault ?? (() => onChange(defaultValue))}
+                tolerance={step / 2}
+              />
             )}
             {tooltip && showTooltip && (
               <Tooltip>

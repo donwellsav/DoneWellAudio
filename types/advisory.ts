@@ -422,13 +422,13 @@ export interface DetectorSettings {
   mainsHumGateOverride?: number   // 0.40 default
 }
 
-// Default configuration - optimized for Corporate/Conference PA (Speech mode)
+// Default analysis configuration - aligned with the canonical Speech-mode startup profile.
 export const DEFAULT_CONFIG: AnalysisConfig = {
   fftSize: 8192,
   minHz: 150, // Body mic chest resonance lower bound
   maxHz: 10000, // Condenser sibilance feedback upper bound
   analysisIntervalMs: 20, // Faster analysis for quicker detection
-  sustainMs: 300, // 300 ms — filters plosives/transients while catching real feedback (matches DEFAULT_SETTINGS)
+  sustainMs: 300, // 300 ms — filters plosives/transients while catching real feedback (matches startup Speech defaults)
   clearMs: 400, // Slightly longer decay reduces display flicker
   thresholdMode: 'hybrid',
   thresholdDb: -80, // Safety floor only — relative threshold (noise floor + slider) controls detection
@@ -438,13 +438,13 @@ export const DEFAULT_CONFIG: AnalysisConfig = {
   maxIssues: 12, // Show more issues for comprehensive tuning
   ignoreWhistle: true,
   preset: 'surgical',
-  mode: 'speech', // Matches DEFAULT_SETTINGS.mode for consistency
+  mode: 'speech', // Matches the startup Speech profile
   aWeightingEnabled: true, // A-weighting on — prioritizes speech intelligibility band (2–5 kHz)
   micCalibrationProfile: 'none' as const, // Mic frequency response compensation off by default
   noiseFloorEnabled: true,
   noiseFloorSampleCount: 160, // Faster noise floor sampling
   noiseFloorAttackMs: 200, // Faster attack for dynamic environments
   noiseFloorReleaseMs: 1000, // Faster release
-  inputGainDb: 0, // Zero gain — modern interfaces deliver adequate signal (matches DEFAULT_SETTINGS)
+  inputGainDb: 0, // Zero gain — modern interfaces deliver adequate signal (matches startup Speech defaults)
   autoGainEnabled: false, // Auto-gain off by default — user clicks venue pill to start calibration
 }

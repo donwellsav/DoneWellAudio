@@ -43,7 +43,7 @@ export const DEFAULT_LIVE_OVERRIDES: LiveOverrides = {
   eqStyle: 'mode-default',
 }
 
-/** Default display preferences: matches current DEFAULT_SETTINGS display fields */
+/** Default display preferences: authoritative UI defaults for fresh sessions and reset */
 export const DEFAULT_DISPLAY_PREFS: DisplayPrefs = {
   maxDisplayedIssues: 8,
   graphFontSize: 15,
