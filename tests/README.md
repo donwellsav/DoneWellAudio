@@ -1,99 +1,74 @@
-# DoneWell Audio — Test Suite
+# DoneWell Audio Test Suite
 
 ## Run
 
 ```bash
-# Run all tests once (985 tests, 46 suites)
 pnpm test
-
-# Watch mode (re-runs on file change)
 pnpm test:watch
-
-# With coverage report
 pnpm test:coverage
+npx tsc --noEmit
 ```
 
-## Test Structure
+Repo gate:
 
-```
-tests/
-├── helpers/
-│   └── mockAlgorithmScores.ts    # Builders for algorithm score mock objects
-└── dsp/
-    ├── algorithmFusion.test.ts   # Fusion engine + Gemini vulnerability scenarios
-    ├── msdAnalysis.test.ts       # MSD algorithm (DAFx-16 paper)
-    ├── phaseCoherence.test.ts    # Phase coherence (KU Leuven 2025)
-    └── compressionDetection.test.ts  # Spectral flatness + compression detection
+```bash
+npx tsc --noEmit && pnpm test
 ```
 
-## What These Tests Cover
+## Structure
 
-### algorithmFusion.test.ts (Gemini Scenarios)
-- Weight sum validation (all 4 profiles)
-- 8 synthetic vulnerability scenarios from Gemini Ultra analysis:
-  - DEFAULT: synth note false positive, reverberant false negative
-  - SPEECH: sustained vowel false positive, limiter-clamped false negative
-  - MUSIC: guitar feedback (acceptable FP), dense mix false negative
-  - COMPRESSED: flute false positive, compressor-pumped false negative
-- Baseline cases (pure feedback, pure music, silence)
-- Edge cases (single algorithm, warmup, null scores, mode selection)
-- Proposed V2 weights (skipped until implemented)
-
-### msdAnalysis.test.ts
-- Constant magnitude → MSD ≈ 0 (feedback pattern)
-- Linear growth → MSD ≈ 0 (feedback onset)
-- Random fluctuation → MSD >> 0 (music/speech)
-- Energy gate below silence floor
-- feedbackScore = exp(-msd/threshold) formula verification
-- Ring buffer wrapping, reset behavior
-- Content-aware frame count (speech=7, music=13)
-
-### phaseCoherence.test.ts
-- Constant phase delta → coherence ≈ 1.0 (feedback)
-- Random phase → coherence < 0.5 (music/noise)
-- Phase unwrapping across ±π boundary
-- Mean phasor formula manual verification
-- Ring buffer wrapping, reset behavior
-
-### compressionDetection.test.ts
-- Pure tone → low spectral flatness
-- White noise → flatness ≈ 1.0
-- High crest factor → not compressed
-- Low crest factor → compressed
-- Threshold multiplier validation
-- Edge cases (insufficient data, ring buffer wrap)
-
-## Additional Test Locations
-
-```
-hooks/__tests__/               # Hook unit tests (useAdvisoryMap, useFpsMonitor, etc.)
-contexts/__tests__/            # Context unit tests (AdvisoryContext, UIContext)
-lib/storage/__tests__/         # dwaStorage + settingsStorageV2 tests
-lib/export/__tests__/          # Export module tests (txt, pdf, downloadFile)
-lib/dsp/__tests__/             # mlInference unit tests
-lib/data/__tests__/            # Consent module tests
-tests/fixtures/snapshots/      # Labeled snapshot fixture corpora for replay-based accuracy checks
+```text
+components/**/__tests__/   UI regression tests
+contexts/__tests__/        Context/provider tests
+hooks/__tests__/           Hook and worker lifecycle tests
+lib/**/__tests__/          DSP, storage, export, and utility unit tests
+tests/dsp/                 Scenario-style DSP and fusion tests
+tests/integration/         Cross-module behavior tests
+tests/fixtures/            Snapshot and other reusable fixtures
 ```
 
-## Snapshot Fixture Workflow
+## What Matters Most
 
-- The speech/worship accuracy lane lives under `tests/fixtures/snapshots/speech-worship/` and replays labeled `SnapshotBatch` fixtures through the worker-side fusion, classifier, and advisory path.
-- Run the snapshot lane directly with:
+- Hot-path DSP changes should land with targeted regression coverage near the affected module.
+- UI and settings changes should prefer behavior tests over broad snapshots.
+- Fusion and classifier tuning should be validated in both the synthetic and replay-based lanes when possible.
+
+## Replay And Evaluation Lanes
+
+### Synthetic fusion lane
+
+```bash
+npx tsx --tsconfig autoresearch/tsconfig.json autoresearch/evaluate.ts
+```
+
+Use this for controlled scenario tuning of fusion and verdict logic.
+
+### Snapshot replay lane
 
 ```bash
 npx tsx --tsconfig autoresearch/tsconfig.json autoresearch/evaluateSnapshots.ts
 ```
 
-- Normalize newly exported snapshot batches with:
+This replays labeled `SnapshotBatch` fixtures through the worker-side fusion, classifier, and advisory path.
+
+## Snapshot Fixture Workflow
+
+- Speech/worship fixtures live under `tests/fixtures/snapshots/speech-worship/`.
+- Keep explicit `acceptableVerdicts` and `expectAdvisory` labels in the fixture wrapper. Do not infer them from `userFeedback`.
+- The checked-in corpus starts with seed fixtures shaped like `SnapshotBatch`. Real exported batches are higher-trust additions and should replace synthetic stand-ins where available.
+
+Normalize a newly exported batch with:
 
 ```bash
-npx tsx --tsconfig autoresearch/tsconfig.json autoresearch/normalizeSnapshotFixture.ts \
-  --input path/to/exported-batch.json \
-  --output tests/fixtures/snapshots/speech-worship/my-fixture.json \
-  --mode worship \
-  --verdict FEEDBACK \
-  --expect-advisory
+npx tsx --tsconfig autoresearch/tsconfig.json autoresearch/normalizeSnapshotFixture.ts --input path/to/exported-batch.json --output tests/fixtures/snapshots/speech-worship/my-fixture.json --mode worship --verdict FEEDBACK --expect-advisory
 ```
 
-- Keep explicit `acceptableVerdicts` and `expectAdvisory` labels in the fixture wrapper. Do not infer them from `userFeedback`.
-- The checked-in corpus currently begins with seed fixtures shaped like `SnapshotBatch`; treat real exported batches as higher-trust additions when they become available.
+## Production Dependency Audit
+
+The repo no longer relies on the retired `pnpm audit` endpoint. Use:
+
+```bash
+pnpm run audit:prod -- --audit-level=high
+```
+
+That script performs a clean temporary production install and queries npm's supported bulk advisory API.

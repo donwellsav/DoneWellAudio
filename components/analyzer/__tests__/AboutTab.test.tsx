@@ -9,13 +9,13 @@ describe('AboutTab', () => {
     render(<AboutTab />)
 
     expect(screen.getByText('Latest Release')).toBeDefined()
-    expect(screen.getByText('v0.97.0')).toBeDefined()
-    expect(screen.getByText(/Help → About now shows the latest release/i)).toBeDefined()
+    expect(screen.getByText('v0.98.0')).toBeDefined()
+    expect(screen.getByText(/snapshot-based speech\/worship replay lane/i)).toBeDefined()
 
     fireEvent.click(screen.getByText('Release History'))
 
+    expect(screen.getAllByText('v0.97.0').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('v0.96.0').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('v0.94.1').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText(/ring-out now detects replacement advisories by identity/i)).toBeDefined()
   })
 })

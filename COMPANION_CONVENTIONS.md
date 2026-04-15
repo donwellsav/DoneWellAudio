@@ -1,5 +1,7 @@
 # Bitfocus Companion Module Development Conventions
 
+Historical reference note: this document captures reverse-engineered patterns from the removed PA2-era module. Current DoneWell work should treat `companion-module/` as the live implementation and use this file only for legacy protocol context.
+
 ## Overview
 
 This document captures the exact API patterns from the PA2 module (`companion-module-dbx-driverack-pa2`) that serve as the template for building new Companion modules (e.g., VENU360). All code is CommonJS (Node.js), using the `@companion-module/base` API.
@@ -925,4 +927,3 @@ companion-module-venu360/
 | **Protocol** | `src/venu360-protocol.js` | Device communication | `buildCommand(action, opts, topo)` |
 | **Manifest** | `companion/manifest.json` | Module metadata | Module ID, name, version |
 | **Package** | `package.json` | Dependencies | `@companion-module/base ~1.14.1` |
-

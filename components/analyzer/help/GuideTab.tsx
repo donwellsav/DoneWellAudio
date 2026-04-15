@@ -11,8 +11,9 @@ export const GuideTab = memo(function GuideTab() {
         <HelpSection title="What is DoneWell Audio?" color="amber">
           <p>
             A real-time acoustic feedback detection and analysis tool for professional live sound engineers.
-            Uses 7 detection algorithms and 6 multiplicative false-positive gates from peer-reviewed acoustic research to identify feedback frequencies,
-            resonant rings, and problematic tones — then delivers specific EQ recommendations with pitch translation.
+            It combines 7 fused detection signals, mode-aware post-fusion gates, and worker-side classification to
+            surface real feedback early enough to act on while still suppressing common speech, music, hum, and
+            compression-related false positives.
           </p>
         </HelpSection>
       </HelpGroup>
@@ -33,12 +34,12 @@ export const GuideTab = memo(function GuideTab() {
 
           <HelpSection title="Display Areas" color="blue">
             <ul className="space-y-2">
-              <li><strong>Desktop — Resizable Split:</strong> RTA spectrum (60%) and GEQ bar view (40%) side by side. Drag the divider to resize.</li>
-              <li><strong>Mobile Portrait — Tabbed:</strong> Two tabs — Issues (with inline resizable RTA/GEQ graph) and Settings (with compact RTA preview). Swipe the graph area or tap the toggle to switch RTA↔GEQ. Drag the handle to resize. All 4 settings tabs (Live/Setup/Display/Adv) accessible inline.</li>
-              <li><strong>Mobile Landscape:</strong> Issues/Settings toggle on the left (40-45%), single full-height RTA or GEQ graph on the right (49-54%), fader sidecar. Tap the toggle to switch between issues and settings without leaving the view.</li>
-              <li><strong>Issues Panel:</strong> Active detected issues sorted by frequency. RUNAWAY issues pulse red. Copy EQ settings to clipboard.</li>
-              <li><strong>Controls Panel:</strong> Four tabs — Live (sensitivity + frequency range), Setup (mode, room, calibration, presets), Display (graph settings, tooltips, themes), Advanced (algorithms, DSP, diagnostics).</li>
-              <li><strong>Algorithm Status (Footer Bar):</strong> The bottom footer bar shows algorithm mode (e.g. AUTO, MSD+PH), detected content type (SPEECH/MUSIC/COMP), and MSD buffer frame count — matching the DoneWell branding style.</li>
+              <li><strong>Desktop — Resizable Panels:</strong> Controls, Issues, and graph panes can be shown together or split. The graph side can show the RTA and GEQ views together.</li>
+              <li><strong>Mobile Portrait — Tabbed:</strong> Issues and Settings stay in one flow, with an inline RTA or GEQ graph that you can toggle and resize.</li>
+              <li><strong>Mobile Landscape:</strong> The left side toggles between issues and settings while the right side stays dedicated to the graph view.</li>
+              <li><strong>Issues Panel:</strong> Active advisories sorted by frequency. RUNAWAY issues pulse red. Copy or label cards directly from the panel.</li>
+              <li><strong>Controls Panel:</strong> Four tabs — Live, Setup, Display, and Advanced — covering day-of-show controls, presets, graph options, and expert diagnostics.</li>
+              <li><strong>Lower Info Bar:</strong> The footer shows algorithm mode, detected content type, MSD frame count, and the live FPS readout.</li>
               <li><strong>Early Warning Panel:</strong> Comb filter predictions with elapsed timer and urgency progress bar.</li>
               <li><strong>Theme Toggle:</strong> Sun/Moon icon in header (between Help and Reset Layout) switches dark/light mode. Persists across sessions.</li>
               <li><strong>Tooltips:</strong> Most controls have a ⓘ help icon. Hover or tap to see explanations with recommended ranges. Toggle tooltips on/off in Display → Preferences.</li>
@@ -53,8 +54,8 @@ export const GuideTab = memo(function GuideTab() {
           <HelpSection title="Header Controls" color="blue">
             <ul className="space-y-2">
               <li><strong>Start / Stop:</strong> Begin or pause audio analysis. LIVE indicator appears while running.</li>
-              <li><strong>Input Gain Fader:</strong> Vertical fader strip with venue quick-cal pills (Quiet / Med / Loud). Default +6 dB.</li>
-              <li><strong>Layout (L):</strong> Toggle between desktop layouts. Fullscreen (F) for dedicated spectrum view.</li>
+              <li><strong>Input Gain Fader:</strong> Vertical fader strip with venue quick-cal pills (Quiet / Med / Loud). Startup default is 0 dB until you choose a preset or move the fader.</li>
+              <li><strong>Layout:</strong> Toggle between desktop panel layouts. Fullscreen (F) gives the graph area a dedicated spectrum view.</li>
               <li><strong>Freeze (P):</strong> Pause the spectrum display for closer inspection without stopping analysis. Active state shows blue pill.</li>
               <li><strong>Clear All:</strong> Red notification dot appears when there are clearable items. Clears all advisories, GEQ bars, and RTA markers.</li>
               <li><strong>Draggable Threshold:</strong> Enable &quot;Show Threshold on RTA&quot; in the Display tab, then drag the threshold line handle up/down to adjust detection sensitivity directly on the spectrum.</li>
@@ -68,7 +69,7 @@ export const GuideTab = memo(function GuideTab() {
               <li><strong>Copy:</strong> Tap the copy icon to copy frequency and EQ info to clipboard.</li>
               <li><strong>FALSE+:</strong> Flag a detection as a false positive. Feeds into ML training data for better future accuracy.</li>
               <li><strong>CONFIRM:</strong> Confirm a detection as real feedback. Symmetric labeling alongside FALSE+ for balanced training data.</li>
-              <li><strong>Swipe to Label:</strong> Enable in Display settings. Swipe a card left for FALSE+, right for CONFIRM. Hides the buttons for a cleaner layout. Works with touch input on any screen size — phones, tablets, and touchscreen monitors.</li>
+              <li><strong>Swipe Gesture:</strong> With desktop swipe gestures enabled, swipe left to dismiss and right to confirm. FALSE+ stays available as an explicit button.</li>
               <li><strong>SEND:</strong> Send this advisory&apos;s EQ recommendation to your hardware mixer via Bitfocus Companion. Only visible when Companion bridge is enabled in Advanced settings. See the <strong>Companion</strong> help tab for setup.</li>
             </ul>
           </HelpSection>
@@ -92,7 +93,7 @@ export const GuideTab = memo(function GuideTab() {
             <ul className="space-y-2">
               <li><strong>Live:</strong> Sensitivity and frequency range — the only controls you need during a show.</li>
               <li><strong>Setup:</strong> Mode selector, EQ style, auto-gain target, room environment (presets, dimensions, treatment), calibration (mic profile, ambient capture, venue metadata, session recording), and rig presets (save/load).</li>
-              <li><strong>Display:</strong> Threshold line visibility, fader mode, max issues (desktop), tooltips, graph settings (RTA range, line width, FPS, font size), swipe-to-label, frequency zone overlay, warm spectrum, algorithm scores, PEQ details.</li>
+              <li><strong>Display:</strong> Threshold line visibility, fader mode, max issues (desktop), tooltips, graph settings (RTA range, line width, FPS, font size), desktop swipe gestures, frequency zone overlay, warm spectrum, algorithm scores, and PEQ details.</li>
               <li><strong>Advanced:</strong> Detection policy (ring, growth, confidence, A-weighting, whistle), timing (sustain, clear), algorithms (ML toggle, custom grid), noise floor, peak detection, DSP (FFT, smoothing), track management, data collection, Companion bridge (send EQ to mixer).</li>
             </ul>
           </HelpSection>
@@ -105,15 +106,15 @@ export const GuideTab = memo(function GuideTab() {
               </div>
               <div>
                 <p className="font-medium text-foreground text-sm mb-1">Too Many False Positives</p>
-                <p className="text-sm">In Settings, raise confidence threshold. Lower sidebar Sensitivity (slide left). Enable whistle suppression if sibilance triggers detections. For live music, switch to the Live Music or Worship mode preset. HVAC/electrical hum (50/60 Hz harmonics) is automatically suppressed by the mains hum gate when 2+ corroborating peaks are detected.</p>
+                <p className="text-sm">Raise the confidence threshold, lower Sensitivity, and make sure the operating mode matches the source material. Speech and worship presets already suppress voiced formants and instrument-like content more aggressively; live material should usually be in Live Music or Outdoor instead of Speech.</p>
               </div>
               <div>
                 <p className="font-medium text-foreground text-sm mb-1">Missing Feedback Detection</p>
-                <p className="text-sm">Raise sidebar Sensitivity (slide right). Increase Input Gain on the fader strip. Switch to Ring Out mode for maximum sensitivity. Increase FFT Size to 16384 for better low-frequency resolution.</p>
+                <p className="text-sm">Raise Sensitivity, lower the confidence threshold if cards are arriving too late, and increase Input Gain if the source is weak. Use Ring Out or Monitors for earlier reporting, and move to 16384 FFT when low-frequency resolution matters. During tuning, use CONFIRM and Missed Feedback so recall problems are measured instead of guessed at.</p>
               </div>
               <div>
                 <p className="font-medium text-foreground text-sm mb-1">Compressed Music False Positives</p>
-                <p className="text-sm">When status bar shows COMPRESSED, phase coherence dominates automatically. Use Combined or Phase Only algorithm mode for heavily compressed content.</p>
+                <p className="text-sm">When the lower info bar shows COMPRESSED, the worker shifts weight toward phase and corroborating shape cues. Combined or Phase Only can help with heavily limited material, but keep an eye on PTMR and IHR support before trusting a single phase-heavy result.</p>
               </div>
               <div>
                 <p className="font-medium text-foreground text-sm mb-1">Slow or Laggy Display</p>

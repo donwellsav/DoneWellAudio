@@ -16,11 +16,14 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     version: '0.98.0',
     date: '2026-04-15',
+    highlights: 'Detection pipeline retune, snapshot replay lane, footer FPS, docs refresh',
     changes: [
-      { type: 'feat', description: 'improve the detection-to-correction pipeline for both accuracy and runtime cost' },
-      { type: 'feat', description: 'reduce hot-path transport and recomputation overhead in worker and track management' },
-      { type: 'feat', description: 'add a snapshot-based speech/worship evaluation lane and related regression coverage' },
-      { type: 'feat', description: 'move the analyzer FPS readout into the lower footer and align replay fusion config with production settings' },
+      { type: 'fix', description: 'Retune classifier and reporting logic so obvious growing feedback is less likely to be hidden by over-conservative suppression' },
+      { type: 'perf', description: 'Reduce worker hot-path transport and recomputation overhead in track management and related DSP plumbing' },
+      { type: 'feat', description: 'Add a snapshot-based speech/worship replay lane for worker-side fusion, classifier, and advisory evaluation' },
+      { type: 'fix', description: 'Use the repo-owned production audit workflow instead of the retired pnpm audit endpoint' },
+      { type: 'ui', description: 'Move the analyzer FPS readout into the lower footer and align help text with the current info-bar layout' },
+      { type: 'refactor', description: 'Refresh README, tests docs, in-app help, and wiki content against the current pipeline, presets, and tooling' },
       { type: 'feat', description: 'npx tsc --noEmit' },
       { type: 'feat', description: 'pnpm test' },
     ],

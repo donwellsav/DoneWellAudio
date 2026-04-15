@@ -5,6 +5,7 @@ import { CHANGELOG } from '@/lib/changelog'
 import { HelpSection, HelpGroup, TYPE_STYLES } from './HelpShared'
 
 export const AboutTab = memo(function AboutTab() {
+  const formatEntryVersion = (version: string) => (/^[0-9]/.test(version) ? `v${version}` : version)
   const [latestEntry, ...olderEntries] = CHANGELOG
 
   return (
@@ -53,7 +54,7 @@ export const AboutTab = memo(function AboutTab() {
       </HelpGroup>
 
       <HelpGroup title="Latest Release">
-        <HelpSection title={`v${latestEntry.version}`} color="blue">
+        <HelpSection title={formatEntryVersion(latestEntry.version)} color="blue">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs text-muted-foreground">
               <span>{latestEntry.date}</span>
@@ -87,10 +88,10 @@ export const AboutTab = memo(function AboutTab() {
           {olderEntries.map((entry, i) => (
             <div key={`${entry.version}-${i}`} className="rounded border bg-card/80 p-2.5">
               <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span className="font-mono text-sm font-bold text-foreground">v{entry.version}</span>
+                <span className="font-mono text-sm font-bold text-foreground">{formatEntryVersion(entry.version)}</span>
                 <span className="font-mono text-xs text-muted-foreground">{entry.date}</span>
                 {entry.highlights && (
-                  <span className="font-mono text-xs" style={{ color: 'var(--console-blue)' }}>· {entry.highlights}</span>
+                  <span className="font-mono text-xs" style={{ color: 'var(--console-blue)' }}>&middot; {entry.highlights}</span>
                 )}
               </div>
               <div className="space-y-1">

@@ -528,8 +528,8 @@ export function shouldReportIssue(
     (mode === 'speech' || mode === 'worship')
     && classification.fusionVerdict === 'POSSIBLE_FEEDBACK'
     && label === 'ACOUSTIC_FEEDBACK'
-    && classification.pFeedback < 0.45
-    && classification.pInstrument >= 0.30
+    && classification.pFeedback < 0.40
+    && classification.pInstrument >= 0.35
   ) {
     return false
   }
@@ -720,12 +720,18 @@ export function classifyTrackWithAlgorithms(
     baseResult.severity === 'RUNAWAY' ||
     baseResult.severity === 'GROWING' ||
     pFeedback >= 0.45
+  const urgentFeedbackDominance =
+    baseResult.severity === 'GROWING' &&
+    feedbackWinsPosterior &&
+    pFeedback >= 0.55 &&
+    pFeedback >= pWhistle + 0.12 &&
+    pFeedback >= pInstrument + 0.12
   const softRejectedFeedback =
     rejectedFeedback &&
     feedbackWinsPosterior &&
     strongFeedbackPrior &&
-    pFeedback >= 0.45 &&
-    fusionResult.feedbackProbability >= 0.25
+    (pFeedback >= 0.4 || urgentFeedbackDominance) &&
+    (fusionResult.feedbackProbability >= 0.2 || urgentFeedbackDominance)
   const hardRejectedFeedback = rejectedFeedback && !softRejectedFeedback
 
   // Re-apply severity overrides AFTER normalization only when fusion still
@@ -758,6 +764,10 @@ export function classifyTrackWithAlgorithms(
     pWhistle >= CLASSIFIER_WEIGHTS.WHISTLE_THRESHOLD && pWhistle > pFeedback
   const instrumentWins =
     pInstrument >= CLASSIFIER_WEIGHTS.INSTRUMENT_THRESHOLD && pInstrument > pFeedback
+  const preserveUrgencyOnConservativeFusion =
+    !hardRejectedFeedback &&
+    urgentFeedbackDominance &&
+    (probableFeedback || uncertainFeedback || softRejectedFeedback)
 
   if (hardRejectedFeedback) {
     if (baseResult.label === 'WHISTLE' || whistleWins) {
@@ -785,11 +795,19 @@ export function classifyTrackWithAlgorithms(
     if (severity !== 'RUNAWAY' && severity !== 'GROWING') {
       severity = fusionResult.confidence > 0.8 ? 'GROWING' : 'RESONANCE'
     }
-  } else if ((probableFeedback || uncertainFeedback) && (severity === 'RUNAWAY' || severity === 'GROWING')) {
+  } else if (
+    (probableFeedback || uncertainFeedback) &&
+    (severity === 'RUNAWAY' || severity === 'GROWING') &&
+    !preserveUrgencyOnConservativeFusion
+  ) {
     // Borderline fusion verdicts can still keep the feedback label, but they
     // must fall back through the normal confidence gate instead of taking the
     // urgent RUNAWAY/GROWING bypass.
     severity = 'RESONANCE'
+  }
+
+  if (preserveUrgencyOnConservativeFusion) {
+    reasons.push('Urgent growth retained despite conservative fusion verdict')
   }
 
   const labelProbability =

@@ -1,5 +1,7 @@
 # Algorithm Fusion Weight Fixes — Audit Trail
 
+This file is a historical audit trail from March 2026, not the current source of truth for live tuning. For current behavior, use `lib/dsp/fusionEngine.ts`, `lib/dsp/classifier.ts`, `autoresearch/evaluate.ts`, and `autoresearch/evaluateSnapshots.ts`.
+
 **Date:** 2026-03-13
 **Branch:** `test/dsp-unit-tests` (PR #93)
 **Source file:** `lib/dsp/algorithmFusion.ts`

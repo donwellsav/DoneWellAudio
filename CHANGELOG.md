@@ -1,6 +1,20 @@
 # Changelog
 
-All notable changes to Kill The Ring are documented in this file.
+All notable changes to DoneWell Audio are documented in this file.
+
+## [Current Branch] - 2026-04-14
+
+### Detection Accuracy
+
+- Rebalanced the classifier and reporting path so conservative false-positive suppression no longer hides obvious growing feedback as aggressively.
+- Added a snapshot-based speech/worship replay lane for worker-side fusion, classifier, and advisory evaluation using labeled `SnapshotBatch` fixtures.
+- Brought synthetic fusion evaluation, snapshot replay, and in-app labeling into the same tuning story so missed positives can be measured instead of guessed at.
+
+### Tooling And UI
+
+- Replaced the retired `pnpm audit` CI path with the repo-owned `pnpm run audit:prod -- --audit-level=high` workflow backed by npm's bulk advisory API.
+- Added the live FPS readout to the lower analyzer info bar and updated help copy to reference the current footer layout.
+- Refreshed the main README, test docs, help tabs, and wiki pages so they match the current worker pipeline, mode presets, and troubleshooting guidance.
 
 ## [0.129.0] - 2026-03-17
 
