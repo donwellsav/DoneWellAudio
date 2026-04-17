@@ -6,11 +6,12 @@ import { useAnimationFrame } from '@/hooks/useAnimationFrame'
 import { logPositionToFreq, clamp } from '@/lib/utils/mathHelpers'
 import { formatFrequency } from '@/lib/utils/pitchUtils'
 import { CANVAS_SETTINGS } from '@/lib/dsp/constants'
+import { smoothSpectrumForDisplay, type DisplaySpectrumSmoothingScratch } from '@/lib/canvas/drawing/spectrumSmoothing'
 import { thresholdDraggedStorage } from '@/lib/storage/dwaStorage'
 import { OVERLAY_TEXT, OVERLAY_ACCENT, GROWING_COLOR } from '@/lib/canvas/canvasTokens'
 import { getSeverityColor } from '@/lib/utils/advisoryDisplay'
 import { logError } from '@/lib/utils/logger'
-import type { SpectrumData, Advisory } from '@/types/advisory'
+import type { SpectrumData, Advisory, SpectrumSmoothingMode } from '@/types/advisory'
 import type { RoomMode } from '@/lib/dsp/acousticUtils'
 import type { EarlyWarning } from '@/hooks/audioAnalyzerTypes'
 import {
@@ -35,6 +36,7 @@ export interface SpectrumDisplayConfig {
   showRoomModeLines?: boolean
   showThresholdLine?: boolean
   spectrumWarmMode?: boolean
+  spectrumSmoothingMode?: SpectrumSmoothingMode
 }
 
 /** Frequency range and threshold settings */
@@ -71,7 +73,7 @@ interface SpectrumCanvasProps {
 
 export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, advisories, lifecycle, earlyWarning, clearedIds, isFrozen = false, roomModes, display = {}, range = {}, onFreqRangeChange, onThresholdChange }: SpectrumCanvasProps) {
   const { isRunning, isStarting = false, error, onStart } = lifecycle
-  const { graphFontSize = 11, rtaDbMin: rtaDbMinProp, rtaDbMax: rtaDbMaxProp, spectrumLineWidth: spectrumLineWidthProp, canvasTargetFps, showFreqZones = false, showRoomModeLines = false, showThresholdLine = false, spectrumWarmMode = false } = display
+  const { graphFontSize = 11, rtaDbMin: rtaDbMinProp, rtaDbMax: rtaDbMaxProp, spectrumLineWidth: spectrumLineWidthProp, canvasTargetFps, showFreqZones = false, showRoomModeLines = false, showThresholdLine = false, spectrumWarmMode = false, spectrumSmoothingMode = 'raw' } = display
   const { minFrequency = 20, maxFrequency = 20000, feedbackThresholdDb } = range
   const rtaDbMin = rtaDbMinProp ?? CANVAS_SETTINGS.RTA_DB_MIN
   const rtaDbMax = rtaDbMaxProp ?? CANVAS_SETTINGS.RTA_DB_MAX
@@ -132,6 +134,7 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
   const gradientRef = useRef<CanvasGradient | null>(null)
   const gradientHeightRef = useRef(0)
   const peakHoldRef = useRef<Float32Array | null>(null)
+  const smoothingScratchRef = useRef<DisplaySpectrumSmoothingScratch | null>(null)
 
   // Hover tooltip: track mouse position for freq+dB readout (null = not hovering)
   const hoverPosRef = useRef<{ x: number; y: number } | null>(null)
@@ -294,7 +297,11 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
       effectiveThreshYRef.current = ((range.dbMax - spectrum.effectiveThresholdDb) / dbSpan) * plotHeight
     }
 
-    drawSpectrum(ctx, plotWidth, plotHeight, range, spectrum, gradientRef, gradientHeightRef, spectrumLineWidthProp ?? 0.5, peakHoldRef, spectrumWarmMode, canvasThemeRef.current, dtSeconds)
+    const displayFreqDb = spectrum && spectrumSmoothingMode === 'perceptual'
+      ? smoothSpectrumForDisplay(spectrum.freqDb, spectrum.sampleRate, spectrum.fftSize, smoothingScratchRef)
+      : spectrum?.freqDb ?? null
+
+    drawSpectrum(ctx, plotWidth, plotHeight, range, spectrum, displayFreqDb, gradientRef, gradientHeightRef, spectrumLineWidthProp ?? 0.5, peakHoldRef, spectrumWarmMode, canvasThemeRef.current, dtSeconds)
     drawLevelMeter(ctx, plotHeight, range, spectrum, dtSeconds)
 
     // Store padding for pointer event calculations
@@ -419,11 +426,15 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
 
     drawAxisLabels(ctx, padding, plotWidth, plotHeight, range, fontSize, width, height, canvasThemeRef.current)
 
-  }, [spectrumRef, graphFontSize, earlyWarning, rtaDbMin, rtaDbMax, spectrumLineWidthProp, showThresholdLine, feedbackThresholdDb, showFreqZones, showRoomModeLines, roomModes, spectrumWarmMode])
+  }, [spectrumRef, graphFontSize, earlyWarning, rtaDbMin, rtaDbMax, spectrumLineWidthProp, showThresholdLine, feedbackThresholdDb, showFreqZones, showRoomModeLines, roomModes, spectrumWarmMode, spectrumSmoothingMode])
 
   useAnimationFrame(render, isRunning || hasEverStarted, canvasTargetFps)
 
   // Mark dirty when display props change (triggers redraw on next rAF tick)
+  useEffect(() => {
+    peakHoldRef.current = null
+    dirtyRef.current = true
+  }, [spectrumSmoothingMode])
   useEffect(() => { dirtyRef.current = true }, [graphFontSize, earlyWarning, rtaDbMin, rtaDbMax, spectrumLineWidthProp, showThresholdLine, feedbackThresholdDb, showFreqZones, showRoomModeLines, roomModes, spectrumWarmMode])
   useEffect(() => { dirtyRef.current = true }, [advisories, clearedIds])
 

@@ -118,7 +118,7 @@ describe('useDSPWorker', () => {
       type: 'init',
       settings: expect.objectContaining({
         mode: 'speech',
-        feedbackThresholdDb: 20,
+        feedbackThresholdDb: 25,
         ringThresholdDb: 5,
         trackTimeoutMs: 1000,
       }),

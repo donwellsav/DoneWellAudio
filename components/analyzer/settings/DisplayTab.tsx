@@ -96,6 +96,37 @@ export const DisplayTab = memo(function DisplayTab({
       {/* ═══ SECTION: Graph ═══ */}
       <ChannelSection title="Graph" defaultOpen>
         <div className="space-y-1">
+          <div className="space-y-1 rounded border border-border/40 bg-card/30 px-3 py-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-medium text-foreground">Spectrum View</p>
+                <p className="text-xs text-muted-foreground">
+                  Raw keeps narrow rings sharp. Perceptual applies display-only 1/3-octave smoothing for room and speech reading.
+                </p>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={settings.spectrumSmoothingMode === 'raw' ? 'default' : 'outline'}
+                  className="min-w-20 font-mono uppercase tracking-wide"
+                  onClick={() => setDisplay({ spectrumSmoothingMode: 'raw' })}
+                >
+                  Raw
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={settings.spectrumSmoothingMode === 'perceptual' ? 'default' : 'outline'}
+                  className="min-w-28 font-mono uppercase tracking-wide"
+                  onClick={() => setDisplay({ spectrumSmoothingMode: 'perceptual' })}
+                >
+                  Perceptual
+                </Button>
+              </div>
+            </div>
+          </div>
+
           <ConsoleSlider label="RTA Range (Min)" value={`${settings.rtaDbMin} dB`}
             tooltip={settings.showTooltips ? 'Lower bound of the visible RTA amplitude range.' : undefined}
             min={-120} max={-60} step={5} sliderValue={settings.rtaDbMin}

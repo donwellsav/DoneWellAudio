@@ -4,6 +4,7 @@ import {
   DEFAULT_DIAGNOSTICS,
   DEFAULT_DISPLAY_PREFS,
   DEFAULT_ENVIRONMENT,
+  FRESH_START_SENSITIVITY_OFFSET_DB,
   DEFAULT_LIVE_OVERRIDES,
   DEFAULT_MIC_PROFILE,
 } from '@/lib/settings/defaults'
@@ -32,5 +33,28 @@ export function deriveDefaultDetectorSettings(modeId: ModeId = 'speech'): Detect
   )
 }
 
-/** Canonical flat settings snapshot for a fresh Speech-mode session. */
-export const DEFAULT_DETECTOR_SETTINGS = deriveDefaultDetectorSettings()
+/**
+ * Canonical flat settings snapshot for a brand-new Speech-mode session.
+ *
+ * This preserves the historical 25 dB startup behavior without changing the
+ * explicit Speech mode baseline itself.
+ */
+export function deriveFreshStartDetectorSettings(): DetectorSettings {
+  const baseline = MODE_BASELINES.speech
+
+  return deriveDetectorSettings(
+    baseline,
+    DEFAULT_ENVIRONMENT,
+    {
+      ...DEFAULT_LIVE_OVERRIDES,
+      inputGainDb: baseline.defaultInputGainDb,
+      sensitivityOffsetDb: FRESH_START_SENSITIVITY_OFFSET_DB,
+    },
+    DEFAULT_DISPLAY_PREFS,
+    DEFAULT_DIAGNOSTICS,
+    DEFAULT_MIC_PROFILE,
+  )
+}
+
+/** Canonical flat settings snapshot for a fresh-start Speech session. */
+export const DEFAULT_DETECTOR_SETTINGS = deriveFreshStartDetectorSettings()

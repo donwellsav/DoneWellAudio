@@ -51,6 +51,7 @@ function makeSettings(overrides: Partial<DetectorSettings> = {}): DetectorSettin
     showFreqZones: false,
     showRoomModeLines: false,
     spectrumWarmMode: false,
+    spectrumSmoothingMode: 'raw',
     sustainMs: 500,
     clearMs: 500,
     thresholdMode: 'hybrid',

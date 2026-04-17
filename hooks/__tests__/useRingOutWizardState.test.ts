@@ -5,7 +5,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RoomMode } from '@/lib/dsp/acousticUtils'
 import {
   buildRingOutExportLines,
+  buildRingOutPatternWarnings,
   findAdjacentMode,
+  isSameRingOutBand,
   useRingOutWizardState,
 } from '@/hooks/useRingOutWizardState'
 import type { Advisory } from '@/types/advisory'
@@ -380,8 +382,37 @@ describe('useRingOutWizardState', () => {
 
     expect(lines[0]).toBe('DoneWell Audio - Ring-Out Session Report')
     expect(lines).toContain('Frequencies notched: 1')
-    expect(lines[lines.length - 1]).toContain('B5')
+    expect(lines).toContain('Operator Note')
+    expect(lines.some((line) => line.includes('B5'))).toBe(true)
     expect(findAdjacentMode(1000, modes)?.label).toBe('1,0,0')
     expect(findAdjacentMode(1100, modes)).toBeNull()
+    expect(isSameRingOutBand(1000, 1080)).toBe(true)
+    expect(isSameRingOutBand(1000, 1300)).toBe(false)
+  })
+
+  it('builds pattern warnings for clustered cuts and room-mode-adjacent cuts', () => {
+    const warnings = buildRingOutPatternWarnings([
+      {
+        frequencyHz: 1000,
+        pitch: 'B5',
+        gainDb: -6,
+        q: 4,
+        severity: 'GROWING',
+        timestamp: 0,
+      },
+      {
+        frequencyHz: 1070,
+        pitch: 'C6',
+        gainDb: -4,
+        q: 3.2,
+        severity: 'RESONANCE',
+        timestamp: 1,
+        modeAdjacent: '1,0,0',
+      },
+    ])
+
+    expect(warnings).toHaveLength(2)
+    expect(warnings[0]).toMatch(/accepted cuts clustered around/i)
+    expect(warnings[1]).toMatch(/near predicted room modes/i)
   })
 })

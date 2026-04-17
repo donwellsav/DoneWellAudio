@@ -29,6 +29,7 @@ interface UseRingOutWizardStateResult {
   notched: NotchedFreq[]
   currentAdvisory: Advisory | null
   companionEnabled: boolean
+  patternWarnings: string[]
   handleNext: () => void
   handleSkip: () => void
   handleFinish: () => void
@@ -42,6 +43,7 @@ const RING_OUT_SEVERITY_ORDER = {
   RESONANCE: 2,
   POSSIBLE_RING: 3,
 } as const
+const RING_OUT_BAND_RATIO = Math.pow(2, 1 / 6)
 
 function buildAcceptedAdvisoryKey(advisory: Advisory): string {
   return JSON.stringify({
@@ -77,6 +79,12 @@ export function findAdjacentMode(
   return null
 }
 
+export function isSameRingOutBand(leftHz: number, rightHz: number): boolean {
+  const higher = Math.max(leftHz, rightHz)
+  const lower = Math.min(leftHz, rightHz)
+  return higher / lower <= RING_OUT_BAND_RATIO
+}
+
 export function getRingOutActiveAdvisories(
   advisories: readonly Advisory[],
 ): Advisory[] {
@@ -108,6 +116,8 @@ export function buildRingOutExportLines(
   notched: readonly NotchedFreq[],
   now: Date,
 ): string[] {
+  const patternWarnings = buildRingOutPatternWarnings(notched)
+
   return [
     'DoneWell Audio - Ring-Out Session Report',
     `Date: ${now.toLocaleString()}`,
@@ -120,7 +130,62 @@ export function buildRingOutExportLines(
         .toFixed(1)
         .padEnd(9)}| ${entry.q.toFixed(1)}`,
     ),
+    ...(patternWarnings.length > 0
+      ? [
+          '',
+          'Pattern Warnings',
+          '-'.repeat(40),
+          ...patternWarnings.map((warning) => `- ${warning}`),
+        ]
+      : []),
+    '',
+    'Operator Note',
+    '-'.repeat(40),
+    'Use this report as a pre-show baseline. If cuts keep clustering in one band,',
+    'recheck placement, reflective paths, and broad EQ before stacking more notches.',
   ]
+}
+
+export function buildRingOutPatternWarnings(
+  notched: readonly NotchedFreq[],
+): string[] {
+  if (notched.length === 0) return []
+
+  const warnings: string[] = []
+  const sorted = [...notched].sort((left, right) => left.frequencyHz - right.frequencyHz)
+
+  let groupStart = 0
+  for (let index = 1; index <= sorted.length; index += 1) {
+    const previous = sorted[index - 1]
+    const current = sorted[index]
+    const inSameBand =
+      current != null &&
+      isSameRingOutBand(previous.frequencyHz, current.frequencyHz)
+
+    if (inSameBand) {
+      continue
+    }
+
+    const group = sorted.slice(groupStart, index)
+    if (group.length >= 2) {
+      const averageHz =
+        group.reduce((sum, entry) => sum + entry.frequencyHz, 0) / group.length
+      warnings.push(
+        `${group.length} accepted cuts clustered around ${formatFrequency(averageHz)}. Recheck placement, reflections, or broad EQ before stacking more narrow notches.`,
+      )
+    }
+
+    groupStart = index
+  }
+
+  const roomModeHits = notched.filter((entry) => entry.modeAdjacent)
+  if (roomModeHits.length > 0) {
+    warnings.push(
+      `${roomModeHits.length} accepted ${roomModeHits.length === 1 ? 'cut landed' : 'cuts landed'} near predicted room modes. Treat those cuts as symptoms and recheck room-driven placement issues.`,
+    )
+  }
+
+  return warnings
 }
 
 export function useRingOutWizardState({
@@ -252,12 +317,17 @@ export function useRingOutWizardState({
   }, [sendAcceptedAdvisory])
 
   const companionEnabled = companion.settings.enabled
+  const patternWarnings = useMemo(
+    () => buildRingOutPatternWarnings(notched),
+    [notched],
+  )
 
   return {
     phase,
     notched,
     currentAdvisory,
     companionEnabled,
+    patternWarnings,
     handleNext,
     handleSkip,
     handleFinish,

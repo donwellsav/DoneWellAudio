@@ -297,6 +297,8 @@ describe('generatePEQRecommendation (cluster-aware)', () => {
       1100,
     )
     expect(withCluster.q).toBeLessThan(withoutCluster.q)
+    expect(withCluster.strategy).toBe('broad-region')
+    expect(withCluster.reason).toMatch(/q widened to cover the unstable region/i)
   })
 
   it('produces identical Q without cluster bounds', () => {
@@ -366,12 +368,14 @@ describe('generatePEQRecommendation', () => {
     const track = makeTrack({ trueFrequencyHz: 50 })
     const rec = generatePEQRecommendation(track, 'RESONANCE', 'surgical')
     expect(rec.type).toBe('HPF')
+    expect(rec.strategy).toBe('broad-region')
   })
 
   it('suggests LPF for very high frequencies', () => {
     const track = makeTrack({ trueFrequencyHz: 15000 })
     const rec = generatePEQRecommendation(track, 'RESONANCE', 'surgical')
     expect(rec.type).toBe('LPF')
+    expect(rec.strategy).toBe('broad-region')
   })
 
   it('includes Q, gainDb, and hz fields', () => {
@@ -677,6 +681,27 @@ describe('generateEQAdvisory', () => {
     const track = makeTrack()
     const advisory = generateEQAdvisory(track, 'RESONANCE', 'surgical')
     expect(advisory.shelves).toHaveLength(0)
+  })
+
+  it('includes a separate tonal issue summary when shelves are present', () => {
+    const spectrum = new Float32Array(4096)
+    spectrum.fill(-40)
+    const hzPerBin = 48000 / 8192
+    for (let i = 0; i < Math.round(80 / hzPerBin); i++) {
+      spectrum[i] = -30
+    }
+
+    const advisory = generateEQAdvisory(
+      makeTrack({ trueFrequencyHz: 440 }),
+      'RESONANCE',
+      'surgical',
+      spectrum,
+      48000,
+      8192,
+    )
+
+    expect(advisory.shelves.length).toBeGreaterThan(0)
+    expect(advisory.tonalIssueSummary).toMatch(/hpf at 80(\.0)?hz for rumble/i)
   })
 })
 

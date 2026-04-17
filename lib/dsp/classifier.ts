@@ -85,6 +85,8 @@ const VIBRATO_CONFIRMATION_FEEDBACK_PENALTY = 0.4
 export function classifyTrack(track: TrackInput, settings?: DetectorSettings, activeFrequencies?: number[]): ClassificationResult {
   const features = normalizeTrackInput(track)
   const reasons: string[] = []
+  let speechLikePattern = false
+  let roomRiskFactors = 0
 
   // ==================== Acoustic Context ====================
 
@@ -232,6 +234,7 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     if (rt60Adj.delta !== 0) {
       pFeedback += rt60Adj.delta
       roomDelta += rt60Adj.delta
+      if (rt60Adj.delta < 0) roomRiskFactors++
       if (rt60Adj.reason) reasons.push(rt60Adj.reason)
     }
   }
@@ -265,6 +268,7 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     if (nfAdj.delta !== 0) {
       pFeedback += nfAdj.delta
       roomDelta += nfAdj.delta
+      if (nfAdj.delta < 0) roomRiskFactors++
       if (nfAdj.note) reasons.push(nfAdj.note)
     }
   }
@@ -276,6 +280,7 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     const neighbors = countNearbyFrequencies(activeFrequencies, features.frequencyHz, clusterRadius)
     if (neighbors >= 2) {
       pFeedback -= MODE_PRESENCE_BONUS
+      roomRiskFactors++
       reasons.push(`Mode cluster: ${neighbors + 1} peaks within ${clusterRadius.toFixed(0)} Hz — coupled modes`)
     }
   }
@@ -314,6 +319,7 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
       pFeedback   += schroederDelta
       roomDelta   += schroederDelta
       pInstrument += MODE_ABSENCE_PENALTY * bw
+      roomRiskFactors++
       reasons.push(`Below Schroeder boundary (${schroederFreq.toFixed(0)} Hz, weight ${bw.toFixed(2)}) — possible room mode`)
     }
   }
@@ -330,6 +336,7 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     if (modeProximity.delta !== 0) {
       pFeedback += modeProximity.delta
       roomDelta += modeProximity.delta
+      if (modeProximity.delta < 0) roomRiskFactors++
       if (modeProximity.reason) reasons.push(modeProximity.reason)
     }
   }
@@ -352,10 +359,16 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
   ) {
     const bandsHit = countFormantBands(activeFrequencies)
     if (bandsHit >= FORMANT_MIN_MATCHES) {
+      speechLikePattern = true
       pFeedback *= (settings?.formantGateOverride ?? FORMANT_GATE_MULTIPLIER)
       reasons.push(`Formant gate: ${bandsHit} vocal formant bands active, Q=${features.minQ.toFixed(0)} (speech-like)`)
     }
   }
+
+  const roomModeRisk =
+    roomConfigured &&
+    freqBand.band === 'LOW' &&
+    (roomRiskFactors >= 2 || roomDelta <= -0.18)
 
   // ==================== Normalization ====================
 
@@ -415,7 +428,7 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     pFeedback = Math.max(pFeedback, 0.7)
   }
   // Priority 3: Check cumulative building (slow but steady growth)
-  else if (cumulativeGrowth.severity === 'BUILDING') {
+  else if (cumulativeGrowth.severity === 'BUILDING' && !speechLikePattern && !roomModeRisk) {
     severity = 'GROWING' // Treat as growing for early warning
     reasons.push('Early warning: slow buildup detected')
   }
@@ -434,6 +447,14 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
   // Default: resonance
   else {
     severity = 'RESONANCE'
+  }
+
+  if (cumulativeGrowth.severity === 'BUILDING' && (speechLikePattern || roomModeRisk)) {
+    reasons.push(
+      speechLikePattern
+        ? 'Early warning held at resonance: speech-like formant pattern'
+        : 'Early warning held at resonance: room-like low-frequency pattern'
+    )
   }
 
   // F5: Renormalize after severity overrides so the scores sum to 1.
@@ -483,6 +504,8 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
     frequencyBand: freqBand.band,
     confidenceLabel: calibratedResult.confidenceLabel,
     prominenceDb: features.prominenceDb,
+    speechLikePattern,
+    roomModeRisk,
   }
 }
 
@@ -497,6 +520,13 @@ export function shouldReportIssue(
   const mode = settings.mode
   const ignoreWhistle = settings.ignoreWhistle ?? true
   const { label, severity, confidence } = classification
+  const speechLikePattern = classification.speechLikePattern ?? false
+  const lowBandRoomRisk =
+    (classification.roomModeRisk ?? false) &&
+    classification.frequencyBand === 'LOW' &&
+    settings.roomPreset !== 'none' &&
+    mode !== 'monitors' &&
+    mode !== 'ringOut'
 
   if (!classification.recommendationEligible) {
     return false
@@ -512,6 +542,12 @@ export function shouldReportIssue(
   
   // Always report GROWING severity regardless of confidence (early warning)
   if (severity === 'GROWING') {
+    if ((mode === 'speech' || mode === 'worship') && speechLikePattern && classification.fusionVerdict !== 'FEEDBACK') {
+      return false
+    }
+    if (lowBandRoomRisk && classification.fusionVerdict !== 'FEEDBACK') {
+      return false
+    }
     return true
   }
 
@@ -524,6 +560,22 @@ export function shouldReportIssue(
   // Speech and worship are the highest false-positive-risk paths for sustained
   // voiced tones. When fusion only reaches POSSIBLE_FEEDBACK and instrument-like
   // posterior mass is still materially present, suppress the corrective advisory.
+  if (
+    (mode === 'speech' || mode === 'worship')
+    && speechLikePattern
+    && classification.fusionVerdict !== 'FEEDBACK'
+  ) {
+    return false
+  }
+
+  if (
+    lowBandRoomRisk
+    && classification.fusionVerdict === 'POSSIBLE_FEEDBACK'
+    && classification.pFeedback < 0.55
+  ) {
+    return false
+  }
+
   if (
     (mode === 'speech' || mode === 'worship')
     && classification.fusionVerdict === 'POSSIBLE_FEEDBACK'
@@ -720,8 +772,18 @@ export function classifyTrackWithAlgorithms(
     baseResult.severity === 'RUNAWAY' ||
     baseResult.severity === 'GROWING' ||
     pFeedback >= 0.45
+  const compressedSourceGateActive =
+    algorithmScores.compression?.isCompressed === true &&
+    fusionResult.verdict !== 'FEEDBACK' &&
+    fusionResult.reasons.some((reason) =>
+      reason === 'Compressed tonal-source gate: phase-dominant sustained source' ||
+      reason === 'Compressed voiced-source gate: phase-stable voiced source'
+    )
   const urgentFeedbackDominance =
     baseResult.severity === 'GROWING' &&
+    !compressedSourceGateActive &&
+    !(baseResult.speechLikePattern ?? false) &&
+    !(baseResult.roomModeRisk ?? false) &&
     feedbackWinsPosterior &&
     pFeedback >= 0.55 &&
     pFeedback >= pWhistle + 0.12 &&

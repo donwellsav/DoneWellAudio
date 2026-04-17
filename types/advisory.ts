@@ -18,6 +18,7 @@ export type Severity = SeverityLevel | 'unknown'
 export type IssueLabel = 'ACOUSTIC_FEEDBACK' | 'WHISTLE' | 'INSTRUMENT' | 'POSSIBLE_RING'
 export type PEQType = 'bell' | 'notch' | 'highShelf' | 'lowShelf' | 'HPF' | 'LPF'
 export type ShelfType = 'highShelf' | 'lowShelf' | 'HPF' | 'LPF'
+export type SpectrumSmoothingMode = 'raw' | 'perceptual'
 
 /** MSD algorithm output — used by fusion engine and classification. */
 export interface MSDResult {
@@ -174,6 +175,8 @@ export interface ClassificationResult {
   frequencyBand?: 'LOW' | 'MID' | 'HIGH' // Which frequency band this falls into
   confidenceLabel?: 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH' // Human-readable confidence
   prominenceDb?: number // Carried through for downstream filtering
+  speechLikePattern?: boolean // Formant-pattern speech / sung-vowel suppressor fired
+  roomModeRisk?: boolean // Multiple low-frequency room-physics cues aligned against feedback
 }
 
 export interface PitchInfo {
@@ -196,6 +199,10 @@ export interface PEQRecommendation {
   gainDb: number
   /** -3dB bandwidth in Hz (from measured peak analysis) */
   bandwidthHz?: number
+  /** Recommendation framing for UI: narrow offender vs broader corrective region. */
+  strategy?: 'narrow-cut' | 'broad-region'
+  /** Human-readable explanation of why the chosen strategy was used. */
+  reason?: string
 }
 
 export interface ShelfRecommendation {
@@ -217,6 +224,8 @@ export interface EQAdvisory {
   shelves: ShelfRecommendation[]
   pitch: PitchInfo
   recommendationContext?: RecommendationContext
+  /** Summary of any broadband tonal issue that should stay separate from the acute cut. */
+  tonalIssueSummary?: string
 }
 
 export interface Advisory {
@@ -387,6 +396,7 @@ export interface DetectorSettings {
   showFreqZones: boolean // Show frequency zone overlay (Sub/Voice/Presence/Air) on RTA
   showRoomModeLines: boolean // Show predicted axial room mode lines on RTA (below Schroeder, faint dashed)
   spectrumWarmMode: boolean // Use warm amber spectrum line instead of blue
+  spectrumSmoothingMode: SpectrumSmoothingMode // Display-only spectrum view: raw or perceptual 1/3-octave smoothing
   // Peak timing
   sustainMs: number // Peak sustain before confirmation (100-2000, default 250)
   clearMs: number // Time before peak declared dead (100-2000, default 400)

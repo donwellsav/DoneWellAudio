@@ -6,14 +6,14 @@ DoneWell Audio listens to a microphone feed, identifies likely feedback and ring
 
 Built by [Don Wells AV](https://donwellsav.com).
 
-## What Is Current
+## What The App Does Now
 
-- Browser-based PWA built with Next.js 16, React 19, and TypeScript
+- Browser-based PWA built with Next.js, React, and TypeScript
 - Main-thread peak detection with worker-side fusion, classification, and advisory generation
 - Seven fused detection signals: MSD, phase coherence, spectral flatness, comb pattern, IHR, PTMR, and a compact ML model
 - Eight operating modes tuned for speech, worship, live music, theater, monitors, ring-out, broadcast, and outdoor work
-- Snapshot-based replay tooling for tuning missed positives and false positives without touching the hot path
-- Optional Bitfocus Companion bridge for routing EQ recommendations into external control workflows
+- Ring-out, room interpretation, and broad-region vs narrow-notch guidance in the in-app help
+- Optional Bitfocus Companion bridge for routing recommendations into external control workflows
 
 ## Quick Start
 
@@ -45,6 +45,15 @@ Repo gate:
 npx tsc --noEmit && pnpm test
 ```
 
+## Current Product Behavior
+
+- DoneWell Audio is advisory only. It never inserts itself into the live audio output path.
+- A brand-new session starts from the historical fresh-start speech snapshot at `25 dB`.
+- The explicit `speech` mode baseline is `20 dB`.
+- `Reset All` returns to the fresh-start snapshot, not the raw speech baseline.
+- Room presets are relative offsets layered on top of the active mode baseline.
+- The `Perceptual` spectrum view changes the graph only. It does not change detector behavior.
+
 ## Detection Pipeline
 
 ```text
@@ -52,32 +61,48 @@ Mic -> getUserMedia -> GainNode -> AnalyserNode
   -> FeedbackDetector.analyze() on the main thread
     -> peak candidate + spectrum + time-domain transfer to worker
       -> algorithm scoring
-      -> fuseAlgorithmResults()
-      -> classifyTrackWithAlgorithms()
-      -> generateEQAdvisory()
-      -> advisory + track summaries back to the UI
+      -> fusion + gates
+      -> track classification
+      -> EQ recommendation
+      -> advisory update back to the UI
 ```
 
-The important design choice is that recall and suppression are both handled explicitly. The worker is tuned to surface real feedback early enough to be useful, but it still applies content-aware fusion, post-fusion gates, and mode-specific reporting rules so stable speech, musical tones, hum families, and compressed content do not all collapse into the same verdict.
+The design goal is not "detect every narrow peak." The worker is tuned to surface real feedback early enough to act on while still suppressing common speech, music, hum, room-mode, and compressed-content false positives.
 
 ## Accuracy And Tuning Workflow
 
-The repo now has two complementary evaluation lanes:
+The repo has two complementary evaluation lanes:
 
-- Synthetic fusion oracle: `npx tsx --tsconfig autoresearch/tsconfig.json autoresearch/evaluate.ts`
-- Snapshot replay lane: `npx tsx --tsconfig autoresearch/tsconfig.json autoresearch/evaluateSnapshots.ts`
+- Synthetic fusion oracle:
+
+  ```bash
+  npx tsx --tsconfig autoresearch/tsconfig.json autoresearch/evaluate.ts
+  ```
+
+- Snapshot replay lane:
+
+  ```bash
+  npx tsx --tsconfig autoresearch/tsconfig.json autoresearch/evaluateSnapshots.ts
+  ```
 
 The snapshot lane replays labeled `SnapshotBatch` fixtures through the worker-side fusion, classifier, and advisory path. In the UI, `FALSE+`, `CONFIRM`, and `Missed Feedback` labels support continued tuning against real-world use.
 
+## Documentation Map
+
+- [CHANGELOG.md](CHANGELOG.md): branch-level release notes
+- [tests/README.md](tests/README.md): test structure and replay workflows
+- [docs/BEGINNER-GUIDE.md](docs/BEGINNER-GUIDE.md): first-stop codebase orientation
+- [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md): implementation and workflow guide
+- [docs/SYSTEM_ARCHITECTURE.md](docs/SYSTEM_ARCHITECTURE.md): runtime architecture and data flow
+- [docs/TECHNICAL_REFERENCE.md](docs/TECHNICAL_REFERENCE.md): current technical behavior and operating model
+- [docs/API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md): current HTTP surface
+- [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md): Companion and mixer integration notes
+- [docs/WIKI_SYNC.md](docs/WIKI_SYNC.md): source pages to sync into a separate GitHub wiki repo if you use one
+
 ## Important Constraints
 
-- DoneWell Audio is analysis-only. It does not apply EQ inside the browser audio path.
 - Use `pnpm`, not `npm` or `yarn`.
-- The hot path lives in `lib/dsp/feedbackDetector.ts` and the worker DSP pipeline. Tune with evidence, not assumptions.
-- Prefer current source files, tests, and help/wiki content over older historical audit notes when those disagree.
-
-## Additional Docs
-
-- In-app Help: operator guidance and algorithm reference
-- [tests/README.md](tests/README.md): test structure and replay workflows
-- Local wiki clone: `C:\projects\donewellaudio-wiki`
+- The hot path lives in `lib/dsp/feedbackDetector.ts` and the worker DSP pipeline.
+- Tune with evidence, not assumptions.
+- Prefer current source files, tests, and in-app help over older archived audit notes when they disagree.
+- The GitHub wiki is not checked into this repo. Sync it from the Markdown docs if you maintain a separate wiki clone.

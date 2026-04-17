@@ -1,8 +1,9 @@
 // DoneWell Audio EQ Advisor - GEQ/PEQ recommendations with pitch translation
 
 import { ISO_31_BANDS, EQ_PRESETS, ERB_SETTINGS, SPECTRAL_TRENDS, VIZ_COLORS, VIZ_COLORS_LIGHT } from './constants'
-import { hzToPitch, formatPitch } from '@/lib/utils/pitchUtils'
+import { hzToPitch, formatFrequencyRange, formatPitch } from '@/lib/utils/pitchUtils'
 import { clamp } from '@/lib/utils/mathHelpers'
+import { summarizeShelfRecommendations } from '@/lib/utils/recommendationDisplay'
 import type { 
   Track, 
   TrackedPeak,
@@ -289,9 +290,16 @@ export function generatePEQRecommendation(
   const q = clusterAwareQ(baseQ, freqHz, clusterMinHz, clusterMaxHz)
   // Pass through measured bandwidth from detector (if available)
   const measuredBandwidth = 'bandwidthHz' in track ? track.bandwidthHz : undefined
+  const widenedForCluster =
+    clusterMinHz !== undefined &&
+    clusterMaxHz !== undefined &&
+    clusterMinHz < clusterMaxHz &&
+    q < baseQ
 
   // Determine filter type
   let type: PEQRecommendation['type'] = 'bell'
+  let strategy: PEQRecommendation['strategy'] = 'narrow-cut'
+  let reason: string | undefined
 
   if (severity === 'RUNAWAY') {
     // Use notch for runaway (very narrow, deep cut)
@@ -299,9 +307,18 @@ export function generatePEQRecommendation(
   } else if (freqHz < 80) {
     // Suggest HPF for very low frequencies
     type = 'HPF'
+    strategy = 'broad-region'
+    reason = 'Low-frequency buildup is better handled with a broader filter than a narrow notch.'
   } else if (freqHz > 12000) {
     // Suggest LPF for very high frequencies
     type = 'LPF'
+    strategy = 'broad-region'
+    reason = 'Top-end spill this high is usually better handled with a broader filter than a narrow notch.'
+  }
+
+  if (widenedForCluster) {
+    strategy = 'broad-region'
+    reason = `Q widened to cover the unstable region from ${formatFrequencyRange(clusterMinHz, clusterMaxHz)}.`
   }
 
   return {
@@ -310,6 +327,8 @@ export function generatePEQRecommendation(
     q,
     gainDb: suggestedDb,
     bandwidthHz: measuredBandwidth,
+    strategy,
+    reason,
   }
 }
 
@@ -491,6 +510,7 @@ export function generateEQAdvisory(
     shelves,
     pitch,
     recommendationContext: normalizedContext,
+    tonalIssueSummary: summarizeShelfRecommendations(shelves) ?? undefined,
   }
 }
 
@@ -511,10 +531,17 @@ export function formatEQRecommendation(advisory: EQAdvisory): string {
   if (peq.gainDb < 0) {
     const typeStr = peq.type === 'notch' ? 'Notch' : peq.type === 'bell' ? 'Bell' : peq.type
     parts.push(`PEQ: ${typeStr} at ${peq.hz.toFixed(1)}Hz, Q=${peq.q.toFixed(1)}, ${peq.gainDb}dB`)
+    if (peq.reason) {
+      parts.push(`Strategy: ${peq.reason}`)
+    }
   }
 
   // Pitch info
   parts.push(`Pitch: ${formatPitch(pitch)}`)
+
+  if (advisory.tonalIssueSummary) {
+    parts.push(`Broad tonal note: ${advisory.tonalIssueSummary}`)
+  }
 
   return parts.join(' | ')
 }

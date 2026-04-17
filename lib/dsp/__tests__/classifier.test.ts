@@ -164,6 +164,45 @@ describe('shouldReportIssue', () => {
     expect(shouldReportIssue(classification, makeSettings())).toBe(true)
   })
 
+  it('suppresses speech-like growing advisories in speech mode unless fusion is definitive', () => {
+    const classification = makeClassification({
+      severity: 'GROWING',
+      fusionVerdict: 'POSSIBLE_FEEDBACK',
+      speechLikePattern: true,
+      confidence: 0.95,
+    })
+
+    expect(shouldReportIssue(classification, makeSettings({ mode: 'speech' }))).toBe(false)
+    expect(shouldReportIssue(classification, makeSettings({ mode: 'liveMusic' }))).toBe(true)
+    expect(shouldReportIssue(
+      { ...classification, fusionVerdict: 'FEEDBACK' },
+      makeSettings({ mode: 'speech' }),
+    )).toBe(true)
+  })
+
+  it('suppresses low-band room-risk possible feedback outside monitor and ringOut modes', () => {
+    const classification = makeClassification({
+      fusionVerdict: 'POSSIBLE_FEEDBACK',
+      confidence: 0.8,
+      pFeedback: 0.49,
+      roomModeRisk: true,
+      frequencyBand: 'LOW',
+    })
+
+    expect(shouldReportIssue(classification, makeSettings({
+      mode: 'speech',
+      roomPreset: 'small',
+    }))).toBe(false)
+    expect(shouldReportIssue(classification, makeSettings({
+      mode: 'monitors',
+      roomPreset: 'small',
+    }))).toBe(true)
+    expect(shouldReportIssue(classification, makeSettings({
+      mode: 'ringOut',
+      roomPreset: 'small',
+    }))).toBe(true)
+  })
+
   it('rejects low-confidence results below threshold', () => {
     const classification = makeClassification({
       severity: 'RESONANCE',
@@ -435,6 +474,78 @@ describe('classifyTrack', () => {
 
     const result = classifyTrack(track)
     expect(result.severity).toBe('RUNAWAY')
+  })
+
+  it('holds speech-like building peaks at resonance instead of escalating to growing', () => {
+    const track = makeTrack({
+      trueFrequencyHz: 850,
+      trueAmplitudeDb: -20,
+      onsetDb: -25,
+      prominenceDb: 15,
+      features: {
+        stabilityCentsStd: 5,
+        harmonicityScore: 0.18,
+        modulationScore: 0.08,
+        noiseSidebandScore: 0.04,
+        meanQ: 8,
+        minQ: 8,
+        meanVelocityDbPerSec: 0.3,
+        maxVelocityDbPerSec: 0.5,
+        persistenceMs: 1200,
+      },
+      velocityDbPerSec: 0.3,
+      qEstimate: 8,
+      bandwidthHz: 80,
+    })
+
+    const result = classifyTrack(
+      track,
+      makeSettings({ mode: 'speech', roomPreset: 'none' }),
+      [550, 850, 2400],
+    )
+
+    expect(result.speechLikePattern).toBe(true)
+    expect(result.severity).toBe('RESONANCE')
+    expect(result.reasons).toContain('Early warning held at resonance: speech-like formant pattern')
+    expect(result.reasons.some((reason) => reason.includes('Formant gate'))).toBe(true)
+  })
+
+  it('marks low-band room-mode clusters as room-risk and keeps building alerts at resonance', () => {
+    const track = makeTrack({
+      trueFrequencyHz: 90,
+      trueAmplitudeDb: -18,
+      onsetDb: -22,
+      prominenceDb: 12,
+      features: {
+        stabilityCentsStd: 4,
+        harmonicityScore: 0.22,
+        modulationScore: 0.05,
+        noiseSidebandScore: 0.03,
+        meanQ: 9,
+        minQ: 9,
+        meanVelocityDbPerSec: 0.4,
+        maxVelocityDbPerSec: 0.7,
+        persistenceMs: 1500,
+      },
+      velocityDbPerSec: 0.4,
+      qEstimate: 9,
+      bandwidthHz: 10,
+    })
+
+    const result = classifyTrack(track, makeSettings({
+      mode: 'speech',
+      roomPreset: 'small',
+      roomRT60: 0.4,
+      roomVolume: 80,
+      roomLengthM: 6.1,
+      roomWidthM: 4.6,
+      roomHeightM: 2.9,
+    }), [82, 90, 99])
+
+    expect(result.roomModeRisk).toBe(true)
+    expect(result.severity).toBe('RESONANCE')
+    expect(result.reasons).toContain('Early warning held at resonance: room-like low-frequency pattern')
+    expect(result.reasons.some((reason) => reason.includes('Room delta clamped'))).toBe(true)
   })
 
   it('three-class probabilities (pFeedback + pWhistle + pInstrument) sum to >= 1', () => {
@@ -787,6 +898,118 @@ describe('fusion-driven demotion', () => {
     expect(result.recommendationEligible).toBe(true)
     expect(result.reasons).toContain('Urgent growth retained despite conservative fusion verdict')
     expect(shouldReportIssue(result, settings)).toBe(true)
+  })
+
+  it('speech-like possible feedback stays suppressed in speech mode while liveMusic can still surface it', () => {
+    const track = makeTrack({
+      trueFrequencyHz: 850,
+      trueAmplitudeDb: -20,
+      onsetDb: -25,
+      prominenceDb: 15,
+      features: {
+        stabilityCentsStd: 5,
+        harmonicityScore: 0.18,
+        modulationScore: 0.08,
+        noiseSidebandScore: 0.04,
+        meanQ: 8,
+        minQ: 8,
+        meanVelocityDbPerSec: 0.3,
+        maxVelocityDbPerSec: 0.5,
+        persistenceMs: 1200,
+      },
+      velocityDbPerSec: 0.3,
+      qEstimate: 8,
+      bandwidthHz: 80,
+    })
+    const scores = buildScores({
+      msd: 0.88,
+      phase: 0.82,
+      spectral: 0.52,
+      ihr: 0.2,
+      ptmr: 0.58,
+      msdFrames: 20,
+    })
+    const fusion: FusedDetectionResult = {
+      feedbackProbability: 0.62,
+      confidence: 0.58,
+      contributingAlgorithms: ['msd', 'phase', 'spectral'],
+      algorithmScores: scores,
+      verdict: 'POSSIBLE_FEEDBACK',
+      reasons: ['borderline voiced source'],
+    }
+
+    const speechSettings = makeSettings({ mode: 'speech', roomPreset: 'none' })
+    const liveMusicSettings = makeSettings({ mode: 'liveMusic', roomPreset: 'none' })
+    const result = classifyTrackWithAlgorithms(track, scores, fusion, speechSettings, [550, 850, 2400])
+
+    expect(result.speechLikePattern).toBe(true)
+    expect(result.severity).toBe('RESONANCE')
+    expect(shouldReportIssue(result, speechSettings)).toBe(false)
+    expect(shouldReportIssue(result, liveMusicSettings)).toBe(true)
+  })
+
+  it('low-band room-risk possible feedback stays suppressed outside monitor-focused modes', () => {
+    const track = makeTrack({
+      trueFrequencyHz: 90,
+      trueAmplitudeDb: -18,
+      onsetDb: -22,
+      prominenceDb: 12,
+      features: {
+        stabilityCentsStd: 4,
+        harmonicityScore: 0.22,
+        modulationScore: 0.05,
+        noiseSidebandScore: 0.03,
+        meanQ: 9,
+        minQ: 9,
+        meanVelocityDbPerSec: 0.4,
+        maxVelocityDbPerSec: 0.7,
+        persistenceMs: 1500,
+      },
+      velocityDbPerSec: 0.4,
+      qEstimate: 9,
+      bandwidthHz: 10,
+    })
+    const scores = buildScores({
+      msd: 0.78,
+      phase: 0.72,
+      spectral: 0.48,
+      ihr: 0.3,
+      ptmr: 0.45,
+      msdFrames: 20,
+    })
+    const fusion: FusedDetectionResult = {
+      feedbackProbability: 0.49,
+      confidence: 0.43,
+      contributingAlgorithms: ['msd', 'phase'],
+      algorithmScores: scores,
+      verdict: 'POSSIBLE_FEEDBACK',
+      reasons: ['borderline low-band evidence'],
+    }
+
+    const speechSettings = makeSettings({
+      mode: 'speech',
+      roomPreset: 'small',
+      roomRT60: 0.4,
+      roomVolume: 80,
+      roomLengthM: 6.1,
+      roomWidthM: 4.6,
+      roomHeightM: 2.9,
+    })
+    const monitorsSettings = makeSettings({
+      mode: 'monitors',
+      roomPreset: 'small',
+      roomRT60: 0.4,
+      roomVolume: 80,
+      roomLengthM: 6.1,
+      roomWidthM: 4.6,
+      roomHeightM: 2.9,
+    })
+    const result = classifyTrackWithAlgorithms(track, scores, fusion, speechSettings, [82, 90, 99])
+
+    expect(result.roomModeRisk).toBe(true)
+    expect(result.severity).toBe('RESONANCE')
+    expect(shouldReportIssue(result, speechSettings)).toBe(false)
+    expect(shouldReportIssue(result, monitorsSettings)).toBe(true)
   })
 })
 

@@ -42,9 +42,33 @@ export const AutoDetectRoomSection = memo(function AutoDetectRoomSection({
     <Section
       title="Auto-Detect Room"
       showTooltip={showTooltips}
-      tooltip="Listens for room resonances at high sensitivity and estimates room dimensions from their frequencies. Works best with no audio playing - just the room's natural resonance. Requires analysis to be running."
+      tooltip="Listens for low-frequency room resonances and estimates dimensions from their spacing. This is a resonance-derived estimate, not a full room analysis. Results are position-sensitive, work best in quiet conditions, and are most trustworthy in the low-frequency modal region. Requires analysis to be running."
     >
       <div className="space-y-3">
+        <div className="rounded border border-border/40 bg-card/40 px-3 py-2.5">
+          <p className="text-xs text-muted-foreground font-mono leading-relaxed">
+            Resonance-derived estimate only. Move the mic or speaker and the dominant
+            modes can change, so treat this as a low-frequency sizing clue rather than
+            a full room characterization.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 @[340px]:grid-cols-2 gap-2">
+          <div className="rounded border border-border/40 bg-card/40 px-3 py-2.5">
+            <p className="text-xs font-mono uppercase tracking-wide text-[var(--console-green)]">Best For</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Low-frequency resonance, modal spacing, and rough room-size clues.
+            </p>
+          </div>
+
+          <div className="rounded border border-border/40 bg-card/40 px-3 py-2.5">
+            <p className="text-xs font-mono uppercase tracking-wide text-[var(--console-amber)]">Not For</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Early reflections, speech smear, or narrow high-frequency feedback calls.
+            </p>
+          </div>
+        </div>
+
         <div className="flex items-center gap-2">
           {roomMeasuring ? (
             <button
@@ -76,7 +100,7 @@ export const AutoDetectRoomSection = memo(function AutoDetectRoomSection({
 
         {!isRunning && !roomMeasuring ? (
           <p className="text-sm text-muted-foreground font-mono">
-            Start analysis first, then measure room dimensions from detected resonances.
+            Start analysis first, then estimate room dimensions from detected low-frequency resonances.
           </p>
         ) : null}
 
@@ -129,6 +153,11 @@ export const AutoDetectRoomSection = memo(function AutoDetectRoomSection({
               <span>{roomEstimate.seriesFound}/3 axes found</span>
               <span>&bull;</span>
               <span>+/-{roomEstimate.residualError.toFixed(1)}Hz</span>
+            </div>
+
+            <div className="rounded border border-border/30 bg-card/30 px-3 py-2 text-sm text-muted-foreground">
+              Use this estimate to understand low-frequency modal context. Do not use it to judge
+              early reflections, speech clarity, or whether a single high-frequency peak is true feedback.
             </div>
 
             {roomEstimate.detectedSeries.map((series, index) => (

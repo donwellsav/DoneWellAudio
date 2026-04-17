@@ -7,7 +7,7 @@
  * Values are sourced from:
  *   - OPERATION_MODES in lib/dsp/constants.ts (lines 417-632)
  *   - ROOM_PRESETS in lib/dsp/constants.ts (lines 709-766)
- *   - DEFAULT_SETTINGS in lib/dsp/constants.ts (derived Speech snapshot)
+ *   - DEFAULT_SETTINGS in lib/dsp/constants.ts (fresh-start compatibility snapshot)
  *   - Mode baselines in lib/settings/modeBaselines.ts
  *   - Environment templates in lib/settings/environmentTemplates.ts
  *
@@ -98,7 +98,9 @@ describe('deriveDetectorSettings — display passthrough', () => {
     expect(derived.showAlgorithmScores).toBe(DEFAULT_DISPLAY_PREFS.showAlgorithmScores)
     expect(derived.showPeqDetails).toBe(DEFAULT_DISPLAY_PREFS.showPeqDetails)
     expect(derived.showFreqZones).toBe(DEFAULT_DISPLAY_PREFS.showFreqZones)
+    expect(derived.showRoomModeLines).toBe(DEFAULT_DISPLAY_PREFS.showRoomModeLines)
     expect(derived.spectrumWarmMode).toBe(DEFAULT_DISPLAY_PREFS.spectrumWarmMode)
+    expect(derived.spectrumSmoothingMode).toBe(DEFAULT_DISPLAY_PREFS.spectrumSmoothingMode)
     expect(derived.rtaDbMin).toBe(DEFAULT_DISPLAY_PREFS.rtaDbMin)
     expect(derived.rtaDbMax).toBe(DEFAULT_DISPLAY_PREFS.rtaDbMax)
     expect(derived.spectrumLineWidth).toBe(DEFAULT_DISPLAY_PREFS.spectrumLineWidth)
@@ -113,7 +115,7 @@ describe('deriveDetectorSettings — display passthrough', () => {
   })
 
   it('custom display prefs override defaults', () => {
-    const customDisplay = { ...DEFAULT_DISPLAY_PREFS, graphFontSize: 22, showAlgorithmScores: true }
+    const customDisplay = { ...DEFAULT_DISPLAY_PREFS, graphFontSize: 22, showAlgorithmScores: true, spectrumSmoothingMode: 'perceptual' as const }
     const derived = deriveDetectorSettings(
       MODE_BASELINES.speech,
       DEFAULT_ENVIRONMENT,
@@ -124,6 +126,7 @@ describe('deriveDetectorSettings — display passthrough', () => {
     )
     expect(derived.graphFontSize).toBe(22)
     expect(derived.showAlgorithmScores).toBe(true)
+    expect(derived.spectrumSmoothingMode).toBe('perceptual')
   })
 })
 

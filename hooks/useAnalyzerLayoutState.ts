@@ -27,6 +27,7 @@ type SpectrumDisplaySettings = Pick<
   | 'showRoomModeLines'
   | 'showThresholdLine'
   | 'spectrumWarmMode'
+  | 'spectrumSmoothingMode'
 >
 
 type SpectrumRangeSettings = Pick<
@@ -65,6 +66,7 @@ export function buildSpectrumDisplay(settings: SpectrumDisplaySettings): Spectru
     showRoomModeLines: settings.showRoomModeLines,
     showThresholdLine: settings.showThresholdLine,
     spectrumWarmMode: settings.spectrumWarmMode,
+    spectrumSmoothingMode: settings.spectrumSmoothingMode,
   }
 }
 
@@ -111,6 +113,7 @@ export function useAnalyzerLayoutState() {
     showRoomModeLines,
     showThresholdLine,
     spectrumWarmMode,
+    spectrumSmoothingMode,
     minFrequency,
     maxFrequency,
     feedbackThresholdDb,
@@ -127,6 +130,7 @@ export function useAnalyzerLayoutState() {
       showRoomModeLines,
       showThresholdLine,
       spectrumWarmMode,
+      spectrumSmoothingMode,
     }),
     [
       graphFontSize,
@@ -138,6 +142,7 @@ export function useAnalyzerLayoutState() {
       showRoomModeLines,
       showThresholdLine,
       spectrumWarmMode,
+      spectrumSmoothingMode,
     ],
   )
 

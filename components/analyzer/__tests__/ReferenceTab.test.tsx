@@ -5,12 +5,13 @@ import { render, screen } from '@testing-library/react'
 import { ReferenceTab } from '@/components/analyzer/help/ReferenceTab'
 
 describe('ReferenceTab', () => {
-  it('shows startup defaults from the canonical Speech profile', () => {
+  it('shows fresh-start defaults and the separate Speech mode baseline', () => {
     render(<ReferenceTab />)
 
-    expect(screen.getByText('Startup Defaults')).toBeDefined()
-    expect(screen.getByText('20 dB')).toBeDefined()
+    expect(screen.getByText('Fresh-Start Defaults')).toBeDefined()
+    expect(screen.getByText('25 dB')).toBeDefined()
+    expect(screen.getByText('20 dB baseline')).toBeDefined()
     expect(screen.getByText('1000 ms')).toBeDefined()
-    expect(screen.getByText(/switching modes changes mode-owned defaults/i)).toBeDefined()
+    expect(screen.getByText(/explicit speech mode itself runs at a 20 dB baseline/i)).toBeDefined()
   })
 })

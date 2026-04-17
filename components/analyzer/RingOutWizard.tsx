@@ -31,6 +31,7 @@ export const RingOutWizard = memo(function RingOutWizard({
     notched,
     currentAdvisory,
     companionEnabled,
+    patternWarnings,
     handleNext,
     handleSkip,
     handleFinish,
@@ -72,6 +73,7 @@ export const RingOutWizard = memo(function RingOutWizard({
       advisories={advisories}
       companionEnabled={companionEnabled}
       notched={notched}
+      patternWarnings={patternWarnings}
       onDone={onFinish}
       onExport={handleExport}
       onSendAll={handleSendAll}

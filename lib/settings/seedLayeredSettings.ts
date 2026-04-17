@@ -269,6 +269,7 @@ export function applyInitialDetectorSettings(
   if (initialSettings.showFreqZones !== undefined) display.showFreqZones = initialSettings.showFreqZones
   if (initialSettings.showRoomModeLines !== undefined) display.showRoomModeLines = initialSettings.showRoomModeLines
   if (initialSettings.spectrumWarmMode !== undefined) display.spectrumWarmMode = initialSettings.spectrumWarmMode
+  if (initialSettings.spectrumSmoothingMode !== undefined) display.spectrumSmoothingMode = initialSettings.spectrumSmoothingMode
   if (initialSettings.rtaDbMin !== undefined) display.rtaDbMin = initialSettings.rtaDbMin
   if (initialSettings.rtaDbMax !== undefined) display.rtaDbMax = initialSettings.rtaDbMax
   if (initialSettings.spectrumLineWidth !== undefined) display.spectrumLineWidth = initialSettings.spectrumLineWidth

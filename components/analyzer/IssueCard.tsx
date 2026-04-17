@@ -4,6 +4,7 @@ import { memo, useEffect, useState } from 'react'
 import { AlertTriangle, Check, TrendingUp } from 'lucide-react'
 import { confidenceColor, RUNAWAY_COLOR } from '@/lib/canvas/canvasTokens'
 import { getSeverityText } from '@/lib/utils/advisoryDisplay'
+import { getRecommendationStrategyLabel } from '@/lib/utils/recommendationDisplay'
 import { IssueCardActions } from './IssueCardActions'
 import {
   SEVERITY_ENTER_CLASS,
@@ -93,6 +94,14 @@ export const IssueCard = memo(function IssueCard({
   const ageSec = Math.max(0, Math.round((nowMs - advisory.timestamp) / 1000))
   const ageStr = ageSec < 5 ? 'just now' : ageSec < 60 ? `${ageSec}s` : `${Math.floor(ageSec / 60)}m`
   const SeverityIconEl = SEVERITY_ICON[advisory.severity] ?? null
+  const strategyLabel = getRecommendationStrategyLabel(advisory.advisory?.peq)
+  const strategyReason = advisory.advisory?.peq?.reason
+  const operatorNote =
+    isClustered
+      ? `Broader region: merged ${advisory.clusterCount} nearby peaks. If this keeps returning, recheck placement or broad EQ before stacking more narrow cuts.`
+      : occurrenceCount >= 3
+        ? 'Repeat band: if this keeps coming back, recheck mic and speaker geometry or broad EQ before stacking more cuts.'
+        : null
 
   return (
     <div
@@ -343,9 +352,20 @@ export const IssueCard = memo(function IssueCard({
 
         <div className="flex items-center gap-1.5 text-sm font-mono leading-none">
           {advisory.advisory?.peq ? (
-            <span style={{ color: severityColor, opacity: 0.8 }}>
-              <span className="font-bold">{advisory.advisory.peq.gainDb}dB</span> Q:{Math.round(advisory.advisory.peq.q)}
-            </span>
+            <>
+              <span style={{ color: severityColor, opacity: 0.8 }}>
+                <span className="font-bold">{advisory.advisory.peq.gainDb}dB</span> Q:{Math.round(advisory.advisory.peq.q)}
+              </span>
+              {strategyLabel ? (
+                <span className={`text-[9px] uppercase tracking-wide ${
+                  advisory.advisory.peq.strategy === 'broad-region'
+                    ? 'text-blue-300/70'
+                    : 'text-muted-foreground/45'
+                }`}>
+                  {strategyLabel}
+                </span>
+              ) : null}
+            </>
           ) : null}
           {velocity > 0 && !isResolved ? (
             <span className={`flex items-center gap-0.5 ${
@@ -402,6 +422,18 @@ export const IssueCard = memo(function IssueCard({
               {advisory.advisory.peq.bandwidthHz != null ? ` | BW:${advisory.advisory.peq.bandwidthHz.toFixed(0)}Hz` : ''}
             </span>
           </div>
+        ) : null}
+
+        {strategyReason ? (
+          <p className="text-[9px] font-mono text-blue-300/70 leading-relaxed">
+            {strategyReason}
+          </p>
+        ) : null}
+
+        {operatorNote ? (
+          <p className="text-[9px] font-mono text-muted-foreground/55 leading-relaxed">
+            {operatorNote}
+          </p>
         ) : null}
 
         {actionsLayout === 'mobile' ? (

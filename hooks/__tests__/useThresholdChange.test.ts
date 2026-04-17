@@ -69,7 +69,7 @@ describe('useThresholdChange', () => {
   it('computes correct sensitivity offset delta from absolute dB threshold', () => {
     // speech baseline = 20 dB, feedbackOffsetDb = 0, sensitivityOffsetDb = 0
     // effective = 20 + 0 + 0 = 20
-    // dragging to 25 dB → delta = 25 - 20 = 5 → new offset = 0 + 5 = 5
+    // dragging to 30 dB → delta = 30 - 20 = 10 → new offset = 0 + 10 = 10
     const session = makeSession({ modeId: 'speech' })
     const setSensitivityOffset = vi.fn()
 
@@ -77,12 +77,12 @@ describe('useThresholdChange', () => {
       useThresholdChange(session, setSensitivityOffset),
     )
 
-    result.current(25)
+    result.current(30)
 
     const bl = MODE_BASELINES.speech.feedbackThresholdDb
     expect(bl).toBe(20) // sanity-check baseline
     expect(setSensitivityOffset).toHaveBeenCalledTimes(1)
-    expect(setSensitivityOffset).toHaveBeenCalledWith(5)
+    expect(setSensitivityOffset).toHaveBeenCalledWith(10)
   })
 
   it('does NOT call setSensitivityOffset when delta is 0', () => {
@@ -102,7 +102,7 @@ describe('useThresholdChange', () => {
   it('accounts for feedbackOffsetDb and sensitivityOffsetDb in the delta', () => {
     // speech baseline = 20, feedbackOffsetDb = 3, sensitivityOffsetDb = 2
     // effective = 20 + 3 + 2 = 25
-    // drag to 30 → delta = 30 - 25 = 5 → new offset = 2 + 5 = 7
+    // drag to 35 → delta = 35 - 25 = 10 → new offset = 2 + 10 = 12
     const session = makeSession({
       modeId: 'speech',
       feedbackOffsetDb: 3,
@@ -114,10 +114,10 @@ describe('useThresholdChange', () => {
       useThresholdChange(session, setSensitivityOffset),
     )
 
-    result.current(30)
+    result.current(35)
 
     expect(setSensitivityOffset).toHaveBeenCalledTimes(1)
-    expect(setSensitivityOffset).toHaveBeenCalledWith(7)
+    expect(setSensitivityOffset).toHaveBeenCalledWith(12)
   })
 
   it('handles negative delta (dragging threshold lower)', () => {

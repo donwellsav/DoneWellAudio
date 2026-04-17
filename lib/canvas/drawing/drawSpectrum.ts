@@ -21,6 +21,7 @@ export function drawSpectrum(
   plotHeight: number,
   range: DbRange,
   spectrum: SpectrumData | null,
+  displayFreqDb: Float32Array | null,
   gradientRef: { current: CanvasGradient | null },
   gradientHeightRef: { current: number },
   spectrumLineWidth: number,
@@ -29,9 +30,9 @@ export function drawSpectrum(
   theme: CanvasTheme = DARK_CANVAS_THEME,
   dtSeconds: number = 0.04,
 ) {
-  if (!spectrum?.freqDb || !spectrum.sampleRate || !spectrum.fftSize) return
+  if (!spectrum?.freqDb || !displayFreqDb || !spectrum.sampleRate || !spectrum.fftSize) return
 
-  const freqDb = spectrum.freqDb
+  const freqDb = displayFreqDb
   const hzPerBin = spectrum.sampleRate / spectrum.fftSize
   const n = freqDb.length
 
