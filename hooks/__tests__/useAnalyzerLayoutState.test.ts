@@ -65,6 +65,7 @@ function makeSettings(overrides: Partial<DetectorSettings> = {}): DetectorSettin
     showRoomModeLines: false,
     showThresholdLine: true,
     spectrumWarmMode: true,
+    spectrumSmoothingMode: 'raw',
     minFrequency: 80,
     maxFrequency: 12000,
     feedbackThresholdDb: 24,
@@ -133,6 +134,7 @@ describe('useAnalyzerLayoutState helpers', () => {
       showRoomModeLines: true,
       showThresholdLine: false,
       spectrumWarmMode: false,
+      spectrumSmoothingMode: 'perceptual',
     })
 
     expect(buildSpectrumDisplay(settings)).toEqual({
@@ -145,6 +147,7 @@ describe('useAnalyzerLayoutState helpers', () => {
       showRoomModeLines: true,
       showThresholdLine: false,
       spectrumWarmMode: false,
+      spectrumSmoothingMode: 'perceptual',
     })
   })
 

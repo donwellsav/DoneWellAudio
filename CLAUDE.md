@@ -392,18 +392,24 @@ scripts/ml/                     # ML training pipeline
 - **Build gate:** `npx tsc --noEmit && pnpm test && pnpm build` — all must pass
 - **Export formats:** PDF uses dynamic `import()` to avoid bundling jsPDF unless needed; CSV/JSON/TXT are synchronous
 
-## Operation Modes (8 presets in constants.ts)
+## Operation Modes (8 presets)
 
-| Mode | Threshold (dB) | Silence (dBFS) | MSD Weight | Use Case |
-|------|---------------|----------------|------------|----------|
-| speech | 27 | -65 | 0.33 | Conferences, lectures |
-| worship | 35 | -58 | 0.33 | Churches (reverberant) |
-| liveMusic | 42 | -45 | 0.08 | Concerts (dense harmonics) |
-| theater | 28 | -58 | 0.33 | Drama, musicals |
-| monitors | 15 | -45 | 0.33 | Stage wedges (fastest) |
-| ringOut | 2 | -70 | 0.33 | Calibration (most sensitive) |
-| broadcast | 22 | -70 | 0.33 | Studios, podcasts |
-| outdoor | 38 | -45 | 0.33 | Festivals (wind-resistant) |
+Mode baselines are defined canonically in `lib/settings/modeBaselines.ts` and mirrored in `OPERATION_MODES` (`lib/dsp/constants/presetConstants.ts`). A test in `SettingsDefaultsAlignment.test.tsx` asserts the two stay aligned field-by-field. The separate `DEFAULT_SETTINGS` export is a fresh-start compatibility snapshot for a brand-new Speech session and intentionally stays at 25 dB via a startup-only live sensitivity offset; do not read it as the Speech mode baseline itself.
+
+| Mode | feedbackThresholdDb | ringThresholdDb | Silence (dBFS) | Use Case |
+|------|---------------------|-----------------|----------------|----------|
+| speech | 20 | 5 | -65 | Conferences, lectures |
+| worship | 35 | 5 | -58 | Churches (reverberant) |
+| liveMusic | 42 | 8 | -45 | Concerts (dense harmonics) |
+| theater | 28 | 4 | -58 | Drama, musicals |
+| monitors | 15 | 3 | -45 | Stage wedges (fastest) |
+| ringOut | 27 | 2 | -70 | Calibration (most sensitive ring-out trigger) |
+| broadcast | 22 | 3 | -70 | Studios, podcasts |
+| outdoor | 38 | 6 | -45 | Festivals (wind-resistant) |
+
+**Fusion weights are per content type, not per mode.** See `FUSION_WEIGHTS` in `lib/dsp/fusionEngine.ts` — weights are keyed by `DEFAULT / SPEECH / MUSIC / COMPRESSED`, selected at runtime by the content classifier, not by the user-selected mode.
+
+Silence thresholds live in `MODE_SILENCE_THRESHOLDS` (`lib/dsp/constants/detectionConstants.ts`).
 
 ## CI/CD
 

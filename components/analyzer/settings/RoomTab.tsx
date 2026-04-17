@@ -5,6 +5,7 @@ import type { DetectorSettings } from '@/types/advisory'
 import type { EnvironmentSelection, RoomTemplateId } from '@/types/settings'
 import { useRoomTabState } from '@/hooks/useRoomTabState'
 import { AutoDetectRoomSection } from './room/AutoDetectRoomSection'
+import { MeasurementInterpretationSection } from './room/MeasurementInterpretationSection'
 import { RoomPhysicsSection } from './room/RoomPhysicsSection'
 
 interface RoomTabProps {
@@ -42,6 +43,8 @@ export const RoomTab = memo(function RoomTab({
         unit={settings.roomDimensionsUnit ?? 'feet'}
         onApplyEstimate={applyMeasuredEstimate}
       />
+
+      <MeasurementInterpretationSection settings={settings} />
     </div>
   )
 })

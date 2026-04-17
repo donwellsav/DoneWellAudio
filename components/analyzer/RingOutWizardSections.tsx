@@ -14,6 +14,7 @@ import { formatFrequency } from '@/lib/utils/pitchUtils'
 import type { RoomMode } from '@/lib/dsp/acousticUtils'
 import type { Advisory } from '@/types/advisory'
 import {
+  isSameRingOutBand,
   findAdjacentMode,
   type NotchedFreq,
 } from '@/hooks/useRingOutWizardState'
@@ -86,6 +87,21 @@ export const RingOutListeningPhase = memo(function RingOutListeningPhase({
           Slowly raise the gain on your console until feedback appears
         </p>
 
+        <div className="glass-card rounded-lg p-3 max-w-[260px] text-left space-y-2">
+          <span className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-muted-foreground">
+            Before You Raise Gain
+          </span>
+          <ul className="space-y-1 font-mono text-[11px] text-muted-foreground leading-relaxed">
+            <li>Mute unused mics and speakers first.</li>
+            <li>Finish broad EQ and placement fixes before chasing narrow rings.</li>
+            <li>Use performers, wedges, and real show positions when possible.</li>
+          </ul>
+          <p className="font-mono text-[11px] text-muted-foreground/80 leading-relaxed">
+            This is a pre-show baseline. During the show, new cuts are backup only,
+            not the main tuning workflow.
+          </p>
+        </div>
+
         {!isRunning ? (
           <p className="font-mono text-xs text-destructive">
             Analysis not running - start analysis first
@@ -148,6 +164,10 @@ export const RingOutDetectedPhase = memo(function RingOutDetectedPhase({
   const color = getSeverityColor(advisory.severity, isDark)
   const pitch = `${advisory.advisory.pitch.note}${advisory.advisory.pitch.octave}`
   const adjacentMode = findAdjacentMode(advisory.trueFrequencyHz, roomModes)
+  const nearbyAcceptedCuts = notched.filter((entry) =>
+    isSameRingOutBand(entry.frequencyHz, advisory.trueFrequencyHz),
+  )
+  const isMergedRegion = (advisory.clusterCount ?? 1) > 1
 
   return (
     <div className="flex flex-col h-full p-3 gap-3">
@@ -202,6 +222,16 @@ export const RingOutDetectedPhase = memo(function RingOutDetectedPhase({
         </div>
       </div>
 
+      {isMergedRegion || nearbyAcceptedCuts.length > 0 ? (
+        <div className="glass-card rounded-lg p-2.5 border-blue-500/30 bg-blue-500/5">
+          <p className="font-mono text-[11px] text-blue-400 text-center leading-relaxed">
+            {isMergedRegion
+              ? `This detection merged ${advisory.clusterCount} nearby peaks. If the region feels broad or keeps shifting, check placement, reflections, or broad EQ before stacking more narrow cuts.`
+              : `This band already needed ${nearbyAcceptedCuts.length} accepted ${nearbyAcceptedCuts.length === 1 ? 'cut' : 'cuts'} during ring-out. Recheck mic and speaker geometry before adding more notches in the same region.`}
+          </p>
+        </div>
+      ) : null}
+
       {adjacentMode ? (
         <div className="glass-card rounded-lg p-2.5 border-amber-500/30 bg-amber-500/5">
           <p className="font-mono text-[11px] text-amber-400 text-center leading-relaxed">
@@ -213,7 +243,8 @@ export const RingOutDetectedPhase = memo(function RingOutDetectedPhase({
       ) : null}
 
       <p className="font-mono text-xs text-muted-foreground text-center">
-        Apply this cut on your console, then click Next
+        Apply this cut only if it is a stable narrow ring, then click Next. If the
+        band feels broad or unstable, stop and fix placement or broad EQ first.
       </p>
 
       <div className="flex gap-2">
@@ -254,6 +285,7 @@ interface RingOutSummaryPhaseProps {
   advisories: readonly Advisory[]
   companionEnabled: boolean
   notched: readonly NotchedFreq[]
+  patternWarnings: readonly string[]
   onDone: () => void
   onExport: () => void
   onSendAll: () => void
@@ -263,6 +295,7 @@ export const RingOutSummaryPhase = memo(function RingOutSummaryPhase({
   advisories,
   companionEnabled,
   notched,
+  patternWarnings,
   onDone,
   onExport,
   onSendAll,
@@ -308,6 +341,25 @@ export const RingOutSummaryPhase = memo(function RingOutSummaryPhase({
           </p>
         </div>
       )}
+
+      {patternWarnings.length > 0 ? (
+        <div className="glass-card rounded-lg p-3 space-y-2">
+          <span className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-muted-foreground">
+            Pattern Warnings
+          </span>
+          <ul className="space-y-1 font-mono text-[11px] text-muted-foreground leading-relaxed">
+            {patternWarnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      <p className="font-mono text-[11px] text-muted-foreground/80 leading-relaxed">
+        Treat this as your pre-show baseline. If you keep cutting the same region
+        during the show, that usually points to placement, reflections, or a broader
+        tonal problem rather than bad luck.
+      </p>
 
       <div className="flex gap-2">
         {notched.length > 0 ? (

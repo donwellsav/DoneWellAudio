@@ -64,7 +64,7 @@ function makeAdvisory(id: string, severity: SeverityLevel = 'POSSIBLE_RING', ove
     advisory: {
       geq: null,
       peq: { type: 'notch', hz: 1000, q: 4.0, gainDb: -6, bandwidthHz: 250 },
-      shelf: null,
+      shelves: [],
       pitch: { note: 'B', octave: 5, cents: +3 },
     },
     velocityDbPerSec: 0,
@@ -138,5 +138,27 @@ describe('IssuesList', () => {
         name: /send .* eq recommendation to mixer via companion/i,
       }),
     ).toBeNull()
+  })
+
+  it('renders broad tonal issues separately from acute feedback cards', () => {
+    const advisories = [
+      makeAdvisory('a1', 'GROWING', {
+        advisory: {
+          geq: { bandIndex: 15, bandHz: 1000, suggestedDb: -6 },
+          peq: { type: 'notch', hz: 1000, q: 4.0, gainDb: -6, bandwidthHz: 250 },
+          shelves: [
+            { type: 'HPF', hz: 80, gainDb: 0, reason: 'Low-end rumble detected' },
+            { type: 'lowShelf', hz: 300, gainDb: -3, reason: 'Mud buildup detected' },
+          ],
+          tonalIssueSummary: 'HPF at 80Hz for rumble | Low shelf -3dB @ 300Hz',
+          pitch: { note: 'B', octave: 5, cents: 3, midi: 83 },
+        },
+      }),
+    ]
+
+    render(<IssuesList advisories={advisories} isRunning />)
+
+    expect(screen.getByText(/broad tonal note/i)).toBeDefined()
+    expect(screen.getByText(/separate from the acute feedback cut/i)).toBeDefined()
   })
 })

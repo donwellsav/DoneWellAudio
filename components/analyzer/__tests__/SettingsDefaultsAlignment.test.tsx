@@ -10,6 +10,8 @@ import {
 } from '@/components/analyzer/settings/advancedSections/AdvancedDetectionSections'
 import { AdvancedTrackManagementSection } from '@/components/analyzer/settings/advancedSections/AdvancedEngineSections'
 import { deriveDefaultDetectorSettings } from '@/lib/settings/defaultDetectorSettings'
+import { DEFAULT_SETTINGS, OPERATION_MODES } from '@/lib/dsp/constants/presetConstants'
+import { MODE_BASELINES } from '@/lib/settings/modeBaselines'
 
 const { mockUseSettings, mockUseSetupTabExport } = vi.hoisted(() => ({
   mockUseSettings: vi.fn(),
@@ -208,5 +210,51 @@ describe('settings default alignment', () => {
     fireEvent.click(screen.getByRole('button', { name: 'reset-ag-target' }))
 
     expect(setAutoGain).toHaveBeenCalledWith(true, -18)
+  })
+})
+
+describe('mode table alignment invariants', () => {
+  const SHARED_FIELDS = [
+    'label',
+    'description',
+    'feedbackThresholdDb',
+    'ringThresholdDb',
+    'growthRateThreshold',
+    'fftSize',
+    'minFrequency',
+    'maxFrequency',
+    'sustainMs',
+    'clearMs',
+    'confidenceThreshold',
+    'prominenceDb',
+    'eqPreset',
+    'aWeightingEnabled',
+    'ignoreWhistle',
+  ] as const
+
+  it.each(Object.keys(OPERATION_MODES))(
+    'OPERATION_MODES[%s] agrees with MODE_BASELINES on every shared field',
+    (modeId) => {
+      const preset = OPERATION_MODES[modeId as keyof typeof OPERATION_MODES]
+      const baseline = MODE_BASELINES[modeId as keyof typeof MODE_BASELINES]
+
+      const presetRecord = preset as unknown as Record<string, unknown>
+      const baselineRecord = baseline as unknown as Record<string, unknown>
+      for (const field of SHARED_FIELDS) {
+        expect(
+          presetRecord[field],
+          `${modeId}.${field} drift`,
+        ).toBe(baselineRecord[field])
+      }
+    },
+  )
+
+  // Regression guard for the narrow v0.102.0 fix: speech mode stays at 20 dB,
+  // while the fresh-start compatibility snapshot remains 25 dB.
+  it('keeps speech mode defaults separate from the fresh-start snapshot', () => {
+    expect(MODE_BASELINES.speech.feedbackThresholdDb).toBe(20)
+    expect(OPERATION_MODES.speech.feedbackThresholdDb).toBe(20)
+    expect(deriveDefaultDetectorSettings('speech').feedbackThresholdDb).toBe(20)
+    expect(DEFAULT_SETTINGS.feedbackThresholdDb).toBe(25)
   })
 })

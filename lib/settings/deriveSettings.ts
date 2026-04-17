@@ -179,6 +179,7 @@ export function deriveDetectorSettings(
     showFreqZones: display.showFreqZones,
     showRoomModeLines: display.showRoomModeLines,
     spectrumWarmMode: display.spectrumWarmMode,
+    spectrumSmoothingMode: display.spectrumSmoothingMode,
     rtaDbMin: display.rtaDbMin,
     rtaDbMax: display.rtaDbMax,
     spectrumLineWidth: display.spectrumLineWidth,

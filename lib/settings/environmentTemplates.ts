@@ -2,7 +2,7 @@
  * Environment Templates — room preset data with relative offsets.
  *
  * Offsets are relative to the active mode baseline, not absolute thresholds.
- * They are derived from ROOM_PRESETS using the current Speech startup profile
+ * They are derived from ROOM_PRESETS using the current Speech mode baseline
  * as the reference:
  *   feedbackThresholdDb = 20
  *   ringThresholdDb = 5
@@ -10,7 +10,7 @@
  * Example: small room has feedbackThresholdDb=15 in ROOM_PRESETS.
  *   offset = 15 - 20 = -5
  *
- * This means "small room" makes you 5 dB more sensitive than whichever mode
+ * This means "small room" makes you 10 dB more sensitive than whichever mode
  * baseline is currently active.
  *
  * @see types/settings.ts for EnvironmentTemplate interface
@@ -22,7 +22,7 @@ import type { EnvironmentTemplate, RoomTemplateId } from '@/types/settings'
 /**
  * Frozen environment templates. Offsets stay relative to the Speech baseline.
  *
- * Derivation math (using Speech baseline as reference):
+ * Derivation math (using Speech baseline = 20 as reference):
  *   none:    23 - 20 = +3 → normalized to 0 (neutral, no room physics)
  *   small:   15 - 20 = -5
  *   medium:  23 - 20 = +3

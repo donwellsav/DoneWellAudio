@@ -14,7 +14,11 @@ import { renderHook, act } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useLayeredSettings } from '@/hooks/useLayeredSettings'
 import { MODE_BASELINES } from '@/lib/settings/modeBaselines'
-import { DEFAULT_DISPLAY_PREFS } from '@/lib/settings/defaults'
+import {
+  DEFAULT_DISPLAY_PREFS,
+  FRESH_START_FEEDBACK_THRESHOLD_DB,
+  FRESH_START_SENSITIVITY_OFFSET_DB,
+} from '@/lib/settings/defaults'
 import { ENVIRONMENT_TEMPLATES } from '@/lib/settings/environmentTemplates'
 
 afterEach(() => {
@@ -25,12 +29,12 @@ afterEach(() => {
 // ─── Mount / default state ───────────────────────────────────────────────────
 
 describe('useLayeredSettings — default state', () => {
-  it('produces derivedSettings matching speech mode on first mount', () => {
+  it('produces the fresh-start Speech snapshot on first mount', () => {
     const { result } = renderHook(() => useLayeredSettings())
     const ds = result.current.derivedSettings
 
     expect(ds.mode).toBe('speech')
-    expect(ds.feedbackThresholdDb).toBe(MODE_BASELINES.speech.feedbackThresholdDb)
+    expect(ds.feedbackThresholdDb).toBe(FRESH_START_FEEDBACK_THRESHOLD_DB)
     expect(ds.fftSize).toBe(MODE_BASELINES.speech.fftSize)
     expect(ds.minFrequency).toBe(MODE_BASELINES.speech.minFrequency)
     expect(ds.maxFrequency).toBe(MODE_BASELINES.speech.maxFrequency)
@@ -45,14 +49,26 @@ describe('useLayeredSettings — default state', () => {
     expect(ds.showAlgorithmScores).toBe(DEFAULT_DISPLAY_PREFS.showAlgorithmScores)
     expect(ds.graphFontSize).toBe(DEFAULT_DISPLAY_PREFS.graphFontSize)
     expect(ds.canvasTargetFps).toBe(DEFAULT_DISPLAY_PREFS.canvasTargetFps)
+    expect(ds.spectrumSmoothingMode).toBe(DEFAULT_DISPLAY_PREFS.spectrumSmoothingMode)
   })
 
-  it('session starts in speech mode with zero offsets', () => {
+  it('session starts in speech mode with the startup-only sensitivity bump', () => {
     const { result } = renderHook(() => useLayeredSettings())
 
     expect(result.current.session.modeId).toBe('speech')
-    expect(result.current.session.liveOverrides.sensitivityOffsetDb).toBe(0)
+    expect(result.current.session.liveOverrides.sensitivityOffsetDb).toBe(
+      FRESH_START_SENSITIVITY_OFFSET_DB,
+    )
     expect(result.current.session.environment.feedbackOffsetDb).toBe(0)
+  })
+
+  it('does not inject the fresh-start bump when explicit initial settings are provided', () => {
+    const { result } = renderHook(() => useLayeredSettings({ mode: 'speech' }))
+
+    expect(result.current.derivedSettings.feedbackThresholdDb).toBe(
+      MODE_BASELINES.speech.feedbackThresholdDb,
+    )
+    expect(result.current.session.liveOverrides.sensitivityOffsetDb).toBe(0)
   })
 
   it('applies initial detector overrides on mount', () => {
@@ -123,7 +139,11 @@ describe('useLayeredSettings — semantic actions', () => {
     act(() => result.current.setEnvironment({ templateId: 'small' }))
 
     const ds = result.current.derivedSettings
-    const expected = MODE_BASELINES.speech.feedbackThresholdDb + ENVIRONMENT_TEMPLATES.small.feedbackOffsetDb
+    const expected = (
+      MODE_BASELINES.speech.feedbackThresholdDb +
+      FRESH_START_SENSITIVITY_OFFSET_DB +
+      ENVIRONMENT_TEMPLATES.small.feedbackOffsetDb
+    )
     expect(ds.feedbackThresholdDb).toBe(expected)
   })
 
@@ -131,10 +151,15 @@ describe('useLayeredSettings — semantic actions', () => {
     const { result } = renderHook(() => useLayeredSettings())
     const thresholdBefore = result.current.derivedSettings.feedbackThresholdDb
 
-    act(() => result.current.updateDisplay({ showAlgorithmScores: true, graphFontSize: 22 }))
+    act(() => result.current.updateDisplay({
+      showAlgorithmScores: true,
+      graphFontSize: 22,
+      spectrumSmoothingMode: 'perceptual',
+    }))
 
     expect(result.current.derivedSettings.showAlgorithmScores).toBe(true)
     expect(result.current.derivedSettings.graphFontSize).toBe(22)
+    expect(result.current.derivedSettings.spectrumSmoothingMode).toBe('perceptual')
     expect(result.current.derivedSettings.feedbackThresholdDb).toBe(thresholdBefore)
   })
 
@@ -150,7 +175,12 @@ describe('useLayeredSettings — semantic actions', () => {
     act(() => result.current.resetAll())
 
     expect(result.current.derivedSettings.mode).toBe('speech')
-    expect(result.current.session.liveOverrides.sensitivityOffsetDb).toBe(0)
+    expect(result.current.session.liveOverrides.sensitivityOffsetDb).toBe(
+      FRESH_START_SENSITIVITY_OFFSET_DB,
+    )
+    expect(result.current.derivedSettings.feedbackThresholdDb).toBe(
+      FRESH_START_FEEDBACK_THRESHOLD_DB,
+    )
     expect(result.current.display.graphFontSize).toBe(DEFAULT_DISPLAY_PREFS.graphFontSize)
   })
 })
@@ -170,7 +200,9 @@ describe('useLayeredSettings — regression', () => {
 
     const stored = JSON.parse(localStorage.getItem('dwa-v2-session') ?? '{}')
     expect(stored.modeId).toBe('speech')
+    expect(stored.liveOverrides?.sensitivityOffsetDb).toBe(FRESH_START_SENSITIVITY_OFFSET_DB)
     expect(result.current.derivedSettings.mode).toBe('speech')
+    expect(result.current.derivedSettings.feedbackThresholdDb).toBe(FRESH_START_FEEDBACK_THRESHOLD_DB)
   })
 
   it('setEnvironment with displayUnit triggers recomputation (P2 fix)', () => {
@@ -227,6 +259,7 @@ describe('useLayeredSettings — persistence', () => {
     const { result: result2 } = renderHook(() => useLayeredSettings())
     // Session reset to default
     expect(result2.current.derivedSettings.mode).toBe('speech')
+    expect(result2.current.derivedSettings.feedbackThresholdDb).toBe(FRESH_START_FEEDBACK_THRESHOLD_DB)
     // Display prefs survived
     expect(result2.current.display.graphFontSize).toBe(25)
   })
@@ -270,6 +303,7 @@ describe('useLayeredSettings — storage backfill', () => {
 
     // New field should backfill from DEFAULT_DISPLAY_PREFS
     expect(result.current.display.showRoomModeLines).toBe(DEFAULT_DISPLAY_PREFS.showRoomModeLines)
+    expect(result.current.display.spectrumSmoothingMode).toBe(DEFAULT_DISPLAY_PREFS.spectrumSmoothingMode)
   })
 
   it('backfills missing nested session fields from defaults', () => {

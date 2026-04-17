@@ -18,6 +18,7 @@ import type {
   EnvironmentSelection,
   LiveOverrides,
 } from '@/types/settings'
+import { MODE_BASELINES } from '@/lib/settings/modeBaselines'
 
 /** Default environment: no room physics, neutral offsets */
 export const DEFAULT_ENVIRONMENT: EnvironmentSelection = {
@@ -53,6 +54,7 @@ export const DEFAULT_DISPLAY_PREFS: DisplayPrefs = {
   showFreqZones: false,
   showRoomModeLines: true,
   spectrumWarmMode: true,
+  spectrumSmoothingMode: 'raw',
   rtaDbMin: -100,
   rtaDbMax: 0,
   spectrumLineWidth: 0.5,
@@ -84,11 +86,41 @@ export const DEFAULT_DIAGNOSTICS: DiagnosticsProfile = {
 /** Default mic calibration profile */
 export const DEFAULT_MIC_PROFILE: MicCalibrationProfile = 'none'
 
-/** Default session state: speech mode, no room, no overrides */
+/**
+ * Fresh-start startup threshold that preserves the legacy 25 dB Speech-session
+ * behavior without changing the actual speech mode baseline.
+ */
+export const FRESH_START_FEEDBACK_THRESHOLD_DB = 25
+
+/**
+ * Startup-only sensitivity bump relative to the current speech baseline.
+ *
+ * Speech mode itself remains whatever `MODE_BASELINES.speech` declares.
+ * This offset is only for a brand-new or fully reset session.
+ */
+export const FRESH_START_SENSITIVITY_OFFSET_DB =
+  FRESH_START_FEEDBACK_THRESHOLD_DB - MODE_BASELINES.speech.feedbackThresholdDb
+
+/** Default zero-state session: speech mode, no room, no live sensitivity bump */
 export const DEFAULT_SESSION_STATE: DwaSessionState = {
   modeId: 'speech',
   environment: DEFAULT_ENVIRONMENT,
   liveOverrides: DEFAULT_LIVE_OVERRIDES,
   diagnostics: DEFAULT_DIAGNOSTICS,
   micCalibrationProfile: DEFAULT_MIC_PROFILE,
+}
+
+/**
+ * Fresh-start session state used on first load and "reset all".
+ *
+ * This intentionally differs from the zero-state layered model:
+ * the app starts with the historical 25 dB startup threshold even though the
+ * explicit speech mode baseline stays at 20 dB.
+ */
+export const FRESH_START_SESSION_STATE: DwaSessionState = {
+  ...DEFAULT_SESSION_STATE,
+  liveOverrides: {
+    ...DEFAULT_LIVE_OVERRIDES,
+    sensitivityOffsetDb: FRESH_START_SENSITIVITY_OFFSET_DB,
+  },
 }

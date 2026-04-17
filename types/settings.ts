@@ -152,6 +152,8 @@ export interface DisplayPrefs {
   showFreqZones: boolean
   showRoomModeLines: boolean
   spectrumWarmMode: boolean
+  /** Display-only spectrum view. Raw is best for ring hunting; perceptual applies 1/3-octave smoothing. */
+  spectrumSmoothingMode: 'raw' | 'perceptual'
   rtaDbMin: number
   rtaDbMax: number
   spectrumLineWidth: number

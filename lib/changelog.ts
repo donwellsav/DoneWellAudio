@@ -14,6 +14,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.102.0',
+    date: '2026-04-17',
+    highlights: 'Revert silent 25→20 dB default-threshold drift introduced by the v0.99.0 canonicalization refactor',
+    changes: [
+      { type: 'fix', description: 'Restore the fresh-start `DEFAULT_SETTINGS.feedbackThresholdDb` snapshot to 25 dB. The v0.99.0 "canonicalize layered default settings" refactor silently shifted the startup compatibility default from 25 to 20 dB when it began deriving from `MODE_BASELINES.speech`.' },
+      { type: 'fix', description: 'Keep explicit Speech mode behavior at its shipped 20 dB baseline in both `MODE_BASELINES.speech` and `OPERATION_MODES.speech` instead of broadening the revert into a preset retune.' },
+      { type: 'fix', description: 'Route first-load and Reset All through a startup-only +5 dB sensitivity offset so the layered settings model preserves the historical fresh-start threshold without changing mode-owned baselines.' },
+      { type: 'fix', description: 'Restore `ENVIRONMENT_TEMPLATES` feedback offsets to the shipped speech=20 reference table so room behavior stays aligned with the v0.99.0–v0.100.0 mode policy for non-speech modes.' },
+      { type: 'feat', description: 'Expand regression coverage so tests now distinguish explicit Speech mode defaults (20 dB) from the fresh-start compatibility snapshot (25 dB).' },
+      { type: 'refactor', description: 'Correct the CLAUDE.md operation-modes table so it reflects Speech mode at 20 dB and explicitly notes that `DEFAULT_SETTINGS` is a separate fresh-start compatibility snapshot.' },
+    ],
+  },
+  {
     version: '0.100.0',
     date: '2026-04-15',
     changes: [

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, memo } from 'react'
 import { useTheme } from 'next-themes'
 import { getSeverityText, getSeverityColor } from '@/lib/utils/advisoryDisplay'
+import { summarizeShelfRecommendations } from '@/lib/utils/recommendationDisplay'
 import type { Advisory } from '@/types/advisory'
 import { useCompanion } from '@/hooks/useCompanion'
 import { useAdvisories } from '@/contexts/AdvisoryContext'
@@ -92,6 +93,18 @@ export const IssuesList = memo(function IssuesList({
     () => sortedEntries.some((entry) => entry.advisory.resolved),
     [sortedEntries],
   )
+  const tonalIssueSummary = useMemo(() => {
+    for (const entry of sortedEntries) {
+      const advisorySummary = entry.advisory.advisory?.tonalIssueSummary
+      if (advisorySummary) return advisorySummary
+
+      const derivedSummary = summarizeShelfRecommendations(
+        entry.advisory.advisory?.shelves ?? [],
+      )
+      if (derivedSummary) return derivedSummary
+    }
+    return null
+  }, [sortedEntries])
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -108,6 +121,17 @@ export const IssuesList = memo(function IssuesList({
         />
       ) : (
         <>
+          {tonalIssueSummary ? (
+            <div className="rounded border border-blue-500/20 bg-blue-500/5 px-3 py-2">
+              <div className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-blue-400">
+                Broad Tonal Note
+              </div>
+              <p className="mt-1 text-[11px] font-mono text-blue-300/80 leading-relaxed">
+                Separate from the acute feedback cut: {tonalIssueSummary}
+              </p>
+            </div>
+          ) : null}
+
           {sortedEntries.length > 1 ? (
             <div className="flex items-center justify-end gap-2">
               {onClearResolved && hasResolved ? (

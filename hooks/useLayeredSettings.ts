@@ -25,6 +25,7 @@ import {
   DEFAULT_ENVIRONMENT,
   DEFAULT_LIVE_OVERRIDES,
   DEFAULT_SESSION_STATE,
+  FRESH_START_SESSION_STATE,
 } from '@/lib/settings/defaults'
 import { MODE_BASELINES } from '@/lib/settings/modeBaselines'
 import {
@@ -79,16 +80,28 @@ export interface UseLayeredSettingsReturn {
 
 export function useLayeredSettings(initialSettings: Partial<DetectorSettings> = {}): UseLayeredSettingsReturn {
   const [initialState] = useState<{ session: DwaSessionState; display: DisplayPrefs }>(() => {
-    const rawSession = sessionStorageV2.load()
+    const hasStoredSession = typeof window !== 'undefined' && localStorage.getItem('dwa-v2-session') !== null
+    const useFreshStartSession = !hasStoredSession && Object.keys(initialSettings).length === 0
+    const sessionFallback = useFreshStartSession ? FRESH_START_SESSION_STATE : DEFAULT_SESSION_STATE
+    const rawSession = hasStoredSession ? sessionStorageV2.load() : undefined
     const storedDisplay = displayStorageV2.load()
     // Validate nested branches — malformed localStorage can have null/non-object values
     const storedSession = rawSession && typeof rawSession === 'object' ? rawSession : {} as Partial<DwaSessionState>
     const baseSession: DwaSessionState = {
-      ...DEFAULT_SESSION_STATE,
+      ...sessionFallback,
       ...storedSession,
-      environment: { ...DEFAULT_ENVIRONMENT, ...(storedSession.environment && typeof storedSession.environment === 'object' ? storedSession.environment : {}) },
-      liveOverrides: { ...DEFAULT_LIVE_OVERRIDES, ...(storedSession.liveOverrides && typeof storedSession.liveOverrides === 'object' ? storedSession.liveOverrides : {}) },
-      diagnostics: { ...DEFAULT_DIAGNOSTICS, ...(storedSession.diagnostics && typeof storedSession.diagnostics === 'object' ? storedSession.diagnostics : {}) },
+      environment: {
+        ...sessionFallback.environment,
+        ...(storedSession.environment && typeof storedSession.environment === 'object' ? storedSession.environment : {}),
+      },
+      liveOverrides: {
+        ...sessionFallback.liveOverrides,
+        ...(storedSession.liveOverrides && typeof storedSession.liveOverrides === 'object' ? storedSession.liveOverrides : {}),
+      },
+      diagnostics: {
+        ...sessionFallback.diagnostics,
+        ...(storedSession.diagnostics && typeof storedSession.diagnostics === 'object' ? storedSession.diagnostics : {}),
+      },
     }
     const baseDisplay: DisplayPrefs = {
       ...DEFAULT_DISPLAY_PREFS,
@@ -215,9 +228,9 @@ export function useLayeredSettings(initialSettings: Partial<DetectorSettings> = 
     // from overwriting the clean defaults after reset (P1 race condition fix)
     clearTimeout(sessionPersistRef.current)
     clearTimeout(displayPersistRef.current)
-    setSession(DEFAULT_SESSION_STATE)
+    setSession(FRESH_START_SESSION_STATE)
     setDisplay(DEFAULT_DISPLAY_PREFS)
-    sessionStorageV2.save(DEFAULT_SESSION_STATE)
+    sessionStorageV2.save(FRESH_START_SESSION_STATE)
     displayStorageV2.save(DEFAULT_DISPLAY_PREFS)
   }, [])
 
