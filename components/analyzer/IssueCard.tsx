@@ -5,6 +5,7 @@ import { AlertTriangle, Check, TrendingUp } from 'lucide-react'
 import { confidenceColor, RUNAWAY_COLOR } from '@/lib/canvas/canvasTokens'
 import { getSeverityText } from '@/lib/utils/advisoryDisplay'
 import { getRecommendationStrategyLabel } from '@/lib/utils/recommendationDisplay'
+import { badgeClass } from '@/lib/utils/badgeClasses'
 import { IssueCardActions } from './IssueCardActions'
 import {
   SEVERITY_ENTER_CLASS,
@@ -243,7 +244,7 @@ export const IssueCard = memo(function IssueCard({
           <div className="ml-auto flex items-center gap-1 flex-shrink-0 self-center">
             {companionState?.applied ? (
               <span
-                className="inline-flex items-center gap-0.5 text-[11px] font-bold text-emerald-400 bg-emerald-500/15 px-1.5 py-0.5 rounded-sm leading-none border border-emerald-500/30"
+                className={badgeClass('success')}
                 aria-label={`Applied by Companion: ${companionState.applied.gainDb}dB${companionState.applied.slotIndex !== undefined ? ` on slot ${companionState.applied.slotIndex}` : ''}`}
                 title={`Applied by Companion: ${companionState.applied.gainDb}dB${companionState.applied.slotIndex !== undefined ? ` on slot ${companionState.applied.slotIndex}` : ''}`}
               >
@@ -253,7 +254,7 @@ export const IssueCard = memo(function IssueCard({
             ) : null}
             {companionState?.partialApply ? (
               <span
-                className="inline-flex items-center gap-0.5 text-[11px] font-bold text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded-sm leading-none border border-amber-500/30"
+                className={badgeClass('warning')}
                 aria-label={`Partial apply: ${companionState.partialApply.peqApplied ? 'PEQ applied' : 'PEQ failed'}, ${companionState.partialApply.geqApplied ? 'GEQ applied' : 'GEQ failed'}${companionState.partialApply.failReason ? `; ${companionState.partialApply.failReason}` : ''}`}
                 title={`Partial apply: ${companionState.partialApply.peqApplied ? 'PEQ applied' : 'PEQ failed'}, ${companionState.partialApply.geqApplied ? 'GEQ applied' : 'GEQ failed'}${companionState.partialApply.failReason ? `; ${companionState.partialApply.failReason}` : ''}`}
               >
@@ -263,7 +264,7 @@ export const IssueCard = memo(function IssueCard({
             ) : null}
             {companionState?.partialClear ? (
               <span
-                className="inline-flex items-center gap-0.5 text-[11px] font-bold text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded-sm leading-none border border-amber-500/30"
+                className={badgeClass('warning')}
                 aria-label={`Partial clear: ${companionState.partialClear.peqCleared ? 'PEQ cleared' : 'PEQ failed'}, ${companionState.partialClear.geqCleared ? 'GEQ cleared' : 'GEQ failed'}${companionState.partialClear.failReason ? `; ${companionState.partialClear.failReason}` : ''}`}
                 title={`Partial clear: ${companionState.partialClear.peqCleared ? 'PEQ cleared' : 'PEQ failed'}, ${companionState.partialClear.geqCleared ? 'GEQ cleared' : 'GEQ failed'}${companionState.partialClear.failReason ? `; ${companionState.partialClear.failReason}` : ''}`}
               >
@@ -273,7 +274,7 @@ export const IssueCard = memo(function IssueCard({
             ) : null}
             {companionState?.failed ? (
               <span
-                className="inline-flex items-center gap-0.5 text-[11px] font-bold text-red-400 bg-red-500/15 px-1.5 py-0.5 rounded-sm leading-none border border-red-500/30"
+                className={badgeClass('error')}
                 aria-label={`Apply failed: ${companionState.failed.reason}`}
                 title={`Apply failed: ${companionState.failed.reason}`}
               >
@@ -283,7 +284,7 @@ export const IssueCard = memo(function IssueCard({
             ) : null}
             {companionState?.clearFailed ? (
               <span
-                className="inline-flex items-center gap-0.5 text-[11px] font-bold text-red-400 bg-red-500/15 px-1.5 py-0.5 rounded-sm leading-none border border-red-500/30"
+                className={badgeClass('error')}
                 aria-label={`Clear failed: ${companionState.clearFailed.reason}`}
                 title={`Clear failed: ${companionState.clearFailed.reason}`}
               >
@@ -293,7 +294,7 @@ export const IssueCard = memo(function IssueCard({
             ) : null}
             {occurrenceCount >= 3 ? (
               <span
-                className="inline-flex items-center gap-0.5 text-[11px] font-bold text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded-sm leading-none border border-amber-500/30"
+                className={badgeClass('warning')}
                 aria-label={`Repeat offender: detected ${occurrenceCount} times`}
                 title={`Repeat offender: detected ${occurrenceCount} times`}
               >
@@ -303,7 +304,7 @@ export const IssueCard = memo(function IssueCard({
             ) : null}
             {isClustered ? (
               <span
-                className="inline-flex items-center text-[9px] text-sky-400/80 bg-sky-500/10 px-1 py-0.5 rounded-sm leading-none border border-sky-500/20"
+                className={badgeClass('info', 'sm')}
                 title={`Merged cluster - Q widened. Center: ${exactFreqStr}`}
               >
                 {advisory.clusterCount}pk
