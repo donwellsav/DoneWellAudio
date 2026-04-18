@@ -15,6 +15,9 @@ import type {
 
 const MAX_RESTARTS = 3
 const RESTART_DELAY_MS = 500
+// Keep a short queue so we smooth over brief worker stalls without letting
+// stale peak frames build seconds of extra wall-clock latency.
+const MAX_PENDING_PEAKS = 4
 const SHOULD_PROFILE_TRACK_PAYLOAD = process.env.NODE_ENV !== 'production'
 const TRACK_PAYLOAD_ENCODER = SHOULD_PROFILE_TRACK_PAYLOAD ? new TextEncoder() : null
 
@@ -29,7 +32,7 @@ export interface DSPWorkerHandlerRefs extends PeakPoolRefs {
   callbacksRef: MutableRefObject<DSPWorkerCallbacks>
   isReadyRef: MutableRefObject<boolean>
   busyRef: MutableRefObject<boolean>
-  pendingPeakRef: MutableRefObject<PendingPeakFrame | null>
+  pendingPeakQueueRef: MutableRefObject<PendingPeakFrame[]>
   crashedRef: MutableRefObject<boolean>
   permanentlyDeadRef: MutableRefObject<boolean>
   restartCountRef: MutableRefObject<number>
@@ -51,7 +54,7 @@ export function createDSPWorker(): Worker {
   })
 }
 
-export function bufferPendingPeak(
+function writePendingPeakFrame(
   existing: PendingPeakFrame | null,
   peak: DetectedPeak,
   spectrum: Float32Array,
@@ -87,6 +90,42 @@ export function bufferPendingPeak(
   }
 
   return pending
+}
+
+export function enqueuePendingPeak(
+  queue: PendingPeakFrame[],
+  peak: DetectedPeak,
+  spectrum: Float32Array,
+  sampleRate: number,
+  fftSize: number,
+  timeDomain?: Float32Array,
+): boolean {
+  if (queue.length < MAX_PENDING_PEAKS) {
+    queue.push(
+      writePendingPeakFrame(
+        null,
+        peak,
+        spectrum,
+        sampleRate,
+        fftSize,
+        timeDomain,
+      ),
+    )
+    return false
+  }
+
+  const recycled = queue.shift() ?? null
+  queue.push(
+    writePendingPeakFrame(
+      recycled,
+      peak,
+      spectrum,
+      sampleRate,
+      fftSize,
+      timeDomain,
+    ),
+  )
+  return true
 }
 
 export function preparePeakTransfer(
@@ -171,12 +210,14 @@ export function prepareSpectrumUpdateTransfer(
 }
 
 function flushBufferedPeak(refs: DSPWorkerHandlerRefs) {
-  if (refs.busyRef.current || !refs.pendingPeakRef.current || !refs.workerRef.current) {
+  if (refs.busyRef.current || refs.pendingPeakQueueRef.current.length === 0 || !refs.workerRef.current) {
     return
   }
 
-  const buffered = refs.pendingPeakRef.current
-  refs.pendingPeakRef.current = null
+  const buffered = refs.pendingPeakQueueRef.current.shift()
+  if (!buffered) {
+    return
+  }
   refs.busyRef.current = true
 
   const transferList: ArrayBuffer[] = [buffered.spectrum.buffer as ArrayBuffer]

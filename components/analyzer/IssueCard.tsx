@@ -94,14 +94,21 @@ export const IssueCard = memo(function IssueCard({
   const ageSec = Math.max(0, Math.round((nowMs - advisory.timestamp) / 1000))
   const ageStr = ageSec < 5 ? 'just now' : ageSec < 60 ? `${ageSec}s` : `${Math.floor(ageSec / 60)}m`
   const SeverityIconEl = SEVERITY_ICON[advisory.severity] ?? null
-  const strategyLabel = getRecommendationStrategyLabel(advisory.advisory?.peq)
-  const strategyReason = advisory.advisory?.peq?.reason
+  const isNonCorrectiveWhistle =
+    advisory.label === 'WHISTLE' &&
+    advisory.severity === 'WHISTLE'
+  const strategyLabel = isNonCorrectiveWhistle
+    ? null
+    : getRecommendationStrategyLabel(advisory.advisory?.peq)
+  const strategyReason = isNonCorrectiveWhistle ? null : advisory.advisory?.peq?.reason
   const operatorNote =
-    isClustered
-      ? `Broader region: merged ${advisory.clusterCount} nearby peaks. If this keeps returning, recheck placement or broad EQ before stacking more narrow cuts.`
-      : occurrenceCount >= 3
-        ? 'Repeat band: if this keeps coming back, recheck mic and speaker geometry or broad EQ before stacking more cuts.'
-        : null
+    isNonCorrectiveWhistle
+      ? 'Whistle warning only: review mic and speaker geometry first. This alert does not recommend a corrective EQ cut.'
+      : isClustered
+        ? `Broader region: merged ${advisory.clusterCount} nearby peaks. If this keeps returning, recheck placement or broad EQ before stacking more narrow cuts.`
+        : occurrenceCount >= 3
+          ? 'Repeat band: if this keeps coming back, recheck mic and speaker geometry or broad EQ before stacking more cuts.'
+          : null
 
   return (
     <div
@@ -352,20 +359,26 @@ export const IssueCard = memo(function IssueCard({
 
         <div className="flex items-center gap-1.5 text-sm font-mono leading-none">
           {advisory.advisory?.peq ? (
-            <>
-              <span style={{ color: severityColor, opacity: 0.8 }}>
-                <span className="font-bold">{advisory.advisory.peq.gainDb}dB</span> Q:{Math.round(advisory.advisory.peq.q)}
+            isNonCorrectiveWhistle ? (
+              <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-300/80">
+                warning only · no EQ cut
               </span>
-              {strategyLabel ? (
-                <span className={`text-[9px] uppercase tracking-wide ${
-                  advisory.advisory.peq.strategy === 'broad-region'
-                    ? 'text-blue-300/70'
-                    : 'text-muted-foreground/45'
-                }`}>
-                  {strategyLabel}
+            ) : (
+              <>
+                <span style={{ color: severityColor, opacity: 0.8 }}>
+                  <span className="font-bold">{advisory.advisory.peq.gainDb}dB</span> Q:{Math.round(advisory.advisory.peq.q)}
                 </span>
-              ) : null}
-            </>
+                {strategyLabel ? (
+                  <span className={`text-[9px] uppercase tracking-wide ${
+                    advisory.advisory.peq.strategy === 'broad-region'
+                      ? 'text-blue-300/70'
+                      : 'text-muted-foreground/45'
+                  }`}>
+                    {strategyLabel}
+                  </span>
+                ) : null}
+              </>
+            )
           ) : null}
           {velocity > 0 && !isResolved ? (
             <span className={`flex items-center gap-0.5 ${
@@ -412,7 +425,13 @@ export const IssueCard = memo(function IssueCard({
           </div>
         ) : null}
 
-        {showPeqDetails && advisory.advisory?.peq && peqNotchSvgPath ? (
+        {showPeqDetails && isNonCorrectiveWhistle ? (
+          <p className="text-[9px] font-mono text-amber-300/70 leading-relaxed">
+            Whistle advisory only | no corrective EQ recommendation
+          </p>
+        ) : null}
+
+        {showPeqDetails && advisory.advisory?.peq && peqNotchSvgPath && !isNonCorrectiveWhistle ? (
           <div className="flex items-center gap-1.5">
             <svg width="40" height="14" viewBox="0 0 40 14" aria-hidden className="flex-shrink-0">
               <path d={peqNotchSvgPath} fill="none" stroke={severityColor} strokeWidth="1.2" strokeOpacity="0.5" />

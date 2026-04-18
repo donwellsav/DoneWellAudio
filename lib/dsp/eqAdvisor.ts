@@ -14,10 +14,24 @@ import type {
   ShelfRecommendation,
   EQAdvisory,
   RecommendationContext,
+  QMeasurementMode,
 } from '@/types/advisory'
 
 // Track input type that works with both Track and TrackedPeak
 type TrackInput = Track | TrackedPeak
+
+interface QRecommendationPolicy {
+  q: number
+  strategy: PEQRecommendation['strategy']
+  reason?: string
+  qSource: NonNullable<PEQRecommendation['qSource']>
+}
+
+const MIN_RECOMMENDED_Q = 4
+const MAX_RECOMMENDED_Q = 16
+const LOW_FREQUENCY_REGION_HZ = 300
+const LOW_FREQUENCY_Q_CAP = 8
+const RECURRENCE_WIDENING_FACTOR = 0.85
 
 // Helper to get frequency from either type
 function getTrackFrequency(track: TrackInput): number {
@@ -26,6 +40,58 @@ function getTrackFrequency(track: TrackInput): number {
 
 function getTrackQ(track: TrackInput): number {
   return track.qEstimate
+}
+
+function getTrackMeasurementMode(track: TrackInput): QMeasurementMode {
+  return track.qMeasurementMode ?? 'full'
+}
+
+function getTrackMeanQ(track: TrackInput): number | undefined {
+  const features = track.features as Partial<Track['features']>
+  if (typeof features.meanQ !== 'number' || !Number.isFinite(features.meanQ) || features.meanQ <= 0) {
+    return undefined
+  }
+  return features.meanQ
+}
+
+function getTrustedMeasuredQ(track: TrackInput): number | undefined {
+  if (getTrackMeasurementMode(track) !== 'full') return undefined
+
+  const meanQ = getTrackMeanQ(track)
+  if (meanQ !== undefined) {
+    return clamp(meanQ, MIN_RECOMMENDED_Q, MAX_RECOMMENDED_Q)
+  }
+
+  const qEstimate = getTrackQ(track)
+  if (!Number.isFinite(qEstimate) || qEstimate <= 0) return undefined
+  return clamp(qEstimate, MIN_RECOMMENDED_Q, MAX_RECOMMENDED_Q)
+}
+
+function getBaselineQ(severity: SeverityLevel, preset: Preset): number {
+  const baselines: Record<Preset, Record<'RUNAWAY' | 'GROWING' | 'RESONANCE' | 'POSSIBLE_RING', number>> = {
+    surgical: {
+      RUNAWAY: 16,
+      GROWING: 12,
+      RESONANCE: 9,
+      POSSIBLE_RING: 7,
+    },
+    heavy: {
+      RUNAWAY: 12,
+      GROWING: 9,
+      RESONANCE: 6,
+      POSSIBLE_RING: 4,
+    },
+  }
+
+  switch (severity) {
+    case 'RUNAWAY':
+    case 'GROWING':
+    case 'RESONANCE':
+    case 'POSSIBLE_RING':
+      return baselines[preset][severity]
+    default:
+      return baselines[preset].RESONANCE
+  }
 }
 
 /**
@@ -191,34 +257,79 @@ function clampSuggestedCutDb(suggestedDb: number, preset: Preset): number {
 }
 
 /**
- * Calculate recommended Q for PEQ based on severity and preset
+ * Calculate recommended Q policy for PEQ based on severity, measured width,
+ * merged region span, and guard rails.
  */
-export function calculateQ(severity: SeverityLevel, preset: Preset, trackQ: number, snrDb?: number): number {
-  const presetConfig = EQ_PRESETS[preset]
+export function calculateQ(
+  track: TrackInput,
+  severity: SeverityLevel,
+  preset: Preset,
+  recommendationContext?: RecommendationContext,
+  clusterMinHz?: number,
+  clusterMaxHz?: number,
+): QRecommendationPolicy {
+  const freqHz = getTrackFrequency(track)
+  const measurementMode = getTrackMeasurementMode(track)
+  const normalizedContext = resolveRecommendationContext(recommendationContext)
+  const baselineQ = getBaselineQ(severity, preset)
+  const measuredQ = getTrustedMeasuredQ(track)
+  const defaultNarrowQ =
+    measuredQ !== undefined
+      ? measuredQ * 0.7 + baselineQ * 0.3
+      : baselineQ
 
-  // Use higher Q for more severe issues
-  let baseQ: number
-  switch (severity) {
-    case 'RUNAWAY':
-      baseQ = presetConfig.runawayQ // 8 or 3
-      break
-    case 'GROWING':
-      baseQ = presetConfig.defaultQ // 5 or 2
-      break
-    default:
-      baseQ = presetConfig.defaultQ * 0.75
+  let q = defaultNarrowQ
+  let strategy: PEQRecommendation['strategy'] = 'narrow-cut'
+  let reason: string | undefined
+  let qSource: NonNullable<PEQRecommendation['qSource']> =
+    measuredQ !== undefined ? 'measured' : 'baseline'
+
+  const hasClusterBounds =
+    clusterMinHz !== undefined &&
+    clusterMaxHz !== undefined &&
+    clusterMinHz < clusterMaxHz
+
+  if (hasClusterBounds) {
+    const clusterQ = clusterAwareQ(q, freqHz, clusterMinHz, clusterMaxHz)
+    if (clusterQ < q) {
+      q = clusterQ
+      qSource = 'cluster'
+    }
+    strategy = 'broad-region'
+    reason = `Q widened to cover the broader unstable region from ${formatFrequencyRange(clusterMinHz, clusterMaxHz)}.`
   }
 
-  // SNR-adaptive blend: trust measured Q when signal is clean, favor preset when noisy.
-  // α = SNR / (SNR + 20): high SNR (50dB) → α≈0.71, low SNR (10dB) → α≈0.33
-  // Capped at 1.5× baseQ so measurement can't override preset intent.
-  const measuredQ = clamp(trackQ, 0.3, 16)
-  const snr = snrDb !== undefined ? Math.max(0, snrDb) : 20 // default 20dB if unknown
-  const alpha = snr / (snr + 20)
-  const blendedQ = baseQ * (1 - alpha) + measuredQ * alpha
-  const cappedQ = Math.min(blendedQ, baseQ * 1.5)
+  if (measurementMode !== 'full') {
+    const guardedQ = Math.min(q, baselineQ)
+    if (guardedQ < q || qSource !== 'cluster') {
+      qSource = 'guarded'
+    }
+    q = guardedQ
+    const measurementReason = 'Bandwidth estimate was incomplete, so Q was kept conservative instead of inferring a razor-thin notch.'
+    reason = reason ? `${reason} ${measurementReason}` : measurementReason
+  }
 
-  return clamp(cappedQ, 0.3, 16)
+  const lowFrequencyCapApplied = freqHz < LOW_FREQUENCY_REGION_HZ && q > LOW_FREQUENCY_Q_CAP
+  if (freqHz < LOW_FREQUENCY_REGION_HZ) {
+    q = Math.min(q, LOW_FREQUENCY_Q_CAP)
+    strategy = 'broad-region'
+    if (lowFrequencyCapApplied) {
+      qSource = 'guarded'
+    }
+    const lowFrequencyReason = 'Low-frequency recurrence usually spans a broader unstable region, so Q was kept conservative.'
+    reason = reason ? `${reason} ${lowFrequencyReason}` : lowFrequencyReason
+  }
+
+  if (normalizedContext.recurrenceCount >= 2) {
+    q *= RECURRENCE_WIDENING_FACTOR
+  }
+
+  return {
+    q: clamp(q, MIN_RECOMMENDED_Q, MAX_RECOMMENDED_Q),
+    strategy,
+    reason,
+    qSource,
+  }
 }
 
 /**
@@ -262,7 +373,7 @@ export function clusterAwareQ(
   if (!clusterMinHz || !clusterMaxHz || clusterMinHz >= clusterMaxHz) return baseQ
   const spanHz = clusterMaxHz - clusterMinHz
   const coverageQ = centerHz / (spanHz * 1.5) // 1.5× margin
-  return Math.max(Math.min(baseQ, coverageQ), 0.3) // floor at Q=0.3
+  return clamp(Math.min(baseQ, coverageQ), MIN_RECOMMENDED_Q, MAX_RECOMMENDED_Q)
 }
 
 /**
@@ -282,24 +393,14 @@ export function generatePEQRecommendation(
   const freqHz = getTrackFrequency(track)
   const baseCut = resolveBaseCutDepth(severity, preset, recommendationContext)
   const suggestedDb = clampSuggestedCutDb(baseCut * erbDepthScale(freqHz), preset)
-  // Estimate SNR from peak amplitude (higher peak = better SNR for Q measurement)
-  const peakDb = 'trueAmplitudeDb' in track ? track.trueAmplitudeDb : -30
-  const estimatedSnr = Math.max(0, peakDb + 90) // -90dB floor → 0dB SNR, -30dB peak → 60dB SNR
-  const baseQ = calculateQ(severity, preset, getTrackQ(track), estimatedSnr)
-  // Widen Q if this advisory covers a cluster of merged peaks
-  const q = clusterAwareQ(baseQ, freqHz, clusterMinHz, clusterMaxHz)
+  const qPolicy = calculateQ(track, severity, preset, recommendationContext, clusterMinHz, clusterMaxHz)
   // Pass through measured bandwidth from detector (if available)
   const measuredBandwidth = 'bandwidthHz' in track ? track.bandwidthHz : undefined
-  const widenedForCluster =
-    clusterMinHz !== undefined &&
-    clusterMaxHz !== undefined &&
-    clusterMinHz < clusterMaxHz &&
-    q < baseQ
 
   // Determine filter type
   let type: PEQRecommendation['type'] = 'bell'
-  let strategy: PEQRecommendation['strategy'] = 'narrow-cut'
-  let reason: string | undefined
+  let strategy = qPolicy.strategy
+  let reason = qPolicy.reason
 
   if (severity === 'RUNAWAY') {
     // Use notch for runaway (very narrow, deep cut)
@@ -308,25 +409,23 @@ export function generatePEQRecommendation(
     // Suggest HPF for very low frequencies
     type = 'HPF'
     strategy = 'broad-region'
-    reason = 'Low-frequency buildup is better handled with a broader filter than a narrow notch.'
+    const hpfReason = 'Low-frequency buildup is better handled with a broader filter than a narrow notch.'
+    reason = reason ? `${reason} ${hpfReason}` : hpfReason
   } else if (freqHz > 12000) {
     // Suggest LPF for very high frequencies
     type = 'LPF'
     strategy = 'broad-region'
-    reason = 'Top-end spill this high is usually better handled with a broader filter than a narrow notch.'
-  }
-
-  if (widenedForCluster) {
-    strategy = 'broad-region'
-    reason = `Q widened to cover the unstable region from ${formatFrequencyRange(clusterMinHz, clusterMaxHz)}.`
+    const lpfReason = 'Top-end spill this high is usually better handled with a broader filter than a narrow notch.'
+    reason = reason ? `${reason} ${lpfReason}` : lpfReason
   }
 
   return {
     type,
     hz: freqHz,
-    q,
+    q: qPolicy.q,
     gainDb: suggestedDb,
     bandwidthHz: measuredBandwidth,
+    qSource: qPolicy.qSource,
     strategy,
     reason,
   }

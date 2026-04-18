@@ -9,7 +9,13 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { classifyTrack, classifyTrackWithAlgorithms, shouldReportIssue, getSeverityText } from '../classifier'
+import {
+  classifyTrack,
+  classifyTrackWithAlgorithms,
+  shouldPromoteWhistleToFeedback,
+  shouldReportIssue,
+  getSeverityText,
+} from '../classifier'
 import { getSeverityUrgency } from '../severityUtils'
 import { calculateCalibratedConfidence } from '../acoustic/confidenceCalibration'
 import { DEFAULT_SETTINGS } from '../constants'
@@ -70,6 +76,35 @@ function makeVibratoHistory(
       prominenceDb: 10,
       qEstimate: 8,
     }
+  })
+}
+
+function makeWhistleTrack(overrides: Partial<Track> = {}): Track {
+  const featureOverrides = overrides.features ?? {}
+
+  return makeTrack({
+    binIndex: 20,
+    trueFrequencyHz: 180,
+    trueAmplitudeDb: -20,
+    prominenceDb: 12,
+    onsetDb: -20,
+    history: makeVibratoHistory(180, 6, 70),
+    qEstimate: 2,
+    bandwidthHz: 160,
+    velocityDbPerSec: 0,
+    features: {
+      stabilityCentsStd: 120,
+      meanQ: 2,
+      minQ: 1,
+      meanVelocityDbPerSec: 0,
+      maxVelocityDbPerSec: 0,
+      persistenceMs: 900,
+      harmonicityScore: 0.05,
+      modulationScore: 0.74,
+      noiseSidebandScore: 1,
+      ...featureOverrides,
+    },
+    ...overrides,
   })
 }
 
@@ -571,6 +606,61 @@ describe('classifyTrack', () => {
     const result = classifyTrack(makeTrack())
     expect(Array.isArray(result.reasons)).toBe(true)
     expect(result.reasons.length).toBeGreaterThan(0)
+  })
+
+  it('keeps a pure whistle candidate as WHISTLE with non-corrective copy', () => {
+    const result = classifyTrack(
+      makeWhistleTrack(),
+      makeSettings({
+        roomPreset: 'custom',
+        roomRT60: 2,
+        roomVolume: 300,
+      }),
+    )
+
+    expect(result.label).toBe('WHISTLE')
+    expect(result.severity).toBe('WHISTLE')
+    expect(result.reasons).toContain(
+      'Whistle-like tone detected without enough feedback evidence for corrective action',
+    )
+  })
+})
+
+describe('whistle promotion policy', () => {
+  it('promotes an urgent whistle candidate on RUNAWAY severity', () => {
+    expect(
+      shouldPromoteWhistleToFeedback(true, 'RUNAWAY', 'UNCERTAIN', 0.34, 0.72),
+    ).toBe(true)
+  })
+
+  it('promotes a whistle candidate when fusion is definitive FEEDBACK', () => {
+    const track = makeWhistleTrack()
+    const settings = makeSettings({
+      roomPreset: 'custom',
+      roomRT60: 2,
+      roomVolume: 300,
+    })
+    const scores = buildScores({ msd: 0.8, phase: 0.85, spectral: 0.8, ihr: 0.75, ptmr: 0.7 })
+    const fusion = makeFusionResult(scores)
+    fusion.feedbackProbability = 0.82
+    fusion.confidence = 0.83
+    fusion.verdict = 'FEEDBACK'
+
+    const result = classifyTrackWithAlgorithms(track, scores, fusion, settings)
+
+    expect(result.label).toBe('ACOUSTIC_FEEDBACK')
+    expect(result.severity).toBe('GROWING')
+    expect(result.reasons).toContain(
+      'Whistle-shaped tone retained as feedback due to growth/fusion evidence',
+    )
+  })
+
+  it('promotes a whistle candidate on narrow-margin POSSIBLE_FEEDBACK evidence', () => {
+    // This branch is policy-level because the current normalized classifier
+    // posteriors do not naturally hit this exact numeric combination.
+    expect(
+      shouldPromoteWhistleToFeedback(true, 'RESONANCE', 'POSSIBLE_FEEDBACK', 0.52, 0.58),
+    ).toBe(true)
   })
 })
 

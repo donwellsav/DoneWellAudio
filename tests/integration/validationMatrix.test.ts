@@ -127,6 +127,17 @@ describe('validation matrix', () => {
       expect(replay.advisory?.peq.strategy).toBe('narrow-cut')
     })
 
+    it('promotes whistle-shaped replay feedback back onto the corrective path', () => {
+      const replay = replaySnapshotFixture(findFixture('speech-whistle-shaped-feedback-180hz'))
+
+      expect(replay.classification.label).toBe('ACOUSTIC_FEEDBACK')
+      expect(replay.classification.reasons).toContain(
+        'Whistle-shaped tone retained as feedback due to growth/fusion evidence',
+      )
+      expect(replay.reportable).toBe(true)
+      expect(replay.advisory).not.toBeNull()
+    })
+
     it('keeps the ambiguous early ring on the narrow-cut advisory path', () => {
       const replay = replaySnapshotFixture(findFixture('speech-ambiguous-ring-630hz'))
 

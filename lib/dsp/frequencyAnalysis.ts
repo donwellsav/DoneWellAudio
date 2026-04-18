@@ -13,6 +13,7 @@
 
 import { EXP_LUT, PHPR_SETTINGS } from './constants'
 import { clamp } from '@/lib/utils/mathHelpers'
+import type { QMeasurementMode } from '@/types/advisory'
 
 // ── Q Estimation ────────────────────────────────────────────────────────────
 
@@ -34,7 +35,7 @@ export function estimateQ(
   sampleRate: number,
   fftSize: number,
   trueFrequencyHz?: number,
-): { qEstimate: number; bandwidthHz: number } {
+): { qEstimate: number; bandwidthHz: number; qMeasurementMode: QMeasurementMode } {
   const hzPerBin = sampleRate / fftSize
   const n = spectrum.length
   const threshold = peakDb - 3
@@ -75,11 +76,13 @@ export function estimateQ(
 
   // If no crossing found on either side, use 1-bin default bandwidth
   if (!foundLeft && !foundRight) {
-    return { qEstimate: 100, bandwidthHz: hzPerBin }
+    return { qEstimate: 100, bandwidthHz: hzPerBin, qMeasurementMode: 'defaulted' }
   }
   // Mirror the found side if only one crossing was located
+  let qMeasurementMode: QMeasurementMode = 'full'
   if (!foundLeft) leftBin = binIndex - (rightBin - binIndex)
   if (!foundRight) rightBin = binIndex + (binIndex - leftBin)
+  if (!foundLeft || !foundRight) qMeasurementMode = 'mirrored'
 
   const bandwidthBins = rightBin - leftBin
   const bandwidthHz = bandwidthBins * hzPerBin
@@ -88,7 +91,11 @@ export function estimateQ(
   // Q = center / bandwidth
   const qEstimate = bandwidthHz > 0 ? centerHz / bandwidthHz : 100
 
-  return { qEstimate: clamp(qEstimate, 1, 500), bandwidthHz: Math.max(bandwidthHz, hzPerBin) }
+  return {
+    qEstimate: clamp(qEstimate, 1, 500),
+    bandwidthHz: Math.max(bandwidthHz, hzPerBin),
+    qMeasurementMode,
+  }
 }
 
 // ── PHPR (Peak-to-Harmonic Power Ratio) ─────────────────────────────────────

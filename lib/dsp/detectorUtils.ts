@@ -97,6 +97,14 @@ export interface MsdClassification {
   fastConfirm: boolean
 }
 
+const LOW_FREQUENCY_CONFIRM_SCALE = 1.25
+const HIGH_FREQUENCY_CONFIRM_SCALE = 0.6
+const HOWL_CONFIRM_MULTIPLIER = 0.8
+const FAST_CONFIRM_MULTIPLIER = 0.6
+const LOW_FREQUENCY_MIN_CONFIRM_MS = 180
+const MID_FREQUENCY_MIN_CONFIRM_MS = 120
+const HIGH_FREQUENCY_MIN_CONFIRM_MS = 100
+
 /**
  * Classify an MSD result: howl detection + fast-confirm logic.
  *
@@ -202,4 +210,42 @@ export function detectHarmonicRelationship(
   }
 
   return { harmonicRootHz, isSubHarmonicRoot }
+}
+
+function getFrequencyConfirmScale(frequencyHz: number): number {
+  if (frequencyHz < 200) return LOW_FREQUENCY_CONFIRM_SCALE
+  if (frequencyHz > 4000) return HIGH_FREQUENCY_CONFIRM_SCALE
+  return 1
+}
+
+function getMinimumConfirmMs(frequencyHz: number): number {
+  if (frequencyHz < 200) return LOW_FREQUENCY_MIN_CONFIRM_MS
+  if (frequencyHz > 4000) return HIGH_FREQUENCY_MIN_CONFIRM_MS
+  return MID_FREQUENCY_MIN_CONFIRM_MS
+}
+
+/**
+ * Compute the detector hold window for a peak candidate.
+ *
+ * Low frequencies still wait longer than the mid band, but not as long as the
+ * old 1.5x penalty. If MSD has already identified the candidate as feedback-like
+ * in the current frame, shorten the hold window while keeping a minimum floor.
+ */
+export function computeAdaptiveSustainMs(
+  sustainMs: number,
+  frequencyHz: number,
+  msdHint?: Pick<MsdClassification, 'isHowl' | 'fastConfirm'> | null,
+): number {
+  const baseConfirmMs = sustainMs * getFrequencyConfirmScale(frequencyHz)
+  const minConfirmMs = getMinimumConfirmMs(frequencyHz)
+
+  if (msdHint?.fastConfirm) {
+    return Math.max(minConfirmMs, baseConfirmMs * FAST_CONFIRM_MULTIPLIER)
+  }
+
+  if (msdHint?.isHowl) {
+    return Math.max(minConfirmMs, baseConfirmMs * HOWL_CONFIRM_MULTIPLIER)
+  }
+
+  return baseConfirmMs
 }
