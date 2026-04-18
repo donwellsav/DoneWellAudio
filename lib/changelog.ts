@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.103.0',
+    date: '2026-04-18',
+    changes: [
+      { type: 'feat', description: 'improve feedback response timing by shortening detector holds and replacing the single-buffer worker handoff with a bounded queue' },
+      { type: 'feat', description: 'rework PEQ Q recommendations with detector-side width metadata, replay auditing, and fixture coverage for measured, cluster, guarded, mirrored, and defaulted cases' },
+      { type: 'feat', description: 'make whistle warnings visible by default, keep pure whistles non-corrective, and promote whistle-shaped feedback back to ACOUSTIC_FEEDBACK when growth or fusion evidence is strong enough' },
+      { type: 'feat', description: 'npx tsc --noEmit' },
+      { type: 'feat', description: 'pnpm test' },
+    ],
+  },
+  {
     version: '0.102.0',
     date: '2026-04-17',
     highlights: 'Revert silent 25→20 dB default-threshold drift introduced by the v0.99.0 canonicalization refactor',
