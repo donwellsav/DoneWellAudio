@@ -235,7 +235,7 @@ export const IssueCard = memo(function IssueCard({
           </span>
 
           {pitchStr ? (
-            <span className="text-[11px] font-mono text-muted-foreground/50 leading-none self-end mb-0.5">
+            <span className="text-[11px] font-mono text-muted-foreground/70 leading-none self-end mb-0.5">
               {pitchStr}
             </span>
           ) : null}
@@ -345,7 +345,7 @@ export const IssueCard = memo(function IssueCard({
               </span>
             ) : null}
             {!isResolved ? (
-              <span className="text-[9px] text-muted-foreground/30 font-mono leading-none">{ageStr}</span>
+              <span className="text-[9px] text-muted-foreground/70 font-mono leading-none">{ageStr}</span>
             ) : null}
           </div>
         </div>
@@ -398,7 +398,7 @@ export const IssueCard = memo(function IssueCard({
         </div>
 
         {showAlgorithmScores && advisory.algorithmScores ? (
-          <div className="text-[9px] font-mono text-muted-foreground/40 tracking-wide leading-none">
+          <div className="text-[9px] font-mono text-muted-foreground/70 tracking-wide leading-none">
             {[
               advisory.algorithmScores.msd != null && `MSD:${advisory.algorithmScores.msd.toFixed(2)}`,
               advisory.algorithmScores.phase != null && `PH:${advisory.algorithmScores.phase.toFixed(2)}`,

@@ -74,7 +74,7 @@ export const RigPresetsSection = memo(function RigPresetsSection({
             <button
               onClick={handleSavePreset}
               disabled={!presetName.trim()}
-              className="min-h-11 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 px-2 rounded text-sm font-medium bg-primary/20 text-primary border border-primary/40 disabled:opacity-40 transition-colors"
+              className="min-h-11 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 px-2 rounded text-sm font-medium bg-primary/20 text-primary border border-primary/40 disabled:opacity-65 transition-colors"
             >
               Save
             </button>

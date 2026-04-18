@@ -60,7 +60,7 @@ export const SessionExportSection = memo(function SessionExportSection({
           <DropdownMenuTrigger asChild>
             <button
               disabled={isExporting}
-              className="min-h-11 w-full cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 inline-flex items-center justify-center gap-1.5 px-3 rounded text-sm font-medium bg-primary/20 text-primary border border-primary/40 hover:bg-primary/30 disabled:opacity-40 transition-colors"
+              className="min-h-11 w-full cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 inline-flex items-center justify-center gap-1.5 px-3 rounded text-sm font-medium bg-primary/20 text-primary border border-primary/40 hover:bg-primary/30 disabled:opacity-65 transition-colors"
             >
               {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
               Export Session

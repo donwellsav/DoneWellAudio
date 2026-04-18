@@ -81,7 +81,7 @@ export const AutoDetectRoomSection = memo(function AutoDetectRoomSection({
             <button
               onClick={startRoomMeasurement}
               disabled={!isRunning}
-              className="flex-1 px-3 py-2 text-sm font-mono rounded bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              className="flex-1 px-3 py-2 text-sm font-mono rounded bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-65 disabled:cursor-not-allowed cursor-pointer transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
               <Mic className="w-3.5 h-3.5 inline mr-1" /> Measure Room
             </button>

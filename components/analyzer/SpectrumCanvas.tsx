@@ -17,7 +17,7 @@ import type { EarlyWarning } from '@/hooks/audioAnalyzerTypes'
 import {
   type DbRange, type CanvasTheme, calcPadding, drawGrid, drawFreqZones, drawRoomModeLines, drawIndicatorLines, drawSpectrum,
   drawFreqRangeOverlay, drawNotchOverlays, drawMarkers, drawAxisLabels, drawPlaceholder,
-  drawLevelMeter, drawLevelGlow,
+  drawLevelMeter, drawLevelGlow, cachedMeasureText,
   DARK_CANVAS_THEME, LIGHT_CANVAS_THEME,
 } from '@/lib/canvas/spectrumDrawing'
 import { useSpectrumCanvasInteractions } from '@/hooks/useSpectrumCanvasInteractions'
@@ -380,7 +380,7 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
         lines.push({ text: `${formatFrequency(hoverFreq)}  ${Math.round(hoverDb)} dB`, color: OVERLAY_TEXT })
       }
 
-      const maxLineW = Math.max(...lines.map(l => ctx.measureText(l.text).width))
+      const maxLineW = Math.max(...lines.map(l => cachedMeasureText(ctx, l.text).width))
       const tipW = maxLineW + tipPad * 2
       const tipH = lines.length * lineH + tipPad * 2
 

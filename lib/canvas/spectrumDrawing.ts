@@ -13,6 +13,7 @@ export {
   PEAK_HOLD_DECAY_DB_PER_SEC, PEAK_HOLD_MAX_DT_SEC, PEAK_HOLD_DECAY_DB,
   PLACEHOLDER_CURVE,
   calcPadding,
+  cachedMeasureText,
 } from './drawing/canvasTypes'
 
 // ─── Grid & Background ────────────────────────────────────────────────────────
