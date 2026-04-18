@@ -197,8 +197,10 @@ export function useSpectrumCanvasInteractions({
     }
 
     function onPointerMove(event: PointerEvent) {
+      // One rect read per event — shared across threshold drag, range drag, and idle hover branches.
+      const rect = canvasElement.getBoundingClientRect()
+
       if (threshDragRef.current.active) {
-        const rect = canvasElement.getBoundingClientRect()
         const currentY = event.clientY - rect.top - paddingRef.current.top
         const dbSpan = rtaDbMax - rtaDbMin
         const deltaDb = ((threshDragRef.current.startY - currentY) / paddingRef.current.plotHeight) * dbSpan
@@ -209,7 +211,6 @@ export function useSpectrumCanvasInteractions({
       }
 
       if (dragRef.current) {
-        const rect = canvasElement.getBoundingClientRect()
         const hz = clientXToFreq(event.clientX, rect, paddingRef.current)
         const range = freqRangeRef.current
         dirtyRef.current = true
@@ -226,7 +227,6 @@ export function useSpectrumCanvasInteractions({
         return
       }
 
-      const rect = canvasElement.getBoundingClientRect()
       const thresholdDistance = getThresholdDistance(
         event.clientY,
         rect,
