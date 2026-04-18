@@ -313,6 +313,7 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
 
     // Frozen badge — top-right of plot area
     if (isFrozenRef.current) {
+      const theme = canvasThemeRef.current
       const badgeText = 'FROZEN'
       ctx.font = `bold ${fontSize}px monospace`
       const tw = ctx.measureText(badgeText).width
@@ -320,15 +321,15 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
       const by = 6
       const px = 6, py = 3
 
-      ctx.fillStyle = 'rgba(75,146,255,0.2)'
+      ctx.fillStyle = theme.frozenBadgeBg
       ctx.beginPath()
       ctx.roundRect(bx - px, by, tw + px * 2, fontSize + py * 2, 3)
       ctx.fill()
-      ctx.strokeStyle = 'rgba(75,146,255,0.5)'
+      ctx.strokeStyle = theme.frozenBadgeBorder
       ctx.lineWidth = 1
       ctx.stroke()
 
-      ctx.fillStyle = OVERLAY_ACCENT
+      ctx.fillStyle = theme.frozenBadgeText
       ctx.textAlign = 'left'
       ctx.textBaseline = 'top'
       ctx.fillText(badgeText, bx, by + py)

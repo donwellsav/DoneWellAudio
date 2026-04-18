@@ -21,6 +21,9 @@ export interface CanvasTheme {
   freqRangeLine: string
   placeholder: string
   placeholderShadow: string
+  frozenBadgeBg: string
+  frozenBadgeBorder: string
+  frozenBadgeText: string
 }
 
 export const DARK_CANVAS_THEME: CanvasTheme = {
@@ -37,6 +40,9 @@ export const DARK_CANVAS_THEME: CanvasTheme = {
   freqRangeLine: '#4B92FF',
   placeholder: 'rgba(59, 130, 246, 0.12)',
   placeholderShadow: 'rgba(75, 146, 255, 0.35)',
+  frozenBadgeBg: 'rgba(75, 146, 255, 0.2)',
+  frozenBadgeBorder: 'rgba(75, 146, 255, 0.5)',
+  frozenBadgeText: '#60a5fa',
 }
 
 export const LIGHT_CANVAS_THEME: CanvasTheme = {
@@ -53,6 +59,9 @@ export const LIGHT_CANVAS_THEME: CanvasTheme = {
   freqRangeLine: '#2563eb',
   placeholder: 'rgba(37, 99, 235, 0.10)',
   placeholderShadow: 'rgba(37, 99, 235, 0.25)',
+  frozenBadgeBg: 'rgba(37, 99, 235, 0.15)',
+  frozenBadgeBorder: 'rgba(37, 99, 235, 0.55)',
+  frozenBadgeText: '#1d4ed8',
 }
 
 export interface DbRange {
