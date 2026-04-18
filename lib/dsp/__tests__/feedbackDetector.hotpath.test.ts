@@ -192,7 +192,7 @@ describe('FeedbackDetector hot path — Part A: Method-level', () => {
       }
 
       const result = (detector as any).estimateQ(peakBin, peakDb, peakBin * HZ_PER_BIN)
-      const { qEstimate, bandwidthHz } = result
+      const { qEstimate, bandwidthHz, qMeasurementMode } = result
 
       // With 1 dB/bin drop, -3dB crossing is at ±3 bins.
       // Bandwidth = 6 bins * HZ_PER_BIN ≈ 35.16 Hz
@@ -202,6 +202,7 @@ describe('FeedbackDetector hot path — Part A: Method-level', () => {
       expect(bandwidthHz).toBeLessThan(60)
       expect(qEstimate).toBeGreaterThan(40)
       expect(qEstimate).toBeLessThan(200)
+      expect(qMeasurementMode).toBe('full')
     })
 
     it('returns high Q for a very narrow peak (single bin)', () => {
@@ -219,6 +220,25 @@ describe('FeedbackDetector hot path — Part A: Method-level', () => {
       const result = (detector as any).estimateQ(peakBin, peakDb, peakBin * HZ_PER_BIN)
       // Very narrow → high Q (capped at 500 by clamp)
       expect(result.qEstimate).toBeGreaterThanOrEqual(100)
+      expect(result.qMeasurementMode).toBe('full')
+    })
+
+    it('marks one-sided bandwidth reads as mirrored', () => {
+      const peakBin = 1
+      const peakDb = -20
+
+      const detector = createReadyDetector((arr) => arr.fill(-100))
+      const d = detector as any
+      const freqDb = d.freqDb as Float32Array
+      freqDb.fill(-100)
+
+      freqDb[0] = -22
+      freqDb[peakBin] = peakDb
+      freqDb[peakBin + 1] = -24
+
+      const result = (detector as any).estimateQ(peakBin, peakDb, peakBin * HZ_PER_BIN)
+      expect(result.qMeasurementMode).toBe('mirrored')
+      expect(result.bandwidthHz).toBeGreaterThan(HZ_PER_BIN)
     })
 
     it('returns default when freqDb is null', () => {
@@ -227,6 +247,7 @@ describe('FeedbackDetector hot path — Part A: Method-level', () => {
       const result = (detector as any).estimateQ(100, -20, 1000)
       expect(result.qEstimate).toBe(10)
       expect(result.bandwidthHz).toBe(100)
+      expect(result.qMeasurementMode).toBe('defaulted')
     })
   })
 
@@ -545,6 +566,75 @@ describe('FeedbackDetector hot path — Part B: analyze() harness', () => {
       }
 
       expect(detectedPeaks.length).toBeGreaterThanOrEqual(1)
+    })
+
+    it('uses the reduced low-frequency sustain multiplier below 200 Hz', () => {
+      const targetBin = hzToBin(180)
+      const detectedPeaks: unknown[] = []
+
+      const detector = createReadyDetector(
+        (arr) => {
+          arr.fill(-70)
+          arr[targetBin] = -15
+        },
+        {
+          thresholdDb: -50,
+          prominenceDb: 5,
+          sustainMs: 240,
+          minHz: 100,
+        },
+      )
+
+      ;(detector as any).callbacks = {
+        onPeakDetected: (peak: unknown) => detectedPeaks.push(peak),
+      }
+
+      // 16 frames = 320ms. This clears the new 1.25x low-band hold (300ms),
+      // but it would miss the old 1.5x path (360ms).
+      for (let frame = 0; frame < 16; frame++) {
+        ;(detector as any).analyze(frame * 20, 20)
+      }
+
+      expect(detectedPeaks.length).toBeGreaterThanOrEqual(1)
+    })
+
+    it('shortens sustain when MSD early-confirm already marked the peak as feedback-like', () => {
+      const targetBin = 400
+      const thresholdDb = -30
+      const peakDb = thresholdDb - 2
+      const detectedPeaks: Array<{ binIndex: number }> = []
+
+      const detector = createReadyDetector(
+        (arr) => {
+          arr.fill(-80)
+          arr[targetBin] = peakDb
+        },
+        {
+          thresholdDb,
+          prominenceDb: 5,
+          sustainMs: 240,
+        },
+      )
+
+      ;(detector as any).callbacks = {
+        onPeakDetected: (peak: { binIndex: number }) => detectedPeaks.push(peak),
+      }
+
+      const calculateMsdSpy = vi.spyOn(detector as any, 'calculateMsd').mockReturnValue({
+        msd: 0.02,
+        growthRate: 1.2,
+        isHowl: true,
+        fastConfirm: true,
+      })
+
+      // 8 frames = 160ms. Base sustain is 240ms, but the MSD-confirmed fast
+      // path reduces it to 144ms in the mid band.
+      for (let frame = 0; frame < 8; frame++) {
+        ;(detector as any).analyze(frame * 20, 20)
+      }
+
+      expect(detectedPeaks.some((peak) => peak.binIndex === targetBin)).toBe(true)
+      calculateMsdSpy.mockRestore()
     })
   })
 

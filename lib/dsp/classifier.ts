@@ -76,6 +76,66 @@ const VIBRATO_CONFIRMATION_MIN_MODULATION = CLASSIFIER_WEIGHTS.MODULATION_THRESH
 const VIBRATO_CONFIRMATION_MAX_MODULATION = 0.75
 const VIBRATO_CONFIRMATION_MAX_BOOST = 0.2
 const VIBRATO_CONFIRMATION_FEEDBACK_PENALTY = 0.4
+const WHISTLE_FEEDBACK_PROMOTION_REASON =
+  'Whistle-shaped tone retained as feedback due to growth/fusion evidence'
+const WHISTLE_NON_CORRECTIVE_REASON =
+  'Whistle-like tone detected without enough feedback evidence for corrective action'
+const WHISTLE_PROMOTION_MIN_FEEDBACK = 0.50
+const WHISTLE_PROMOTION_MARGIN = 0.10
+
+function isUrgentFeedbackSeverity(severity: SeverityLevel): boolean {
+  return severity === 'RUNAWAY' || severity === 'GROWING'
+}
+
+function pushReasonOnce(reasons: string[], reason: string): void {
+  if (!reasons.includes(reason)) {
+    reasons.push(reason)
+  }
+}
+
+function removeWhistlePolicyReasons(reasons: string[]): void {
+  for (let i = reasons.length - 1; i >= 0; i--) {
+    if (
+      reasons[i] === WHISTLE_FEEDBACK_PROMOTION_REASON
+      || reasons[i] === WHISTLE_NON_CORRECTIVE_REASON
+    ) {
+      reasons.splice(i, 1)
+    }
+  }
+}
+
+/**
+ * Internal whistle-promotion policy.
+ * Exported for unit coverage because one narrow-margin branch is easier to
+ * validate directly than through full classifier integration scaffolding.
+ */
+export function shouldPromoteWhistleToFeedback(
+  whistleCandidate: boolean,
+  severity: SeverityLevel,
+  fusionVerdict: ClassificationResult['fusionVerdict'],
+  pFeedback: number,
+  pWhistle: number,
+): boolean {
+  if (!whistleCandidate) return false
+  if (isUrgentFeedbackSeverity(severity)) return true
+  if (fusionVerdict === 'FEEDBACK') return true
+  return (
+    fusionVerdict === 'POSSIBLE_FEEDBACK'
+    && pFeedback >= WHISTLE_PROMOTION_MIN_FEEDBACK
+    && (pWhistle - pFeedback) <= WHISTLE_PROMOTION_MARGIN
+  )
+}
+
+function normalizePromotedWhistleSeverity(
+  severity: SeverityLevel,
+  definitiveFeedback: boolean,
+  fusionConfidence: number,
+): SeverityLevel {
+  if (severity !== 'WHISTLE' && severity !== 'INSTRUMENT') {
+    return severity
+  }
+  return definitiveFeedback && fusionConfidence > 0.8 ? 'GROWING' : 'RESONANCE'
+}
 
 /**
  * Classify a track as feedback, whistle, or instrument
@@ -469,10 +529,26 @@ export function classifyTrack(track: TrackInput, settings?: DetectorSettings, ac
   const pUnknown = Math.max(0, 1 - (pFeedback + pWhistle + pInstrument))
 
   // Determine label
-  if (pWhistle >= CLASSIFIER_WEIGHTS.WHISTLE_THRESHOLD && pWhistle > pFeedback) {
+  const whistleWins =
+    pWhistle >= CLASSIFIER_WEIGHTS.WHISTLE_THRESHOLD && pWhistle > pFeedback
+  const instrumentWins =
+    pInstrument >= CLASSIFIER_WEIGHTS.INSTRUMENT_THRESHOLD && pInstrument > pFeedback
+  const whistleFeedbackPromoted = shouldPromoteWhistleToFeedback(
+    whistleWins,
+    severity,
+    'UNCERTAIN',
+    pFeedback,
+    pWhistle,
+  )
+
+  if (whistleFeedbackPromoted) {
+    label = 'ACOUSTIC_FEEDBACK'
+    pushReasonOnce(reasons, WHISTLE_FEEDBACK_PROMOTION_REASON)
+  } else if (whistleWins) {
     label = 'WHISTLE'
     severity = 'WHISTLE'
-  } else if (pInstrument >= CLASSIFIER_WEIGHTS.INSTRUMENT_THRESHOLD && pInstrument > pFeedback) {
+    pushReasonOnce(reasons, WHISTLE_NON_CORRECTIVE_REASON)
+  } else if (instrumentWins) {
     label = 'INSTRUMENT'
     severity = 'INSTRUMENT'
   } else if (severity === 'POSSIBLE_RING') {
@@ -518,7 +594,7 @@ export function shouldReportIssue(
   settings: DetectorSettings
 ): boolean {
   const mode = settings.mode
-  const ignoreWhistle = settings.ignoreWhistle ?? true
+  const ignoreWhistle = settings.ignoreWhistle ?? false
   const { label, severity, confidence } = classification
   const speechLikePattern = classification.speechLikePattern ?? false
   const lowBandRoomRisk =
@@ -831,7 +907,25 @@ export function classifyTrackWithAlgorithms(
     urgentFeedbackDominance &&
     (probableFeedback || uncertainFeedback || softRejectedFeedback)
 
-  if (hardRejectedFeedback) {
+  removeWhistlePolicyReasons(reasons)
+  const whistleCandidate = baseResult.label === 'WHISTLE' || whistleWins
+  const whistleFeedbackPromoted = shouldPromoteWhistleToFeedback(
+    whistleCandidate,
+    severity,
+    fusionResult.verdict,
+    pFeedback,
+    pWhistle,
+  )
+
+  if (whistleFeedbackPromoted) {
+    label = 'ACOUSTIC_FEEDBACK'
+    severity = normalizePromotedWhistleSeverity(
+      severity,
+      definitiveFeedback,
+      fusionResult.confidence,
+    )
+    pushReasonOnce(reasons, WHISTLE_FEEDBACK_PROMOTION_REASON)
+  } else if (hardRejectedFeedback) {
     if (baseResult.label === 'WHISTLE' || whistleWins) {
       label = 'WHISTLE'
       severity = 'WHISTLE'
@@ -849,6 +943,7 @@ export function classifyTrackWithAlgorithms(
   } else if (whistleWins) {
     label = 'WHISTLE'
     severity = 'WHISTLE'
+    pushReasonOnce(reasons, WHISTLE_NON_CORRECTIVE_REASON)
   } else if (instrumentWins) {
     label = 'INSTRUMENT'
     severity = 'INSTRUMENT'
@@ -901,7 +996,7 @@ export function classifyTrackWithAlgorithms(
     severity,
     confidence,
     fusionVerdict: fusionResult.verdict,
-    recommendationEligible: !hardRejectedFeedback,
+    recommendationEligible: whistleFeedbackPromoted || !hardRejectedFeedback,
     reasons,
   }
 }

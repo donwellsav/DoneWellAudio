@@ -41,7 +41,15 @@ function makeAdvisory(overrides: Partial<Advisory> = {}): Advisory {
     modulationScore: 0,
     advisory: {
       geq: { bandIndex: 15, bandHz: 1000, suggestedDb: -6 },
-      peq: { type: 'bell', hz: 1000, q: 4, gainDb: -6 },
+      peq: {
+        type: 'bell',
+        hz: 1000,
+        q: 4,
+        gainDb: -6,
+        qSource: 'guarded',
+        strategy: 'broad-region',
+        reason: 'Bandwidth estimate was incomplete, so Q was kept conservative.',
+      },
       shelves: [],
       pitch: { note: 'B', octave: 5, cents: 0, midi: 83 },
     },
@@ -267,6 +275,7 @@ describe('useCompanion', () => {
     const retryPayload = JSON.parse(String(retryRequest.body))
 
     expect(retryPayload.id).toBe(advisory.id)
+    expect(retryPayload.peq).toEqual({ type: 'bell', hz: 1000, q: 4, gainDb: -9 })
     expect(retryPayload.peq.gainDb).toBe(-9)
     expect(feedbackHistoryMock.consumeRetryCompanionCut).not.toHaveBeenCalled()
   })

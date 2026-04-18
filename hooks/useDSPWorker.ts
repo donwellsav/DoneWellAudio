@@ -23,10 +23,10 @@ import * as Sentry from '@sentry/nextjs'
 import type { WorkerInboundMessage } from '@/lib/dsp/dspWorker'
 import type { WorkerRuntimeSettings } from '@/lib/settings/runtimeSettings'
 import {
-  bufferPendingPeak,
   createDSPWorker,
   createDSPWorkerErrorHandler,
   createDSPWorkerMessageHandler,
+  enqueuePendingPeak,
   preparePeakTransfer,
   prepareSpectrumUpdateTransfer,
 } from './dspWorkerInternals'
@@ -55,7 +55,7 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
   const workerRef = useRef<Worker | null>(null)
   const isReadyRef = useRef(false)
   const busyRef = useRef(false)
-  const pendingPeakRef = useRef<PendingPeakFrame | null>(null)
+  const pendingPeakQueueRef = useRef<PendingPeakFrame[]>([])
   const crashedRef = useRef(false)
   const permanentlyDeadRef = useRef(false)
   const droppedFramesRef = useRef(0)
@@ -86,7 +86,7 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
       callbacksRef,
       isReadyRef,
       busyRef,
-      pendingPeakRef,
+      pendingPeakQueueRef,
       crashedRef,
       permanentlyDeadRef,
       restartCountRef,
@@ -163,6 +163,7 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
       lastInitRef.current = { settings, sampleRate, fftSize }
       isReadyRef.current = false
       busyRef.current = false
+      pendingPeakQueueRef.current = []
       Sentry.addBreadcrumb({
         category: 'dsp',
         message: `Worker init: mode=${settings.mode} fft=${fftSize} sr=${sampleRate}`,
@@ -215,16 +216,18 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
           && !permanentlyDeadRef.current
           && lastInitRef.current
         ) {
-          pendingPeakRef.current = bufferPendingPeak(
-            pendingPeakRef.current,
+          const dropped = enqueuePendingPeak(
+            pendingPeakQueueRef.current,
             peak,
             spectrum,
             sampleRate,
             fftSize,
             timeDomain,
           )
+          if (dropped) {
+            droppedFramesRef.current++
+          }
         }
-        droppedFramesRef.current++
         return
       }
 
@@ -279,7 +282,7 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
 
   const reset = useCallback(() => {
     busyRef.current = false
-    pendingPeakRef.current = null
+    pendingPeakQueueRef.current = []
     droppedFramesRef.current = 0
     totalFramesRef.current = 0
     outboundMessagesRef.current = 0
@@ -342,6 +345,7 @@ export function useDSPWorker(callbacks: DSPWorkerCallbacks): DSPWorkerHandle {
     workerRef.current = null
     isReadyRef.current = false
     busyRef.current = false
+    pendingPeakQueueRef.current = []
   }, [])
 
   return useMemo(

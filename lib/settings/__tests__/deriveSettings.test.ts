@@ -84,6 +84,11 @@ describe('deriveDetectorSettings — mode baselines (no room)', () => {
     expect(derived.aWeightingEnabled).toBe(original.aWeightingEnabled)
     expect(derived.ignoreWhistle).toBe(original.ignoreWhistle)
   })
+
+  it.each(ALL_MODES)('mode "%s" now defaults to visible whistle warnings', (modeId) => {
+    const derived = deriveForMode(modeId)
+    expect(derived.ignoreWhistle).toBe(false)
+  })
 })
 
 // ─── Display fields pass through unchanged ──────────────────────────────────

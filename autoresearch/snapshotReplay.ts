@@ -3,7 +3,8 @@ import {
   classifyTrackWithAlgorithms,
   shouldReportIssue,
 } from '@/lib/dsp/classifier'
-import { generateEQAdvisory } from '@/lib/dsp/eqAdvisor'
+import { generateEQAdvisory, generatePEQRecommendation } from '@/lib/dsp/eqAdvisor'
+import { estimateQ } from '@/lib/dsp/frequencyAnalysis'
 import {
   buildFusionConfig,
   fuseAlgorithmResults,
@@ -15,6 +16,7 @@ import type {
   ClassificationResult,
   DetectorSettings,
   EQAdvisory,
+  QMeasurementMode,
   Track,
   TrackHistoryEntry,
   TrackFeatures,
@@ -40,6 +42,7 @@ interface SnapshotTrackPoint {
   prominenceDb: number
   qEstimate: number
   bandwidthHz: number
+  qMeasurementMode: QMeasurementMode
 }
 
 export interface SnapshotReplayResult {
@@ -64,21 +67,19 @@ export interface SnapshotFixtureSummary {
 const LOCAL_PEAK_SEARCH_RADIUS = 4
 const LOCAL_NOISE_RADIUS = 14
 const LOCAL_NOISE_GAP = 2
-const THREE_DB_WIDTH = 3
 const MAX_ACTIVE_FREQUENCIES = 8
 const ACTIVE_FREQUENCY_FLOOR_DB = -78
 const ACTIVE_FREQUENCY_MARGIN_DB = 12
 const MODULATION_STDDEV_CENTS_MAX = 80
 const NOISE_SIDEBAND_MAX_SCORE = 0.7
 const ADVISORY_CENTS_TOLERANCE = 50
-const MIN_BANDWIDTH_HZ = 10
 
 export function replaySnapshotFixture(
   fixture: LabeledSnapshotFixture,
 ): SnapshotReplayResult {
   assertValidLabeledSnapshotFixture(fixture)
 
-  const settings = buildSettingsForMode(fixture.mode)
+  const settings = buildSettingsForMode(fixture)
   const track = buildTrackFromFixture(fixture)
   const activeFrequencies = extractActiveFrequencies(
     fixture.batch,
@@ -100,7 +101,8 @@ export function replaySnapshotFixture(
   )
   const reportable = shouldReportIssue(classification, settings)
   const advisory = reportable
-    ? generateEQAdvisory(
+    ? buildAdvisoryForFixture(
+        fixture,
         track,
         classification.severity,
         settings.eqPreset,
@@ -196,8 +198,11 @@ export function reconstructAlgorithmScores(batch: SnapshotBatch): AlgorithmScore
   return algorithmScores
 }
 
-function buildSettingsForMode(mode: SnapshotFixtureMode): DetectorSettings {
-  return deriveDefaultDetectorSettings(mode)
+function buildSettingsForMode(fixture: LabeledSnapshotFixture): DetectorSettings {
+  return {
+    ...deriveDefaultDetectorSettings(fixture.mode),
+    ...fixture.replayContext?.settingsOverrides,
+  }
 }
 
 function buildTrackFromFixture(fixture: LabeledSnapshotFixture): Track {
@@ -266,8 +271,9 @@ function buildTrackFromFixture(fixture: LabeledSnapshotFixture): Track {
     lastUpdateTime: latestPoint.time,
     history,
     features,
-    qEstimate: Math.max(0.3, trackFrequencyHz / latestPoint.bandwidthHz),
+    qEstimate: latestPoint.qEstimate,
     bandwidthHz: latestPoint.bandwidthHz,
+    qMeasurementMode: latestPoint.qMeasurementMode,
     phpr: undefined,
     velocityDbPerSec: maxVelocity,
     harmonicOfHz: null,
@@ -287,6 +293,7 @@ function analyzeSnapshotPoint(
   batch: SnapshotBatch,
 ): SnapshotTrackPoint | null {
   const spectrum = decodeSnapshotSpectrum(snapshot)
+  const spectrumDb = decodeSnapshotSpectrumDb(snapshot)
   const targetBin = frequencyToSnapshotBin(
     batch.event.frequencyHz,
     batch.sampleRate,
@@ -318,23 +325,28 @@ function analyzeSnapshotPoint(
     batch.binsPerSnapshot,
   )
   const prominenceDb = Math.max(0, amplitudeDb - noiseFloorDb)
-  const bandwidthBins = calculateThreeDbBandwidthBins(spectrum, localPeakBin, localPeakByte)
-  const hzPerBin = (batch.sampleRate / 2) / (batch.binsPerSnapshot - 1)
-  const bandwidthHz = Math.max(MIN_BANDWIDTH_HZ, bandwidthBins * hzPerBin)
   const frequencyHz = snapshotBinToFrequency(
     localPeakBin,
     batch.sampleRate,
     batch.binsPerSnapshot,
   )
-  const qEstimate = Math.max(0.3, frequencyHz / bandwidthHz)
+  const qEstimateResult = estimateQ(
+    spectrumDb,
+    localPeakBin,
+    amplitudeDb,
+    batch.sampleRate,
+    snapshotEffectiveFftSize(batch),
+    frequencyHz,
+  )
 
   return {
     time: snapshot.t,
     frequencyHz,
     amplitudeDb,
     prominenceDb,
-    qEstimate,
-    bandwidthHz,
+    qEstimate: qEstimateResult.qEstimate,
+    bandwidthHz: qEstimateResult.bandwidthHz,
+    qMeasurementMode: qEstimateResult.qMeasurementMode,
   }
 }
 
@@ -393,19 +405,54 @@ function calculateLocalNoiseFloorDb(
   return count > 0 ? sumDb / count : SNAPSHOT_FIXTURE_DB_MIN
 }
 
-function calculateThreeDbBandwidthBins(
-  spectrum: Uint8Array,
-  peakBin: number,
-  peakByte: number,
-): number {
-  const threshold = peakByte - Math.round((THREE_DB_WIDTH / 100) * 255)
-  let left = peakBin
-  let right = peakBin
+function decodeSnapshotSpectrumDb(snapshot: SnapshotBatch['snapshots'][number]): Float32Array {
+  const encoded = decodeSnapshotSpectrum(snapshot)
+  const spectrumDb = new Float32Array(encoded.length)
+  for (let index = 0; index < encoded.length; index++) {
+    spectrumDb[index] = byteToDb(encoded[index])
+  }
+  return spectrumDb
+}
 
-  while (left > 0 && spectrum[left - 1] >= threshold) left--
-  while (right < spectrum.length - 1 && spectrum[right + 1] >= threshold) right++
+function snapshotEffectiveFftSize(batch: SnapshotBatch): number {
+  return 2 * (batch.binsPerSnapshot - 1)
+}
 
-  return Math.max(1, right - left + 1)
+function buildAdvisoryForFixture(
+  fixture: LabeledSnapshotFixture,
+  track: Track,
+  severity: ClassificationResult['severity'],
+  preset: DetectorSettings['eqPreset'],
+): EQAdvisory {
+  const recommendationContext = fixture.replayContext?.recommendationContext
+  const clusterMinHz = fixture.replayContext?.clusterMinHz
+  const clusterMaxHz = fixture.replayContext?.clusterMaxHz
+  const advisory = generateEQAdvisory(
+    track,
+    severity,
+    preset,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    recommendationContext,
+  )
+
+  if (clusterMinHz === undefined || clusterMaxHz === undefined) {
+    return advisory
+  }
+
+  return {
+    ...advisory,
+    peq: generatePEQRecommendation(
+      track,
+      severity,
+      preset,
+      recommendationContext,
+      clusterMinHz,
+      clusterMaxHz,
+    ),
+  }
 }
 
 function calculateMeanVelocity(points: readonly SnapshotTrackPoint[]): number {
