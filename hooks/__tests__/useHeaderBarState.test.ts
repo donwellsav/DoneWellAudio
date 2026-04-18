@@ -65,6 +65,17 @@ vi.mock('@/contexts/AdvisoryContext', () => ({
     hasActiveGEQBars: mockHasActiveGEQBars,
     hasActiveRTAMarkers: mockHasActiveRTAMarkers,
   }),
+  useAdvisoryData: () => ({
+    advisories: mockAdvisories,
+    dismissedIds: mockDismissedIds,
+    hasActiveGEQBars: mockHasActiveGEQBars,
+    hasActiveRTAMarkers: mockHasActiveRTAMarkers,
+  }),
+  useAdvisoryActions: () => ({
+    onClearAll: mockOnClearAll,
+    onClearGEQ: mockOnClearGEQ,
+    onClearRTA: mockOnClearRTA,
+  }),
 }))
 
 vi.mock('@/contexts/PA2Context', () => ({

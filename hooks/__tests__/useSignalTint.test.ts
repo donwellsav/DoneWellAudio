@@ -18,6 +18,7 @@ let mockInputLevel = -30 // default: adequate signal
 
 vi.mock('@/contexts/AdvisoryContext', () => ({
   useAdvisories: () => ({ advisories: mockAdvisories, dismissedIds: mockDismissedIds }),
+  useAdvisoryData: () => ({ advisories: mockAdvisories, dismissedIds: mockDismissedIds }),
 }))
 
 vi.mock('@/contexts/EngineContext', () => ({

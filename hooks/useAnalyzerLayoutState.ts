@@ -98,6 +98,9 @@ export function useAnalyzerLayoutState() {
     autoGainDb,
     autoGainLocked,
   } = useMetering()
+  // Intentionally merged — this hook spreads the full advisory context to
+  // downstream consumers (see `...advisoriesState` below), so splitting here
+  // buys nothing: the spread creates a new object identity every render.
   const advisoriesState = useAdvisories()
 
   const isLowSignal = useLowSignal(isRunning, inputLevel)

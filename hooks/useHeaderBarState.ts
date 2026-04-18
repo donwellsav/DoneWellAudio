@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo } from 'react'
 import { useTheme } from 'next-themes'
-import { useAdvisories } from '@/contexts/AdvisoryContext'
+import { useAdvisoryActions, useAdvisoryData } from '@/contexts/AdvisoryContext'
 import { useEngine } from '@/contexts/EngineContext'
 import { useMetering } from '@/contexts/MeteringContext'
 import { useUI } from '@/contexts/UIContext'
@@ -37,15 +37,8 @@ export function useHeaderBarState(): HeaderBarState {
   } = useEngine()
   const { inputLevel } = useMetering()
   const { isFullscreen, toggleFullscreen, isFrozen, toggleFreeze, resetLayout } = useUI()
-  const {
-    advisories,
-    dismissedIds,
-    onClearAll,
-    onClearGEQ,
-    onClearRTA,
-    hasActiveGEQBars,
-    hasActiveRTAMarkers,
-  } = useAdvisories()
+  const { advisories, dismissedIds, hasActiveGEQBars, hasActiveRTAMarkers } = useAdvisoryData()
+  const { onClearAll, onClearGEQ, onClearRTA } = useAdvisoryActions()
   const { resolvedTheme, setTheme } = useTheme()
 
   const hasClearableContent = useMemo(
