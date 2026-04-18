@@ -439,18 +439,25 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
   useEffect(() => { dirtyRef.current = true }, [graphFontSize, earlyWarning, rtaDbMin, rtaDbMax, spectrumLineWidthProp, showThresholdLine, feedbackThresholdDb, showFreqZones, showRoomModeLines, roomModes, spectrumWarmMode])
   useEffect(() => { dirtyRef.current = true }, [advisories, clearedIds])
 
+  const isKeyboardInteractive = Boolean(onFreqRangeChange || onThresholdChange)
+  const ariaValueText = onFreqRangeChange
+    ? onThresholdChange && feedbackThresholdDb != null
+      ? `${minFrequency} Hz to ${maxFrequency} Hz, threshold ${feedbackThresholdDb} dB`
+      : `${minFrequency} Hz to ${maxFrequency} Hz`
+    : undefined
+
   return (
     <div
       ref={containerRef}
       className="relative w-full h-full focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-offset-1 rounded-sm"
-      tabIndex={onFreqRangeChange ? 0 : undefined}
+      tabIndex={isKeyboardInteractive ? 0 : undefined}
       role={onFreqRangeChange ? 'slider' : undefined}
-      aria-label={onFreqRangeChange ? 'Frequency range selector' : undefined}
+      aria-label={onFreqRangeChange ? 'Frequency range and detection threshold' : undefined}
       aria-valuemin={onFreqRangeChange ? CANVAS_SETTINGS.RTA_FREQ_MIN : undefined}
       aria-valuemax={onFreqRangeChange ? CANVAS_SETTINGS.RTA_FREQ_MAX : undefined}
       aria-valuenow={onFreqRangeChange ? minFrequency : undefined}
-      aria-valuetext={onFreqRangeChange ? `${minFrequency} Hz to ${maxFrequency} Hz` : undefined}
-      onKeyDown={onFreqRangeChange ? handleKeyDown : undefined}
+      aria-valuetext={ariaValueText}
+      onKeyDown={isKeyboardInteractive ? handleKeyDown : undefined}
     >
       <canvas ref={canvasRef} className="w-full h-full" role="img" aria-label="Real-time audio frequency spectrum display" aria-describedby={descId} />
       {/* Screen reader description — summarizes RTA state for assistive technology */}
@@ -460,7 +467,11 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
               advisories.length > 0
                 ? ` ${advisories.filter(a => !a.resolved).length} active feedback detections. Use the Issues panel for details and EQ recommendations.`
                 : ' No feedback detected.'
-            }${isFrozen ? ' Display is frozen.' : ''}`
+            }${isFrozen ? ' Display is frozen.' : ''}${
+              isKeyboardInteractive
+                ? ` Keyboard: Left and Right arrows adjust frequency range${onThresholdChange ? '; Up and Down arrows adjust threshold' : ''}. Hold Shift for larger steps.`
+                : ''
+            }`
           : 'Spectrum analyzer stopped. Press Enter or click Start to begin analysis.'}
       </div>
       <SpectrumCanvasOverlay

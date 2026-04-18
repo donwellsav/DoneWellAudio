@@ -125,6 +125,23 @@ export function adjustRangeWithKeyboard(
   }
 }
 
+const THRESHOLD_MIN_DB = 2
+const THRESHOLD_MAX_DB = 50
+const THRESHOLD_KEYBOARD_STEP_DB = 1
+const THRESHOLD_KEYBOARD_STEP_SHIFT_DB = 5
+
+export function adjustThresholdWithKeyboard(
+  currentDb: number,
+  key: string,
+  shiftKey: boolean,
+): number | null {
+  if (key !== 'ArrowUp' && key !== 'ArrowDown') return null
+
+  const step = shiftKey ? THRESHOLD_KEYBOARD_STEP_SHIFT_DB : THRESHOLD_KEYBOARD_STEP_DB
+  const delta = key === 'ArrowUp' ? step : -step
+  return clamp(currentDb + delta, THRESHOLD_MIN_DB, THRESHOLD_MAX_DB)
+}
+
 export function useSpectrumCanvasInteractions({
   canvasRef,
   onFreqRangeChange,
@@ -342,6 +359,22 @@ export function useSpectrumCanvasInteractions({
   }, [canvasRef, dirtyRef, dragRef, hoverPosRef, paddingRef])
 
   return useCallback((event: React.KeyboardEvent) => {
+    // Threshold adjustment — ArrowUp/ArrowDown (Shift = 5 dB step).
+    if (onThresholdChangeRef.current) {
+      const nextDb = adjustThresholdWithKeyboard(
+        feedbackThresholdDbRef.current,
+        event.key,
+        event.shiftKey,
+      )
+      if (nextDb != null) {
+        event.preventDefault()
+        onThresholdChangeRef.current(nextDb)
+        dirtyRef.current = true
+        return
+      }
+    }
+
+    // Frequency range adjustment — ArrowLeft/ArrowRight (Shift = move max edge).
     if (!onFreqRangeChangeRef.current) return
 
     const nextRange = adjustRangeWithKeyboard(
@@ -355,5 +388,5 @@ export function useSpectrumCanvasInteractions({
     freqRangeRef.current = nextRange
     onFreqRangeChangeRef.current(nextRange.min, nextRange.max)
     dirtyRef.current = true
-  }, [dirtyRef, freqRangeRef, onFreqRangeChangeRef])
+  }, [dirtyRef, feedbackThresholdDbRef, freqRangeRef, onFreqRangeChangeRef, onThresholdChangeRef])
 }
