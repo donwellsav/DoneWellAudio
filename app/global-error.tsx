@@ -3,6 +3,37 @@
 import * as Sentry from '@sentry/nextjs'
 import { useEffect } from 'react'
 
+const STYLES = `
+html { color-scheme: dark light; }
+.ge-root {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  min-height: 100vh; padding: 1rem;
+  font-family: ui-monospace, monospace;
+  background: #0a0a0a; color: #fafafa;
+}
+.ge-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; }
+.ge-msg { font-size: 0.875rem; color: #a1a1aa; margin-bottom: 1rem; text-align: center; max-width: 50ch; }
+.ge-btn {
+  padding: 0.5rem 1rem; font-size: 0.875rem;
+  font-family: ui-monospace, monospace; font-weight: 500;
+  border-radius: 0.375rem;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  cursor: pointer;
+}
+@media (prefers-color-scheme: light) {
+  .ge-root { background: #fafafa; color: #0a0a0a; }
+  .ge-msg { color: #52525b; }
+  .ge-btn {
+    background: rgba(220, 38, 38, 0.1);
+    color: #b91c1c;
+    border-color: rgba(185, 28, 28, 0.4);
+  }
+}
+`
+
 export default function GlobalError({
   error,
   reset,
@@ -17,38 +48,11 @@ export default function GlobalError({
   return (
     <html>
       <body>
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh',
-          fontFamily: 'ui-monospace, monospace',
-          backgroundColor: '#0a0a0a',
-          color: '#fafafa',
-        }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-            Something went wrong
-          </h2>
-          <p style={{ fontSize: '0.875rem', color: '#a1a1aa', marginBottom: '1rem' }}>
-            {error.message || 'An unexpected error occurred.'}
-          </p>
-          <button
-            onClick={reset}
-            style={{
-              padding: '0.5rem 1rem',
-              fontSize: '0.875rem',
-              fontFamily: 'ui-monospace, monospace',
-              fontWeight: 500,
-              borderRadius: '0.375rem',
-              backgroundColor: 'rgba(239, 68, 68, 0.15)',
-              color: '#ef4444',
-              border: '1px solid rgba(239, 68, 68, 0.4)',
-              cursor: 'pointer',
-            }}
-          >
-            Try again
-          </button>
+        <style>{STYLES}</style>
+        <div className="ge-root">
+          <h2 className="ge-title">Something went wrong</h2>
+          <p className="ge-msg">{error.message || 'An unexpected error occurred.'}</p>
+          <button onClick={reset} className="ge-btn">Try again</button>
         </div>
       </body>
     </html>

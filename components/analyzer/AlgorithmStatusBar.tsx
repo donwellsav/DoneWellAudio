@@ -127,7 +127,7 @@ export const AlgorithmStatusBar = memo(function AlgorithmStatusBar({
               {showDetailed && (
                 <div className="w-8 h-1.5 bg-muted rounded-full overflow-hidden">
                   <div
-                    className={`h-full transition-all duration-300 ${msdReady ? 'bg-green-500' : 'bg-amber-500'}`}
+                    className={`h-full transition-all duration-300 ${msdReady ? 'bg-green-600 dark:bg-green-500' : 'bg-amber-600 dark:bg-amber-500'}`}
                     style={{ width: `${msdProgress}%` }}
                   />
                 </div>
