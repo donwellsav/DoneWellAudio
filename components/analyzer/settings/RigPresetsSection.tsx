@@ -42,6 +42,7 @@ export const RigPresetsSection = memo(function RigPresetsSection({
               <div key={preset.id} className="inline-flex items-center gap-0.5">
                 <button
                   onClick={() => handleLoadPreset(preset.id)}
+                  aria-label={`Load ${preset.name} preset`}
                   className="min-h-11 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 px-2 rounded text-sm font-medium text-muted-foreground hover:text-foreground border border-transparent hover:border-border transition-colors"
                 >
                   {preset.name}
@@ -74,7 +75,7 @@ export const RigPresetsSection = memo(function RigPresetsSection({
             <button
               onClick={handleSavePreset}
               disabled={!presetName.trim()}
-              className="min-h-11 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 px-2 rounded text-sm font-medium bg-primary/20 text-primary border border-primary/40 disabled:opacity-40 transition-colors"
+              className="min-h-11 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 px-2 rounded text-sm font-medium bg-primary/20 text-primary border border-primary/40 disabled:opacity-65 transition-colors"
             >
               Save
             </button>

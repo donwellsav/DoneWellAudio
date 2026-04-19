@@ -172,6 +172,7 @@ export const ConsoleSlider = memo(function ConsoleSlider({
         {/* Slider track */}
         <SliderPrimitive.Root
           ref={sliderRef}
+          aria-label={label}
           value={[sliderValue]}
           onValueChange={([v]) => onChange(v)}
           onPointerDown={handlePointerDown}
@@ -193,7 +194,8 @@ export const ConsoleSlider = memo(function ConsoleSlider({
           <Tooltip open={isDragging}>
             <TooltipTrigger asChild>
               <SliderPrimitive.Thumb
-                className="console-thumb block shrink-0 rounded-full transition-[box-shadow,transform] duration-100 focus-visible:outline-hidden cursor-grab active:cursor-grabbing"
+                aria-label={label}
+                className="console-thumb block shrink-0 rounded-full motion-safe:transition-[box-shadow,transform] motion-safe:duration-100 focus-visible:outline-hidden cursor-grab active:cursor-grabbing"
                 style={{
                   width: 20, height: 20,
                   borderColor: c.thumbBorder,

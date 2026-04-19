@@ -116,8 +116,8 @@ export const DualFaderStrip = memo(function DualFaderStrip({
           className={`flex-1 py-1 rounded flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
             autoGainEnabled
               ? autoGainLocked
-                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                : 'bg-amber-500/20 text-amber-400 border border-amber-500/40 motion-safe:animate-pulse'
+                ? 'bg-emerald-100 text-emerald-800 border border-emerald-400 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/40'
+                : 'bg-amber-100 text-amber-800 border border-amber-400 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/40 motion-safe:animate-pulse'
               : 'bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.06)] text-[var(--console-amber)]/70 border border-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.18)] hover:bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.12)]'
           }`}
           title={
@@ -138,8 +138,8 @@ export const DualFaderStrip = memo(function DualFaderStrip({
           <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
             autoGainEnabled
               ? autoGainLocked
-                ? 'bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.6)]'
-                : 'bg-amber-400 shadow-[0_0_4px_rgba(251,191,36,0.6)]'
+                ? 'bg-emerald-600 shadow-[0_0_4px_rgba(22,163,74,0.6)] dark:bg-emerald-400 dark:shadow-[0_0_4px_rgba(52,211,153,0.6)]'
+                : 'bg-amber-600 shadow-[0_0_4px_rgba(217,119,6,0.6)] dark:bg-amber-400 dark:shadow-[0_0_4px_rgba(251,191,36,0.6)]'
               : 'bg-[var(--console-amber)] shadow-[0_0_4px_rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.4)]'
           }`} />
           {autoGainEnabled ? (autoGainLocked ? 'Lock' : 'Cal') : 'Man'}

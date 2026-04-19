@@ -8,7 +8,7 @@ import { formatFrequency } from '@/lib/utils/pitchUtils'
 import { CANVAS_SETTINGS } from '@/lib/dsp/constants'
 import { smoothSpectrumForDisplay, type DisplaySpectrumSmoothingScratch } from '@/lib/canvas/drawing/spectrumSmoothing'
 import { thresholdDraggedStorage } from '@/lib/storage/dwaStorage'
-import { OVERLAY_TEXT, OVERLAY_ACCENT, GROWING_COLOR } from '@/lib/canvas/canvasTokens'
+import { OVERLAY_ACCENT, GROWING_COLOR } from '@/lib/canvas/canvasTokens'
 import { getSeverityColor } from '@/lib/utils/advisoryDisplay'
 import { logError } from '@/lib/utils/logger'
 import type { SpectrumData, Advisory, SpectrumSmoothingMode } from '@/types/advisory'
@@ -17,7 +17,7 @@ import type { EarlyWarning } from '@/hooks/audioAnalyzerTypes'
 import {
   type DbRange, type CanvasTheme, calcPadding, drawGrid, drawFreqZones, drawRoomModeLines, drawIndicatorLines, drawSpectrum,
   drawFreqRangeOverlay, drawNotchOverlays, drawMarkers, drawAxisLabels, drawPlaceholder,
-  drawLevelMeter, drawLevelGlow,
+  drawLevelMeter, drawLevelGlow, cachedMeasureText,
   DARK_CANVAS_THEME, LIGHT_CANVAS_THEME,
 } from '@/lib/canvas/spectrumDrawing'
 import { useSpectrumCanvasInteractions } from '@/hooks/useSpectrumCanvasInteractions'
@@ -302,7 +302,7 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
       : spectrum?.freqDb ?? null
 
     drawSpectrum(ctx, plotWidth, plotHeight, range, spectrum, displayFreqDb, gradientRef, gradientHeightRef, spectrumLineWidthProp ?? 0.5, peakHoldRef, spectrumWarmMode, canvasThemeRef.current, dtSeconds)
-    drawLevelMeter(ctx, plotHeight, range, spectrum, dtSeconds)
+    drawLevelMeter(ctx, plotHeight, range, spectrum, canvasThemeRef.current, dtSeconds)
 
     // Store padding for pointer event calculations
     paddingRef.current = { left: padding.left, top: padding.top, plotWidth, plotHeight }
@@ -313,6 +313,7 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
 
     // Frozen badge — top-right of plot area
     if (isFrozenRef.current) {
+      const theme = canvasThemeRef.current
       const badgeText = 'FROZEN'
       ctx.font = `bold ${fontSize}px monospace`
       const tw = ctx.measureText(badgeText).width
@@ -320,15 +321,15 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
       const by = 6
       const px = 6, py = 3
 
-      ctx.fillStyle = 'rgba(75,146,255,0.2)'
+      ctx.fillStyle = theme.frozenBadgeBg
       ctx.beginPath()
       ctx.roundRect(bx - px, by, tw + px * 2, fontSize + py * 2, 3)
       ctx.fill()
-      ctx.strokeStyle = 'rgba(75,146,255,0.5)'
+      ctx.strokeStyle = theme.frozenBadgeBorder
       ctx.lineWidth = 1
       ctx.stroke()
 
-      ctx.fillStyle = OVERLAY_ACCENT
+      ctx.fillStyle = theme.frozenBadgeText
       ctx.textAlign = 'left'
       ctx.textBaseline = 'top'
       ctx.fillText(badgeText, bx, by + py)
@@ -362,10 +363,11 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
       const lineH = fontSize + 2
       const lines: { text: string; color: string }[] = []
 
+      const theme = canvasThemeRef.current
       if (nearestAdvisory) {
         // Advisory-rich tooltip
         const a = nearestAdvisory
-        lines.push({ text: formatFrequency(a.trueFrequencyHz), color: OVERLAY_TEXT })
+        lines.push({ text: formatFrequency(a.trueFrequencyHz), color: theme.tooltipText })
         lines.push({ text: `${a.severity}  ${a.confidence != null ? Math.round(a.confidence * 100) + '%' : ''}`, color: getSeverityColor(a.severity) })
         if (a.advisory?.peq) {
           const peq = a.advisory.peq
@@ -376,10 +378,10 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
         }
       } else {
         // Basic freq + dB readout
-        lines.push({ text: `${formatFrequency(hoverFreq)}  ${Math.round(hoverDb)} dB`, color: OVERLAY_TEXT })
+        lines.push({ text: `${formatFrequency(hoverFreq)}  ${Math.round(hoverDb)} dB`, color: theme.tooltipText })
       }
 
-      const maxLineW = Math.max(...lines.map(l => ctx.measureText(l.text).width))
+      const maxLineW = Math.max(...lines.map(l => cachedMeasureText(ctx, l.text).width))
       const tipW = maxLineW + tipPad * 2
       const tipH = lines.length * lineH + tipPad * 2
 
@@ -389,8 +391,8 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
       if (tipX + tipW > plotWidth) tipX = hover.x - tipW - 12
       if (tipY < 0) tipY = hover.y + 16
 
-      // Background pill
-      ctx.fillStyle = nearestAdvisory ? 'rgba(0,0,0,0.88)' : 'rgba(0,0,0,0.8)'
+      // Background pill (theme-aware; dark mode uses near-black, light mode uses near-white)
+      ctx.fillStyle = nearestAdvisory ? theme.tooltipBgAdvisory : theme.tooltipBg
       ctx.beginPath()
       ctx.roundRect(tipX, tipY, tipW, tipH, 4)
       ctx.fill()
@@ -409,8 +411,8 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
         ctx.fillText(lines[i].text, tipX + tipPad + (nearestAdvisory ? 4 : 0), tipY + tipPad + i * lineH)
       }
 
-      // Crosshair lines (subtle)
-      ctx.strokeStyle = nearestAdvisory ? `${getSeverityColor(nearestAdvisory.severity)}30` : 'rgba(255,255,255,0.15)'
+      // Crosshair lines (subtle) — theme-aware when no advisory nearby
+      ctx.strokeStyle = nearestAdvisory ? `${getSeverityColor(nearestAdvisory.severity)}30` : theme.crosshairIdle
       ctx.lineWidth = 1
       ctx.setLineDash([4, 4])
       ctx.beginPath()
@@ -438,18 +440,25 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
   useEffect(() => { dirtyRef.current = true }, [graphFontSize, earlyWarning, rtaDbMin, rtaDbMax, spectrumLineWidthProp, showThresholdLine, feedbackThresholdDb, showFreqZones, showRoomModeLines, roomModes, spectrumWarmMode])
   useEffect(() => { dirtyRef.current = true }, [advisories, clearedIds])
 
+  const isKeyboardInteractive = Boolean(onFreqRangeChange || onThresholdChange)
+  const ariaValueText = onFreqRangeChange
+    ? onThresholdChange && feedbackThresholdDb != null
+      ? `${minFrequency} Hz to ${maxFrequency} Hz, threshold ${feedbackThresholdDb} dB`
+      : `${minFrequency} Hz to ${maxFrequency} Hz`
+    : undefined
+
   return (
     <div
       ref={containerRef}
       className="relative w-full h-full focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-offset-1 rounded-sm"
-      tabIndex={onFreqRangeChange ? 0 : undefined}
+      tabIndex={isKeyboardInteractive ? 0 : undefined}
       role={onFreqRangeChange ? 'slider' : undefined}
-      aria-label={onFreqRangeChange ? 'Frequency range selector' : undefined}
+      aria-label={onFreqRangeChange ? 'Frequency range and detection threshold' : undefined}
       aria-valuemin={onFreqRangeChange ? CANVAS_SETTINGS.RTA_FREQ_MIN : undefined}
       aria-valuemax={onFreqRangeChange ? CANVAS_SETTINGS.RTA_FREQ_MAX : undefined}
       aria-valuenow={onFreqRangeChange ? minFrequency : undefined}
-      aria-valuetext={onFreqRangeChange ? `${minFrequency} Hz to ${maxFrequency} Hz` : undefined}
-      onKeyDown={onFreqRangeChange ? handleKeyDown : undefined}
+      aria-valuetext={ariaValueText}
+      onKeyDown={isKeyboardInteractive ? handleKeyDown : undefined}
     >
       <canvas ref={canvasRef} className="w-full h-full" role="img" aria-label="Real-time audio frequency spectrum display" aria-describedby={descId} />
       {/* Screen reader description — summarizes RTA state for assistive technology */}
@@ -459,7 +468,11 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
               advisories.length > 0
                 ? ` ${advisories.filter(a => !a.resolved).length} active feedback detections. Use the Issues panel for details and EQ recommendations.`
                 : ' No feedback detected.'
-            }${isFrozen ? ' Display is frozen.' : ''}`
+            }${isFrozen ? ' Display is frozen.' : ''}${
+              isKeyboardInteractive
+                ? ` Keyboard: Left and Right arrows adjust frequency range${onThresholdChange ? '; Up and Down arrows adjust threshold' : ''}. Hold Shift for larger steps.`
+                : ''
+            }`
           : 'Spectrum analyzer stopped. Press Enter or click Start to begin analysis.'}
       </div>
       <SpectrumCanvasOverlay

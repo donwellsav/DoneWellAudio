@@ -17,6 +17,7 @@ vi.mock('@/contexts/SettingsContext', () => ({
 
 vi.mock('@/contexts/AdvisoryContext', () => ({
   useAdvisories: () => ({ companionState: new Map() }),
+  useAdvisoryData: () => ({ companionState: new Map() }),
 }))
 
 vi.mock('@/lib/dsp/feedbackHistory', () => ({

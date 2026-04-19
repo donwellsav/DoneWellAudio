@@ -32,7 +32,11 @@ export const CalibrationSessionSection = memo(function CalibrationSessionSection
       <Section title="Detection Recording" tooltip="When enabled, all detection events, spectrum snapshots, and noise floor readings are automatically recorded during analysis for later export.">
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-mono text-muted-foreground">Enable</span>
-          <PillToggle checked={calibrationEnabled} onChange={setCalibrationEnabled} />
+          <PillToggle
+            checked={calibrationEnabled}
+            onChange={setCalibrationEnabled}
+            label="detection recording"
+          />
         </div>
       </Section>
 

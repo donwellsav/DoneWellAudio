@@ -33,8 +33,8 @@ export const RoomPhysicsSection = memo(function RoomPhysicsSection({
     >
       <div className="space-y-4">
         <div className="space-y-2">
-          <span className="text-sm text-muted-foreground font-mono tracking-wide">Room Preset</span>
-          <div className="grid grid-cols-1 @[300px]:grid-cols-2 gap-1.5">
+          <span id="room-preset-label" className="text-sm text-muted-foreground font-mono tracking-wide">Room Preset</span>
+          <div role="radiogroup" aria-labelledby="room-preset-label" className="grid grid-cols-1 @[300px]:grid-cols-2 gap-1.5">
             {(Object.keys(ROOM_PRESETS) as RoomPresetKey[]).map((key) => {
               const preset = ROOM_PRESETS[key]
               const isSelected = settings.roomPreset === key
@@ -42,6 +42,8 @@ export const RoomPhysicsSection = memo(function RoomPhysicsSection({
               return (
                 <button
                   key={key}
+                  role="radio"
+                  aria-checked={isSelected}
                   onClick={() => setRoomPreset(key)}
                   className={`flex flex-col items-start px-2 py-1.5 rounded text-left transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                     isSelected
@@ -63,11 +65,14 @@ export const RoomPhysicsSection = memo(function RoomPhysicsSection({
         {settings.roomPreset !== 'none' ? (
           <>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground font-mono tracking-wide">Unit:</span>
-              <div className="flex gap-1">
+              <span id="room-unit-label" className="text-sm text-muted-foreground font-mono tracking-wide">Unit:</span>
+              <div role="radiogroup" aria-labelledby="room-unit-label" className="flex gap-1">
                 {(['meters', 'feet'] as const).map((unit) => (
                   <button
                     key={unit}
+                    role="radio"
+                    aria-checked={settings.roomDimensionsUnit === unit}
+                    aria-label={unit === 'meters' ? 'Meters' : 'Feet'}
                     onClick={() => setDisplayUnit(unit)}
                     className={`px-2 py-0.5 text-sm rounded cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                       settings.roomDimensionsUnit === unit
@@ -110,8 +115,8 @@ export const RoomPhysicsSection = memo(function RoomPhysicsSection({
             </div>
 
             <div className="space-y-1">
-              <label className="text-sm text-muted-foreground font-mono">Acoustic Treatment</label>
-              <div className="flex gap-1">
+              <span id="room-treatment-label" className="text-sm text-muted-foreground font-mono">Acoustic Treatment</span>
+              <div role="radiogroup" aria-labelledby="room-treatment-label" className="flex gap-1">
                 {([
                   ['untreated', 'Untreated', 'Hard walls, no panels or curtains - high reflections'],
                   ['typical', 'Typical', 'Some soft furnishings, partial treatment - average venue'],
@@ -119,6 +124,8 @@ export const RoomPhysicsSection = memo(function RoomPhysicsSection({
                 ] as const).map(([value, label, description]) => (
                   <button
                     key={value}
+                    role="radio"
+                    aria-checked={settings.roomTreatment === value}
                     title={description}
                     onClick={() => setTreatment(value)}
                     className={`flex-1 px-2 py-1 text-sm rounded cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${

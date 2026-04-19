@@ -57,7 +57,7 @@ export default async function RootLayout({
           Skip to main content
         </a>
         <ThemeProvider attribute="class" defaultTheme="dark" storageKey="dwa-theme" disableTransitionOnChange>
-          {children}
+          <main id="main">{children}</main>
         </ThemeProvider>
       </body>
     </html>

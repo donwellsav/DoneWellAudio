@@ -40,7 +40,7 @@ export const DataConsentDialog = memo(function DataConsentDialog({
       aria-labelledby="consent-title"
       className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
     >
-      <div className="bg-card/90 border border-border/40 rounded max-w-md w-full p-6 shadow-xl backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-card/90 border border-border/40 rounded max-w-[min(28rem,calc(100vw-2rem))] w-full p-6 shadow-xl backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200">
         {/* Icon */}
         <div className="flex items-center justify-center w-12 h-12 rounded-full bg-[rgba(74,222,128,0.10)] border border-[rgba(74,222,128,0.20)] mb-4 mx-auto">
           <Database className="w-6 h-6" style={{ color: 'var(--console-green)' }} />

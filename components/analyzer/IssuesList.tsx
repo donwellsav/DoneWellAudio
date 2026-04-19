@@ -6,7 +6,7 @@ import { getSeverityText, getSeverityColor } from '@/lib/utils/advisoryDisplay'
 import { summarizeShelfRecommendations } from '@/lib/utils/recommendationDisplay'
 import type { Advisory } from '@/types/advisory'
 import { useCompanion } from '@/hooks/useCompanion'
-import { useAdvisories } from '@/contexts/AdvisoryContext'
+import { useAdvisoryData } from '@/contexts/AdvisoryContext'
 import { useIssueAnnouncement } from '@/hooks/useIssueAnnouncement'
 import {
   useIssuesListEntries,
@@ -64,7 +64,7 @@ export const IssuesList = memo(function IssuesList({
     sendExplicitAdvisory,
     autoSendAdvisories,
   } = companion
-  const { companionState } = useAdvisories()
+  const { companionState } = useAdvisoryData()
 
   useEffect(() => {
     autoSendAdvisories(advisories)

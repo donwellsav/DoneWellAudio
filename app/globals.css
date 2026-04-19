@@ -117,7 +117,7 @@ html {
   --secondary: #e8ecf2;
   --secondary-foreground: #1a1a1e;
   --muted: #e8eaee;
-  --muted-foreground: #475569;
+  --muted-foreground: #334155;
   --accent: #2563eb;
   --accent-foreground: #ffffff;
   --destructive: #dc2626;
@@ -126,8 +126,8 @@ html {
   --input: #e8ecf2;
   --ring: #2563eb;
   --severity-runaway: #dc2626;
-  --severity-growing: #d97706;
-  --severity-resonance: #ca8a04;
+  --severity-growing: #b45309;
+  --severity-resonance: #a16207;
   --severity-ring: #2563eb;
   --severity-whistle: #0891b2;
   --severity-instrument: #16a34a;
@@ -289,7 +289,7 @@ html {
   }
 
   .animate-emergency-glow {
-    animation: emergency-glow 1.5s ease-in-out infinite;
+    animation: emergency-glow 1.5s ease-in-out 2;
   }
 
   /* Etched groove — horizontal divider mimicking milled aluminum */
@@ -506,14 +506,14 @@ html {
     to { opacity: 1; transform: scale(1); }
   }
 
-  /* #19 Tab icon bounce on activation */
+  /* #19 Tab icon bounce on activation — subtle scale blip, no elastic overshoot */
   @keyframes tab-bounce {
     0% { transform: scale(1); }
-    40% { transform: scale(1.15); }
+    50% { transform: scale(1.08); }
     100% { transform: scale(1); }
   }
   .animate-tab-bounce {
-    animation: tab-bounce 200ms cubic-bezier(0.22, 1, 0.36, 1);
+    animation: tab-bounce 180ms cubic-bezier(0.4, 0, 0.2, 1);
   }
   .light .animate-start-glow {
     animation: start-glow-light 3s ease-in-out infinite;
@@ -525,21 +525,26 @@ html {
     100% { transform: translateX(300%); }
   }
 
-  /* ── Issue card entrance animation ────────────────────────────────────── */
+  /* ── Issue card entrance animation ──────────────────────────────────────
+     Uses filter: drop-shadow() instead of box-shadow for the glow flash:
+     drop-shadow composites on the GPU layer, whereas box-shadow triggers
+     repaints on every frame. Matters when 5–8 cards enter simultaneously. */
   @keyframes issue-enter {
     0% {
       opacity: 0;
       transform: translateX(-12px) scale(0.97);
+      filter: drop-shadow(0 0 0 rgba(75, 146, 255, 0));
     }
     60% {
       opacity: 1;
       transform: translateX(0) scale(1);
+      filter: drop-shadow(0 0 0 rgba(75, 146, 255, 0));
     }
     75% {
-      box-shadow: 0 0 16px rgba(75, 146, 255, 0.25);
+      filter: drop-shadow(0 0 16px rgba(75, 146, 255, 0.25));
     }
     100% {
-      box-shadow: none;
+      filter: drop-shadow(0 0 0 rgba(75, 146, 255, 0));
     }
   }
 

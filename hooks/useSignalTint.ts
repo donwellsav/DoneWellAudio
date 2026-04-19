@@ -20,7 +20,7 @@
  */
 
 import { useMemo, useEffect, useRef, useCallback } from 'react'
-import { useAdvisories } from '@/contexts/AdvisoryContext'
+import { useAdvisoryData } from '@/contexts/AdvisoryContext'
 import { useEngine } from '@/contexts/EngineContext'
 import { useMetering } from '@/contexts/MeteringContext'
 import { useSettings } from '@/contexts/SettingsContext'
@@ -71,7 +71,7 @@ function applyTint(rgb: RGB, isRunaway: boolean): void {
  * to prevent flicker when advisories briefly disappear and return.
  */
 export function useSignalTint(): void {
-  const { advisories, dismissedIds } = useAdvisories()
+  const { advisories, dismissedIds } = useAdvisoryData()
   const { isRunning } = useEngine()
   const { inputLevel } = useMetering()
   const { settings } = useSettings()

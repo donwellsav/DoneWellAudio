@@ -21,20 +21,20 @@ export const FeedbackHistoryHotspotsSection = memo(function FeedbackHistoryHotsp
       {repeatOffenders.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-2 py-1.5 px-2 panel-groove bg-card/60">
-            <AlertTriangle className="h-4 w-4 text-amber-400" />
+            <AlertTriangle className="h-4 w-4 text-amber-700 dark:text-amber-400" />
             <span className="section-label">Repeat Offenders</span>
           </div>
           <div className={gridClassName}>
             {repeatOffenders.slice(0, 5).map((hotspot) => (
               <div
                 key={`${hotspot.centerFrequencyHz}-${hotspot.lastSeen}`}
-                className="bg-amber-500/10 border border-amber-500/30 rounded p-2 hover:bg-amber-500/15 transition-colors"
+                className="bg-amber-100 border border-amber-300 hover:bg-amber-200 dark:bg-amber-500/10 dark:border-amber-500/30 dark:hover:bg-amber-500/15 rounded p-2 transition-colors"
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-amber-400 font-medium">
+                  <span className="font-mono text-amber-800 dark:text-amber-400 font-medium">
                     {formatHistoryFrequency(hotspot.centerFrequencyHz)}
                   </span>
-                  <span className="text-sm font-mono bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded">
+                  <span className="text-sm font-mono bg-amber-200 text-amber-900 dark:bg-amber-500/20 dark:text-amber-300 px-2 py-0.5 rounded">
                     {hotspot.occurrences}x detected
                   </span>
                 </div>
@@ -67,7 +67,7 @@ export const FeedbackHistoryHotspotsSection = memo(function FeedbackHistoryHotsp
                 key={`${hotspot.centerFrequencyHz}-${hotspot.lastSeen}`}
                 className={`rounded px-2 py-1.5 flex items-center justify-between transition-colors ${
                   hotspot.isRepeatOffender
-                    ? 'bg-amber-500/10 border-l-2 border-amber-500 hover:bg-amber-500/15'
+                    ? 'bg-amber-100 border-l-2 border-amber-500 hover:bg-amber-200 dark:bg-amber-500/10 dark:hover:bg-amber-500/15'
                     : 'bg-card/80 hover:bg-accent/5'
                 }`}
               >
@@ -76,7 +76,7 @@ export const FeedbackHistoryHotspotsSection = memo(function FeedbackHistoryHotsp
                     {formatHistoryFrequency(hotspot.centerFrequencyHz)}
                   </span>
                   {hotspot.isRepeatOffender && (
-                    <TrendingUp className="h-3 w-3 text-amber-400" />
+                    <TrendingUp className="h-3 w-3 text-amber-700 dark:text-amber-400" />
                   )}
                 </div>
                 <div className="flex items-center gap-3 text-sm text-muted-foreground font-mono">
