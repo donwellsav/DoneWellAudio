@@ -88,12 +88,31 @@ export const VIZ_COLORS = {
   AXIS_LABEL: '#8891a0', // dimmed — pro tools keep grid labels subtle, data pops
 } as const
 
-/** Light-mode severity colors — darker tones for WCAG AA contrast on light backgrounds */
+/** Light-mode visualization colors — darker tones for WCAG AA contrast on light backgrounds.
+ *
+ * Consumed via `{ ...VIZ_COLORS, ...VIZ_COLORS_LIGHT }` in advisoryDisplay.ts and eqAdvisor.ts
+ * so LIGHT acts as a sparse override of DARK. Missing keys fall through to DARK values.
+ * Keep this table symmetric with VIZ_COLORS so future callers get correct light-theme values.
+ */
 export const VIZ_COLORS_LIGHT = {
+  // Severity tokens (originally defined)
   RUNAWAY: '#dc2626',       // red-600 (7.1:1 on white)
   GROWING: '#ea580c',       // orange-600 (4.6:1 on white)
   RESONANCE: '#a16207',     // yellow-700 (5.2:1 on white)
   POSSIBLE_RING: '#9333ea', // purple-600 (5.5:1 on white)
   WHISTLE: '#0891b2',       // cyan-600 (4.5:1 on white)
   INSTRUMENT: '#16a34a',    // green-600 (4.6:1 on white)
+  // Infrastructure tokens (added to complete the symmetry)
+  NOISE_FLOOR: '#64748b',   // slate-500 — dimmed gray that reads on light
+  THRESHOLD: '#2563eb',     // blue-600 — matches light-theme --ring
+  SPECTRUM: '#2563eb',      // blue-600 — same as THRESHOLD
+  PEAK_MARKER: '#b45309',   // amber-700 — matches Batch 21 earlyWarningMarker
+  // Advanced algorithm colors
+  MSD_HIGH: '#16a34a',      // green-600
+  MSD_LOW: '#6b7280',       // gray-500 (works on both themes)
+  PHASE_COHERENT: '#2563eb', // blue-600
+  PHASE_RANDOM: '#64748b',  // slate-500
+  COMPRESSION: '#b45309',   // amber-700
+  COMB_PATTERN: '#7c3aed',  // violet-600
+  AXIS_LABEL: '#5a6478',    // matches LIGHT_CANVAS_THEME.axisLabel
 } as const
