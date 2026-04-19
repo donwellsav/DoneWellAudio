@@ -100,6 +100,16 @@
             "type": "command",
             "command": "node .claude/hooks/edit-tracker.js",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/contrast-check.js",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/hotpath-alloc-sniff.js",
+            "timeout": 5
           }
         ]
       },
@@ -155,5 +165,9 @@
   },
   "enabledPlugins": {
     "codex@openai-codex": true
-  }
+  },
+  "enabledMcpjsonServers": [
+    "context7",
+    "playwright"
+  ]
 }
