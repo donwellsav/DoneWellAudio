@@ -11,7 +11,7 @@ const COPY_BTN = 'rounded btn-glow flex items-center justify-center cursor-point
 // Light-theme variants use *-700/800 hues for WCAG AA contrast on light canvas;
 // dark-theme variants preserve the previous tonal tailwind shades behind dark:.
 const FP_ACTIVE = 'text-red-800 bg-red-100 border border-red-300 dark:text-red-400 dark:bg-red-500/20 dark:border-red-500/40'
-const FP_INACTIVE = 'text-muted-foreground/50 hover:text-red-800 hover:bg-red-100 dark:hover:text-red-400 dark:hover:bg-red-500/10 border border-transparent'
+const FP_INACTIVE = 'text-muted-foreground/70 hover:text-red-800 hover:bg-red-100 dark:hover:text-red-400 dark:hover:bg-red-500/10 border border-transparent'
 const SEND_DESKTOP = 'text-blue-600/60 hover:text-blue-800 hover:bg-blue-100 dark:text-blue-400/50 dark:hover:text-blue-400 dark:hover:bg-blue-500/10 border border-transparent'
 const SEND_MOBILE = 'text-blue-700/80 hover:text-blue-800 hover:bg-blue-100 dark:text-blue-400/70 dark:hover:text-blue-400 dark:hover:bg-blue-500/10 border border-transparent'
 
@@ -52,7 +52,7 @@ export const IssueCardActions = memo(function IssueCardActions({
         className={`${COPY_BTN} w-8 h-8 min-w-[44px] min-h-[44px] flex-shrink-0 self-center ${
           copied
             ? 'text-[var(--console-amber)]'
-            : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60'
+            : 'text-muted-foreground/70 hover:text-muted-foreground hover:bg-muted/60'
         }`}
       >
         {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -79,7 +79,7 @@ export const IssueCardActions = memo(function IssueCardActions({
             className={`${actionButtonClass} ${
               isConfirmed
                 ? 'text-[var(--console-amber)] bg-[var(--console-amber)]/15 border border-[var(--console-amber)]/35'
-                : 'text-muted-foreground/50 hover:text-[var(--console-amber)] hover:bg-[var(--console-amber)]/10 border border-transparent'
+                : 'text-muted-foreground/70 hover:text-[var(--console-amber)] hover:bg-[var(--console-amber)]/10 border border-transparent'
             }`}
           >
             <span className="flex flex-col items-center leading-[1.1]">
@@ -153,7 +153,7 @@ export const IssueCardActions = memo(function IssueCardActions({
             className={`${actionButtonClass} ${
               isConfirmed
                 ? 'text-[var(--console-amber)] bg-[var(--console-amber)]/15 border border-[var(--console-amber)]/35'
-                : 'text-muted-foreground/50 hover:text-[var(--console-amber)] hover:bg-[var(--console-amber)]/10 border border-transparent'
+                : 'text-muted-foreground/70 hover:text-[var(--console-amber)] hover:bg-[var(--console-amber)]/10 border border-transparent'
             }`}
           >
             <span className="flex flex-col items-center leading-[1.1]">
@@ -169,7 +169,7 @@ export const IssueCardActions = memo(function IssueCardActions({
           className={`${COPY_BTN} min-w-[44px] min-h-[44px] ${
             copied
               ? 'text-[var(--console-amber)]'
-              : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60'
+              : 'text-muted-foreground/70 hover:text-muted-foreground hover:bg-muted/60'
           }`}
         >
           {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
