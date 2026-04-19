@@ -14,6 +14,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.106.0',
+    date: '2026-04-19',
+    highlights: 'Claude Code automation rollout — WCAG contrast regression + 2 warn-only edit-time hooks + 2 project MCPs (context7, playwright) + 2 specialized subagents (dsp-hotpath, a11y-theme) + 2 user-invocable skills (changelog-entry, wcag-contrast-check). Zero runtime changes; all additions land under `.claude/`, `.mcp.json`, and a single new vitest file.',
+    changes: [
+      { type: 'feat', description: 'WCAG contrast regression — new `lib/canvas/__tests__/contrast.test.ts` mechanically pins every severity color ≥ 4.5:1 on both card backgrounds (`#181a1e` dark, `#ffffff` light). 14 new cases; CI now catches the exact class of regression Batch 25 fixed by hand.' },
+      { type: 'feat', description: 'Edit-time warn hooks — `.claude/hooks/contrast-check.js` fires on `uiConstants.ts` edits and warns if any `VIZ_COLORS_LIGHT` entry drops below AA; `.claude/hooks/hotpath-alloc-sniff.js` fires on 7 DSP hot-path files and greps for allocation patterns inside named hot methods. Warn-only, never blocks.' },
+      { type: 'feat', description: 'MCP servers registered — `.mcp.json` checks in project-scoped `context7` (HTTP live docs) + `playwright` (stdio browser MCP). `.claude/settings.json` enables both via `enabledMcpjsonServers`.' },
+      { type: 'feat', description: 'Specialized subagents — `.claude/agents/dsp-hotpath-reviewer.md` encodes the 50fps DSP invariants from CLAUDE.md as a reviewer checklist; `.claude/agents/a11y-theme-reviewer.md` does the same for theming + WCAG parity across `:root` / `.light` / Tailwind `dark:` / canvas `canvasThemeRef`.' },
+      { type: 'feat', description: 'User skills — `.claude/skills/changelog-entry` drafts `lib/changelog.ts` rows from branch commits (used by `/yeet` Phase 4); `.claude/skills/wcag-contrast-check` wraps the contrast test and includes a Tailwind darkening table.' },
+      { type: 'refactor', description: '`/yeet` SKILL (home-dir skill, not repo) now mandates a Phase 4 version bump + "Update the Usuals" after every PR create, and uses explicit file staging instead of `git add -A`.' },
+    ],
+  },
+  {
     version: '0.105.0',
     date: '2026-04-19',
     changes: [
