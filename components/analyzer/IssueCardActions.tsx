@@ -7,6 +7,14 @@ const ACTION_BTN_DESKTOP = 'rounded text-[10px] font-mono font-bold tracking-wid
 const ACTION_BTN_MOBILE = 'rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-2 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-11 min-w-[44px]'
 const COPY_BTN = 'rounded btn-glow flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50'
 
+// Per-state class strings with explicit dark:/light theme variants.
+// Light-theme variants use *-700/800 hues for WCAG AA contrast on light canvas;
+// dark-theme variants preserve the previous tonal tailwind shades behind dark:.
+const FP_ACTIVE = 'text-red-800 bg-red-100 border border-red-300 dark:text-red-400 dark:bg-red-500/20 dark:border-red-500/40'
+const FP_INACTIVE = 'text-muted-foreground/50 hover:text-red-800 hover:bg-red-100 dark:hover:text-red-400 dark:hover:bg-red-500/10 border border-transparent'
+const SEND_DESKTOP = 'text-blue-600/60 hover:text-blue-800 hover:bg-blue-100 dark:text-blue-400/50 dark:hover:text-blue-400 dark:hover:bg-blue-500/10 border border-transparent'
+const SEND_MOBILE = 'text-blue-700/80 hover:text-blue-800 hover:bg-blue-100 dark:text-blue-400/70 dark:hover:text-blue-400 dark:hover:bg-blue-500/10 border border-transparent'
+
 export interface IssueCardActionsProps {
   advisoryId: string
   exactFreqStr: string
@@ -59,11 +67,7 @@ export const IssueCardActions = memo(function IssueCardActions({
           <button
             onClick={() => onFalsePositive(advisoryId)}
             aria-label={`${isFalsePositive ? 'Unflag' : 'Flag'} ${exactFreqStr} as false positive`}
-            className={`${actionButtonClass} ${
-              isFalsePositive
-                ? 'text-red-400 bg-red-500/20 border border-red-500/40'
-                : 'text-muted-foreground/50 hover:text-red-400 hover:bg-red-500/10 border border-transparent'
-            }`}
+            className={`${actionButtonClass} ${isFalsePositive ? FP_ACTIVE : FP_INACTIVE}`}
           >
             FALSE+
           </button>
@@ -109,7 +113,7 @@ export const IssueCardActions = memo(function IssueCardActions({
           <button
             onClick={onSendToMixer}
             aria-label={`Send ${exactFreqStr} EQ recommendation to mixer via Companion`}
-            className={`${actionButtonClass} text-blue-400/50 hover:text-blue-400 hover:bg-blue-500/10 border border-transparent`}
+            className={`${actionButtonClass} ${SEND_DESKTOP}`}
           >
             SEND
           </button>
@@ -126,11 +130,7 @@ export const IssueCardActions = memo(function IssueCardActions({
           <button
             onClick={() => onFalsePositive(advisoryId)}
             aria-label={`${isFalsePositive ? 'Unflag' : 'Flag'} ${exactFreqStr} as false positive`}
-            className={`${actionButtonClass} ${
-              isFalsePositive
-                ? 'text-red-400 bg-red-500/20 border border-red-500/40'
-                : 'text-muted-foreground/50 hover:text-red-400 hover:bg-red-500/10 border border-transparent'
-            }`}
+            className={`${actionButtonClass} ${isFalsePositive ? FP_ACTIVE : FP_INACTIVE}`}
           >
             FALSE+
           </button>
@@ -178,7 +178,7 @@ export const IssueCardActions = memo(function IssueCardActions({
           <button
             onClick={onSendToMixer}
             aria-label={`Send ${exactFreqStr} EQ recommendation to mixer via Companion`}
-            className={`${actionButtonClass} text-blue-400/70 hover:text-blue-400 hover:bg-blue-500/10 border border-transparent`}
+            className={`${actionButtonClass} ${SEND_MOBILE}`}
           >
             SEND
           </button>
