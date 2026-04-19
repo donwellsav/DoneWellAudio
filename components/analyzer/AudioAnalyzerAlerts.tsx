@@ -66,7 +66,9 @@ export const AudioAnalyzerAlerts = memo(function AudioAnalyzerAlerts({
         <div
           role="alert"
           className={`px-3 py-1.5 sm:px-4 sm:py-2 border-b ${
-            isWorkerPermanentlyDead ? 'bg-red-500/10 border-red-500/30' : 'bg-amber-500/5 border-amber-500/20'
+            isWorkerPermanentlyDead
+              ? 'bg-red-500/15 border-red-500/40 dark:bg-red-500/10 dark:border-red-500/30'
+              : 'bg-amber-500/15 border-amber-500/35 dark:bg-amber-500/5 dark:border-amber-500/20'
           }`}
         >
           <div className="flex items-center gap-2.5">
@@ -80,7 +82,7 @@ export const AudioAnalyzerAlerts = memo(function AudioAnalyzerAlerts({
             >
               {isWorkerPermanentlyDead
                 ? 'Analysis engine stopped - detection is offline.'
-                : 'DSP worker error - analysis may be degraded. Auto-recovering...'}
+                : 'Analysis engine hiccup — restarting automatically.'}
             </p>
             <button
               onClick={onRetry}

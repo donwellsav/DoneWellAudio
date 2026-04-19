@@ -114,7 +114,7 @@ export const DataConsentDialog = memo(function DataConsentDialog({
             )}
           >
             <Database className="w-4 h-4" />
-            {isEU ? 'I Consent' : 'Share Data'}
+            {isEU ? 'Yes, share anonymous data' : 'Share anonymous data'}
           </button>
         </div>
       </div>
@@ -130,10 +130,10 @@ const PRIVACY_POINTS = [
 ]
 
 const GDPR_POINTS = [
-  '\u2022 Legal basis: Article 6(1)(a) \u2014 your explicit consent',
-  '\u2022 Purpose: Training ML models to improve feedback detection accuracy',
-  '\u2022 Data collected: Frequency magnitude spectrum (~2\u202fKB per batch)',
-  '\u2022 Retention: Up to 24 months from collection date',
+  '\u2022 Legal basis \u2014 your explicit consent (EU GDPR Article 6(1)(a))',
+  '\u2022 Purpose \u2014 training our feedback detection models',
+  '\u2022 Data \u2014 frequency magnitude only, ~2\u202fKB per batch (no audio)',
+  '\u2022 Retention \u2014 up to 24 months, then deleted',
   '\u2022 Storage: Supabase infrastructure (US/EU regions)',
-  '\u2022 Your rights: Withdraw consent anytime via Settings \u2192 Advanced. Data is fully anonymised (random session IDs, no device identifiers), so individual data access or deletion is not technically possible \u2014 this is the privacy-preserving design.',
+  '\u2022 Your rights \u2014 withdraw anytime in Settings \u2192 Advanced. Submitted data is fully anonymised (random session IDs, no device info), so individual access or deletion isn\u2019t technically possible; this is by design.',
 ]

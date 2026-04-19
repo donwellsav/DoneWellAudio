@@ -104,11 +104,11 @@ export const IssueCard = memo(function IssueCard({
   const strategyReason = isNonCorrectiveWhistle ? null : advisory.advisory?.peq?.reason
   const operatorNote =
     isNonCorrectiveWhistle
-      ? 'Whistle warning only: review mic and speaker geometry first. This alert does not recommend a corrective EQ cut.'
+      ? 'Whistle alert only — verify mic and speaker placement first. No EQ cut recommended.'
       : isClustered
-        ? `Broader region: merged ${advisory.clusterCount} nearby peaks. If this keeps returning, recheck placement or broad EQ before stacking more narrow cuts.`
+        ? `Merged ${advisory.clusterCount} nearby peaks into one broad region. If it keeps returning, check placement or broad EQ before stacking more narrow cuts.`
         : occurrenceCount >= 3
-          ? 'Repeat band: if this keeps coming back, recheck mic and speaker geometry or broad EQ before stacking more cuts.'
+          ? 'Repeat band — check mic/speaker geometry or broad EQ before stacking more narrow cuts.'
           : null
 
   return (
@@ -216,9 +216,11 @@ export const IssueCard = memo(function IssueCard({
             <span
               className="flex-shrink-0 inline-flex items-center justify-center self-center"
               style={{ color: severityColor, opacity: 0.8 }}
+              role="img"
+              aria-label={`Severity: ${getSeverityText(advisory.severity)}`}
               title={getSeverityText(advisory.severity)}
             >
-              <SeverityIconEl className="w-3.5 h-3.5" />
+              <SeverityIconEl className="w-3.5 h-3.5" aria-hidden />
             </span>
           ) : null}
 

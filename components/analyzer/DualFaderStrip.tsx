@@ -138,8 +138,8 @@ export const DualFaderStrip = memo(function DualFaderStrip({
           <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
             autoGainEnabled
               ? autoGainLocked
-                ? 'bg-emerald-600 shadow-[0_0_4px_rgba(22,163,74,0.6)] dark:bg-emerald-400 dark:shadow-[0_0_4px_rgba(52,211,153,0.6)]'
-                : 'bg-amber-600 shadow-[0_0_4px_rgba(217,119,6,0.6)] dark:bg-amber-400 dark:shadow-[0_0_4px_rgba(251,191,36,0.6)]'
+                ? 'bg-emerald-600 dark:bg-emerald-400 shadow-[0_0_4px_var(--fader-glow-locked)]'
+                : 'bg-amber-600 dark:bg-amber-400 shadow-[0_0_4px_var(--fader-glow-cal)]'
               : 'bg-[var(--console-amber)] shadow-[0_0_4px_rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.4)]'
           }`} />
           {autoGainEnabled ? (autoGainLocked ? 'Lock' : 'Cal') : 'Man'}

@@ -60,12 +60,12 @@ describe('IssueCard', () => {
   it('renders repeat offender badge and guidance when occurrenceCount >= 3', () => {
     render(<IssueCard advisory={makeAdvisory()} occurrenceCount={5} />)
     expect(screen.getByLabelText(/repeat offender: detected 5 times/i)).toBeDefined()
-    expect(screen.getByText(/repeat band:/i)).toBeDefined()
+    expect(screen.getByText(/repeat band/i)).toBeDefined()
   })
 
   it('does not render repeat badge when occurrenceCount < 3', () => {
     const { container } = render(<IssueCard advisory={makeAdvisory()} occurrenceCount={2} />)
-    expect(container.textContent?.toLowerCase()).not.toContain('repeat band:')
+    expect(container.textContent?.toLowerCase()).not.toContain('repeat band')
   })
 
   it('renders RUNAWAY velocity indicator', () => {
@@ -218,8 +218,8 @@ describe('IssueCard', () => {
       />,
     )
 
-    expect(screen.getByText(/broader region: merged 3 nearby peaks/i)).toBeDefined()
-    expect(screen.getByText(/broad region/i)).toBeDefined()
+    expect(screen.getByText(/merged 3 nearby peaks into one broad region/i)).toBeDefined()
+    expect(screen.getByText('Broad Region')).toBeDefined()
     expect(screen.getByText(/q widened to cover the broader unstable region/i)).toBeDefined()
   })
 
@@ -243,7 +243,7 @@ describe('IssueCard', () => {
     )
 
     expect(screen.getByText(/warning only · no eq cut/i)).toBeDefined()
-    expect(screen.getByText(/whistle warning only:/i)).toBeDefined()
+    expect(screen.getByText(/whistle alert only/i)).toBeDefined()
     expect(screen.queryByText(/Q:/i)).toBeNull()
   })
 })

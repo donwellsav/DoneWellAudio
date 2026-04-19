@@ -92,19 +92,19 @@ export const RingOutListeningPhase = memo(function RingOutListeningPhase({
             Before You Raise Gain
           </span>
           <ul className="space-y-1 font-mono text-[11px] text-muted-foreground leading-relaxed">
-            <li>Mute unused mics and speakers first.</li>
-            <li>Finish broad EQ and placement fixes before chasing narrow rings.</li>
-            <li>Use performers, wedges, and real show positions when possible.</li>
+            <li>Mute every mic and speaker you won&apos;t use.</li>
+            <li>Finish broad EQ and placement fixes first — narrow rings come last.</li>
+            <li>Set performers, wedges, and positions as they&apos;ll be at show time.</li>
           </ul>
           <p className="font-mono text-[11px] text-muted-foreground/80 leading-relaxed">
-            This is a pre-show baseline. During the show, new cuts are backup only,
-            not the main tuning workflow.
+            Ring-out is a pre-show baseline. During the show, fix placement or broad
+            EQ first; narrow cuts only after that.
           </p>
         </div>
 
         {!isRunning ? (
           <p className="font-mono text-xs text-destructive">
-            Analysis not running - start analysis first
+            Analysis is off — press ENGAGE to start.
           </p>
         ) : null}
       </div>
@@ -243,8 +243,8 @@ export const RingOutDetectedPhase = memo(function RingOutDetectedPhase({
       ) : null}
 
       <p className="font-mono text-xs text-muted-foreground text-center">
-        Apply this cut only if it is a stable narrow ring, then click Next. If the
-        band feels broad or unstable, stop and fix placement or broad EQ first.
+        Apply this cut if the ring is stable and narrow, then click Next. If it
+        feels broad or wandering, skip and fix placement or broad EQ instead.
       </p>
 
       <div className="flex gap-2">
@@ -356,9 +356,9 @@ export const RingOutSummaryPhase = memo(function RingOutSummaryPhase({
       ) : null}
 
       <p className="font-mono text-[11px] text-muted-foreground/80 leading-relaxed">
-        Treat this as your pre-show baseline. If you keep cutting the same region
-        during the show, that usually points to placement, reflections, or a broader
-        tonal problem rather than bad luck.
+        This is your pre-show baseline. If the same region keeps returning during
+        the show, suspect placement, reflections, or a broader tonal issue — not
+        luck.
       </p>
 
       <div className="flex gap-2">
