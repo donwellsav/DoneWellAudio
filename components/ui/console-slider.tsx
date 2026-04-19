@@ -193,6 +193,7 @@ export const ConsoleSlider = memo(function ConsoleSlider({
           <Tooltip open={isDragging}>
             <TooltipTrigger asChild>
               <SliderPrimitive.Thumb
+                aria-label={label}
                 className="console-thumb block shrink-0 rounded-full motion-safe:transition-[box-shadow,transform] motion-safe:duration-100 focus-visible:outline-hidden cursor-grab active:cursor-grabbing"
                 style={{
                   width: 20, height: 20,

@@ -27,7 +27,11 @@ export const AdvancedDataCollectionSection = memo(function AdvancedDataCollectio
             <Database className="w-4 h-4" style={{ color: 'var(--console-green)' }} />
             <span className="text-sm text-muted-foreground font-mono tracking-wide">Share spectral data</span>
           </div>
-          <PillToggle checked={consentStatus === 'accepted'} onChange={handleCollectionToggle} />
+          <PillToggle
+            checked={consentStatus === 'accepted'}
+            onChange={handleCollectionToggle}
+            label="spectral data sharing"
+          />
         </div>
         {isCollecting ? (
           <div className="flex items-center gap-1.5">
