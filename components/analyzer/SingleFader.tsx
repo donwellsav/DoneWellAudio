@@ -113,7 +113,7 @@ export const SingleFader = memo(function SingleFader({
         <input
           autoFocus
           type="text"
-          aria-label={isSensitivity ? 'Edit detection sensitivity' : 'Edit input gain'}
+          aria-label={`Edit ${isSensitivity ? 'detection sensitivity' : 'input gain'}, currently ${displayValue} dB`}
           defaultValue={String(displayValue)}
           className="font-mono bg-input border border-primary rounded px-0.5 text-center text-foreground focus-visible:outline-none text-xs w-10 h-5 flex-shrink-0"
           onBlur={(event) => commitEdit(event.target.value)}

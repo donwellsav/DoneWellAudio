@@ -142,6 +142,7 @@ export const InputMeterSlider = memo(function InputMeterSlider({
         <input
           autoFocus
           type="text"
+          aria-label={`Edit input gain, currently ${displayValue} dB`}
           defaultValue={String(displayValue)}
           className={`font-mono bg-input border border-primary rounded px-1 text-center text-foreground focus-visible:outline-none flex-shrink-0 ${compact ? 'text-xs w-9 h-4' : 'text-sm w-12 h-5'}`}
           onBlur={handleEditBlur}

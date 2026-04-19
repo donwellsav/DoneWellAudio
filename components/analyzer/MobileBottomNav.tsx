@@ -70,7 +70,11 @@ export const MobileBottomNav = memo(function MobileBottomNav({
                   }
                 />
                 {badge > 0 ? (
-                  <span className="absolute -top-1.5 -right-2.5 bg-[var(--console-amber)] text-background text-xs rounded-full min-w-[16px] h-[16px] flex items-center justify-center font-bold leading-none px-0.5">
+                  <span
+                    className="absolute -top-1.5 -right-2.5 bg-[var(--console-amber)] text-background text-xs rounded-full min-w-[16px] h-[16px] flex items-center justify-center font-bold leading-none px-0.5"
+                    aria-label={`${badge} active feedback ${badge === 1 ? 'detection' : 'detections'}`}
+                    role="status"
+                  >
                     {badge}
                   </span>
                 ) : null}

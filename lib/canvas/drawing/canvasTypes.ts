@@ -35,6 +35,14 @@ export interface CanvasTheme {
   meterPeakHold: string
   /** Early-warning predicted-frequency marker (dashed line + triangle). */
   earlyWarningMarker: string
+  /** Hover tooltip pill background (RTA cursor readout). */
+  tooltipBg: string
+  /** Hover tooltip pill background when an advisory is nearby (slightly opaquer). */
+  tooltipBgAdvisory: string
+  /** Hover tooltip text color. */
+  tooltipText: string
+  /** Hover crosshair color when no advisory nearby (RGBA string). */
+  crosshairIdle: string
 }
 
 export const DARK_CANVAS_THEME: CanvasTheme = {
@@ -61,6 +69,10 @@ export const DARK_CANVAS_THEME: CanvasTheme = {
   meterBg: 'rgba(128, 128, 128, 0.08)',
   meterPeakHold: 'rgba(255, 255, 255, 0.7)',
   earlyWarningMarker: '#f59e0b',
+  tooltipBg: 'rgba(0, 0, 0, 0.8)',
+  tooltipBgAdvisory: 'rgba(0, 0, 0, 0.88)',
+  tooltipText: '#e5e5e5',
+  crosshairIdle: 'rgba(255, 255, 255, 0.15)',
 }
 
 export const LIGHT_CANVAS_THEME: CanvasTheme = {
@@ -87,6 +99,10 @@ export const LIGHT_CANVAS_THEME: CanvasTheme = {
   meterBg: 'rgba(128, 128, 128, 0.14)',
   meterPeakHold: 'rgba(0, 0, 0, 0.55)',
   earlyWarningMarker: '#b45309',
+  tooltipBg: 'rgba(248, 250, 252, 0.94)',
+  tooltipBgAdvisory: 'rgba(248, 250, 252, 0.97)',
+  tooltipText: '#0f172a',
+  crosshairIdle: 'rgba(15, 23, 42, 0.30)',
 }
 
 export interface DbRange {

@@ -89,7 +89,7 @@ export const EarlyWarningPanel = memo(function EarlyWarningPanel({ earlyWarning 
           {elapsedSec > 0 && (
             <div className="h-1 rounded-full bg-amber-500/20 dark:bg-amber-500/10 overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all duration-500 ease-linear ${PROGRESS_TONE_CLASSNAME[tone]}`}
+                className={`h-full rounded-full transition-[background-color,width] duration-500 ease-linear ${PROGRESS_TONE_CLASSNAME[tone]}`}
                 style={{ width: `${progressPercent}%` }}
               />
             </div>

@@ -12,8 +12,8 @@ const COPY_BTN = 'rounded btn-glow flex items-center justify-center cursor-point
 // dark-theme variants preserve the previous tonal tailwind shades behind dark:.
 const FP_ACTIVE = 'text-red-800 bg-red-100 border border-red-300 dark:text-red-400 dark:bg-red-500/20 dark:border-red-500/40'
 const FP_INACTIVE = 'text-muted-foreground/70 hover:text-red-800 hover:bg-red-100 dark:hover:text-red-400 dark:hover:bg-red-500/10 border border-transparent'
-const SEND_DESKTOP = 'text-blue-600/60 hover:text-blue-800 hover:bg-blue-100 dark:text-blue-400/50 dark:hover:text-blue-400 dark:hover:bg-blue-500/10 border border-transparent'
-const SEND_MOBILE = 'text-blue-700/80 hover:text-blue-800 hover:bg-blue-100 dark:text-blue-400/70 dark:hover:text-blue-400 dark:hover:bg-blue-500/10 border border-transparent'
+const SEND_DESKTOP = 'text-blue-700/80 hover:text-blue-800 hover:bg-blue-100 dark:text-blue-400/75 dark:hover:text-blue-400 dark:hover:bg-blue-500/10 border border-transparent'
+const SEND_MOBILE = 'text-blue-700/85 hover:text-blue-800 hover:bg-blue-100 dark:text-blue-400/80 dark:hover:text-blue-400 dark:hover:bg-blue-500/10 border border-transparent'
 
 export interface IssueCardActionsProps {
   advisoryId: string
@@ -49,7 +49,7 @@ export const IssueCardActions = memo(function IssueCardActions({
       <button
         onClick={onCopy}
         aria-label={`Copy ${exactFreqStr} frequency info`}
-        className={`${COPY_BTN} w-8 h-8 min-w-[44px] min-h-[44px] flex-shrink-0 self-center ${
+        className={`${COPY_BTN} size-11 flex-shrink-0 self-center ${
           copied
             ? 'text-[var(--console-amber)]'
             : 'text-muted-foreground/70 hover:text-muted-foreground hover:bg-muted/60'
@@ -92,7 +92,7 @@ export const IssueCardActions = memo(function IssueCardActions({
           <button
             onClick={() => onDismiss(advisoryId)}
             aria-label={`Dismiss ${exactFreqStr}`}
-            className="rounded flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/60 transition-colors w-7 h-7"
+            className="rounded flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 text-muted-foreground/55 hover:text-muted-foreground hover:bg-muted/60 transition-colors w-7 h-7"
           >
             <X className="w-3 h-3" />
           </button>
@@ -139,7 +139,7 @@ export const IssueCardActions = memo(function IssueCardActions({
           <button
             onClick={() => onDismiss(advisoryId)}
             aria-label={`Dismiss ${exactFreqStr}`}
-            className="rounded flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 text-muted-foreground/30 hover:text-muted-foreground hover:bg-muted/60 transition-colors min-h-[44px] min-w-[44px]"
+            className="rounded flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 text-muted-foreground/55 hover:text-muted-foreground hover:bg-muted/60 transition-colors min-h-[44px] min-w-[44px]"
           >
             <X className="w-4 h-4" />
           </button>

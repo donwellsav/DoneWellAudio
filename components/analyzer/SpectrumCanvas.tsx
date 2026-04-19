@@ -8,7 +8,7 @@ import { formatFrequency } from '@/lib/utils/pitchUtils'
 import { CANVAS_SETTINGS } from '@/lib/dsp/constants'
 import { smoothSpectrumForDisplay, type DisplaySpectrumSmoothingScratch } from '@/lib/canvas/drawing/spectrumSmoothing'
 import { thresholdDraggedStorage } from '@/lib/storage/dwaStorage'
-import { OVERLAY_TEXT, OVERLAY_ACCENT, GROWING_COLOR } from '@/lib/canvas/canvasTokens'
+import { OVERLAY_ACCENT, GROWING_COLOR } from '@/lib/canvas/canvasTokens'
 import { getSeverityColor } from '@/lib/utils/advisoryDisplay'
 import { logError } from '@/lib/utils/logger'
 import type { SpectrumData, Advisory, SpectrumSmoothingMode } from '@/types/advisory'
@@ -363,10 +363,11 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
       const lineH = fontSize + 2
       const lines: { text: string; color: string }[] = []
 
+      const theme = canvasThemeRef.current
       if (nearestAdvisory) {
         // Advisory-rich tooltip
         const a = nearestAdvisory
-        lines.push({ text: formatFrequency(a.trueFrequencyHz), color: OVERLAY_TEXT })
+        lines.push({ text: formatFrequency(a.trueFrequencyHz), color: theme.tooltipText })
         lines.push({ text: `${a.severity}  ${a.confidence != null ? Math.round(a.confidence * 100) + '%' : ''}`, color: getSeverityColor(a.severity) })
         if (a.advisory?.peq) {
           const peq = a.advisory.peq
@@ -377,7 +378,7 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
         }
       } else {
         // Basic freq + dB readout
-        lines.push({ text: `${formatFrequency(hoverFreq)}  ${Math.round(hoverDb)} dB`, color: OVERLAY_TEXT })
+        lines.push({ text: `${formatFrequency(hoverFreq)}  ${Math.round(hoverDb)} dB`, color: theme.tooltipText })
       }
 
       const maxLineW = Math.max(...lines.map(l => cachedMeasureText(ctx, l.text).width))
@@ -390,8 +391,8 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
       if (tipX + tipW > plotWidth) tipX = hover.x - tipW - 12
       if (tipY < 0) tipY = hover.y + 16
 
-      // Background pill
-      ctx.fillStyle = nearestAdvisory ? 'rgba(0,0,0,0.88)' : 'rgba(0,0,0,0.8)'
+      // Background pill (theme-aware; dark mode uses near-black, light mode uses near-white)
+      ctx.fillStyle = nearestAdvisory ? theme.tooltipBgAdvisory : theme.tooltipBg
       ctx.beginPath()
       ctx.roundRect(tipX, tipY, tipW, tipH, 4)
       ctx.fill()
@@ -410,8 +411,8 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
         ctx.fillText(lines[i].text, tipX + tipPad + (nearestAdvisory ? 4 : 0), tipY + tipPad + i * lineH)
       }
 
-      // Crosshair lines (subtle)
-      ctx.strokeStyle = nearestAdvisory ? `${getSeverityColor(nearestAdvisory.severity)}30` : 'rgba(255,255,255,0.15)'
+      // Crosshair lines (subtle) — theme-aware when no advisory nearby
+      ctx.strokeStyle = nearestAdvisory ? `${getSeverityColor(nearestAdvisory.severity)}30` : theme.crosshairIdle
       ctx.lineWidth = 1
       ctx.setLineDash([4, 4])
       ctx.beginPath()

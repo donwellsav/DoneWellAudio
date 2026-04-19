@@ -289,7 +289,7 @@ html {
   }
 
   .animate-emergency-glow {
-    animation: emergency-glow 1.5s ease-in-out infinite;
+    animation: emergency-glow 1.5s ease-in-out 2;
   }
 
   /* Etched groove — horizontal divider mimicking milled aluminum */
@@ -506,14 +506,14 @@ html {
     to { opacity: 1; transform: scale(1); }
   }
 
-  /* #19 Tab icon bounce on activation */
+  /* #19 Tab icon bounce on activation — subtle scale blip, no elastic overshoot */
   @keyframes tab-bounce {
     0% { transform: scale(1); }
-    40% { transform: scale(1.15); }
+    50% { transform: scale(1.08); }
     100% { transform: scale(1); }
   }
   .animate-tab-bounce {
-    animation: tab-bounce 200ms cubic-bezier(0.22, 1, 0.36, 1);
+    animation: tab-bounce 180ms cubic-bezier(0.4, 0, 0.2, 1);
   }
   .light .animate-start-glow {
     animation: start-glow-light 3s ease-in-out infinite;
