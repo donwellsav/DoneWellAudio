@@ -33,6 +33,8 @@ export interface CanvasTheme {
   meterBg: string
   /** Peak-hold indicator line. */
   meterPeakHold: string
+  /** Early-warning predicted-frequency marker (dashed line + triangle). */
+  earlyWarningMarker: string
 }
 
 export const DARK_CANVAS_THEME: CanvasTheme = {
@@ -58,6 +60,7 @@ export const DARK_CANVAS_THEME: CanvasTheme = {
   meterRed: 'rgba(239, 68, 68, 0.9)',
   meterBg: 'rgba(128, 128, 128, 0.08)',
   meterPeakHold: 'rgba(255, 255, 255, 0.7)',
+  earlyWarningMarker: '#f59e0b',
 }
 
 export const LIGHT_CANVAS_THEME: CanvasTheme = {
@@ -83,6 +86,7 @@ export const LIGHT_CANVAS_THEME: CanvasTheme = {
   meterRed: 'rgba(220, 38, 38, 0.9)',
   meterBg: 'rgba(128, 128, 128, 0.14)',
   meterPeakHold: 'rgba(0, 0, 0, 0.55)',
+  earlyWarningMarker: '#b45309',
 }
 
 export interface DbRange {

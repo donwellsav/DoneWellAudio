@@ -229,7 +229,7 @@ export function drawMarkers(
   const isDark = theme === DARK_CANVAS_THEME
   // Early warning predictions
   if (earlyWarning && earlyWarning.predictedFrequencies.length > 0) {
-    const warningColor = '#f59e0b' // amber-500
+    const warningColor = theme.earlyWarningMarker
     ctx.strokeStyle = warningColor
     ctx.lineWidth = 1.5
     ctx.setLineDash([6, 4])
