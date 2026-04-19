@@ -5,6 +5,7 @@ import {
   frequencyToSnapshotBin,
   normalizeImportedSnapshotFixture,
   type LabeledSnapshotFixture,
+  type SnapshotReplayContext,
 } from '@/autoresearch/snapshotFixtures'
 import { buildScores, type ScoreInput } from '@/tests/helpers/mockAlgorithmScores'
 import type { MarkerAlgorithmScores, SnapshotBatch } from '@/types/data'
@@ -16,6 +17,12 @@ interface SeedPeakSpec {
   amplitudeDb: number
   widthBins?: number
   falloffDbPerBin?: number
+}
+
+interface SeedSpectrumBedSpec {
+  centerDb: number
+  edgeDb: number
+  rippleDb?: number
 }
 
 interface SeedFrameSpec {
@@ -42,6 +49,8 @@ interface SeedFixtureSpec {
   expectedLabel?: 'ACOUSTIC_FEEDBACK' | 'POSSIBLE_RING' | 'WHISTLE' | 'INSTRUMENT'
   expectedSeverity?: SeverityLevel
   notes: string
+  replayContext?: SnapshotReplayContext
+  spectrumBed?: SeedSpectrumBedSpec
 }
 
 const SAMPLE_RATE = 48_000
@@ -290,6 +299,35 @@ const SPEECH_WORSHIP_FIXTURE_SPECS: SeedFixtureSpec[] = [
     notes: `${FIXTURE_NOTE_PREFIX} Dense-band masked feedback target during worship music context.`,
   },
   {
+    id: 'speech-whistle-shaped-feedback-180hz',
+    mode: 'speech',
+    contentType: 'speech',
+    severity: 'RESONANCE',
+    userFeedback: 'confirmed_feedback',
+    acceptableVerdicts: ['FEEDBACK', 'POSSIBLE_FEEDBACK'],
+    expectAdvisory: true,
+    eventFrequencyHz: 180,
+    eventRelativeMs: 1650,
+    mainWidthBins: 5,
+    mainFalloffDbPerBin: 1.2,
+    algorithmScores: { msd: 0.82, phase: 0.86, spectral: 0.05, ihr: 0.82, ptmr: 0.74, comb: 0, ml: 0.81 },
+    frames: BASE_TIMES.map((time, index) => ({
+      t: time,
+      mainAmplitudeDb: -24,
+      mainFrequencyHz: index % 2 === 0 ? 180 : 260,
+    })),
+    expectedLabel: 'ACOUSTIC_FEEDBACK',
+    expectedSeverity: 'RESONANCE',
+    replayContext: {
+      settingsOverrides: {
+        roomPreset: 'custom',
+        roomRT60: 2,
+        roomVolume: 300,
+      },
+    },
+    notes: `${FIXTURE_NOTE_PREFIX} Whistle-shaped low-band feedback target. Replay should retain the whistle signature but still promote it back to corrective feedback because the growth and fusion evidence stay actionable.`,
+  },
+  {
     id: 'speech-ambiguous-ring-630hz',
     mode: 'speech',
     contentType: 'speech',
@@ -329,6 +367,102 @@ const SPEECH_WORSHIP_FIXTURE_SPECS: SeedFixtureSpec[] = [
     expectedLabel: 'ACOUSTIC_FEEDBACK',
     expectedSeverity: 'GROWING',
     notes: `${FIXTURE_NOTE_PREFIX} Worship monitor-edge feedback target.`,
+  },
+  {
+    id: 'speech-low-edge-feedback-180hz',
+    mode: 'speech',
+    contentType: 'speech',
+    severity: 'GROWING',
+    userFeedback: 'confirmed_feedback',
+    acceptableVerdicts: ['FEEDBACK', 'POSSIBLE_FEEDBACK'],
+    expectAdvisory: true,
+    eventFrequencyHz: 180,
+    eventRelativeMs: 1650,
+    mainWidthBins: 8,
+    mainFalloffDbPerBin: 0.5,
+    algorithmScores: { msd: 0.68, phase: 0.88, spectral: 0.82, ihr: 0.9, ptmr: 0.81, comb: 0, ml: 0.8 },
+    frames: BASE_TIMES.map((time, index) => ({
+      t: time,
+      mainAmplitudeDb: -39 + index * 1.1,
+    })),
+    expectedLabel: 'ACOUSTIC_FEEDBACK',
+    expectedSeverity: 'GROWING',
+    notes: `${FIXTURE_NOTE_PREFIX} Low-edge feedback target that should exercise mirrored bandwidth measurement and conservative low-frequency Q framing.`,
+  },
+  {
+    id: 'worship-merged-cluster-feedback-1000hz',
+    mode: 'worship',
+    contentType: 'speech',
+    severity: 'GROWING',
+    userFeedback: 'confirmed_feedback',
+    acceptableVerdicts: ['FEEDBACK', 'POSSIBLE_FEEDBACK'],
+    expectAdvisory: true,
+    eventFrequencyHz: 1000,
+    eventRelativeMs: 1650,
+    mainWidthBins: 2,
+    algorithmScores: { msd: 0.64, phase: 0.8, spectral: 0.76, ihr: 0.82, ptmr: 0.74, comb: 0, ml: 0.77 },
+    frames: BASE_TIMES.map((time, index) => ({
+      t: time,
+      mainAmplitudeDb: -38 + index * 0.95,
+    })),
+    expectedLabel: 'ACOUSTIC_FEEDBACK',
+    expectedSeverity: 'GROWING',
+    replayContext: {
+      clusterMinHz: 900,
+      clusterMaxHz: 1120,
+    },
+    notes: `${FIXTURE_NOTE_PREFIX} Feedback target with replay-side merged-cluster bounds so the advisory exercises the same broad-region widening used after AdvisoryManager dedup.`,
+  },
+  {
+    id: 'speech-recurring-feedback-2500hz',
+    mode: 'speech',
+    contentType: 'speech',
+    severity: 'GROWING',
+    userFeedback: 'confirmed_feedback',
+    acceptableVerdicts: ['FEEDBACK', 'POSSIBLE_FEEDBACK'],
+    expectAdvisory: true,
+    eventFrequencyHz: 2500,
+    eventRelativeMs: 1650,
+    mainWidthBins: 2,
+    algorithmScores: { msd: 0.66, phase: 0.83, spectral: 0.8, ihr: 0.86, ptmr: 0.76, comb: 0, ml: 0.79 },
+    frames: BASE_TIMES.map((time, index) => ({
+      t: time,
+      mainAmplitudeDb: -40 + index * 0.95,
+    })),
+    expectedLabel: 'ACOUSTIC_FEEDBACK',
+    expectedSeverity: 'GROWING',
+    replayContext: {
+      recommendationContext: {
+        recurrenceCount: 2,
+      },
+    },
+    notes: `${FIXTURE_NOTE_PREFIX} Recurring feedback target with replay-side recurrence context so the advisory widens the cut before the final clamp.`,
+  },
+  {
+    id: 'worship-defaulted-bandwidth-feedback-1000hz',
+    mode: 'worship',
+    contentType: 'speech',
+    severity: 'GROWING',
+    userFeedback: 'confirmed_feedback',
+    acceptableVerdicts: ['FEEDBACK', 'POSSIBLE_FEEDBACK'],
+    expectAdvisory: true,
+    eventFrequencyHz: 1000,
+    eventRelativeMs: 1650,
+    mainWidthBins: 4,
+    mainFalloffDbPerBin: 0.35,
+    algorithmScores: { msd: 0.69, phase: 0.82, spectral: 0.84, ihr: 0.88, ptmr: 0.79, comb: 0, ml: 0.81 },
+    spectrumBed: {
+      centerDb: -10.8,
+      edgeDb: -11.7,
+      rippleDb: 0.1,
+    },
+    frames: BASE_TIMES.map((time, index) => ({
+      t: time,
+      mainAmplitudeDb: -10.8 + index * 0.18,
+    })),
+    expectedLabel: 'ACOUSTIC_FEEDBACK',
+    expectedSeverity: 'GROWING',
+    notes: `${FIXTURE_NOTE_PREFIX} Overloaded broadband frame with a dominant feedback line; still forces defaulted bandwidth measurement because the hot bed never drops 3 dB below the line within the replay window.`,
   },
 ]
 
@@ -371,6 +505,7 @@ function buildFixtureFromSeed(seed: SeedFixtureSpec): LabeledSnapshotFixture {
     expectedLabel: seed.expectedLabel,
     expectedSeverity: seed.expectedSeverity,
     notes: seed.notes,
+    replayContext: seed.replayContext,
   })
 }
 
@@ -430,6 +565,15 @@ function buildSnapshotSpectrum(
     spectrumDb[bin] += ripple
   }
 
+  if (seed.spectrumBed) {
+    paintSpectrumBed(
+      spectrumDb,
+      seed.eventFrequencyHz,
+      seed.spectrumBed,
+      frameIndex,
+    )
+  }
+
   paintPeak(
     spectrumDb,
     frame.mainFrequencyHz ?? seed.eventFrequencyHz,
@@ -449,6 +593,33 @@ function buildSnapshotSpectrum(
   }
 
   return Uint8Array.from(spectrumDb.map((value) => dbToByte(value)))
+}
+
+function paintSpectrumBed(
+  spectrumDb: number[],
+  centerFrequencyHz: number,
+  bed: SeedSpectrumBedSpec,
+  frameIndex: number,
+): void {
+  const centerBin = frequencyToSnapshotBin(
+    centerFrequencyHz,
+    SAMPLE_RATE,
+    BINS_PER_SNAPSHOT,
+  )
+  const centerDeltaDb = bed.centerDb - bed.edgeDb
+  const rippleDb = bed.rippleDb ?? 0.15
+
+  for (let bin = 0; bin < spectrumDb.length; bin++) {
+    const normalizedDistance = Math.abs(bin - centerBin) / Math.max(1, spectrumDb.length - 1)
+    const bowlDb = bed.centerDb - centerDeltaDb * Math.pow(normalizedDistance, 1.15)
+    const ripple =
+      Math.sin((bin + frameIndex * 4) * 0.08) * rippleDb +
+      Math.cos((bin + frameIndex * 3) * 0.03) * rippleDb * 0.5
+    const candidateDb = bowlDb + ripple
+    if (candidateDb > spectrumDb[bin]) {
+      spectrumDb[bin] = candidateDb
+    }
+  }
 }
 
 function paintPeak(

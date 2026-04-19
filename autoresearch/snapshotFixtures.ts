@@ -1,13 +1,23 @@
 import { Buffer } from 'node:buffer'
 import type { SnapshotBatch, EncodedSnapshot } from '@/types/data'
 import type {
+  DetectorSettings,
   IssueLabel,
+  QMeasurementMode,
+  RecommendationContext,
   SeverityLevel,
 } from '@/types/advisory'
 import type { FeedbackVerdict } from './scenarios'
 
 export type SnapshotFixtureTargetContext = 'speech_worship'
 export type SnapshotFixtureMode = 'speech' | 'worship'
+
+export interface SnapshotReplayContext {
+  recommendationContext?: RecommendationContext
+  clusterMinHz?: number
+  clusterMaxHz?: number
+  settingsOverrides?: Partial<Pick<DetectorSettings, 'roomPreset' | 'roomRT60' | 'roomVolume'>>
+}
 
 export interface LabeledSnapshotFixture {
   id: string
@@ -19,6 +29,7 @@ export interface LabeledSnapshotFixture {
   expectedLabel?: IssueLabel
   expectedSeverity?: SeverityLevel
   notes?: string
+  replayContext?: SnapshotReplayContext
 }
 
 export interface SnapshotFixtureEvaluationResult {
@@ -45,6 +56,7 @@ export interface NormalizeSnapshotFixtureInput {
   expectedLabel?: IssueLabel
   expectedSeverity?: SeverityLevel
   notes?: string
+  replayContext?: SnapshotReplayContext
 }
 
 const VALID_FEEDBACK_VERDICTS: readonly FeedbackVerdict[] = [
@@ -168,6 +180,7 @@ export function assertValidLabeledSnapshotFixture(
       `Snapshot fixture ${candidate.id} must declare expectAdvisory`
     )
   }
+  validateReplayContext(candidate.id, candidate.replayContext)
   validateSnapshotBatch(candidate.id, candidate.batch)
 }
 
@@ -205,6 +218,7 @@ export function normalizeImportedSnapshotFixture(
     expectedLabel: input.expectedLabel,
     expectedSeverity: input.expectedSeverity,
     notes: input.notes,
+    replayContext: input.replayContext,
   }
 
   assertValidLabeledSnapshotFixture(normalizedFixture)
@@ -245,6 +259,68 @@ function validateSnapshotBatch(
   }
   for (const snapshot of batch.snapshots) {
     decodeSnapshotSpectrum(snapshot)
+  }
+}
+
+function validateReplayContext(
+  fixtureId: string,
+  replayContext: SnapshotReplayContext | undefined,
+): void {
+  if (!replayContext) return
+
+  const {
+    recommendationContext,
+    clusterMinHz,
+    clusterMaxHz,
+    settingsOverrides,
+  } = replayContext
+
+  if (recommendationContext) {
+    if (
+      !Number.isInteger(recommendationContext.recurrenceCount) ||
+      recommendationContext.recurrenceCount < 0
+    ) {
+      throw new Error(
+        `Snapshot fixture ${fixtureId} must use a non-negative integer recurrenceCount`
+      )
+    }
+  }
+
+  const hasClusterMin = typeof clusterMinHz === 'number'
+  const hasClusterMax = typeof clusterMaxHz === 'number'
+  if (hasClusterMin !== hasClusterMax) {
+    throw new Error(
+      `Snapshot fixture ${fixtureId} must provide both clusterMinHz and clusterMaxHz`
+    )
+  }
+  if (
+    hasClusterMin &&
+    hasClusterMax &&
+    !(clusterMinHz! < clusterMaxHz!)
+  ) {
+    throw new Error(
+      `Snapshot fixture ${fixtureId} must use clusterMinHz < clusterMaxHz`
+    )
+  }
+
+  if (!settingsOverrides) return
+
+  if (
+    settingsOverrides.roomPreset !== undefined &&
+    typeof settingsOverrides.roomPreset !== 'string'
+  ) {
+    throw new Error(
+      `Snapshot fixture ${fixtureId} must use a string roomPreset override`
+    )
+  }
+
+  for (const key of ['roomRT60', 'roomVolume'] as const) {
+    const value = settingsOverrides[key]
+    if (value !== undefined && !(typeof value === 'number' && Number.isFinite(value))) {
+      throw new Error(
+        `Snapshot fixture ${fixtureId} must use a finite numeric ${key} override`
+      )
+    }
   }
 }
 
@@ -302,6 +378,7 @@ function toSerializableFixture(
     expectedLabel: fixture.expectedLabel,
     expectedSeverity: fixture.expectedSeverity,
     notes: fixture.notes,
+    replayContext: fixture.replayContext,
     batch: {
       version: fixture.batch.version,
       sessionId: fixture.batch.sessionId,

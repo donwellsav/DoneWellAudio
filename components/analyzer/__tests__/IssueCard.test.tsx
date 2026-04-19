@@ -203,11 +203,12 @@ describe('IssueCard', () => {
             peq: {
               type: 'bell',
               hz: 1000,
-              q: 2.5,
+              q: 4,
               gainDb: -6,
               bandwidthHz: 250,
+              qSource: 'cluster',
               strategy: 'broad-region',
-              reason: 'Q widened to cover the unstable region from 980 Hz - 1.1 kHz.',
+              reason: 'Q widened to cover the broader unstable region from 980 Hz - 1.1 kHz.',
             },
             shelves: [],
             pitch: { note: 'B', octave: 5, cents: 3, midi: 83 },
@@ -219,6 +220,30 @@ describe('IssueCard', () => {
 
     expect(screen.getByText(/broader region: merged 3 nearby peaks/i)).toBeDefined()
     expect(screen.getByText(/broad region/i)).toBeDefined()
-    expect(screen.getByText(/q widened to cover the unstable region/i)).toBeDefined()
+    expect(screen.getByText(/q widened to cover the broader unstable region/i)).toBeDefined()
+  })
+
+  it('renders pure whistle advisories as warning-only without corrective PEQ copy', () => {
+    const baseEqAdvisory = makeAdvisory().advisory
+
+    render(
+      <IssueCard
+        advisory={makeAdvisory({
+          label: 'WHISTLE',
+          severity: 'WHISTLE' as SeverityLevel,
+          advisory: {
+            ...baseEqAdvisory,
+            peq: { type: 'bell', hz: 1000, q: 6, gainDb: 0, bandwidthHz: 180 },
+            shelves: [],
+            pitch: { note: 'B', octave: 5, cents: 3, midi: 83 },
+          },
+        })}
+        occurrenceCount={1}
+      />,
+    )
+
+    expect(screen.getByText(/warning only · no eq cut/i)).toBeDefined()
+    expect(screen.getByText(/whistle warning only:/i)).toBeDefined()
+    expect(screen.queryByText(/Q:/i)).toBeNull()
   })
 })

@@ -58,6 +58,7 @@ function makeTrack(overrides: Partial<Track> = {}): Track {
     },
     qEstimate: 5,
     bandwidthHz: 200,
+    qMeasurementMode: 'full',
     velocityDbPerSec: 1,
     harmonicOfHz: null,
     isSubHarmonicRoot: false,
@@ -218,32 +219,89 @@ describe('calculateCutDepth', () => {
 // ── calculateQ ─────────────────────────────────────────────────────────────
 
 describe('calculateQ', () => {
-  it('returns higher Q for RUNAWAY severity', () => {
-    const runawayQ = calculateQ('RUNAWAY', 'surgical', 5)
-    const growingQ = calculateQ('GROWING', 'surgical', 5)
-    expect(runawayQ).toBeGreaterThan(growingQ)
+  it('uses the exact severity baselines when no trusted measurement is available', () => {
+    const track = makeTrack({ qMeasurementMode: 'mirrored' })
+
+    expect(calculateQ(track, 'RUNAWAY', 'surgical').q).toBe(16)
+    expect(calculateQ(track, 'GROWING', 'surgical').q).toBe(12)
+    expect(calculateQ(track, 'RESONANCE', 'heavy').q).toBe(6)
+    expect(calculateQ(track, 'POSSIBLE_RING', 'heavy').q).toBe(4)
   })
 
-  it('blends preset Q with measured trackQ', () => {
-    // With trackQ of 5 and preset defaultQ of 5, blend is 5
-    const q = calculateQ('GROWING', 'surgical', 5)
-    expect(q).toBe(5)
+  it('blends 70% measuredQ with 30% baselineQ for trusted narrow-cut recommendations', () => {
+    const baseTrack = makeTrack()
+    const track = makeTrack({
+      qEstimate: 14,
+      features: { ...baseTrack.features, meanQ: 14 },
+      qMeasurementMode: 'full',
+    })
+
+    const result = calculateQ(track, 'GROWING', 'surgical')
+    expect(result.q).toBeCloseTo(13.4, 1)
+    expect(result.qSource).toBe('measured')
+    expect(result.strategy).toBe('narrow-cut')
   })
 
-  it('clamps Q between 0.3 and 16', () => {
-    // Very low trackQ
-    const lowQ = calculateQ('GROWING', 'surgical', 0.01)
-    expect(lowQ).toBeGreaterThanOrEqual(0.3)
+  it('keeps the shared recommendation range inside 4..16', () => {
+    const baseTrack = makeTrack()
+    const lowTrack = makeTrack({
+      qEstimate: 1,
+      features: { ...baseTrack.features, meanQ: 1 },
+      qMeasurementMode: 'full',
+    })
+    const highTrack = makeTrack({
+      qEstimate: 200,
+      features: { ...baseTrack.features, meanQ: 200 },
+      qMeasurementMode: 'full',
+    })
 
-    // Very high trackQ
-    const highQ = calculateQ('RUNAWAY', 'surgical', 200)
-    expect(highQ).toBeLessThanOrEqual(16)
+    expect(calculateQ(lowTrack, 'POSSIBLE_RING', 'heavy').q).toBeGreaterThanOrEqual(4)
+    expect(calculateQ(highTrack, 'RUNAWAY', 'surgical').q).toBeLessThanOrEqual(16)
   })
 
-  it('surgical preset produces higher Q than heavy', () => {
-    const surgicalQ = calculateQ('RUNAWAY', 'surgical', 5)
-    const heavyQ = calculateQ('RUNAWAY', 'heavy', 5)
-    expect(surgicalQ).toBeGreaterThan(heavyQ)
+  it('guards mirrored/defaulted measurements instead of inferring a razor-thin notch', () => {
+    const baseTrack = makeTrack()
+    const track = makeTrack({
+      qEstimate: 40,
+      features: { ...baseTrack.features, meanQ: 40 },
+      qMeasurementMode: 'mirrored',
+    })
+
+    const result = calculateQ(track, 'RESONANCE', 'surgical')
+    expect(result.q).toBe(9)
+    expect(result.qSource).toBe('guarded')
+    expect(result.reason).toMatch(/bandwidth estimate was incomplete/i)
+  })
+
+  it('caps sub-300 Hz recommendations at Q=8 and prefers broader-region framing', () => {
+    const baseTrack = makeTrack()
+    const track = makeTrack({
+      trueFrequencyHz: 160,
+      qEstimate: 14,
+      features: { ...baseTrack.features, meanQ: 14 },
+      qMeasurementMode: 'full',
+    })
+
+    const result = calculateQ(track, 'GROWING', 'surgical')
+    expect(result.q).toBe(8)
+    expect(result.strategy).toBe('broad-region')
+    expect(result.qSource).toBe('guarded')
+    expect(result.reason).toMatch(/low-frequency recurrence/i)
+  })
+
+  it('widens repeat offenders by 15% before the final clamp', () => {
+    const baseTrack = makeTrack()
+    const track = makeTrack({
+      qEstimate: 14,
+      features: { ...baseTrack.features, meanQ: 14 },
+      qMeasurementMode: 'full',
+    })
+
+    const withoutRecurrence = calculateQ(track, 'GROWING', 'surgical')
+    const withRecurrence = calculateQ(track, 'GROWING', 'surgical', { recurrenceCount: 2 })
+
+    expect(withRecurrence.q).toBeLessThan(withoutRecurrence.q)
+    expect(withRecurrence.q).toBeCloseTo(withoutRecurrence.q * 0.85, 1)
   })
 })
 
@@ -259,26 +317,25 @@ describe('clusterAwareQ', () => {
     expect(clusterAwareQ(5, 1000, 1000, 1000)).toBe(5)
   })
 
-  it('widens Q to cover a 200 Hz cluster at 1000 Hz', () => {
-    // Cluster spanning 900-1100 Hz → span = 200 Hz
-    // coverageQ = 1000 / (200 * 1.5) = 1000 / 300 ≈ 3.3
-    const q = clusterAwareQ(5, 1000, 900, 1100)
-    expect(q).toBeCloseTo(3.3, 0)
-    expect(q).toBeLessThan(5) // Wider than original
+  it('widens Q to cover a moderate cluster span inside the shared range', () => {
+    // Cluster spanning 960-1040 Hz → span = 80 Hz.
+    // coverageQ = 1000 / (80 * 1.5) ≈ 8.3.
+    const q = clusterAwareQ(12, 1000, 960, 1040)
+    expect(q).toBeCloseTo(8.3, 0)
+    expect(q).toBeLessThan(12)
   })
 
   it('does not narrow Q below cluster-derived value', () => {
     // If baseQ is already wider (lower) than cluster needs, keep baseQ
-    const q = clusterAwareQ(2, 1000, 990, 1010)
-    // coverageQ = 1000 / (20 * 1.5) = 33.3 → min(2, 33.3) = 2
-    expect(q).toBe(2)
+    const q = clusterAwareQ(4, 1000, 990, 1010)
+    // coverageQ = 1000 / (20 * 1.5) = 33.3 → min(4, 33.3) = 4.
+    expect(q).toBe(4)
   })
 
-  it('floors at Q=0.3', () => {
-    // Very wide cluster → coverageQ < 0.3
-    // span = 600 Hz, center = 200 Hz → coverageQ = 200 / (600*1.5) = 0.22
+  it('floors at the shared minimum Q of 4', () => {
+    // Very wide cluster → raw coverageQ falls below the shared 4..16 range.
     const q = clusterAwareQ(5, 200, 100, 700)
-    expect(q).toBeCloseTo(0.3, 1)
+    expect(q).toBe(4)
   })
 })
 
@@ -286,19 +343,26 @@ describe('clusterAwareQ', () => {
 
 describe('generatePEQRecommendation (cluster-aware)', () => {
   it('widens Q when cluster bounds are provided', () => {
-    const track = makeTrack({ trueFrequencyHz: 1000, qEstimate: 5 })
+    const baseTrack = makeTrack()
+    const track = makeTrack({
+      trueFrequencyHz: 1000,
+      qEstimate: 14,
+      features: { ...baseTrack.features, meanQ: 14 },
+      qMeasurementMode: 'full',
+    })
     const withoutCluster = generatePEQRecommendation(track, 'GROWING', 'surgical')
     const withCluster = generatePEQRecommendation(
       track,
       'GROWING',
       'surgical',
       undefined,
-      900,
-      1100,
+      940,
+      1060,
     )
     expect(withCluster.q).toBeLessThan(withoutCluster.q)
     expect(withCluster.strategy).toBe('broad-region')
-    expect(withCluster.reason).toMatch(/q widened to cover the unstable region/i)
+    expect(withCluster.qSource).toBe('cluster')
+    expect(withCluster.reason).toMatch(/broader unstable region/i)
   })
 
   it('produces identical Q without cluster bounds', () => {
@@ -390,6 +454,19 @@ describe('generatePEQRecommendation', () => {
     const track = makeTrack({ trueFrequencyHz: 1000, bandwidthHz: 200 })
     const rec = generatePEQRecommendation(track, 'GROWING', 'surgical')
     expect(rec.bandwidthHz).toBe(200)
+  })
+
+  it('surfaces qSource so downstream consumers can tell why Q was chosen', () => {
+    const baseTrack = makeTrack()
+    const track = makeTrack({
+      trueFrequencyHz: 1000,
+      qEstimate: 18,
+      features: { ...baseTrack.features, meanQ: 18 },
+      qMeasurementMode: 'full',
+    })
+
+    const rec = generatePEQRecommendation(track, 'GROWING', 'surgical')
+    expect(rec.qSource).toBe('measured')
   })
 
   it('uses learned cut depth when it is more aggressive than recurrence depth', () => {

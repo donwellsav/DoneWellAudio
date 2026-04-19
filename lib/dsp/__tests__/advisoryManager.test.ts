@@ -61,6 +61,7 @@ function makeTrack(overrides: Partial<Track> = {}): Track {
     features: makeFeatures(),
     qEstimate: 30,
     bandwidthHz: 33,
+    qMeasurementMode: 'full',
     velocityDbPerSec: 5,
     harmonicOfHz: null,
     isSubHarmonicRoot: false,
@@ -385,10 +386,20 @@ describe('AdvisoryManager', () => {
       )
 
       expect(actions2).toHaveLength(1)
-      const adv = (actions2[0] as { type: 'advisory'; advisory: { clusterCount: number; trackId: string } }).advisory
+      const adv = (actions2[0] as {
+        type: 'advisory'
+        advisory: {
+          clusterCount: number
+          trackId: string
+          advisory: { peq: { strategy?: string; reason?: string; qSource?: string } }
+        }
+      }).advisory
       expect(adv.clusterCount).toBe(2) // merged
       // Original track1's advisory is updated
       expect(adv.trackId).toBe('track-f1')
+      expect(adv.advisory.peq.strategy).toBe('broad-region')
+      expect(adv.advisory.peq.qSource).toBe('cluster')
+      expect(adv.advisory.peq.reason).toMatch(/broader unstable region/i)
     })
 
     it('supersedes existing advisory when new peak is more urgent', () => {

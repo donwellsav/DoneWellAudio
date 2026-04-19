@@ -19,6 +19,7 @@ export type IssueLabel = 'ACOUSTIC_FEEDBACK' | 'WHISTLE' | 'INSTRUMENT' | 'POSSI
 export type PEQType = 'bell' | 'notch' | 'highShelf' | 'lowShelf' | 'HPF' | 'LPF'
 export type ShelfType = 'highShelf' | 'lowShelf' | 'HPF' | 'LPF'
 export type SpectrumSmoothingMode = 'raw' | 'perceptual'
+export type QMeasurementMode = 'full' | 'mirrored' | 'defaulted'
 
 /** MSD algorithm output — used by fusion engine and classification. */
 export interface MSDResult {
@@ -90,6 +91,7 @@ export interface DetectedPeak {
   // Q and bandwidth from -3dB analysis
   qEstimate?: number // Estimated Q factor
   bandwidthHz?: number // -3dB bandwidth in Hz
+  qMeasurementMode?: QMeasurementMode // Whether bandwidth came from full, mirrored, or defaulted measurement
   /** PHPR (Peak-to-Harmonic Power Ratio) in dB — high = pure tone (feedback), low = harmonics (music) */
   phpr?: number
 }
@@ -127,6 +129,7 @@ export interface Track {
   features: TrackFeatures
   qEstimate: number
   bandwidthHz: number
+  qMeasurementMode?: QMeasurementMode
   /** PHPR (Peak-to-Harmonic Power Ratio) in dB */
   phpr?: number
   velocityDbPerSec: number
@@ -199,6 +202,8 @@ export interface PEQRecommendation {
   gainDb: number
   /** -3dB bandwidth in Hz (from measured peak analysis) */
   bandwidthHz?: number
+  /** Why this Q was chosen: baseline policy, trusted measurement, cluster width, or a guard rail. */
+  qSource?: 'baseline' | 'measured' | 'cluster' | 'guarded'
   /** Recommendation framing for UI: narrow offender vs broader corrective region. */
   strategy?: 'narrow-cut' | 'broad-region'
   /** Human-readable explanation of why the chosen strategy was used. */
@@ -325,6 +330,7 @@ export interface TrackSummary {
   prominenceDb: number
   qEstimate: number
   bandwidthHz: number
+  qMeasurementMode?: QMeasurementMode
   classification: Severity
   severity: Severity
   onsetTime: number
@@ -398,7 +404,7 @@ export interface DetectorSettings {
   spectrumWarmMode: boolean // Use warm amber spectrum line instead of blue
   spectrumSmoothingMode: SpectrumSmoothingMode // Display-only spectrum view: raw or perceptual 1/3-octave smoothing
   // Peak timing
-  sustainMs: number // Peak sustain before confirmation (100-2000, default 250)
+  sustainMs: number // Peak sustain before confirmation (100-2000, mode-dependent; startup speech 240)
   clearMs: number // Time before peak declared dead (100-2000, default 400)
   // Threshold control
   thresholdMode: ThresholdMode // 'absolute' | 'relative' | 'hybrid' (default 'hybrid')
@@ -409,7 +415,7 @@ export interface DetectorSettings {
   // Track management
   maxTracks: number // Max simultaneous tracks (8-128, default 64)
   trackTimeoutMs: number // Track inactivity timeout (200-5000, default 1000)
-  ignoreWhistle: boolean // Suppress whistle classifications (default true)
+  ignoreWhistle: boolean // Suppress whistle classifications (default false)
   // Display / canvas
   rtaDbMin: number // RTA display range minimum (-120 to -60, default -100)
   rtaDbMax: number // RTA display range maximum (-20 to 0, default 0)
@@ -438,7 +444,7 @@ export const DEFAULT_CONFIG: AnalysisConfig = {
   minHz: 150, // Body mic chest resonance lower bound
   maxHz: 10000, // Condenser sibilance feedback upper bound
   analysisIntervalMs: 20, // Faster analysis for quicker detection
-  sustainMs: 300, // 300 ms — filters plosives/transients while catching real feedback (matches startup Speech defaults)
+  sustainMs: 240, // 240 ms — startup speech default after the latency tuning pass
   clearMs: 400, // Slightly longer decay reduces display flicker
   thresholdMode: 'hybrid',
   thresholdDb: -80, // Safety floor only — relative threshold (noise floor + slider) controls detection
@@ -446,7 +452,7 @@ export const DEFAULT_CONFIG: AnalysisConfig = {
   prominenceDb: 8, // Lowered to catch quieter peaks with MSD confirmation
   neighborhoodBins: 8, // ±2 exclusion means effective 6 each side
   maxIssues: 12, // Show more issues for comprehensive tuning
-  ignoreWhistle: true,
+  ignoreWhistle: false,
   preset: 'surgical',
   mode: 'speech', // Matches the startup Speech profile
   aWeightingEnabled: true, // A-weighting on — prioritizes speech intelligibility band (2–5 kHz)

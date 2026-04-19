@@ -15,7 +15,7 @@ import { MSDPool } from './msdPool'
 import { computeAWeightingTable, computeMicCalibrationTable, computeAnalysisDbBounds, aWeightingDb } from './calibrationTables'
 import { estimateQ as estimateQFn, calculatePHPR as calculatePHPRFn } from './frequencyAnalysis'
 import { PersistenceTracker } from './persistenceScoring'
-import { computeEffectiveThreshold, getMsdMinFramesForMode, classifyMsdResult, detectHarmonicRelationship } from './detectorUtils'
+import { computeEffectiveThreshold, getMsdMinFramesForMode, classifyMsdResult, detectHarmonicRelationship, computeAdaptiveSustainMs } from './detectorUtils'
 
 const HOLD_DECAY_RATE_MULTIPLIER = 2
 
@@ -1129,11 +1129,13 @@ export class FeedbackDetector {
         hold[i] += dt
         dead[i] = 0
 
-        // Adaptive sustain: low frequencies need longer confirmation (room modes),
-        // high frequencies confirm faster (almost always feedback, not resonance).
-        // Scale: <200Hz = 1.5x sustain, 200-4000Hz = 1.0x, >4000Hz = 0.6x
-        const sustainScale = freqHz < 200 ? 1.5 : freqHz > 4000 ? 0.6 : 1.0
-        if (hold[i] >= sustainMs * sustainScale && active[i] === 0) {
+        const cachedMsd = this._msdResultCache.get(i)
+        const timingMsdHint = cachedMsd && cachedMsd.gen === this._msdCacheGen
+          ? { isHowl: cachedMsd.isHowl, fastConfirm: cachedMsd.fastConfirm }
+          : null
+
+        const requiredSustainMs = computeAdaptiveSustainMs(sustainMs, freqHz, timingMsdHint)
+        if (hold[i] >= requiredSustainMs && active[i] === 0) {
           this._registerPeak(i, now, prominence, effectiveThresholdDb)
         }
       } else {
@@ -1237,7 +1239,7 @@ export class FeedbackDetector {
     }
 
     // Q estimation via -3dB bandwidth
-    const { qEstimate, bandwidthHz } = this.estimateQ(i, trueAmplitudeDb, trueFrequencyHz)
+    const { qEstimate, bandwidthHz, qMeasurementMode } = this.estimateQ(i, trueAmplitudeDb, trueFrequencyHz)
 
     const peak: DetectedPeak = {
       binIndex: i,
@@ -1255,6 +1257,7 @@ export class FeedbackDetector {
     // Q estimation
     peak.qEstimate = qEstimate
     peak.bandwidthHz = bandwidthHz
+    peak.qMeasurementMode = qMeasurementMode
 
     // PHPR (Peak-to-Harmonic Power Ratio) — feedback vs music discrimination
     peak.phpr = this.calculatePHPR(i)
@@ -1277,8 +1280,14 @@ export class FeedbackDetector {
     this.callbacks.onPeakDetected?.(peak)
   }
 
-  private estimateQ(binIndex: number, peakDb: number, trueFrequencyHz?: number): { qEstimate: number; bandwidthHz: number } {
-    if (!this.freqDb) return { qEstimate: 10, bandwidthHz: 100 }
+  private estimateQ(
+    binIndex: number,
+    peakDb: number,
+    trueFrequencyHz?: number,
+  ): { qEstimate: number; bandwidthHz: number; qMeasurementMode: 'full' | 'mirrored' | 'defaulted' } {
+    if (!this.freqDb) {
+      return { qEstimate: 10, bandwidthHz: 100, qMeasurementMode: 'defaulted' }
+    }
     return estimateQFn(this.freqDb, binIndex, peakDb, this.getSampleRate(), this.config.fftSize, trueFrequencyHz)
   }
 

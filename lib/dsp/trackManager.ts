@@ -128,6 +128,7 @@ function createTrackSummaryShell(): TrackSummary {
     prominenceDb: 0,
     qEstimate: 0,
     bandwidthHz: 0,
+    qMeasurementMode: undefined,
     classification: 'unknown',
     severity: 'unknown',
     onsetTime: 0,
@@ -471,6 +472,7 @@ export class TrackManager {
       features: this.initializeFeatures(),
       qEstimate,
       bandwidthHz,
+      qMeasurementMode: peak.qMeasurementMode,
       phpr: peak.phpr,
       velocityDbPerSec: 0,
       harmonicOfHz: peak.harmonicOfHz,
@@ -524,6 +526,7 @@ export class TrackManager {
     track.lastUpdateTime = peak.timestamp
     track.qEstimate = qEstimate
     track.bandwidthHz = bandwidthHz
+    track.qMeasurementMode = peak.qMeasurementMode ?? track.qMeasurementMode
     track.phpr = peak.phpr ?? track.phpr
     track.harmonicOfHz = peak.harmonicOfHz
     if (peak.isSubHarmonicRoot) track.isSubHarmonicRoot = true
@@ -749,6 +752,7 @@ export class TrackManager {
     summary.prominenceDb = track.prominenceDb
     summary.qEstimate = track.qEstimate
     summary.bandwidthHz = track.bandwidthHz
+    summary.qMeasurementMode = track.qMeasurementMode
     summary.classification = 'unknown' as Severity
     summary.severity = 'unknown' as Severity
     summary.onsetTime = track.onsetTime
