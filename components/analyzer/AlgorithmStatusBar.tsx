@@ -32,9 +32,9 @@ const ALGORITHM_MODE_LABELS: Record<AlgorithmMode, string> = {
 }
 
 const CONTENT_TYPE_LABELS: Record<ContentType, { label: string; color: string }> = {
-  speech: { label: 'SPEECH', color: 'text-blue-400' },
-  music: { label: 'MUSIC', color: 'text-green-400' },
-  compressed: { label: 'COMP', color: 'text-amber-400' },
+  speech: { label: 'SPEECH', color: 'text-blue-700 dark:text-blue-400' },
+  music: { label: 'MUSIC', color: 'text-green-700 dark:text-green-400' },
+  compressed: { label: 'COMP', color: 'text-amber-700 dark:text-amber-400' },
   unknown: { label: '---', color: 'text-muted-foreground' },
 }
 
@@ -121,7 +121,7 @@ export const AlgorithmStatusBar = memo(function AlgorithmStatusBar({
         <Tooltip>
           <TooltipTrigger asChild>
             <div className="flex items-center gap-1">
-              <span className={msdReady ? 'text-green-400' : 'text-muted-foreground'}>
+              <span className={msdReady ? 'text-green-700 dark:text-green-400' : 'text-muted-foreground'}>
                 MSD
               </span>
               {showDetailed && (
@@ -155,7 +155,7 @@ export const AlgorithmStatusBar = memo(function AlgorithmStatusBar({
             <span className="text-muted-foreground/20 mx-0.5">·</span>
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="text-amber-400 motion-safe:animate-pulse">
+                <span className="text-amber-700 dark:text-amber-400 motion-safe:animate-pulse">
                   COMP {compressionRatio.toFixed(1)}:1
                 </span>
               </TooltipTrigger>
@@ -179,7 +179,7 @@ export const AlgorithmStatusBar = memo(function AlgorithmStatusBar({
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className={`tabular-nums text-[10px] tracking-tight ${
-                  droppedPercent > 20 ? 'text-red-400' : droppedPercent > 5 ? 'text-amber-400' : 'text-muted-foreground/50'
+                  droppedPercent > 20 ? 'text-red-700 dark:text-red-400' : droppedPercent > 5 ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground/50'
                 }`}>
                   {actualFps}fps
                 </span>
@@ -187,7 +187,7 @@ export const AlgorithmStatusBar = memo(function AlgorithmStatusBar({
               <TooltipContent side="bottom" className="text-sm max-w-[260px]">
                 <p className="font-semibold">Rendering: {actualFps} fps</p>
                 {droppedPercent > 0 && (
-                  <p className={`mt-1 ${droppedPercent > 20 ? 'text-red-400' : 'text-amber-400'}`}>
+                  <p className={`mt-1 ${droppedPercent > 20 ? 'text-red-700 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'}`}>
                     {droppedPercent}% frames dropped
                   </p>
                 )}
