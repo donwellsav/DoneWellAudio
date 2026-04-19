@@ -24,6 +24,15 @@ export interface CanvasTheme {
   frozenBadgeBg: string
   frozenBadgeBorder: string
   frozenBadgeText: string
+  /** Level-meter gradient stops (bottom → top = quiet → hot). */
+  meterBlue: string
+  meterGreen: string
+  meterAmber: string
+  meterRed: string
+  /** Unfilled portion of the meter (above the current level). */
+  meterBg: string
+  /** Peak-hold indicator line. */
+  meterPeakHold: string
 }
 
 export const DARK_CANVAS_THEME: CanvasTheme = {
@@ -43,6 +52,12 @@ export const DARK_CANVAS_THEME: CanvasTheme = {
   frozenBadgeBg: 'rgba(75, 146, 255, 0.2)',
   frozenBadgeBorder: 'rgba(75, 146, 255, 0.5)',
   frozenBadgeText: '#60a5fa',
+  meterBlue: 'rgba(75, 146, 255, 0.7)',
+  meterGreen: 'rgba(74, 222, 128, 0.85)',
+  meterAmber: 'rgba(245, 158, 11, 0.85)',
+  meterRed: 'rgba(239, 68, 68, 0.9)',
+  meterBg: 'rgba(128, 128, 128, 0.08)',
+  meterPeakHold: 'rgba(255, 255, 255, 0.7)',
 }
 
 export const LIGHT_CANVAS_THEME: CanvasTheme = {
@@ -62,6 +77,12 @@ export const LIGHT_CANVAS_THEME: CanvasTheme = {
   frozenBadgeBg: 'rgba(37, 99, 235, 0.15)',
   frozenBadgeBorder: 'rgba(37, 99, 235, 0.55)',
   frozenBadgeText: '#1d4ed8',
+  meterBlue: 'rgba(37, 99, 235, 0.75)',
+  meterGreen: 'rgba(22, 163, 74, 0.85)',
+  meterAmber: 'rgba(217, 119, 6, 0.85)',
+  meterRed: 'rgba(220, 38, 38, 0.9)',
+  meterBg: 'rgba(128, 128, 128, 0.14)',
+  meterPeakHold: 'rgba(0, 0, 0, 0.55)',
 }
 
 export interface DbRange {

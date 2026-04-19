@@ -7,7 +7,7 @@
 import { clamp } from '@/lib/utils/mathHelpers'
 import type { SpectrumData } from '@/types/advisory'
 
-import type { DbRange } from './canvasTypes'
+import type { CanvasTheme, DbRange } from './canvasTypes'
 
 // ── Level Meter ────────────────────────────────────────────────────────────────
 
@@ -19,13 +19,16 @@ const METER_PEAK_DECAY_DB_PER_SEC = 15
  * Draw a vertical input level meter bar on the left edge of the plot area.
  * Uses the same dB scale as the RTA. Called inside translated context.
  *
- * Color: green (below -12dB) → amber (-12 to -3dB) → red (above -3dB)
+ * Color: green (below -12dB) → amber (-12 to -3dB) → red (above -3dB).
+ * Gradient stop colors read from `theme.meter*` so light-theme rendering
+ * picks up darker, more-saturated variants that contrast with a light canvas.
  */
 export function drawLevelMeter(
   ctx: CanvasRenderingContext2D,
   plotHeight: number,
   range: DbRange,
   spectrum: SpectrumData | null,
+  theme: CanvasTheme,
   dtSeconds: number = 0.04,
 ) {
   const peakDb = spectrum?.peak ?? -100
@@ -43,20 +46,20 @@ export function drawLevelMeter(
   // Four-segment gradient: blue → green → amber → red (bottom to top)
   // Gradient stop 0 = bottom (dbMin), stop 1 = top (dbMax)
   const grad = ctx.createLinearGradient(0, plotHeight, 0, 0)
-  grad.addColorStop(0, 'rgba(75, 146, 255, 0.7)')         // blue at bottom (below -75dB)
+  grad.addColorStop(0, theme.meterBlue)                     // blue at bottom (below -75dB)
   const greenStop = clamp((-75 - range.dbMin) / dbSpan, 0.01, 0.99)
-  grad.addColorStop(greenStop, 'rgba(74, 222, 128, 0.85)') // green at -75dB
+  grad.addColorStop(greenStop, theme.meterGreen)            // green at -75dB
   const amberStop = clamp((-30 - range.dbMin) / dbSpan, 0.01, 0.99)
-  grad.addColorStop(amberStop, 'rgba(245, 158, 11, 0.85)') // amber at -30dB
+  grad.addColorStop(amberStop, theme.meterAmber)            // amber at -30dB
   const redStop = clamp((-3 - range.dbMin) / dbSpan, 0.01, 0.99)
-  grad.addColorStop(redStop, 'rgba(239, 68, 68, 0.9)')    // red at -3dB
-  grad.addColorStop(1, 'rgba(239, 68, 68, 0.95)')         // red at top
+  grad.addColorStop(redStop, theme.meterRed)                // red at -3dB
+  grad.addColorStop(1, theme.meterRed)                      // red at top
 
   ctx.fillStyle = grad
   ctx.fillRect(meterX, fillY, meterWidth, plotHeight - fillY)
 
   // Meter background (unfilled portion)
-  ctx.fillStyle = 'rgba(128, 128, 128, 0.08)'
+  ctx.fillStyle = theme.meterBg
   ctx.fillRect(meterX, 0, meterWidth, fillY)
 
   // Peak hold line (decays slowly)
@@ -64,7 +67,7 @@ export function drawLevelMeter(
   _meterPeakDb = Math.max(clampedDb, _meterPeakDb - METER_PEAK_DECAY_DB_PER_SEC * clampedDt)
   const peakY = ((range.dbMax - _meterPeakDb) / dbSpan) * plotHeight
 
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)'
+  ctx.strokeStyle = theme.meterPeakHold
   ctx.lineWidth = 1.5
   ctx.beginPath()
   ctx.moveTo(meterX, peakY)

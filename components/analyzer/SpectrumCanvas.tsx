@@ -302,7 +302,7 @@ export const SpectrumCanvas = memo(function SpectrumCanvas({ spectrumRef, adviso
       : spectrum?.freqDb ?? null
 
     drawSpectrum(ctx, plotWidth, plotHeight, range, spectrum, displayFreqDb, gradientRef, gradientHeightRef, spectrumLineWidthProp ?? 0.5, peakHoldRef, spectrumWarmMode, canvasThemeRef.current, dtSeconds)
-    drawLevelMeter(ctx, plotHeight, range, spectrum, dtSeconds)
+    drawLevelMeter(ctx, plotHeight, range, spectrum, canvasThemeRef.current, dtSeconds)
 
     // Store padding for pointer event calculations
     paddingRef.current = { left: padding.left, top: padding.top, plotWidth, plotHeight }
