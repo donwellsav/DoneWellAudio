@@ -24,12 +24,12 @@ export const ReferenceTab = memo(function ReferenceTab() {
 
           <HelpSection title="Severity Levels" color="amber">
             <ul className="space-y-2">
-              <li><strong className="text-red-500">RUNAWAY:</strong> Active feedback rapidly increasing - address immediately</li>
-              <li><strong className="text-orange-500">GROWING:</strong> Feedback building but not yet critical</li>
-              <li><strong className="text-yellow-500">RESONANCE:</strong> Stable resonant peak that could become feedback</li>
-              <li><strong className="text-purple-500">POSSIBLE RING:</strong> Subtle ring that may need attention</li>
-              <li><strong className="text-cyan-500">WHISTLE:</strong> Detected whistle or sibilance</li>
-              <li><strong className="text-green-500">INSTRUMENT:</strong> Likely musical content, not feedback</li>
+              <li><strong className="text-red-700 dark:text-red-500">RUNAWAY:</strong> Active feedback rapidly increasing - address immediately</li>
+              <li><strong className="text-orange-700 dark:text-orange-500">GROWING:</strong> Feedback building but not yet critical</li>
+              <li><strong className="text-yellow-700 dark:text-yellow-500">RESONANCE:</strong> Stable resonant peak that could become feedback</li>
+              <li><strong className="text-purple-700 dark:text-purple-500">POSSIBLE RING:</strong> Subtle ring that may need attention</li>
+              <li><strong className="text-cyan-700 dark:text-cyan-500">WHISTLE:</strong> Detected whistle or sibilance</li>
+              <li><strong className="text-green-700 dark:text-green-500">INSTRUMENT:</strong> Likely musical content, not feedback</li>
             </ul>
           </HelpSection>
 

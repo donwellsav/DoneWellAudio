@@ -86,9 +86,9 @@ export const HelpGroup = memo(function HelpGroup({
 // ── Changelog type badge styles ────────────────────────────────────────────────
 
 export const TYPE_STYLES: Record<ChangeType, { label: string; className: string }> = {
-  feat:     { label: 'Feature',  className: 'bg-emerald-500/15 text-emerald-400' },
-  fix:      { label: 'Fix',      className: 'bg-orange-500/15 text-orange-400' },
-  perf:     { label: 'Perf',     className: 'bg-cyan-500/15 text-cyan-400' },
-  refactor: { label: 'Refactor', className: 'bg-violet-500/15 text-violet-400' },
-  ui:       { label: 'UI',       className: 'bg-pink-500/15 text-pink-400' },
+  feat:     { label: 'Feature',  className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-400' },
+  fix:      { label: 'Fix',      className: 'bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-400' },
+  perf:     { label: 'Perf',     className: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-500/15 dark:text-cyan-400' },
+  refactor: { label: 'Refactor', className: 'bg-violet-100 text-violet-800 dark:bg-violet-500/15 dark:text-violet-400' },
+  ui:       { label: 'UI',       className: 'bg-pink-100 text-pink-800 dark:bg-pink-500/15 dark:text-pink-400' },
 }
