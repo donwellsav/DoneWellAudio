@@ -15,7 +15,12 @@ import type {
 
 const MAX_RESTARTS = 3
 const RESTART_DELAY_MS = 500
-const SHOULD_PROFILE_TRACK_PAYLOAD = process.env.NODE_ENV !== 'production'
+// Dev-only profiler — JSON.stringify on every tracksUpdate is measurable (~150 ms/sec)
+// in dev builds. Opt-in via ?profile=tracks so normal dev sessions don't pay it.
+const SHOULD_PROFILE_TRACK_PAYLOAD =
+  typeof window !== 'undefined' &&
+  process.env.NODE_ENV !== 'production' &&
+  new URLSearchParams(window.location.search).get('profile') === 'tracks'
 const TRACK_PAYLOAD_ENCODER = SHOULD_PROFILE_TRACK_PAYLOAD ? new TextEncoder() : null
 
 interface PeakPoolRefs {

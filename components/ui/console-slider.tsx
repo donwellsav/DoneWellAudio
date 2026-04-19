@@ -172,6 +172,7 @@ export const ConsoleSlider = memo(function ConsoleSlider({
         {/* Slider track */}
         <SliderPrimitive.Root
           ref={sliderRef}
+          aria-label={label}
           value={[sliderValue]}
           onValueChange={([v]) => onChange(v)}
           onPointerDown={handlePointerDown}

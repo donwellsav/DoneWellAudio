@@ -308,7 +308,10 @@ describe('useDSPWorker', () => {
     const stats = result.current.getTransportStats()
     expect(stats.inbound).toBeGreaterThanOrEqual(2)
     expect(stats.tracksUpdates).toBe(1)
-    expect(stats.lastTracksPayloadBytes).toBeGreaterThan(0)
+    // Payload-byte profiling is opt-in via `?profile=tracks` (dev-only). Without the
+    // URL param the counters stay at 0 — the test env has no query string, so we
+    // only assert the non-negative invariant.
+    expect(stats.lastTracksPayloadBytes).toBeGreaterThanOrEqual(0)
     expect(stats.maxTracksPayloadBytes).toBeGreaterThanOrEqual(stats.lastTracksPayloadBytes)
   })
 
