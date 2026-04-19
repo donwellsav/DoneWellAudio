@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.107.0',
+    date: '2026-04-19',
+    highlights: 'Cleans up the v0.105.0 changelog entry — replaces the 44 auto-ingested bullets (test-plan checkboxes, tool output, narrative prose) with a proper 9-bullet summary matching the v0.104.0 / v0.106.0 shape. Documentation-layer fix; no runtime, test, or code changes.',
+    changes: [
+      { type: 'fix', description: '**v0.105.0 changelog entry** — replaced 44 mis-classified `feat` rows (auto-ingested from the PR #105 body, including literal `[ ] ...` test-plan checkboxes and raw `npx tsc --noEmit` tool output) with 9 properly-typed bullets plus a `highlights` summary. Every substantive change from the original is preserved; only noise was dropped.' },
+      { type: 'refactor', description: '`/yeet` SKILL (home-dir, not repo) hardened against PR-number confusion: adds a mandatory `gh pr view --json number` verification step after `gh pr create`, plus reconciliation against any user-predicted number. `VERIFIED_PR_NUM` is the only authoritative value for Phase 4 version bumps.' },
+    ],
+  },
+  {
     version: '0.106.0',
     date: '2026-04-19',
     highlights: 'Claude Code automation rollout — WCAG contrast regression + 2 warn-only edit-time hooks + 2 project MCPs (context7, playwright) + 2 specialized subagents (dsp-hotpath, a11y-theme) + 2 user-invocable skills (changelog-entry, wcag-contrast-check). Zero runtime changes; all additions land under `.claude/`, `.mcp.json`, and a single new vitest file.',
