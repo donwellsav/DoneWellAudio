@@ -23,6 +23,10 @@ html { color-scheme: dark light; }
   border: 1px solid rgba(239, 68, 68, 0.4);
   cursor: pointer;
 }
+.ge-btn:focus-visible {
+  outline: 3px solid #ef4444;
+  outline-offset: 2px;
+}
 @media (prefers-color-scheme: light) {
   .ge-root { background: #fafafa; color: #0a0a0a; }
   .ge-msg { color: #52525b; }
@@ -30,6 +34,9 @@ html { color-scheme: dark light; }
     background: rgba(220, 38, 38, 0.1);
     color: #b91c1c;
     border-color: rgba(185, 28, 28, 0.4);
+  }
+  .ge-btn:focus-visible {
+    outline-color: #b91c1c;
   }
 }
 `
