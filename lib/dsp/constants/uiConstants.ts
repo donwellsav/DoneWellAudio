@@ -95,13 +95,13 @@ export const VIZ_COLORS = {
  * Keep this table symmetric with VIZ_COLORS so future callers get correct light-theme values.
  */
 export const VIZ_COLORS_LIGHT = {
-  // Severity tokens (originally defined)
-  RUNAWAY: '#dc2626',       // red-600 (7.1:1 on white)
-  GROWING: '#ea580c',       // orange-600 (4.6:1 on white)
-  RESONANCE: '#a16207',     // yellow-700 (5.2:1 on white)
-  POSSIBLE_RING: '#9333ea', // purple-600 (5.5:1 on white)
-  WHISTLE: '#0891b2',       // cyan-600 (4.5:1 on white)
-  INSTRUMENT: '#16a34a',    // green-600 (4.6:1 on white)
+  // Severity tokens (originally defined). Ratios recomputed Batch 25 — prior comments overstated.
+  RUNAWAY: '#dc2626',       // red-600 (4.82:1 on white)
+  GROWING: '#c2410c',       // orange-700 (5.20:1 on white; was #ea580c at 3.55:1, failed AA)
+  RESONANCE: '#a16207',     // yellow-700 (4.88:1 on white)
+  POSSIBLE_RING: '#9333ea', // purple-600 (5.36:1 on white)
+  WHISTLE: '#0e7490',       // cyan-700 (5.28:1 on white; was #0891b2 at 3.62:1, failed AA)
+  INSTRUMENT: '#15803d',    // green-700 (5.00:1 on white; was #16a34a at 3.26:1, failed AA)
   // Infrastructure tokens (added to complete the symmetry)
   NOISE_FLOOR: '#64748b',   // slate-500 — dimmed gray that reads on light
   THRESHOLD: '#2563eb',     // blue-600 — matches light-theme --ring

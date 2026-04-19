@@ -148,6 +148,7 @@ export const ConsoleSlider = memo(function ConsoleSlider({
               autoFocus
               type="text"
               defaultValue={String(sliderValue)}
+              aria-label={`${label} value`}
               className="console-readout bg-input border border-primary rounded px-1 text-right w-16 focus-visible:outline-none"
               style={{ color: c.text }}
               onBlur={(e) => commitEdit(e.target.value)}

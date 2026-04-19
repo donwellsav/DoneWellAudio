@@ -86,6 +86,10 @@
   --console-green-glow: rgba(74, 222, 128, 0.30);
   --console-readout-text: #f59e0b;
   --console-readout-glow: rgba(245, 158, 11, 0.35);
+  /* Fader indicator glow — consumed by DualFaderStrip auto-gain LED dot.
+   * Dark theme: brighter (emerald-400, amber-400). Light theme overrides below. */
+  --fader-glow-locked: rgba(52, 211, 153, 0.6);
+  --fader-glow-cal: rgba(251, 191, 36, 0.6);
 }
 
 /* ── Global touch & scroll behavior ──────────────────────────────────────────── */
@@ -155,6 +159,9 @@ html {
   --console-green-glow: rgba(22, 163, 74, 0.20);
   --console-readout-text: #b45309;
   --console-readout-glow: rgba(180, 83, 9, 0.10);
+  /* Fader indicator glow — darker saturated shades for light-theme legibility */
+  --fader-glow-locked: rgba(22, 163, 74, 0.55);
+  --fader-glow-cal: rgba(217, 119, 6, 0.55);
   /* Signal tint — warmer default for light mode */
   --tint-r: 180;
   --tint-g: 83;
@@ -731,7 +738,11 @@ html {
   }
   .tab-track-item {
     border-radius: 6px;
-    transition: all 200ms cubic-bezier(0.22, 1, 0.36, 1);
+    /* Scope transition to non-layout paint + text color so browser can skip layout recalc */
+    transition:
+      color 200ms cubic-bezier(0.22, 1, 0.36, 1),
+      background-color 200ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 200ms cubic-bezier(0.22, 1, 0.36, 1);
     /* Inactive: slightly visible so the track reads as a button group */
     color: rgba(255, 255, 255, 0.40);
   }

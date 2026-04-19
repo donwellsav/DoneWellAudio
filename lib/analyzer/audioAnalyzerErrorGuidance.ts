@@ -28,10 +28,10 @@ export function getAudioAnalyzerErrorGuidance(
     return 'Another app is using your microphone. Close it, then try again.'
   }
   if (lower.includes('overconstrained')) {
-    return 'Your mic may not support the requested audio format. Try a different device.'
+    return "Your mic doesn't support the requested format. Try a different device."
   }
   if (lower.includes('suspend') || lower.includes('resume')) {
-    return 'Audio was interrupted (tab backgrounded?). Click Start to resume.'
+    return 'Audio was interrupted when the tab went to the background. Click Start to resume.'
   }
 
   return 'Check your microphone connection and browser permissions.'

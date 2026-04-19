@@ -14,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import type { CalibrationTabProps } from './settings/CalibrationTab'
 import { useAnalyzerLayoutState } from '@/hooks/useAnalyzerLayoutState'
 import { useDesktopLayoutState } from '@/hooks/useDesktopLayoutState'
+import { useTabKeyboardNav } from '@/hooks/useTabKeyboardNav'
 
 interface DesktopLayoutProps {
   issuesPanelOpen: boolean
@@ -104,6 +105,8 @@ export const DesktopLayout = memo(function DesktopLayout({
     toggleRtaFullscreen,
   } = useUI()
 
+  const handleTabKeyDown = useTabKeyboardNav()
+
   const desktopIssuesListProps = {
     ...issuesListBaseProps,
     maxIssues: settings.maxDisplayedIssues,
@@ -119,10 +122,18 @@ export const DesktopLayout = memo(function DesktopLayout({
         <ResizablePanel defaultSize="20%" minSize="8%" maxSize="30%" collapsible>
           <div className="flex flex-col h-full amber-sidecar overflow-hidden">
             <div className="flex-shrink-0 flex items-center gap-1.5 px-2 py-1.5 amber-panel-header">
-              <div className="flex flex-1 tab-track">
+              <div
+                className="flex flex-1 tab-track"
+                role="tablist"
+                aria-label="Sidebar sections"
+              >
                 {!issuesPanelOpen ? (
                   <button
                     onClick={() => setActiveSidebarTab('issues')}
+                    onKeyDown={handleTabKeyDown}
+                    role="tab"
+                    aria-selected={activeSidebarTab === 'issues'}
+                    tabIndex={activeSidebarTab === 'issues' ? 0 : -1}
                     data-active={activeSidebarTab === 'issues' ? 'true' : 'false'}
                     className={`tab-track-item flex-1 py-0.5 text-[11px] font-mono font-bold uppercase tracking-[0.2em] cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                       activeSidebarTab === 'issues'
@@ -140,6 +151,10 @@ export const DesktopLayout = memo(function DesktopLayout({
                 ) : null}
                 <button
                   onClick={() => setActiveSidebarTab('controls')}
+                  onKeyDown={handleTabKeyDown}
+                  role="tab"
+                  aria-selected={activeSidebarTab === 'controls'}
+                  tabIndex={activeSidebarTab === 'controls' ? 0 : -1}
                   data-active={activeSidebarTab === 'controls' ? 'true' : 'false'}
                   className={`tab-track-item flex-1 py-0.5 text-[11px] font-mono font-bold uppercase tracking-[0.2em] cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                     activeSidebarTab === 'controls'
@@ -172,12 +187,20 @@ export const DesktopLayout = memo(function DesktopLayout({
             </div>
 
             {showSidebarControls ? (
-              <div className="flex-shrink-0 flex gap-0 bg-card/80 border-b border-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.14)]">
+              <div
+                className="flex-shrink-0 flex gap-0 bg-card/80 border-b border-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.14)]"
+                role="tablist"
+                aria-label="Settings sections"
+              >
                 {SETTINGS_TABS.map(({ id, label, shortLabel, Icon }) => (
                   <button
                     key={id}
                     onClick={() => setControlsTab(id)}
+                    onKeyDown={handleTabKeyDown}
                     aria-label={label}
+                    role="tab"
+                    aria-selected={controlsTab === id}
+                    tabIndex={controlsTab === id ? 0 : -1}
                     data-active={controlsTab === id}
                     className={`tab-track-item relative flex-1 min-h-[30px] flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-[0.08em] cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                       controlsTab === id
@@ -205,7 +228,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                     <span className="truncate">{shortLabel ?? label}</span>
                     {id === 'advanced' && hasCustomGates ? (
                       <span
-                        className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-amber-500"
+                        className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-amber-600 dark:bg-amber-400"
                         title="Custom gate overrides active"
                       />
                     ) : null}

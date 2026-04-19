@@ -126,7 +126,13 @@ export class MLInferenceEngine {
    * asynchronously but is read synchronously.
    */
   private _lastPrediction: MLScoreResult | null = null
-  private _pendingFeatures: Float32Array | null = null
+  // Pre-allocated snapshot buffer — reused every frame to avoid 50fps GC churn.
+  // Mutations race the async session.run(), so we flip between two buffers:
+  // _pendingFeatures holds the next payload, _inflightFeatures is owned by the
+  // in-flight promise and must not be overwritten until it resolves.
+  private _pendingBuffer: Float32Array = new Float32Array(ML_SETTINGS.FEATURE_COUNT)
+  private _inflightBuffer: Float32Array = new Float32Array(ML_SETTINGS.FEATURE_COUNT)
+  private _hasPending = false
   private _inferenceInFlight = false
 
   /**
@@ -140,9 +146,10 @@ export class MLInferenceEngine {
     if (!this._available || !this._session || !this._onnx) return null
     if (features.length !== ML_SETTINGS.FEATURE_COUNT) return null
 
-    // Snapshot features — caller may reuse the same buffer across frames,
-    // so we must copy to avoid reading mutated data during async inference
-    this._pendingFeatures = new Float32Array(features)
+    // Copy into the pending buffer — caller may reuse the same Float32Array
+    // across frames, so we must snapshot before the async session.run() resolves.
+    this._pendingBuffer.set(features)
+    this._hasPending = true
 
     // Kick off inference if not already in flight
     if (!this._inferenceInFlight) {
@@ -153,14 +160,18 @@ export class MLInferenceEngine {
   }
 
   private _runInference(): void {
-    if (!this._pendingFeatures || !this._session || !this._onnx) return
+    if (!this._hasPending || !this._session || !this._onnx) return
     this._inferenceInFlight = true
+    this._hasPending = false
 
-    const features = this._pendingFeatures
-    this._pendingFeatures = null
+    // Swap buffers: inflight takes ownership of pending payload, pending becomes
+    // the free buffer for the next predictCached() call. Zero allocations.
+    const swap = this._inflightBuffer
+    this._inflightBuffer = this._pendingBuffer
+    this._pendingBuffer = swap
 
     const tensor = new (this._onnx.Tensor as unknown as new (type: string, data: Float32Array, dims: number[]) => unknown)(
-      'float32', features, [1, ML_SETTINGS.FEATURE_COUNT]
+      'float32', this._inflightBuffer, [1, ML_SETTINGS.FEATURE_COUNT]
     )
 
     void this._session.run({ input: tensor }).then(output => {
@@ -183,7 +194,7 @@ export class MLInferenceEngine {
     }).finally(() => {
       this._inferenceInFlight = false
       // If new features arrived while we were processing, run again
-      if (this._pendingFeatures) {
+      if (this._hasPending) {
         this._runInference()
       }
     })

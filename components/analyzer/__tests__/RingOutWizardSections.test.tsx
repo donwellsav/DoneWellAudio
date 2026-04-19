@@ -49,7 +49,7 @@ describe('RingOutWizardSections', () => {
     )
 
     expect(screen.getByText(/before you raise gain/i)).toBeDefined()
-    expect(screen.getByText(/mute unused mics and speakers first/i)).toBeDefined()
+    expect(screen.getByText(/mute every mic and speaker/i)).toBeDefined()
     expect(screen.getByText(/pre-show baseline/i)).toBeDefined()
   })
 
@@ -76,7 +76,7 @@ describe('RingOutWizardSections', () => {
     )
 
     expect(screen.getByText(/merged 3 nearby peaks/i)).toBeDefined()
-    expect(screen.getByText(/apply this cut only if it is a stable narrow ring/i)).toBeDefined()
+    expect(screen.getByText(/apply this cut if the ring is stable and narrow/i)).toBeDefined()
   })
 
   it('shows pattern warnings and live/show guidance in the summary phase', () => {

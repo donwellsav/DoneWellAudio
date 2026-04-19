@@ -48,7 +48,8 @@ describe('getSeverityColor', () => {
     }
   })
 
-  // Exact value regression tests matching original eqAdvisor.ts implementation
+  // Exact value regression tests matching VIZ_COLORS / VIZ_COLORS_LIGHT.
+  // Light-theme values darkened in Batch 25 (audit fixes) for WCAG AA on white.
   it.each([
     ['RUNAWAY', true, '#ef4444'],
     ['GROWING', true, '#fb923c'],
@@ -57,7 +58,9 @@ describe('getSeverityColor', () => {
     ['WHISTLE', true, '#06b6d4'],
     ['INSTRUMENT', true, '#4ade80'],
     ['RUNAWAY', false, '#dc2626'],
-    ['GROWING', false, '#ea580c'],
+    ['GROWING', false, '#c2410c'],
+    ['WHISTLE', false, '#0e7490'],
+    ['INSTRUMENT', false, '#15803d'],
   ] as const)('regression: %s isDark=%s → %s', (severity, isDark, expected) => {
     expect(getSeverityColor(severity, isDark)).toBe(expected)
   })
