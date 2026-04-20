@@ -32,7 +32,7 @@ export const SessionExportSection = memo(function SessionExportSection({
 }: SessionExportSectionProps) {
   return (
     <ChannelSection title="Session Export">
-      <p className="text-[10px] text-muted-foreground/50 mb-1.5">Export detection history and EQ recommendations for documentation or post-show review.</p>
+      <p className="text-dwa-sm text-muted-foreground/50 mb-1.5">Export detection history and EQ recommendations for documentation or post-show review.</p>
       <div className="space-y-2">
         <input
           type="text"

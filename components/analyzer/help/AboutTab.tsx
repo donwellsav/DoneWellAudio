@@ -71,7 +71,7 @@ export const AboutTab = memo(function AboutTab() {
                     key={`${latestEntry.version}-${change.type}-${change.description}`}
                     className="flex items-start gap-2 text-sm text-muted-foreground"
                   >
-                    <span className={`mt-0.5 inline-flex shrink-0 items-center rounded px-1.5 py-0.5 font-mono text-[10px] font-medium leading-none ${style.className}`}>
+                    <span className={`mt-0.5 inline-flex shrink-0 items-center rounded px-1.5 py-0.5 font-mono text-dwa-sm font-medium leading-none ${style.className}`}>
                       {style.label}
                     </span>
                     <span>{change.description}</span>
@@ -102,7 +102,7 @@ export const AboutTab = memo(function AboutTab() {
                       key={`${entry.version}-${change.type}-${change.description}`}
                       className="flex items-start gap-2 text-sm text-muted-foreground"
                     >
-                      <span className={`mt-0.5 inline-flex shrink-0 items-center rounded px-1.5 py-0.5 font-mono text-[10px] font-medium leading-none ${style.className}`}>
+                      <span className={`mt-0.5 inline-flex shrink-0 items-center rounded px-1.5 py-0.5 font-mono text-dwa-sm font-medium leading-none ${style.className}`}>
                         {style.label}
                       </span>
                       <span>{change.description}</span>

@@ -1,11 +1,12 @@
 'use client'
 
-import { memo, useEffect, useState } from 'react'
+import { memo } from 'react'
 import { AlertTriangle, Check, TrendingUp } from 'lucide-react'
 import { confidenceColor, RUNAWAY_COLOR } from '@/lib/canvas/canvasTokens'
 import { getSeverityText } from '@/lib/utils/advisoryDisplay'
 import { getRecommendationStrategyLabel } from '@/lib/utils/recommendationDisplay'
 import { badgeClass } from '@/lib/utils/badgeClasses'
+import { useTickingNow } from '@/hooks/useTickingNow'
 import { IssueCardActions } from './IssueCardActions'
 import {
   SEVERITY_ENTER_CLASS,
@@ -80,18 +81,7 @@ export const IssueCard = memo(function IssueCard({
     onSendToMixer,
   })
 
-  const [nowMs, setNowMs] = useState(() => Date.now())
-
-  useEffect(() => {
-    if (isResolved) return
-
-    const intervalId = window.setInterval(() => {
-      setNowMs(Date.now())
-    }, 1000)
-
-    return () => window.clearInterval(intervalId)
-  }, [isResolved])
-
+  const nowMs = useTickingNow(!isResolved)
   const ageSec = Math.max(0, Math.round((nowMs - advisory.timestamp) / 1000))
   const ageStr = ageSec < 5 ? 'just now' : ageSec < 60 ? `${ageSec}s` : `${Math.floor(ageSec / 60)}m`
   const SeverityIconEl = SEVERITY_ICON[advisory.severity] ?? null
@@ -107,9 +97,7 @@ export const IssueCard = memo(function IssueCard({
       ? 'Whistle alert only — verify mic and speaker placement first. No EQ cut recommended.'
       : isClustered
         ? `Merged ${advisory.clusterCount} nearby peaks into one broad region. If it keeps returning, check placement or broad EQ before stacking more narrow cuts.`
-        : occurrenceCount >= 3
-          ? 'Repeat band — check mic/speaker geometry or broad EQ before stacking more narrow cuts.'
-          : null
+        : null
 
   return (
     <div
@@ -133,7 +121,7 @@ export const IssueCard = memo(function IssueCard({
         <div className="absolute inset-0 flex items-center z-0 pointer-events-none" aria-hidden>
           <div
             className="absolute inset-0 flex items-center justify-end pr-4 rounded"
-            style={{ backgroundColor: 'rgba(120, 120, 130, 0.12)' }}
+            style={{ backgroundColor: 'color-mix(in srgb, var(--muted-foreground) 12%, transparent)' }}
           >
             <span className="text-xs font-mono font-bold text-muted-foreground uppercase tracking-wider opacity-60">
               DISMISS
@@ -141,7 +129,7 @@ export const IssueCard = memo(function IssueCard({
           </div>
           <div
             className="absolute inset-0 flex items-center justify-start pl-4 rounded"
-            style={{ backgroundColor: 'rgba(245, 158, 11, 0.12)' }}
+            style={{ backgroundColor: 'color-mix(in srgb, var(--console-amber) 12%, transparent)' }}
           >
             <span className="text-xs font-mono font-bold text-[var(--console-amber)] uppercase tracking-wider opacity-60">
               CONFIRM
@@ -156,7 +144,7 @@ export const IssueCard = memo(function IssueCard({
           {swipeDirection === 'left' ? (
             <div
               className="absolute inset-0 flex items-center justify-end pr-4 rounded"
-              style={{ backgroundColor: `rgba(120, 120, 130, ${swipeProgress * 0.25})` }}
+              style={{ backgroundColor: `color-mix(in srgb, var(--muted-foreground) ${swipeProgress * 25}%, transparent)` }}
             >
               <span
                 className="text-xs font-mono font-bold text-muted-foreground uppercase tracking-wider"
@@ -169,7 +157,7 @@ export const IssueCard = memo(function IssueCard({
           {swipeDirection === 'right' ? (
             <div
               className="absolute inset-0 flex items-center justify-start pl-4 rounded"
-              style={{ backgroundColor: `rgba(245, 158, 11, ${swipeProgress * 0.25})` }}
+              style={{ backgroundColor: `color-mix(in srgb, var(--console-amber) ${swipeProgress * 25}%, transparent)` }}
             >
               <span
                 className="text-xs font-mono font-bold text-[var(--console-amber)] uppercase tracking-wider"
@@ -191,7 +179,7 @@ export const IssueCard = memo(function IssueCard({
               : 'severity-accent-strip'
         }`}
         style={{
-          backgroundColor: isResolved ? 'hsl(var(--muted))' : severityColor,
+          backgroundColor: isResolved ? 'var(--muted)' : severityColor,
           boxShadow: isResolved
             ? 'none'
             : isRunaway
@@ -225,12 +213,12 @@ export const IssueCard = memo(function IssueCard({
           ) : null}
 
           <span
-            className={`font-mono font-black leading-none tracking-tight cursor-default ${
+            className={`font-mono font-black leading-none tracking-tight ${
               isRunaway ? 'text-3xl @[320px]:text-4xl' : 'text-2xl @[320px]:text-3xl'
             } ${isFalsePositive ? 'line-through opacity-50' : ''}`}
             style={{
               fontVariantNumeric: 'tabular-nums slashed-zero',
-              color: isFalsePositive ? undefined : isResolved ? 'hsl(var(--muted-foreground))' : severityColor,
+              color: isFalsePositive ? undefined : isResolved ? 'var(--muted-foreground)' : severityColor,
               textShadow: isFalsePositive || isResolved
                 ? 'none'
                 : isRunaway
@@ -238,14 +226,14 @@ export const IssueCard = memo(function IssueCard({
                   : isWarning
                     ? `0 0 16px ${severityColor}70, 0 0 6px ${severityColor}40`
                     : `0 0 12px ${severityColor}50, 0 0 4px ${severityColor}30`,
-              letterSpacing: '-0.02em',
+              letterSpacing: '-0.01em',
             }}
           >
             {exactFreqStr}
           </span>
 
           {pitchStr ? (
-            <span className="text-[11px] font-mono text-muted-foreground/70 leading-none self-end mb-0.5">
+            <span className="text-dwa-sm font-mono text-muted-foreground/70 leading-none self-end mb-0.5">
               {pitchStr}
             </span>
           ) : null}
@@ -304,8 +292,8 @@ export const IssueCard = memo(function IssueCard({
             {occurrenceCount >= 3 ? (
               <span
                 className={badgeClass('warning')}
-                aria-label={`Repeat offender: detected ${occurrenceCount} times`}
-                title={`Repeat offender: detected ${occurrenceCount} times`}
+                aria-label={`Repeat offender: detected ${occurrenceCount} times. Check mic/speaker geometry or broad EQ before stacking more narrow cuts.`}
+                title={`Repeat offender: detected ${occurrenceCount} times.\nCheck mic/speaker geometry or broad EQ before stacking more narrow cuts.`}
               >
                 <TrendingUp className="w-2.5 h-2.5" />
                 {occurrenceCount}×
@@ -321,7 +309,7 @@ export const IssueCard = memo(function IssueCard({
             ) : null}
             {advisory.confidence != null ? (
               <span
-                className="inline-flex items-center gap-0.5 text-[9px] font-mono leading-none"
+                className="inline-flex items-center gap-0.5 text-dwa-xs font-mono leading-none"
                 role="img"
                 aria-label={`${Math.round(advisory.confidence * 100)}% confidence`}
                 title={`${Math.round(advisory.confidence * 100)}% confidence`}
@@ -355,7 +343,7 @@ export const IssueCard = memo(function IssueCard({
               </span>
             ) : null}
             {!isResolved ? (
-              <span className="text-[9px] text-muted-foreground/70 font-mono leading-none">{ageStr}</span>
+              <span className="text-dwa-xs text-muted-foreground/70 font-mono leading-none">{ageStr}</span>
             ) : null}
           </div>
         </div>
@@ -363,7 +351,7 @@ export const IssueCard = memo(function IssueCard({
         <div className="flex items-center gap-1.5 text-sm font-mono leading-none">
           {advisory.advisory?.peq ? (
             isNonCorrectiveWhistle ? (
-              <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-300/80">
+              <span className="text-dwa-sm font-bold uppercase tracking-[0.16em] text-amber-300/80">
                 warning only · no EQ cut
               </span>
             ) : (
@@ -372,7 +360,7 @@ export const IssueCard = memo(function IssueCard({
                   <span className="font-bold">{advisory.advisory.peq.gainDb}dB</span> Q:{Math.round(advisory.advisory.peq.q)}
                 </span>
                 {strategyLabel ? (
-                  <span className={`text-[9px] uppercase tracking-wide ${
+                  <span className={`text-dwa-xs uppercase tracking-wide ${
                     advisory.advisory.peq.strategy === 'broad-region'
                       ? 'text-blue-300/70'
                       : 'text-muted-foreground/45'
@@ -414,7 +402,7 @@ export const IssueCard = memo(function IssueCard({
         </div>
 
         {showAlgorithmScores && advisory.algorithmScores ? (
-          <div className="text-[9px] font-mono text-muted-foreground/70 tracking-wide leading-none">
+          <div className="text-dwa-xs font-mono text-muted-foreground/70 tracking-wide leading-none">
             {[
               advisory.algorithmScores.msd != null && `MSD:${advisory.algorithmScores.msd.toFixed(2)}`,
               advisory.algorithmScores.phase != null && `PH:${advisory.algorithmScores.phase.toFixed(2)}`,
@@ -429,7 +417,7 @@ export const IssueCard = memo(function IssueCard({
         ) : null}
 
         {showPeqDetails && isNonCorrectiveWhistle ? (
-          <p className="text-[9px] font-mono text-amber-300/70 leading-relaxed">
+          <p className="text-dwa-xs font-mono text-amber-300/70 leading-relaxed">
             Whistle advisory only | no corrective EQ recommendation
           </p>
         ) : null}
@@ -439,7 +427,7 @@ export const IssueCard = memo(function IssueCard({
             <svg width="40" height="14" viewBox="0 0 40 14" aria-hidden className="flex-shrink-0">
               <path d={peqNotchSvgPath} fill="none" stroke={severityColor} strokeWidth="1.2" strokeOpacity="0.5" />
             </svg>
-            <span className="text-[9px] font-mono text-muted-foreground/40 tracking-wide leading-none">
+            <span className="text-dwa-xs font-mono text-muted-foreground/40 tracking-wide leading-none">
               {advisory.advisory.peq.type} @ {advisory.advisory.peq.hz.toFixed(0)}Hz | Q:{advisory.advisory.peq.q.toFixed(1)} | {advisory.advisory.peq.gainDb}dB
               {advisory.advisory.peq.bandwidthHz != null ? ` | BW:${advisory.advisory.peq.bandwidthHz.toFixed(0)}Hz` : ''}
             </span>
@@ -447,13 +435,13 @@ export const IssueCard = memo(function IssueCard({
         ) : null}
 
         {strategyReason ? (
-          <p className="text-[9px] font-mono text-blue-300/70 leading-relaxed">
+          <p className="text-dwa-xs font-mono text-blue-300/70 leading-relaxed">
             {strategyReason}
           </p>
         ) : null}
 
         {operatorNote ? (
-          <p className="text-[9px] font-mono text-muted-foreground/55 leading-relaxed">
+          <p className="text-dwa-xs font-mono text-muted-foreground/55 leading-relaxed">
             {operatorNote}
           </p>
         ) : null}

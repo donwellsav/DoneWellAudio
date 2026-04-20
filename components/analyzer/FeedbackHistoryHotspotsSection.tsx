@@ -67,7 +67,7 @@ export const FeedbackHistoryHotspotsSection = memo(function FeedbackHistoryHotsp
                 key={`${hotspot.centerFrequencyHz}-${hotspot.lastSeen}`}
                 className={`rounded px-2 py-1.5 flex items-center justify-between transition-colors ${
                   hotspot.isRepeatOffender
-                    ? 'bg-amber-100 border-l-2 border-amber-500 hover:bg-amber-200 dark:bg-amber-500/10 dark:hover:bg-amber-500/15'
+                    ? 'bg-amber-100 shadow-[inset_2px_0_0_0_var(--console-amber)] hover:bg-amber-200 dark:bg-amber-500/10 dark:hover:bg-amber-500/15'
                     : 'bg-card/80 hover:bg-accent/5'
                 }`}
               >

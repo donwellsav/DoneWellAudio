@@ -185,7 +185,7 @@ export const ConsoleSlider = memo(function ConsoleSlider({
         >
           <SliderPrimitive.Track
             className="relative grow overflow-hidden rounded-full h-2 panel-recessed"
-            style={{ background: 'hsl(var(--card))' }}
+            style={{ background: 'var(--card)' }}
           >
             <SliderPrimitive.Range
               className="absolute h-full"

@@ -27,7 +27,7 @@ export const CompanionTab = memo(function CompanionTab() {
               >
                 Download DoneWell Audio Module (.zip)
               </a>
-              <p className="text-[10px] text-muted-foreground/60">Supports X32, Midas M32, Yamaha TF/CL/QL, A&amp;H dLive/SQ, dbx DriveRack PA2, dbx DriveRack VENU360, and Generic OSC via the Mixer Model dropdown.</p>
+              <p className="text-dwa-sm text-muted-foreground/60">Supports X32, Midas M32, Yamaha TF/CL/QL, A&amp;H dLive/SQ, dbx DriveRack PA2, dbx DriveRack VENU360, and Generic OSC via the Mixer Model dropdown.</p>
             </div>
             <div className="mt-3 space-y-2">
               <p className="font-medium text-foreground text-sm">Install steps:</p>
@@ -38,7 +38,7 @@ export const CompanionTab = memo(function CompanionTab() {
                 <li>Search for <strong>&ldquo;DoneWell Audio&rdquo;</strong> in Add Connection</li>
               </ol>
             </div>
-            <p className="mt-2 text-[10px] text-muted-foreground/50">
+            <p className="mt-2 text-dwa-sm text-muted-foreground/50">
               v0.3.20260328 &mdash; pre-packaged with node_modules.
             </p>
           </HelpSection>

@@ -38,7 +38,7 @@ export const MobileSidecarFader = memo(function MobileSidecarFader({
       <button
         onClick={toggleMobileFaderMode}
         className={`flex-shrink-0 font-bold uppercase tracking-wider text-center cursor-pointer transition-colors ${
-          compact ? 'py-0.5 text-[10px]' : 'py-1 text-[11px]'
+          compact ? 'py-0.5 text-dwa-sm' : 'py-1 text-dwa-sm'
         } ${
           mobileFaderMode === 'sensitivity' ? 'text-blue-400' : 'text-[var(--console-amber)]'
         }`}

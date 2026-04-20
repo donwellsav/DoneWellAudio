@@ -251,7 +251,7 @@ export const MobileLayout = memo(function MobileLayout({
     () => (
       <div className="space-y-2">
         <section className="rounded border border-border/40 bg-card/30 p-2">
-          <h3 className="section-label mb-1 text-[10px]">Input Gain</h3>
+          <h3 className="section-label mb-1 text-dwa-sm">Input Gain</h3>
           <InputMeterSlider
             value={settings.inputGainDb}
             onChange={(value) => setInputGain(value)}

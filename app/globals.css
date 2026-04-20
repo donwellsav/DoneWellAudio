@@ -14,13 +14,14 @@
 /* ── DWA Font Size Scale ─────────────────────────────────────────────────────
  * Canonical 4-stop scale for consistent typography across the analyzer UI.
  * Migration mapping (old → new):
- *   text-[7px], text-[8px], text-[9px]  → --text-dwa-xs  (11px)  captions, badges, scores
- *   text-[10px], text-[11px], text-xs   → --text-dwa-sm  (13px)  secondary text, labels
- *   text-[13px], text-sm                → --text-dwa-base (15px) primary text, readouts
- *   text-base, text-lg                  → --text-dwa-lg  (18px)  hero, emphasis
- * Full migration deferred to a separate PR (171+ instances across 34 files).
+ *   text-[7px], text-[8px], text-[9px]  → text-dwa-xs   (11px)  captions, badges, scores
+ *   text-[10px], text-[11px]            → text-dwa-sm   (13px)  secondary text, labels
+ *   text-[13px]                         → text-dwa-base (15px)  primary text, readouts
+ *   existing text-xs/sm/base/lg left intact.
+ * Declared in @theme inline so Tailwind v4 generates the `text-dwa-*`
+ * utilities automatically.
  */
-:root {
+@theme inline {
   --text-dwa-xs: 11px;
   --text-dwa-sm: 13px;
   --text-dwa-base: 15px;
@@ -105,7 +106,7 @@ html {
   /* Subtle radial vignette — center stays neutral, edges darken slightly */
   background: radial-gradient(ellipse 120% 80% at 50% 0%, rgba(20, 35, 60, 0.18) 0%, transparent 70%),
               radial-gradient(ellipse 80% 60% at 80% 100%, rgba(10, 18, 35, 0.25) 0%, transparent 70%),
-              hsl(var(--background));
+              var(--background);
 }
 
 /* Light theme — overrides via .light class (next-themes adds this to <html>) */
@@ -124,22 +125,23 @@ html {
   --muted-foreground: #334155;
   --accent: #2563eb;
   --accent-foreground: #ffffff;
-  --destructive: #dc2626;
+  /* Destructive bumped from #dc2626 (4.28:1) to #b91c1c (5.73:1) for WCAG AA margin on #f0f1f4 light bg */
+  --destructive: #b91c1c;
   --destructive-foreground: #ffffff;
   --border: #d0d5dd;
   --input: #e8ecf2;
   --ring: #2563eb;
-  --severity-runaway: #dc2626;
-  --severity-growing: #b45309;
-  --severity-resonance: #a16207;
+  --severity-runaway: #b91c1c;
+  --severity-growing: #92400e;
+  --severity-resonance: #854d0e;
   --severity-ring: #2563eb;
-  --severity-whistle: #0891b2;
-  --severity-instrument: #16a34a;
+  --severity-whistle: #0e7490;
+  --severity-instrument: #15803d;
   --chart-1: #2563eb;
   --chart-2: #3b82f6;
-  --chart-3: #d97706;
-  --chart-4: #dc2626;
-  --chart-5: #0891b2;
+  --chart-3: #b45309;
+  --chart-4: #b91c1c;
+  --chart-5: #0e7490;
   --sidebar: #f5f6f8;
   --sidebar-foreground: #1a1a1e;
   --sidebar-primary: #2563eb;
@@ -148,17 +150,17 @@ html {
   --sidebar-accent-foreground: #2563eb;
   --sidebar-border: #d0d5dd;
   --sidebar-ring: #2563eb;
-  /* Console accent colors — stronger for light theme legibility */
-  --console-amber: #b45309;
-  --console-amber-glow: rgba(180, 83, 9, 0.18);
+  /* Console accent colors — bumped to amber-900/red-700 for WCAG AA contrast safety margin on light bg */
+  --console-amber: #92400e;
+  --console-amber-glow: rgba(146, 64, 14, 0.18);
   --console-blue: #1d4ed8;
   --console-blue-glow: rgba(29, 78, 216, 0.20);
   --console-cyan: #0e7490;
   --console-cyan-glow: rgba(14, 116, 144, 0.15);
-  --console-green: #16a34a;
-  --console-green-glow: rgba(22, 163, 74, 0.20);
-  --console-readout-text: #b45309;
-  --console-readout-glow: rgba(180, 83, 9, 0.10);
+  --console-green: #15803d;
+  --console-green-glow: rgba(21, 128, 61, 0.20);
+  --console-readout-text: #92400e;
+  --console-readout-glow: rgba(146, 64, 14, 0.10);
   /* Fader indicator glow — darker saturated shades for light-theme legibility */
   --fader-glow-locked: rgba(22, 163, 74, 0.55);
   --fader-glow-cal: rgba(217, 119, 6, 0.55);
@@ -225,35 +227,42 @@ html {
   .light body {
     background: linear-gradient(160deg, #e8eaee 0%, #f0f1f4 25%, #f5f6f8 50%, #eef0f3 75%, #e5e7eb 100%);
   }
-  /* CRT scanline overlay — very subtle, analog warmth */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 9998;
-    background-image: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 3px,
-      rgba(0, 0, 0, 0.025) 3px,
-      rgba(0, 0, 0, 0.025) 4px
-    );
-  }
-  body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 9999;
-    opacity: 0.055;
-    mix-blend-mode: overlay;
-  }
-  .light body::after {
-    opacity: 0.015;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
-    background-repeat: repeat;
-    background-size: 200px 200px;
+  /* CRT scanline + noise overlays — desktop only. On mobile the cost of
+     two full-viewport fixed pseudo-elements (one with a fractalNoise SVG
+     tiled across a retina viewport) stacks on top of backdrop effects and
+     infinite animations and contributes to paint stalls. The analog
+     warmth isn't load-bearing for the interface — skipping it on small
+     screens is a net win. */
+  @media (min-width: 768px) {
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9998;
+      background-image: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 3px,
+        rgba(0, 0, 0, 0.025) 3px,
+        rgba(0, 0, 0, 0.025) 4px
+      );
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.055;
+      mix-blend-mode: overlay;
+    }
+    .light body::after {
+      opacity: 0.015;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-repeat: repeat;
+      background-size: 200px 200px;
+    }
   }
 }
 
@@ -408,33 +417,33 @@ html {
   .amber-sidecar [data-radix-accordion-trigger]:hover {
     background: rgba(var(--tint-r), var(--tint-g), var(--tint-b), 0.035);
   }
-  /* Trigger: open/active state — amber left accent bar */
+  /* Trigger: open/active state — amber rack indicator via inset shadow
+     (no layout shift — replaces a former border-left accent that caused
+     padding to be recalculated per state). */
   .amber-sidecar [data-radix-accordion-trigger][data-state="open"] {
-    border-left: 2px solid rgba(var(--tint-r), var(--tint-g), var(--tint-b), 0.50);
-    padding-left: calc(0.5rem - 2px);
+    box-shadow: inset 2px 0 0 0 rgba(var(--tint-r), var(--tint-g), var(--tint-b), 0.50);
     background: rgba(var(--tint-r), var(--tint-g), var(--tint-b), 0.05);
   }
   .amber-sidecar [data-radix-accordion-trigger][data-state="open"] .section-label {
     color: rgba(var(--tint-r), var(--tint-g), var(--tint-b), 0.80);
   }
-  /* Content area: left amber line when expanded */
+  /* Content area: left amber rail via inset shadow */
   .amber-sidecar [data-radix-accordion-content] {
-    border-left: 2px solid rgba(var(--tint-r), var(--tint-g), var(--tint-b), 0.18);
-    padding-left: calc(0.5rem - 2px);
+    box-shadow: inset 2px 0 0 0 rgba(var(--tint-r), var(--tint-g), var(--tint-b), 0.18);
     margin-left: 0;
   }
   .light .amber-sidecar [data-radix-accordion-trigger]:hover {
     background: rgba(var(--tint-r), var(--tint-g), var(--tint-b), 0.04);
   }
   .light .amber-sidecar [data-radix-accordion-trigger][data-state="open"] {
-    border-left-color: rgba(var(--tint-r), var(--tint-g), var(--tint-b), 0.45);
+    box-shadow: inset 2px 0 0 0 rgba(var(--tint-r), var(--tint-g), var(--tint-b), 0.45);
     background: rgba(var(--tint-r), var(--tint-g), var(--tint-b), 0.06);
   }
   .light .amber-sidecar [data-radix-accordion-trigger][data-state="open"] .section-label {
     color: rgba(var(--tint-r), var(--tint-g), var(--tint-b), 0.85);
   }
   .light .amber-sidecar [data-radix-accordion-content] {
-    border-left-color: rgba(var(--tint-r), var(--tint-g), var(--tint-b), 0.20);
+    box-shadow: inset 2px 0 0 0 rgba(var(--tint-r), var(--tint-g), var(--tint-b), 0.20);
   }
 
   /* Channel strip vertical gradient — recessed rack-unit feel */
@@ -634,11 +643,13 @@ html {
   }
   .btn-glow-red:active { transform: scale(0.95); }
 
-  /* ── Frosted glass card effect ─────────────────────────────────────────── */
+  /* ── Instrument card — solid panel, no backdrop-filter ─────────────────────
+     Visually similar to the previous frosted look, but without the GPU blur
+     cost. `backdrop-filter` forced compositor rasterization on every card;
+     with 5–8 cards visible at 30fps on mobile, that measurably hurt frame
+     pacing. Solid gradient reads the same against the already-dim body. */
   .glass-card {
-    background: linear-gradient(180deg, rgba(30, 33, 38, 0.62) 0%, rgba(20, 22, 26, 0.55) 100%);
-    backdrop-filter: blur(10px) saturate(1.3);
-    -webkit-backdrop-filter: blur(10px) saturate(1.3);
+    background: linear-gradient(180deg, rgba(30, 33, 38, 0.92) 0%, rgba(20, 22, 26, 0.88) 100%);
     border: 1px solid rgba(75, 146, 255, 0.08);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.08),
@@ -646,7 +657,7 @@ html {
       0 1px 3px rgba(0, 0, 0, 0.2);
   }
   .light .glass-card {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.82) 0%, rgba(248, 249, 252, 0.75) 100%);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 249, 252, 0.94) 100%);
     border: 1px solid rgba(37, 99, 235, 0.12);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.8),
@@ -901,10 +912,7 @@ html {
     letter-spacing: 0.06em;
     text-transform: uppercase;
     line-height: 1.4;
-    max-width: 80px;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
   .severity-pill::before {
     content: '';
@@ -1248,11 +1256,15 @@ html {
   .power-led, .power-led-amber {
     animation: none;
   }
-  /* Blanket: suppress all Tailwind utility transitions for motion-sensitive users */
+  /* Blanket: suppress keyframe animations for motion-sensitive users.
+     Color/background/opacity transitions are preserved so hover/focus and
+     state-change feedback remain perceivable. Per WCAG 2.3.3, only motion
+     and significant animation must be suppressed — not all visual transition.
+     Per-class rules above explicitly handle named motion animations and
+     transform-based transitions. */
   *,
   *::before,
   *::after {
-    transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }

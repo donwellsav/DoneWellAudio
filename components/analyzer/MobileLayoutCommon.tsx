@@ -49,7 +49,7 @@ export const MobileSpectrumGraph = memo(function MobileSpectrumGraph({
 export const MobileGraphModeToggle = memo(function MobileGraphModeToggle({
   mode,
   onModeChange,
-  buttonClassName = 'px-2.5 py-0.5 text-[10px]',
+  buttonClassName = 'px-2.5 py-0.5 text-dwa-sm',
 }: MobileGraphModeToggleProps) {
   return (
     <div

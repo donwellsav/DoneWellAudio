@@ -123,10 +123,10 @@ export const IssuesList = memo(function IssuesList({
         <>
           {tonalIssueSummary ? (
             <div className="rounded border border-blue-500/20 bg-blue-500/5 px-3 py-2">
-              <div className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-blue-400">
+              <div className="font-mono text-dwa-sm font-bold tracking-[0.15em] uppercase text-blue-400">
                 Broad Tonal Note
               </div>
-              <p className="mt-1 text-[11px] font-mono text-blue-300/80 leading-relaxed">
+              <p className="mt-1 text-dwa-sm font-mono text-blue-300/80 leading-relaxed">
                 Separate from the acute feedback cut: {tonalIssueSummary}
               </p>
             </div>
@@ -208,7 +208,7 @@ const SeverityLegend = memo(function SeverityLegend() {
         return (
           <span
             key={severity}
-            className="inline-flex items-center gap-1 text-[10px] font-mono tracking-wide leading-none"
+            className="inline-flex items-center gap-1 text-dwa-sm font-mono tracking-wide leading-none"
             style={{ color }}
           >
             <Icon className="w-2.5 h-2.5" />

@@ -82,7 +82,7 @@ export const LiveTab = memo(function LiveTab({ settings }: LiveTabProps) {
                 }`}
               >
                 {preset.label}
-                <span className={`text-[9px] font-normal block ${isActive ? 'text-[rgba(75,146,255,0.65)]' : 'text-muted-foreground/50'}`}>{preset.shortRange}</span>
+                <span className={`text-dwa-xs font-normal block ${isActive ? 'text-[rgba(75,146,255,0.65)]' : 'text-muted-foreground/50'}`}>{preset.shortRange}</span>
               </button>
             )
           })}

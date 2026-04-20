@@ -70,7 +70,7 @@ export const SettingsPanel = memo(function SettingsPanel({
                 role="tab"
                 aria-selected={activeTab === id}
                 onClick={() => setActiveTab(id)}
-                className={`flex-1 flex items-center justify-center gap-1 py-2 rounded text-[10px] font-mono font-bold uppercase tracking-wider transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+                className={`flex-1 flex items-center justify-center gap-1 py-2 rounded text-dwa-sm font-mono font-bold uppercase tracking-wider transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                   activeTab === id
                     ? 'bg-[var(--console-amber)]/15 text-[var(--console-amber)] border border-[var(--console-amber)]/30'
                     : 'text-muted-foreground hover:text-foreground border border-transparent'

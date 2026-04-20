@@ -88,15 +88,15 @@ export const RingOutListeningPhase = memo(function RingOutListeningPhase({
         </p>
 
         <div className="glass-card rounded-lg p-3 max-w-[260px] text-left space-y-2">
-          <span className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-muted-foreground">
+          <span className="font-mono text-dwa-sm font-bold tracking-[0.15em] uppercase text-muted-foreground">
             Before You Raise Gain
           </span>
-          <ul className="space-y-1 font-mono text-[11px] text-muted-foreground leading-relaxed">
+          <ul className="space-y-1 font-mono text-dwa-sm text-muted-foreground leading-relaxed">
             <li>Mute every mic and speaker you won&apos;t use.</li>
             <li>Finish broad EQ and placement fixes first — narrow rings come last.</li>
             <li>Set performers, wedges, and positions as they&apos;ll be at show time.</li>
           </ul>
-          <p className="font-mono text-[11px] text-muted-foreground/80 leading-relaxed">
+          <p className="font-mono text-dwa-sm text-muted-foreground/80 leading-relaxed">
             Ring-out is a pre-show baseline. During the show, fix placement or broad
             EQ first; narrow cuts only after that.
           </p>
@@ -111,7 +111,7 @@ export const RingOutListeningPhase = memo(function RingOutListeningPhase({
 
       {notched.length > 0 ? (
         <div className="space-y-1">
-          <span className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-muted-foreground">
+          <span className="font-mono text-dwa-sm font-bold tracking-[0.15em] uppercase text-muted-foreground">
             {notched.length} notched
           </span>
           <div className="space-y-0.5 max-h-[120px] overflow-y-auto">
@@ -193,7 +193,7 @@ export const RingOutDetectedPhase = memo(function RingOutDetectedPhase({
       </div>
 
       <div className="glass-card rounded-lg p-3 space-y-2">
-        <span className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-muted-foreground">
+        <span className="font-mono text-dwa-sm font-bold tracking-[0.15em] uppercase text-muted-foreground">
           Recommended Cut
         </span>
         <div className="grid grid-cols-3 gap-2 text-center">
@@ -201,7 +201,7 @@ export const RingOutDetectedPhase = memo(function RingOutDetectedPhase({
             <div className="font-mono text-lg font-bold text-foreground">
               {formatFrequency(advisory.advisory.peq.hz)}
             </div>
-            <div className="font-mono text-[10px] text-muted-foreground">
+            <div className="font-mono text-dwa-sm text-muted-foreground">
               FREQ
             </div>
           </div>
@@ -209,7 +209,7 @@ export const RingOutDetectedPhase = memo(function RingOutDetectedPhase({
             <div className="font-mono text-lg font-bold text-destructive">
               {advisory.advisory.peq.gainDb.toFixed(1)}
             </div>
-            <div className="font-mono text-[10px] text-muted-foreground">
+            <div className="font-mono text-dwa-sm text-muted-foreground">
               CUT dB
             </div>
           </div>
@@ -217,14 +217,14 @@ export const RingOutDetectedPhase = memo(function RingOutDetectedPhase({
             <div className="font-mono text-lg font-bold text-foreground">
               {advisory.advisory.peq.q.toFixed(1)}
             </div>
-            <div className="font-mono text-[10px] text-muted-foreground">Q</div>
+            <div className="font-mono text-dwa-sm text-muted-foreground">Q</div>
           </div>
         </div>
       </div>
 
       {isMergedRegion || nearbyAcceptedCuts.length > 0 ? (
         <div className="glass-card rounded-lg p-2.5 border-blue-500/30 bg-blue-500/5">
-          <p className="font-mono text-[11px] text-blue-400 text-center leading-relaxed">
+          <p className="font-mono text-dwa-sm text-blue-400 text-center leading-relaxed">
             {isMergedRegion
               ? `This detection merged ${advisory.clusterCount} nearby peaks. If the region feels broad or keeps shifting, check placement, reflections, or broad EQ before stacking more narrow cuts.`
               : `This band already needed ${nearbyAcceptedCuts.length} accepted ${nearbyAcceptedCuts.length === 1 ? 'cut' : 'cuts'} during ring-out. Recheck mic and speaker geometry before adding more notches in the same region.`}
@@ -234,7 +234,7 @@ export const RingOutDetectedPhase = memo(function RingOutDetectedPhase({
 
       {adjacentMode ? (
         <div className="glass-card rounded-lg p-2.5 border-amber-500/30 bg-amber-500/5">
-          <p className="font-mono text-[11px] text-amber-400 text-center leading-relaxed">
+          <p className="font-mono text-dwa-sm text-amber-400 text-center leading-relaxed">
             Warning: {formatFrequency(advisory.trueFrequencyHz)} is near room mode{' '}
             {adjacentMode.label} ({Math.round(adjacentMode.frequency)} Hz).
             Consider broadband treatment or mic repositioning before notching.
@@ -269,7 +269,7 @@ export const RingOutDetectedPhase = memo(function RingOutDetectedPhase({
           {notched.map((entry, index) => (
             <div
               key={`${entry.frequencyHz}-${index}`}
-              className="flex items-center justify-between font-mono text-[10px] text-muted-foreground/70"
+              className="flex items-center justify-between font-mono text-dwa-sm text-muted-foreground/70"
             >
               <span>{formatFrequency(entry.frequencyHz)}</span>
               <span>{entry.gainDb.toFixed(1)} dB</span>
@@ -344,10 +344,10 @@ export const RingOutSummaryPhase = memo(function RingOutSummaryPhase({
 
       {patternWarnings.length > 0 ? (
         <div className="glass-card rounded-lg p-3 space-y-2">
-          <span className="font-mono text-[10px] font-bold tracking-[0.15em] uppercase text-muted-foreground">
+          <span className="font-mono text-dwa-sm font-bold tracking-[0.15em] uppercase text-muted-foreground">
             Pattern Warnings
           </span>
-          <ul className="space-y-1 font-mono text-[11px] text-muted-foreground leading-relaxed">
+          <ul className="space-y-1 font-mono text-dwa-sm text-muted-foreground leading-relaxed">
             {patternWarnings.map((warning) => (
               <li key={warning}>{warning}</li>
             ))}
@@ -355,7 +355,7 @@ export const RingOutSummaryPhase = memo(function RingOutSummaryPhase({
         </div>
       ) : null}
 
-      <p className="font-mono text-[11px] text-muted-foreground/80 leading-relaxed">
+      <p className="font-mono text-dwa-sm text-muted-foreground/80 leading-relaxed">
         This is your pre-show baseline. If the same region keeps returning during
         the show, suspect placement, reflections, or a broader tonal issue — not
         luck.

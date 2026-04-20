@@ -49,7 +49,7 @@ describe('AudioAnalyzerFooter', () => {
 
     const fps = screen.getByText('FPS 30')
     expect(fps.className).toContain('font-mono')
-    expect(fps.className).toContain('text-[9px]')
+    expect(fps.className).toContain('text-dwa-xs')
     expect(fps.className).toContain('tabular-nums')
     expect(fps.className).toContain('text-muted-foreground/40')
   })

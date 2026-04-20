@@ -34,7 +34,7 @@ export const RigPresetsSection = memo(function RigPresetsSection({
 }: RigPresetsSectionProps) {
   return (
     <ChannelSection title="Rig Presets">
-      <p className="text-[10px] text-muted-foreground/50 mb-1.5">Save and recall all current settings as named presets. Up to 10 presets for different venues or rigs.</p>
+      <p className="text-dwa-sm text-muted-foreground/50 mb-1.5">Save and recall all current settings as named presets. Up to 10 presets for different venues or rigs.</p>
       <div className="space-y-1">
         {customPresets.length > 0 && (
           <div className="flex items-center gap-1 flex-wrap">

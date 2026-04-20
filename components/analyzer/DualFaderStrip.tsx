@@ -88,7 +88,7 @@ export const DualFaderStrip = memo(function DualFaderStrip({
           <button
             key={mode}
             onClick={() => onLinkModeChange(mode)}
-            className={`flex-1 py-1 text-center text-[11px] font-bold transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+            className={`flex-1 py-1 text-center text-dwa-sm font-bold transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
               linkMode === mode
                 ? 'bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.15)] text-[var(--console-amber)]'
                 : 'bg-transparent text-muted-foreground hover:text-foreground/70'
@@ -104,7 +104,7 @@ export const DualFaderStrip = memo(function DualFaderStrip({
       <div className="flex-shrink-0 flex w-full gap-0.5">
         <button
           onClick={goHome}
-          className="flex-1 py-1 rounded text-[10px] font-bold uppercase tracking-wider text-center transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.06)] text-[var(--console-amber)]/70 border border-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.18)] hover:bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.12)]"
+          className="flex-1 py-1 rounded text-dwa-sm font-bold uppercase tracking-wider text-center transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.06)] text-[var(--console-amber)]/70 border border-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.18)] hover:bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.12)]"
           title={`Home: ${linkCenterGainDb}dB gain, ${linkCenterSensDb}dB sensitivity`}
           aria-label="Reset faders to home position"
         >
@@ -113,7 +113,7 @@ export const DualFaderStrip = memo(function DualFaderStrip({
 
         <button
           onClick={() => onAutoGainToggle(!autoGainEnabled)}
-          className={`flex-1 py-1 rounded flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+          className={`flex-1 py-1 rounded flex items-center justify-center gap-1 text-dwa-sm font-bold uppercase tracking-wider transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
             autoGainEnabled
               ? autoGainLocked
                 ? 'bg-emerald-100 text-emerald-800 border border-emerald-400 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/40'

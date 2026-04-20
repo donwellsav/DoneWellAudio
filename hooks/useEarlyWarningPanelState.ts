@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
+import { useTickingNow } from '@/hooks/useTickingNow'
 import type { EarlyWarning } from '@/hooks/audioAnalyzerTypes'
 
 export type EarlyWarningTone = 'notice' | 'warning' | 'critical'
@@ -41,19 +42,9 @@ export function useEarlyWarningPanelState(
   earlyWarning: EarlyWarning | null,
 ): UseEarlyWarningPanelStateResult {
   const [isExpanded, setIsExpanded] = useState(true)
-  const [nowMs, setNowMs] = useState(() => Date.now())
   const isVisible = hasEarlyWarningContent(earlyWarning)
   const timestamp = earlyWarning?.timestamp ?? null
-
-  useEffect(() => {
-    if (timestamp === null) return
-
-    const intervalId = window.setInterval(() => {
-      setNowMs(Date.now())
-    }, 1000)
-
-    return () => window.clearInterval(intervalId)
-  }, [timestamp])
+  const nowMs = useTickingNow(timestamp !== null)
 
   const elapsedSec = timestamp === null
     ? 0

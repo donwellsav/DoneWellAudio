@@ -195,8 +195,8 @@ export const FaderTrack = memo(function FaderTrack({
             <span className={`${arrowColors[0]} text-xl font-bold font-mono leading-none ${arrowAnim}`}>^</span>
             <span className={`${arrowColors[1]} text-lg font-mono leading-none`}>^</span>
             <span className={`${arrowColors[2]} text-base font-mono leading-none`}>^</span>
-            <span className={`${arrowColors[0]} text-[10px] font-mono font-bold leading-tight text-center`}>Missing</span>
-            <span className={`${arrowColors[0]} text-[10px] font-mono leading-tight text-center opacity-70`}>Boost Up</span>
+            <span className={`${arrowColors[0]} text-dwa-sm font-mono font-bold leading-tight text-center`}>Missing</span>
+            <span className={`${arrowColors[0]} text-dwa-sm font-mono leading-tight text-center opacity-70`}>Boost Up</span>
           </div>
         ) : null}
         {showGuidance && guidance?.direction === 'down' ? (
@@ -208,8 +208,8 @@ export const FaderTrack = memo(function FaderTrack({
             <span className={`${arrowColors[0]} text-xl font-bold font-mono leading-none ${arrowAnim}`}>v</span>
             <span className={`${arrowColors[1]} text-lg font-mono leading-none`}>v</span>
             <span className={`${arrowColors[2]} text-base font-mono leading-none`}>v</span>
-            <span className={`${arrowColors[0]} text-[10px] font-mono font-bold leading-tight text-center`}>Noisy</span>
-            <span className={`${arrowColors[0]} text-[10px] font-mono leading-tight text-center opacity-70`}>Back Off</span>
+            <span className={`${arrowColors[0]} text-dwa-sm font-mono font-bold leading-tight text-center`}>Noisy</span>
+            <span className={`${arrowColors[0]} text-dwa-sm font-mono leading-tight text-center opacity-70`}>Back Off</span>
           </div>
         ) : null}
         {showGuidance ? (
@@ -223,13 +223,13 @@ export const FaderTrack = memo(function FaderTrack({
         {!isSensitivity && noiseFloorDb != null ? (
           <div className="absolute bottom-0 inset-x-0 flex flex-col items-center pb-1.5 pointer-events-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
             <span
-              className={`${compactOverlays ? 'text-[9px]' : 'text-sm'} font-mono font-semibold leading-none`}
+              className={`${compactOverlays ? 'text-dwa-xs' : 'text-sm'} font-mono font-semibold leading-none`}
               style={{ color: 'var(--console-green)', opacity: 0.6 }}
             >
               Floor
             </span>
             <span
-              className={`${compactOverlays ? 'text-[9px]' : 'text-sm'} font-mono font-bold leading-none`}
+              className={`${compactOverlays ? 'text-dwa-xs' : 'text-sm'} font-mono font-bold leading-none`}
               style={{ color: 'var(--console-green)', opacity: 0.85 }}
             >
               {noiseFloorDb.toFixed(0)}dB

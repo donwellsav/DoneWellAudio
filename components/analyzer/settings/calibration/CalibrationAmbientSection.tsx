@@ -84,7 +84,7 @@ export const CalibrationAmbientSection = memo(function CalibrationAmbientSection
           </Select>
 
           {settings.micCalibrationProfile !== 'none' ? (
-            <p className="text-[11px] text-muted-foreground font-mono leading-tight">
+            <p className="text-dwa-sm text-muted-foreground font-mono leading-tight">
               {settings.micCalibrationProfile === 'ecm8000'
                 ? 'Compensates +4.7 dB HF rise (10-16 kHz)'
                 : settings.micCalibrationProfile === 'smartphone'

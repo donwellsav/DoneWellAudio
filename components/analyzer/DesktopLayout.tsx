@@ -135,7 +135,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                     aria-selected={activeSidebarTab === 'issues'}
                     tabIndex={activeSidebarTab === 'issues' ? 0 : -1}
                     data-active={activeSidebarTab === 'issues' ? 'true' : 'false'}
-                    className={`tab-track-item flex-1 py-0.5 text-[11px] font-mono font-bold uppercase tracking-[0.2em] cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+                    className={`tab-track-item flex-1 py-0.5 text-dwa-sm font-mono font-bold uppercase tracking-[0.2em] cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                       activeSidebarTab === 'issues'
                         ? 'text-[var(--console-amber)]'
                         : 'text-muted-foreground hover:text-foreground'
@@ -156,7 +156,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                   aria-selected={activeSidebarTab === 'controls'}
                   tabIndex={activeSidebarTab === 'controls' ? 0 : -1}
                   data-active={activeSidebarTab === 'controls' ? 'true' : 'false'}
-                  className={`tab-track-item flex-1 py-0.5 text-[11px] font-mono font-bold uppercase tracking-[0.2em] cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+                  className={`tab-track-item flex-1 py-0.5 text-dwa-sm font-mono font-bold uppercase tracking-[0.2em] cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                     activeSidebarTab === 'controls'
                       ? 'text-[var(--console-amber)]'
                       : 'text-muted-foreground hover:text-foreground'
@@ -202,7 +202,7 @@ export const DesktopLayout = memo(function DesktopLayout({
                     aria-selected={controlsTab === id}
                     tabIndex={controlsTab === id ? 0 : -1}
                     data-active={controlsTab === id}
-                    className={`tab-track-item relative flex-1 min-h-[30px] flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-[0.08em] cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+                    className={`tab-track-item relative flex-1 min-h-[30px] flex items-center justify-center gap-1 text-dwa-sm font-bold uppercase tracking-[0.08em] cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
                       controlsTab === id
                         ? 'bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.08)] text-[var(--console-amber)]'
                         : 'text-muted-foreground hover:text-foreground hover:bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.04)]'
