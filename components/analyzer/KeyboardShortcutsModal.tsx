@@ -134,7 +134,7 @@ export const KeyboardShortcutsModal = memo(function KeyboardShortcutsModal() {
           ))}
         </div>
 
-        <p className="mt-4 text-[10px] font-mono text-muted-foreground/50 text-center">
+        <p className="mt-4 text-dwa-sm font-mono text-muted-foreground/50 text-center">
           Press ? to toggle this panel
         </p>
       </div>

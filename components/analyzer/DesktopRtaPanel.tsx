@@ -40,7 +40,7 @@ export const DesktopRtaPanel = memo(function DesktopRtaPanel({
           <div className="flex items-center gap-2">
             <div className={isRunning ? 'power-led' : 'power-led-off'} />
             <span
-              className="text-[11px] font-mono font-bold tracking-[0.2em] uppercase whitespace-nowrap"
+              className="text-dwa-sm font-mono font-bold tracking-[0.2em] uppercase whitespace-nowrap"
               style={{ color: 'var(--console-amber)', opacity: 0.9 }}
             >
               <span className="hidden lg:inline">Real-Time Analyzer</span>

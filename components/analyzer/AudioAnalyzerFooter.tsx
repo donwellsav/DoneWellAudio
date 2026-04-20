@@ -23,7 +23,7 @@ const CONTENT_LABELS: Record<ContentType, string> = {
 }
 
 /** Shared footer text style — matches the DoneWell branding */
-const FOOTER_TEXT = 'font-mono text-[9px] font-bold tracking-[0.2em] text-muted-foreground/40 uppercase'
+const FOOTER_TEXT = 'font-mono text-dwa-xs font-bold tracking-[0.2em] text-muted-foreground/40 uppercase'
 
 interface AudioAnalyzerFooterProps {
   actualFps?: number
@@ -57,12 +57,12 @@ export const AudioAnalyzerFooter = memo(function AudioAnalyzerFooter({
         </span>
         {isRunning && (
           <>
-            <span className="font-mono text-[9px] text-muted-foreground/20">·</span>
+            <span className="font-mono text-dwa-xs text-muted-foreground/20">·</span>
             <span className={FOOTER_TEXT}>
               {CONTENT_LABELS[contentType]}
             </span>
-            <span className="font-mono text-[9px] text-muted-foreground/20">·</span>
-            <span className={`font-mono text-[9px] font-bold tracking-[0.2em] uppercase ${msdReady ? 'text-muted-foreground/40' : 'text-muted-foreground/25'}`}>
+            <span className="font-mono text-dwa-xs text-muted-foreground/20">·</span>
+            <span className={`font-mono text-dwa-xs font-bold tracking-[0.2em] uppercase ${msdReady ? 'text-muted-foreground/40' : 'text-muted-foreground/25'}`}>
               MSD {msdFrameCount}
             </span>
           </>
@@ -74,7 +74,7 @@ export const AudioAnalyzerFooter = memo(function AudioAnalyzerFooter({
         <span className={FOOTER_TEXT}>
           DoneWell Audio Analyzer
         </span>
-        <span className="font-mono text-[9px] tracking-[0.1em] text-muted-foreground/25 tabular-nums">
+        <span className="font-mono text-dwa-xs tracking-[0.1em] text-muted-foreground/25 tabular-nums">
           v{process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0'}
         </span>
       </div>

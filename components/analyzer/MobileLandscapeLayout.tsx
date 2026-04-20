@@ -71,7 +71,7 @@ export const MobileLandscapeLayout = memo(function MobileLandscapeLayout({
             role="tab"
             aria-selected={landscapePanel === 'issues'}
             onClick={() => setLandscapePanel('issues')}
-            className={`flex-1 py-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-center cursor-pointer transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+            className={`flex-1 py-1.5 text-dwa-sm font-mono font-bold uppercase tracking-wider text-center cursor-pointer transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
               landscapePanel === 'issues'
                 ? 'text-[var(--console-amber)] bg-[var(--console-amber)]/10'
                 : 'text-muted-foreground/50 hover:text-foreground'
@@ -86,7 +86,7 @@ export const MobileLandscapeLayout = memo(function MobileLandscapeLayout({
             role="tab"
             aria-selected={landscapePanel === 'settings'}
             onClick={() => setLandscapePanel('settings')}
-            className={`flex-1 py-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-center cursor-pointer transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+            className={`flex-1 py-1.5 text-dwa-sm font-mono font-bold uppercase tracking-wider text-center cursor-pointer transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
               landscapePanel === 'settings'
                 ? 'text-[var(--console-amber)] bg-[var(--console-amber)]/10'
                 : 'text-muted-foreground/50 hover:text-foreground'
@@ -107,7 +107,7 @@ export const MobileLandscapeLayout = memo(function MobileLandscapeLayout({
           <MobileGraphModeToggle
             mode={inlineGraphMode}
             onModeChange={setInlineGraphMode}
-            buttonClassName="px-2 py-0.5 text-[10px]"
+            buttonClassName="px-2 py-0.5 text-dwa-sm"
           />
           {inlineGraphMode === 'rta' ? (
             <>
@@ -121,7 +121,7 @@ export const MobileLandscapeLayout = memo(function MobileLandscapeLayout({
               {isRunning ? (
                 <button
                   onClick={toggleFreeze}
-                  className={`cursor-pointer outline-none text-[10px] font-mono font-bold uppercase px-1.5 py-0.5 rounded transition-colors ${
+                  className={`cursor-pointer outline-none text-dwa-sm font-mono font-bold uppercase px-1.5 py-0.5 rounded transition-colors ${
                     isFrozen ? 'text-blue-400' : 'text-muted-foreground/50 hover:text-foreground'
                   }`}
                 >
@@ -131,7 +131,7 @@ export const MobileLandscapeLayout = memo(function MobileLandscapeLayout({
               {hasActiveRTAMarkers ? (
                 <button
                   onClick={onClearRTA}
-                  className="cursor-pointer text-[10px] font-mono text-muted-foreground/50 hover:text-foreground px-1.5 py-0.5 rounded transition-colors"
+                  className="cursor-pointer text-dwa-sm font-mono text-muted-foreground/50 hover:text-foreground px-1.5 py-0.5 rounded transition-colors"
                 >
                   Clear
                 </button>
@@ -141,7 +141,7 @@ export const MobileLandscapeLayout = memo(function MobileLandscapeLayout({
           {inlineGraphMode === 'geq' && hasActiveGEQBars ? (
             <button
               onClick={onClearGEQ}
-              className="cursor-pointer text-[10px] font-mono text-muted-foreground/50 hover:text-foreground px-1.5 py-0.5 rounded transition-colors"
+              className="cursor-pointer text-dwa-sm font-mono text-muted-foreground/50 hover:text-foreground px-1.5 py-0.5 rounded transition-colors"
             >
               Clear
             </button>

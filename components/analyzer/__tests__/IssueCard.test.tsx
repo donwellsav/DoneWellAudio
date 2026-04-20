@@ -59,8 +59,11 @@ describe('IssueCard', () => {
 
   it('renders repeat offender badge and guidance when occurrenceCount >= 3', () => {
     render(<IssueCard advisory={makeAdvisory()} occurrenceCount={5} />)
-    expect(screen.getByLabelText(/repeat offender: detected 5 times/i)).toBeDefined()
-    expect(screen.getByText(/repeat band/i)).toBeDefined()
+    const badge = screen.getByLabelText(/repeat offender: detected 5 times/i)
+    expect(badge).toBeDefined()
+    // Guidance text lives in the badge's title tooltip + aria-label (not visible DOM)
+    expect(badge.getAttribute('title')).toMatch(/check mic\/speaker geometry/i)
+    expect(badge.getAttribute('aria-label')).toMatch(/check mic\/speaker geometry/i)
   })
 
   it('does not render repeat badge when occurrenceCount < 3', () => {

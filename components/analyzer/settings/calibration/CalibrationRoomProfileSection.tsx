@@ -74,7 +74,7 @@ export const CalibrationRoomProfileSection = memo(function CalibrationRoomProfil
 }: CalibrationRoomProfileSectionProps) {
   return (
     <SectionGroup title="Room Profile">
-      <p className="text-[10px] text-muted-foreground/50 mb-1.5 px-1">
+      <p className="text-dwa-sm text-muted-foreground/50 mb-1.5 px-1">
         Venue details for session logs, room mode calculation, and threshold tuning.
       </p>
 

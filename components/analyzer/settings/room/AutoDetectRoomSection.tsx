@@ -161,7 +161,7 @@ export const AutoDetectRoomSection = memo(function AutoDetectRoomSection({
             </div>
 
             {roomEstimate.detectedSeries.map((series, index) => (
-              <div key={index} className="text-sm font-mono pl-2 border-l-2 border-primary/30">
+              <div key={index} className="text-sm font-mono pl-2 shadow-[inset_2px_0_0_0_rgba(75,146,255,0.3)] dark:shadow-[inset_2px_0_0_0_rgba(75,146,255,0.3)]">
                 <span className="text-muted-foreground">Axis {index + 1}:</span>{' '}
                 <span className="text-foreground">{formatDimension(series.dimensionM, unit)}{unitLabel}</span>{' '}
                 <span className="text-muted-foreground">

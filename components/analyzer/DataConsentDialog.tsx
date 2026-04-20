@@ -78,11 +78,11 @@ export const DataConsentDialog = memo(function DataConsentDialog({
         {/* GDPR disclosures — EU/EEA/UK only */}
         {isEU && (
           <div className="border border-border/30 rounded bg-muted/20 px-3 py-3 mb-5 space-y-1.5">
-            <p className="text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-wider mb-2">
+            <p className="text-dwa-sm font-mono font-bold text-muted-foreground uppercase tracking-wider mb-2">
               GDPR Information
             </p>
             {GDPR_POINTS.map((point, i) => (
-              <p key={i} className="text-[11px] text-muted-foreground font-mono leading-snug">
+              <p key={i} className="text-dwa-sm text-muted-foreground font-mono leading-snug">
                 {point}
               </p>
             ))}

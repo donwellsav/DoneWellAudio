@@ -85,7 +85,7 @@ export const MobileBottomNav = memo(function MobileBottomNav({
         })}
       </div>
       <div className="flex items-center justify-center py-0.5" aria-hidden>
-        <span className="font-mono text-[8px] tracking-[0.15em] text-muted-foreground/25 uppercase">
+        <span className="font-mono text-dwa-xs tracking-[0.15em] text-muted-foreground/25 uppercase">
           DoneWell Audio - v{process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0'}
         </span>
       </div>

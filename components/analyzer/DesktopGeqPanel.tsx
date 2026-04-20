@@ -25,7 +25,7 @@ export const DesktopGeqPanel = memo(function DesktopGeqPanel({
           <div className="flex items-center gap-2">
             <div className={isRunning ? 'power-led' : 'power-led-off'} />
             <span
-              className="text-[11px] font-mono font-bold tracking-[0.2em] uppercase whitespace-nowrap"
+              className="text-dwa-sm font-mono font-bold tracking-[0.2em] uppercase whitespace-nowrap"
               style={{ color: 'var(--console-amber)', opacity: 0.9 }}
             >
               <span className="hidden lg:inline">Graphic Equalizer</span>
@@ -33,7 +33,7 @@ export const DesktopGeqPanel = memo(function DesktopGeqPanel({
             </span>
             {hasActiveGEQBars ? (
               <>
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded-sm text-[10px] font-mono font-bold leading-none bg-[var(--console-amber)]/15 text-[var(--console-amber)] border border-[var(--console-amber)]/30">
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded-sm text-dwa-sm font-mono font-bold leading-none bg-[var(--console-amber)]/15 text-[var(--console-amber)] border border-[var(--console-amber)]/30">
                   {activeGeqCutCount} cuts
                 </span>
                 <button

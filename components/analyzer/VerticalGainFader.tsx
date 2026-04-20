@@ -87,7 +87,7 @@ export const VerticalGainFader = memo(function VerticalGainFader({
       <div className="flex-shrink-0 flex flex-col w-full rounded-md overflow-hidden border border-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.22)] bg-[rgba(0,0,0,0.15)]">
         <button
           onClick={() => onFaderModeChange('gain')}
-          className={`flex-1 py-1.5 flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+          className={`flex-1 py-1.5 flex items-center justify-center gap-1.5 text-dwa-sm font-bold uppercase tracking-wider transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
             !isSensitivity
               ? 'bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.10)] text-[var(--console-amber)]'
               : 'bg-transparent text-muted-foreground hover:text-foreground/70'
@@ -104,7 +104,7 @@ export const VerticalGainFader = memo(function VerticalGainFader({
         <div className="h-px bg-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.10)]" />
         <button
           onClick={() => onFaderModeChange('sensitivity')}
-          className={`flex-1 py-1.5 flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+          className={`flex-1 py-1.5 flex items-center justify-center gap-1.5 text-dwa-sm font-bold uppercase tracking-wider transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
             isSensitivity
               ? 'bg-blue-500/15 text-blue-400'
               : 'bg-transparent text-muted-foreground hover:text-foreground/70'
@@ -178,7 +178,7 @@ export const VerticalGainFader = memo(function VerticalGainFader({
       {!isSensitivity && onAutoGainToggle && (
         <button
           onClick={() => onAutoGainToggle(!autoGainEnabled)}
-          className={`flex-shrink-0 px-1 py-1 rounded flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+          className={`flex-shrink-0 px-1 py-1 rounded flex items-center justify-center gap-1.5 text-dwa-sm font-bold uppercase tracking-wider transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
             autoGainEnabled
               ? autoGainLocked
                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'

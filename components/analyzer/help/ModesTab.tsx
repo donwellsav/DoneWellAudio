@@ -8,56 +8,56 @@ export const ModesTab = memo(function ModesTab() {
     <>
       <HelpGroup title="Operation Modes">
         <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
+          <div className="bg-card/80 rounded border p-3 shadow-[inset_2px_0_0_0_rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
             <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Speech</div>
             <div className="text-xs text-muted-foreground mt-0.5">Default - corporate conferences, lectures</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
               20dB - Ring 5dB - 1.0dB/s - 8192 FFT - 150-10kHz
             </div>
           </div>
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
+          <div className="bg-card/80 rounded border p-3 shadow-[inset_2px_0_0_0_rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
             <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Worship</div>
             <div className="text-xs text-muted-foreground mt-0.5">Churches, reverberant spaces</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
               35dB - Ring 5dB - 2.0dB/s - 8192 FFT - 100-12kHz
             </div>
           </div>
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
+          <div className="bg-card/80 rounded border p-3 shadow-[inset_2px_0_0_0_rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
             <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Live Music</div>
             <div className="text-xs text-muted-foreground mt-0.5">Concerts, clubs, festivals</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
               42dB - Ring 8dB - 4.0dB/s - 4096 FFT - 60-16kHz
             </div>
           </div>
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
+          <div className="bg-card/80 rounded border p-3 shadow-[inset_2px_0_0_0_rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
             <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Theater</div>
             <div className="text-xs text-muted-foreground mt-0.5">Drama, musicals, body mics</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
               28dB - Ring 4dB - 1.5dB/s - 8192 FFT - 150-10kHz
             </div>
           </div>
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
+          <div className="bg-card/80 rounded border p-3 shadow-[inset_2px_0_0_0_rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
             <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Monitors</div>
             <div className="text-xs text-muted-foreground mt-0.5">Stage wedges, sidefills</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
               15dB - Ring 3dB - 0.8dB/s - 4096 FFT - 200-6kHz
             </div>
           </div>
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
+          <div className="bg-card/80 rounded border p-3 shadow-[inset_2px_0_0_0_rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
             <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Ring Out</div>
             <div className="text-xs text-muted-foreground mt-0.5">Pre-show system calibration, sound check</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
               27dB - Ring 2dB - 0.5dB/s - 16384 FFT - 60-16kHz
             </div>
           </div>
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
+          <div className="bg-card/80 rounded border p-3 shadow-[inset_2px_0_0_0_rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
             <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Broadcast</div>
             <div className="text-xs text-muted-foreground mt-0.5">Studio, podcast, radio</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">
               22dB - Ring 3dB - 1.0dB/s - 8192 FFT - 80-12kHz
             </div>
           </div>
-          <div className="bg-card/80 rounded border p-3 border-l-2 border-l-[rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
+          <div className="bg-card/80 rounded border p-3 shadow-[inset_2px_0_0_0_rgba(var(--tint-r),var(--tint-g),var(--tint-b),0.40)]">
             <div className="text-sm font-medium" style={{ color: 'var(--console-blue)' }}>Outdoor</div>
             <div className="text-xs text-muted-foreground mt-0.5">Open air, festivals</div>
             <div className="text-xs font-mono text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/30">

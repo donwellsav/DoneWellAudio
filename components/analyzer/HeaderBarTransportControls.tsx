@@ -27,7 +27,7 @@ export const HeaderBarTransportControls = memo(function HeaderBarTransportContro
         className={`
           inline-flex items-center justify-center
           relative min-w-[70px] tablet:min-w-[120px] h-11 px-2.5 tablet:px-5
-          font-mono text-[10px] tablet:text-xs font-bold uppercase tracking-[0.2em] tablet:tracking-[0.3em]
+          font-mono text-dwa-sm tablet:text-xs font-bold uppercase tracking-[0.2em] tablet:tracking-[0.3em]
           rounded-md cursor-pointer
           border transition-all duration-200
           focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary
@@ -49,7 +49,7 @@ export const HeaderBarTransportControls = memo(function HeaderBarTransportContro
           className={`
             hidden min-[420px]:inline-flex items-center justify-center
             relative min-w-[60px] tablet:min-w-[100px] h-11 px-2 tablet:px-4
-            font-mono text-[10px] tablet:text-xs font-bold uppercase tracking-[0.2em] tablet:tracking-[0.3em]
+            font-mono text-dwa-sm tablet:text-xs font-bold uppercase tracking-[0.2em] tablet:tracking-[0.3em]
             rounded-md cursor-pointer
             border transition-all duration-200
             focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary
@@ -71,7 +71,7 @@ export const HeaderBarTransportControls = memo(function HeaderBarTransportContro
         className={`
           hidden min-[420px]:inline-flex items-center justify-center
           relative min-w-[55px] tablet:min-w-[90px] h-11 px-2 tablet:px-4
-          font-mono text-[10px] tablet:text-xs font-bold uppercase tracking-[0.2em] tablet:tracking-[0.3em]
+          font-mono text-dwa-sm tablet:text-xs font-bold uppercase tracking-[0.2em] tablet:tracking-[0.3em]
           rounded-md
           border transition-all duration-200
           focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary

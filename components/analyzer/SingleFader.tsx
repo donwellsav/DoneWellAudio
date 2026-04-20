@@ -149,7 +149,7 @@ export const SingleFader = memo(function SingleFader({
           }
         >
           {valueLabel}
-          <span className="text-[9px] font-normal opacity-50 ml-px">dB</span>
+          <span className="text-dwa-xs font-normal opacity-50 ml-px">dB</span>
         </button>
       )}
 
@@ -179,7 +179,7 @@ export const SingleFader = memo(function SingleFader({
         />
       </div>
 
-      <span className={`text-[10px] font-bold uppercase tracking-wider flex-shrink-0 ${
+      <span className={`text-dwa-sm font-bold uppercase tracking-wider flex-shrink-0 ${
         isSensitivity ? 'text-blue-400' : 'text-[var(--console-amber)]'
       }`}>
         {label}

@@ -1,17 +1,21 @@
 'use client'
 
 import { memo } from 'react'
-import { Check, Copy, X } from 'lucide-react'
+import { Check, Copy, ThumbsDown, ThumbsUp, X } from 'lucide-react'
 
-const ACTION_BTN_DESKTOP = 'rounded text-[10px] font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-7 min-w-[36px]'
+const ACTION_BTN_DESKTOP = 'rounded text-dwa-sm font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-8 min-w-[40px]'
 const ACTION_BTN_MOBILE = 'rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-2 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-11 min-w-[44px]'
+const LABEL_BTN_DESKTOP = 'rounded transition-colors flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-8 w-8'
+const LABEL_BTN_MOBILE = 'rounded transition-colors flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-11 w-11'
 const COPY_BTN = 'rounded btn-glow flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50'
 
-// Per-state class strings with explicit dark:/light theme variants.
-// Light-theme variants use *-700/800 hues for WCAG AA contrast on light canvas;
-// dark-theme variants preserve the previous tonal tailwind shades behind dark:.
+// FALSE+/CONFIRM are ML training labels, not primary operator actions — they
+// recede visually (icon-only, /55 muted tint) and light up on hover/active.
+// Full semantic meaning preserved via aria-label + title for a11y.
 const FP_ACTIVE = 'text-red-800 bg-red-100 border border-red-300 dark:text-red-400 dark:bg-red-500/20 dark:border-red-500/40'
-const FP_INACTIVE = 'text-muted-foreground/70 hover:text-red-800 hover:bg-red-100 dark:hover:text-red-400 dark:hover:bg-red-500/10 border border-transparent'
+const FP_INACTIVE = 'text-muted-foreground/55 hover:text-red-800 hover:bg-red-100 dark:hover:text-red-400 dark:hover:bg-red-500/10 border border-transparent'
+const CONFIRM_ACTIVE = 'text-[var(--console-amber)] bg-[var(--console-amber)]/15 border border-[var(--console-amber)]/35'
+const CONFIRM_INACTIVE = 'text-muted-foreground/55 hover:text-[var(--console-amber)] hover:bg-[var(--console-amber)]/10 border border-transparent'
 const SEND_DESKTOP = 'text-blue-700/80 hover:text-blue-800 hover:bg-blue-100 dark:text-blue-400/75 dark:hover:text-blue-400 dark:hover:bg-blue-500/10 border border-transparent'
 const SEND_MOBILE = 'text-blue-700/85 hover:text-blue-800 hover:bg-blue-100 dark:text-blue-400/80 dark:hover:text-blue-400 dark:hover:bg-blue-500/10 border border-transparent'
 
@@ -66,42 +70,36 @@ export const IssueCardActions = memo(function IssueCardActions({
         {onFalsePositive ? (
           <button
             onClick={() => onFalsePositive(advisoryId)}
-            aria-label={`${isFalsePositive ? 'Unflag' : 'Flag'} ${exactFreqStr} as false positive`}
-            className={`${actionButtonClass} ${isFalsePositive ? FP_ACTIVE : FP_INACTIVE}`}
+            aria-label={`${isFalsePositive ? 'Unflag' : 'Flag'} ${exactFreqStr} as false positive (training label)`}
+            title={isFalsePositive ? 'Unflag as false positive' : 'Mark as false positive — training label'}
+            className={`${LABEL_BTN_DESKTOP} ${isFalsePositive ? FP_ACTIVE : FP_INACTIVE}`}
           >
-            FALSE+
+            <ThumbsDown className="w-3.5 h-3.5" aria-hidden />
           </button>
         ) : null}
         {onConfirmFeedback ? (
           <button
             onClick={() => onConfirmFeedback(advisoryId)}
-            aria-label={`${isConfirmed ? 'Unconfirm' : 'Confirm'} ${exactFreqStr} as real feedback`}
-            className={`${actionButtonClass} ${
-              isConfirmed
-                ? 'text-[var(--console-amber)] bg-[var(--console-amber)]/15 border border-[var(--console-amber)]/35'
-                : 'text-muted-foreground/70 hover:text-[var(--console-amber)] hover:bg-[var(--console-amber)]/10 border border-transparent'
-            }`}
+            aria-label={`${isConfirmed ? 'Unconfirm' : 'Confirm'} ${exactFreqStr} as real feedback (training label)`}
+            title={isConfirmed ? 'Unconfirm feedback' : 'Confirm as real feedback — training label'}
+            className={`${LABEL_BTN_DESKTOP} ${isConfirmed ? CONFIRM_ACTIVE : CONFIRM_INACTIVE}`}
           >
-            <span className="flex flex-col items-center leading-[1.1]">
-              <span>CONFIRM</span>
-              <span className="text-[7px] tracking-wide opacity-60">FEEDBACK</span>
-            </span>
+            <ThumbsUp className="w-3.5 h-3.5" aria-hidden />
           </button>
         ) : null}
         {onDismiss ? (
           <button
             onClick={() => onDismiss(advisoryId)}
             aria-label={`Dismiss ${exactFreqStr}`}
-            className="rounded flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 text-muted-foreground/55 hover:text-muted-foreground hover:bg-muted/60 transition-colors w-7 h-7"
+            className="rounded flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 text-muted-foreground/55 hover:text-muted-foreground hover:bg-muted/60 transition-colors w-8 h-8"
           >
-            <X className="w-3 h-3" />
+            <X className="w-3.5 h-3.5" />
           </button>
         ) : null}
         <button
           onClick={onCopy}
           aria-label={`Copy ${exactFreqStr} frequency info`}
-          aria-pressed={copied}
-          className={`${COPY_BTN} h-7 w-7 ${
+          className={`${COPY_BTN} h-8 w-8 ${
             copied
               ? 'text-[var(--console-amber)]'
               : 'text-muted-foreground/55 hover:text-muted-foreground hover:bg-muted/60'
@@ -124,66 +122,56 @@ export const IssueCardActions = memo(function IssueCardActions({
   }
 
   return (
-    <div className="flex flex-col items-end">
-      <div className="flex items-center">
-        {onFalsePositive ? (
-          <button
-            onClick={() => onFalsePositive(advisoryId)}
-            aria-label={`${isFalsePositive ? 'Unflag' : 'Flag'} ${exactFreqStr} as false positive`}
-            className={`${actionButtonClass} ${isFalsePositive ? FP_ACTIVE : FP_INACTIVE}`}
-          >
-            FALSE+
-          </button>
-        ) : null}
-        {onDismiss ? (
-          <button
-            onClick={() => onDismiss(advisoryId)}
-            aria-label={`Dismiss ${exactFreqStr}`}
-            className="rounded flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 text-muted-foreground/55 hover:text-muted-foreground hover:bg-muted/60 transition-colors min-h-[44px] min-w-[44px]"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        ) : null}
-      </div>
-      <div className="flex items-center">
-        {onConfirmFeedback ? (
-          <button
-            onClick={() => onConfirmFeedback(advisoryId)}
-            aria-label={`${isConfirmed ? 'Unconfirm' : 'Confirm'} feedback`}
-            className={`${actionButtonClass} ${
-              isConfirmed
-                ? 'text-[var(--console-amber)] bg-[var(--console-amber)]/15 border border-[var(--console-amber)]/35'
-                : 'text-muted-foreground/70 hover:text-[var(--console-amber)] hover:bg-[var(--console-amber)]/10 border border-transparent'
-            }`}
-          >
-            <span className="flex flex-col items-center leading-[1.1]">
-              <span>CONFIRM</span>
-              <span className="text-[7px] tracking-wide opacity-60">FEEDBACK</span>
-            </span>
-          </button>
-        ) : null}
+    <div className="flex items-center justify-end gap-0.5 flex-wrap">
+      {onFalsePositive ? (
         <button
-          onClick={onCopy}
-          aria-label={`Copy ${exactFreqStr}`}
-          aria-pressed={copied}
-          className={`${COPY_BTN} min-w-[44px] min-h-[44px] ${
-            copied
-              ? 'text-[var(--console-amber)]'
-              : 'text-muted-foreground/70 hover:text-muted-foreground hover:bg-muted/60'
-          }`}
+          onClick={() => onFalsePositive(advisoryId)}
+          aria-label={`${isFalsePositive ? 'Unflag' : 'Flag'} ${exactFreqStr} as false positive (training label)`}
+          title={isFalsePositive ? 'Unflag as false positive' : 'Mark as false positive — training label'}
+          className={`${LABEL_BTN_MOBILE} ${isFalsePositive ? FP_ACTIVE : FP_INACTIVE}`}
         >
-          {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+          <ThumbsDown className="w-4 h-4" aria-hidden />
         </button>
-        {onSendToMixer ? (
-          <button
-            onClick={onSendToMixer}
-            aria-label={`Send ${exactFreqStr} EQ recommendation to mixer via Companion`}
-            className={`${actionButtonClass} ${SEND_MOBILE}`}
-          >
-            SEND
-          </button>
-        ) : null}
-      </div>
+      ) : null}
+      {onConfirmFeedback ? (
+        <button
+          onClick={() => onConfirmFeedback(advisoryId)}
+          aria-label={`${isConfirmed ? 'Unconfirm' : 'Confirm'} ${exactFreqStr} as real feedback (training label)`}
+          title={isConfirmed ? 'Unconfirm feedback' : 'Confirm as real feedback — training label'}
+          className={`${LABEL_BTN_MOBILE} ${isConfirmed ? CONFIRM_ACTIVE : CONFIRM_INACTIVE}`}
+        >
+          <ThumbsUp className="w-4 h-4" aria-hidden />
+        </button>
+      ) : null}
+      {onDismiss ? (
+        <button
+          onClick={() => onDismiss(advisoryId)}
+          aria-label={`Dismiss ${exactFreqStr}`}
+          className="rounded flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 text-muted-foreground/55 hover:text-muted-foreground hover:bg-muted/60 transition-colors min-h-[44px] min-w-[44px]"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      ) : null}
+      <button
+        onClick={onCopy}
+        aria-label={`Copy ${exactFreqStr}`}
+        className={`${COPY_BTN} min-w-[44px] min-h-[44px] ${
+          copied
+            ? 'text-[var(--console-amber)]'
+            : 'text-muted-foreground/70 hover:text-muted-foreground hover:bg-muted/60'
+        }`}
+      >
+        {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+      </button>
+      {onSendToMixer ? (
+        <button
+          onClick={onSendToMixer}
+          aria-label={`Send ${exactFreqStr} EQ recommendation to mixer via Companion`}
+          className={`${actionButtonClass} ${SEND_MOBILE}`}
+        >
+          SEND
+        </button>
+      ) : null}
       {copied ? <span className="sr-only" role="status">Frequency info copied</span> : null}
     </div>
   )
