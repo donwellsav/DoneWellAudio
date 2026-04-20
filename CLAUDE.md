@@ -2,7 +2,7 @@
 
 > Historical project memory for agent context. Re-verify exact file counts, test totals, and release/version metadata from the working tree before repeating them.
 > Canonical current sources: `package.json`, `README.md`, `tests/README.md`, `lib/changelog.ts`, and the code itself.
-> Architecture audit: 14 of 20 improvements implemented. 4 module splits (acousticUtils→7, spectrumDrawing→7, classifier helpers, feedbackDetector utils). EXP_LUT dedup. Dead code removal. CI bundle tracking. Worker pipeline integration tests. 71 docs archived. Signal tint toggle. Severity-graded fade. Issue card redesign. GEQ/RTA hover tooltips. Canvas color token system. Hotspot bucket index (O(1) lookup). useMemo clear state. FeedbackHistory IndexedDB migration. Swipe peek animation. Light theme canvas fixes. Font size scale tokens (`--text-dwa-xs/sm/base/lg`). Skip link a11y fix. AdvisoryContext data/actions split. 10 hot-path perf optimizations (Welford's variance, circular ring buffer, Set reuse, gen-counter cache, ERB/GEQ bucket caches, phase coherence cache). 10 code review fixes (pruneOldest, probability clamp, relay hardening, crypto IDs). Dependency audit: 7 vulns fixed, 4 dead packages removed. VENU360 mixer profile with GEQ infrastructure (ref-counted rollback, partial_apply protocol, per-band tracking).
+> Architecture audit: 14 of 20 improvements implemented. 4 module splits (acousticUtils→7, spectrumDrawing→7, classifier helpers, feedbackDetector utils). EXP_LUT dedup. Dead code removal. CI bundle tracking. Worker pipeline integration tests. 71 docs archived. Signal tint toggle. Severity-graded fade. Issue card redesign. GEQ/RTA hover tooltips. Canvas color token system. Hotspot bucket index (O(1) lookup). useMemo clear state. FeedbackHistory IndexedDB migration. Swipe peek animation. Light theme canvas fixes. Font size scale tokens (`--text-dwa-xs/sm/base/lg`). Skip link a11y fix. AdvisoryContext data/actions split. 10 hot-path perf optimizations (Welford's variance, circular ring buffer, Set reuse, gen-counter cache, ERB/GEQ bucket caches, phase coherence cache). 10 code review fixes (pruneOldest, probability clamp, relay hardening, crypto IDs). Dependency audit: 7 vulns fixed, 4 dead packages removed. VENU360 mixer profile with GEQ infrastructure (ref-counted rollback, partial_apply protocol, per-band tracking). **v0.108.0 audit round 2**: lifted `--text-dwa-*` into `@theme inline` and consumed across 94 sites (WCAG 1.4.4); eliminated 13 `border-left`/`border-l-2` BAN 1 stripes via `inset` box-shadow; removed `.glass-card` backdrop-filter (AI-slop tell + mobile GPU cost); CRT/noise overlays gated to ≥768px; radar rings pause when hidden (4→2 concurrent animations); mobile issue card compacted by ~44px via single-row actions; FALSE+/CONFIRM demoted to icon-only ML-training labels; repeat-band guidance moved to `TrendingUp` badge tooltip; `useTickingNow` hook extracted.
 
 ## CRITICAL RULES
 
@@ -123,7 +123,7 @@ When the user asks to cut a release or "update the usuals":
 | DSP Offload | Web Worker (dspWorker.ts, ~745 lines) |
 | Visualization | HTML5 Canvas at 30fps |
 | State | React 19 hooks + 4 context providers (no external state library) |
-| Testing | Vitest (1364 tests, 95 suites, under 40s) |
+| Testing | Vitest (1586 tests, 120 suites, ~55s) |
 | Error Reporting | Sentry (browser + server + worker runtimes) |
 | PWA | Serwist (service worker, offline caching, installable) |
 | Package Manager | pnpm |
@@ -135,7 +135,7 @@ pnpm dev              # Dev server on :3000 (Turbopack, no SW)
 pnpm build            # Production build (webpack, generates SW)
 pnpm start            # Production server
 pnpm lint             # ESLint (flat config)
-pnpm test             # Vitest (1364 tests: 1360 pass + 4 skip)
+pnpm test             # Vitest (1590 tests: 1586 pass + 4 skip)
 pnpm test:watch       # Vitest watch mode
 pnpm test:coverage    # Vitest with V8 coverage
 npx tsc --noEmit      # Type-check (run BEFORE pnpm build)
