@@ -14,6 +14,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.109.0',
+    date: '2026-04-21',
+    changes: [
+      { type: 'feat', description: '`@dependabot rebase` will rebase this PR' },
+      { type: 'feat', description: '`@dependabot recreate` will recreate this PR, overwriting any edits that have been made to it' },
+      { type: 'feat', description: '`@dependabot show <dependency name> ignore conditions` will show all of the ignore conditions of the specified dependency' },
+      { type: 'feat', description: '`@dependabot ignore <dependency name> major version` will close this group update PR and stop Dependabot creating any more for the specific dependency\'s major version (unless you unignore this specific dependency\'s major version or upgrade to it yourself)' },
+      { type: 'feat', description: '`@dependabot ignore <dependency name> minor version` will close this group update PR and stop Dependabot creating any more for the specific dependency\'s minor version (unless you unignore this specific dependency\'s minor version or upgrade to it yourself)' },
+      { type: 'feat', description: '`@dependabot ignore <dependency name>` will close this group update PR and stop Dependabot creating any more for the specific dependency (unless you unignore this specific dependency or upgrade to it yourself)' },
+      { type: 'feat', description: '`@dependabot unignore <dependency name>` will remove all of the ignore conditions of the specified dependency' },
+      { type: 'feat', description: '`@dependabot unignore <dependency name> <ignore condition>` will remove the ignore condition of the specified dependency and ignore conditions' },
+    ],
+  },
+  {
     version: '0.108.0',
     date: '2026-04-19',
     highlights: 'Second-round UI audit sweep — finishes the text-scale migration scaffolded in v0.80 (94 `text-[7–11px]` sites → `text-dwa-*` tokens), eliminates all 13 `border-left`/`border-l-2` BAN 1 stripes, removes `.glass-card` `backdrop-filter` (AI-slop tell + mobile GPU cost), compacts the mobile issue card by ~44px, and demotes FALSE+/CONFIRM from text buttons to icon-only ML-training labels. Build gate clean; 1586 pass / 4 skip.',
