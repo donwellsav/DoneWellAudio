@@ -3,8 +3,7 @@
  * Tests for useIsMobile.ts — responsive breakpoint hook.
  *
  * Threshold: 600px (tablet breakpoint). Devices < 600px are "mobile" (phones).
- * Tablets (≥ 600px) and desktops are NOT mobile — they get the desktop layout
- * and should not receive smartphone mic calibration.
+ * Tablets (≥ 600px) and desktops are NOT mobile — they get the desktop layout.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
