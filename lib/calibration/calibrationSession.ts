@@ -15,8 +15,6 @@ import type {
   FrequencyBand,
   CalibrationStats,
 } from '@/types/calibration'
-import { MIC_CALIBRATION_PROFILES } from '@/lib/dsp/constants'
-
 const TARGET_BINS = 1024
 const MAX_DETECTIONS = 500
 const MAX_SNAPSHOTS = 300
@@ -61,13 +59,11 @@ export class CalibrationSession {
   private _contentTypeTransitions: ContentTypeTransition[] = []
   private _falsePositiveIds: Set<string> = new Set()
   private _lastContentType: string = 'unknown'
-  private _currentMicCalProfile: string
 
   constructor(settings: DetectorSettings) {
     this._startTime = Date.now()
     this._initialSettings = { ...settings }
     this._initialPreset = settings.mode
-    this._currentMicCalProfile = settings.micCalibrationProfile
   }
 
   get startTime(): number { return this._startTime }
@@ -102,7 +98,6 @@ export class CalibrationSession {
       noiseFloorAtTime: spectrum?.noiseFloorDb ?? -80,
       effectiveThresholdAtTime: spectrum?.effectiveThresholdDb ?? -50,
       annotation: 'true_positive',
-      micCalibrationApplied: this._currentMicCalProfile !== 'none',
       spectrumSnapshot: snapshot,
     })
   }
@@ -127,9 +122,6 @@ export class CalibrationSession {
   logSettingsChange(changes: Partial<DetectorSettings>): void {
     if (this._settingsHistory.length >= MAX_SETTINGS_CHANGES) return
     this._settingsHistory.push({ timestamp: now(), changes })
-    if (changes.micCalibrationProfile !== undefined) {
-      this._currentMicCalProfile = changes.micCalibrationProfile
-    }
   }
 
   logNoiseFloor(noiseFloorDb: number, peakDb: number, contentType: ContentType): void {
@@ -145,7 +137,6 @@ export class CalibrationSession {
       noiseFloorDb: spectrum.noiseFloorDb ?? -80,
       peakDb: spectrum.peak,
       trigger,
-      micCalibrationApplied: this._currentMicCalProfile !== 'none',
     })
   }
 
@@ -165,17 +156,6 @@ export class CalibrationSession {
   ): CalibrationExport {
     const endTime = Date.now()
     const summary = this._buildSummary()
-
-    // Check if mic calibration was ever active during this session
-    const micCalEverActive = this._initialSettings.micCalibrationProfile !== 'none'
-      || finalSettings.micCalibrationProfile !== 'none'
-      || this._settingsHistory.some(e => e.changes.micCalibrationProfile !== undefined && e.changes.micCalibrationProfile !== 'none')
-    // Determine which profile to report (prefer final, fall back to initial)
-    const activeProfile = finalSettings.micCalibrationProfile !== 'none'
-      ? finalSettings.micCalibrationProfile
-      : this._initialSettings.micCalibrationProfile !== 'none'
-        ? this._initialSettings.micCalibrationProfile
-        : null
 
     return {
       version: '1.1',
@@ -198,16 +178,6 @@ export class CalibrationSession {
       missedDetections: this._missedDetections,
       contentTypeTransitions: this._contentTypeTransitions,
       summary,
-      micCalibration: micCalEverActive && activeProfile ? (() => {
-        const prof = MIC_CALIBRATION_PROFILES[activeProfile]
-        return {
-          applied: true,
-          micModel: prof.model,
-          calibrationId: prof.calibrationId,
-          calibrationCurve: prof.curve,
-          compensationNote: 'Compensation = negated calibrationCurve dB values, interpolated in log-frequency space per FFT bin. To recover raw spectrum: rawDb[bin] = compensatedDb[bin] + interpolate(calibrationCurve, binFreqHz).',
-        }
-      })() : undefined,
     }
   }
 

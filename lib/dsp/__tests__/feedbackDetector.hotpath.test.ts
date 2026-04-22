@@ -63,7 +63,6 @@ function createReadyDetector(
     ...DEFAULT_CONFIG,
     aWeightingEnabled: false, // Disable A-weighting for predictable dB values
     noiseFloorEnabled: false, // Disable noise floor so threshold is absolute
-    micCalibrationProfile: 'none' as const,
     inputGainDb: 0,
     autoGainEnabled: false,
     ...configOverrides,

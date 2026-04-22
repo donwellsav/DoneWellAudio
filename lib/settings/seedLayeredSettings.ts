@@ -162,9 +162,6 @@ export function applyInitialDetectorSettings(
       ? 'mode-default'
       : initialSettings.eqPreset
   }
-  if (initialSettings.micCalibrationProfile !== undefined) {
-    session.micCalibrationProfile = initialSettings.micCalibrationProfile
-  }
 
   const algorithmMode = normalizeAlgorithmMode(initialSettings.algorithmMode)
   if (algorithmMode !== undefined) {

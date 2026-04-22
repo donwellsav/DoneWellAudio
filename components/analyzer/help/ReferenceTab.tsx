@@ -49,7 +49,6 @@ export const ReferenceTab = memo(function ReferenceTab() {
               <span className="text-muted-foreground">Confidence threshold</span><span className="font-mono">{`${Math.round(DEFAULT_SETTINGS.confidenceThreshold * 100)}%`}</span>
               <span className="text-muted-foreground">Algorithm mode</span><span className="font-mono">Auto (content-adaptive)</span>
               <span className="text-muted-foreground">A-weighting</span><span className="font-mono">Enabled</span>
-              <span className="text-muted-foreground">Mic calibration</span><span className="font-mono">None (ECM8000 / RTA-M / Smartphone available)</span>
               <span className="text-muted-foreground">Threshold mode</span><span className="font-mono">Hybrid</span>
               <span className="text-muted-foreground">Prominence</span><span className="font-mono">{`${DEFAULT_SETTINGS.prominenceDb} dB`}</span>
               <span className="text-muted-foreground">Max tracks</span><span className="font-mono">{DEFAULT_SETTINGS.maxTracks}</span>

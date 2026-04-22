@@ -12,12 +12,11 @@
  *   3. Live operator overrides (sensitivity, gain, focus range)
  *   4. Diagnostics overrides (expert-only field replacements)
  *   5. Display preferences (UI-only, no DSP impact)
- *   6. Calibration (mic profile)
  *
  * @see docs/CONTROLS_SETTINGS_REBUILD_SPEC_2026-03-25.md for design rationale
  */
 
-import type { DetectorSettings, MicCalibrationProfile } from '@/types/advisory'
+import type { DetectorSettings } from '@/types/advisory'
 import type {
   DiagnosticsProfile,
   DisplayPrefs,
@@ -44,7 +43,6 @@ export function deriveDetectorSettings(
   live: LiveOverrides,
   display: DisplayPrefs,
   diagnostics: DiagnosticsProfile,
-  micCalibrationProfile: MicCalibrationProfile,
 ): DetectorSettings {
   // ── Threshold composition ─────────────────────────────────────────────
   // effectiveThreshold = baseline + room offset + live sensitivity offset
@@ -122,9 +120,8 @@ export function deriveDetectorSettings(
     autoGainEnabled: live.autoGainEnabled,
     autoGainTargetDb,
 
-    // A-weighting and calibration
+    // A-weighting
     aWeightingEnabled: diagnostics.aWeightingOverride ?? baseline.aWeightingEnabled,
-    micCalibrationProfile,
 
     // Harmonic
     harmonicToleranceCents: diagnostics.harmonicToleranceCents,

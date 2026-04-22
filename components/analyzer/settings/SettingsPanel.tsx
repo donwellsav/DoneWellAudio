@@ -19,7 +19,7 @@ export type DataCollectionTabProps = Pick<AdvancedTabProps, 'consentStatus' | 'i
 
 export interface SettingsPanelProps {
   settings: DetectorSettings
-  calibration?: Omit<CalibrationTabProps, 'settings'>
+  calibration?: CalibrationTabProps
   dataCollection?: DataCollectionTabProps
   activeTab?: SettingsTab
   onTabChange?: (tab: SettingsTab) => void

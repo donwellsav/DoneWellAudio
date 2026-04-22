@@ -28,12 +28,6 @@ export type {
   DetectionContextValue,
 }
 
-/**
- * @deprecated Use `EngineContextValue`, `SettingsContextValue`, `MeteringContextValue`,
- * or `DetectionContextValue` instead.
- */
-export type AudioAnalyzerContextValue =
-  EngineContextValue & SettingsContextValue & MeteringContextValue & DetectionContextValue
 
 interface AudioAnalyzerProviderProps {
   dataCollection: DataCollectionHandle
@@ -91,7 +85,6 @@ export function AudioAnalyzerProvider({
     setAutoGain,
     setFocusRange,
     setEqStyle,
-    setMicProfile,
     updateDisplay,
     updateDiagnostics,
     updateLiveOverrides,
@@ -148,7 +141,6 @@ export function AudioAnalyzerProvider({
       setAutoGain,
       setFocusRange,
       setEqStyle,
-      setMicProfile,
       updateDisplay,
       updateDiagnostics,
       updateLiveOverrides,
@@ -165,7 +157,6 @@ export function AudioAnalyzerProvider({
     setAutoGain,
     setFocusRange,
     setEqStyle,
-    setMicProfile,
     updateDisplay,
     updateDiagnostics,
     updateLiveOverrides,
@@ -216,20 +207,3 @@ export function AudioAnalyzerProvider({
   )
 }
 
-/**
- * @deprecated Use `useEngine()`, `useSettings()`, `useMetering()`, or `useDetection()` instead.
- * This hook reads all 4 contexts and re-renders on ANY context change.
- */
-export function useAudio(): AudioAnalyzerContextValue {
-  if (process.env.NODE_ENV === 'development') {
-    // eslint-disable-next-line no-console
-    console.warn('[DWA] useAudio() is deprecated â€” use useEngine(), useSettings(), useMetering(), or useDetection() for granular re-renders')
-  }
-
-  const engine = useEngine()
-  const settingsCtx = useSettings()
-  const metering = useMetering()
-  const detection = useDetection()
-
-  return { ...engine, ...settingsCtx, ...metering, ...detection }
-}

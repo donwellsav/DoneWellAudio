@@ -250,7 +250,6 @@ export function useCalibrationSession(
             sampleRate: firstSpectrum?.sampleRate ?? 48000,
             fftSize: firstSpectrum?.fftSize ?? 8192,
             durationSeconds: duration / 1000,
-            micCalibrationApplied: (settingsSnapshotRef.current?.micCalibrationProfile ?? 'none') !== 'none',
           })
         }
 

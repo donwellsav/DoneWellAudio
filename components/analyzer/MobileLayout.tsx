@@ -21,7 +21,7 @@ import { useMobileTabNavigation } from '@/hooks/useMobileTabNavigation'
 import { MOBILE_MAX_DISPLAYED_ISSUES } from '@/lib/dsp/constants'
 
 interface MobileLayoutProps {
-  calibration?: Omit<CalibrationTabProps, 'settings'>
+  calibration?: CalibrationTabProps
   dataCollection?: DataCollectionTabProps
   isWizardActive?: boolean
   onStartWizard?: () => void

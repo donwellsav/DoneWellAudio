@@ -30,7 +30,6 @@ function makeSettings(overrides: Partial<DetectorSettings> = {}): DetectorSettin
     harmonicToleranceCents: 200,
     showTooltips: true,
     aWeightingEnabled: true,
-    micCalibrationProfile: 'none',
     confidenceThreshold: 0.35,
     roomRT60: 0.8,
     roomVolume: 1000,

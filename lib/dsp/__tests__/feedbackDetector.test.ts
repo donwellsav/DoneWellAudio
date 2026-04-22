@@ -294,36 +294,4 @@ describe('FeedbackDetector', () => {
     })
   })
 
-  // ── S1: Mic calibration bridge ──────────────────────────────────────
-
-  describe('updateSettings mic calibration bridge (S1)', () => {
-    it('forwards micCalibrationProfile through updateSettings without throwing', () => {
-      const detector = new FeedbackDetector({ fftSize: 8192 })
-
-      // updateSettings should accept micCalibrationProfile and forward it
-      // to updateConfig without error. Before S1 fix, this field was silently
-      // ignored because updateSettings() never mapped it.
-      expect(() => {
-        detector.updateSettings({ micCalibrationProfile: 'ecm8000' })
-      }).not.toThrow()
-    })
-
-    it('updateSettings with micCalibrationProfile triggers config change', () => {
-      const detector = new FeedbackDetector({ fftSize: 8192 })
-
-      // Apply through the settings bridge — same path CalibrationTab and
-      // mobile auto-MEMS use. Verify by calling updateConfig directly first,
-      // then comparing that updateSettings produces the same result.
-      const detectorDirect = new FeedbackDetector({ fftSize: 8192 })
-      detectorDirect.updateConfig({ micCalibrationProfile: 'ecm8000' })
-      const directState = detectorDirect.getState()
-
-      detector.updateSettings({ micCalibrationProfile: 'ecm8000' })
-      const bridgeState = detector.getState()
-
-      // Both paths should produce the same detector state
-      expect(bridgeState.fftSize).toBe(directState.fftSize)
-      expect(bridgeState.noiseFloorDb).toBe(directState.noiseFloorDb)
-    })
-  })
 })

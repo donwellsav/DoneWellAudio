@@ -36,7 +36,7 @@ import {
   displayStorageV2,
   sessionStorageV2,
 } from '@/lib/storage/settingsStorageV2'
-import type { DetectorSettings, MicCalibrationProfile } from '@/types/advisory'
+import type { DetectorSettings } from '@/types/advisory'
 import type {
   DiagnosticsProfile,
   DisplayPrefs,
@@ -68,7 +68,6 @@ export interface UseLayeredSettingsReturn {
   setAutoGain: (enabled: boolean, targetDb?: number) => void
   setFocusRange: (range: FocusRange) => void
   setEqStyle: (style: LiveOverrides['eqStyle']) => void
-  setMicProfile: (profile: MicCalibrationProfile) => void
   updateDisplay: (partial: Partial<DisplayPrefs>) => void
   updateDiagnostics: (partial: Partial<DiagnosticsProfile>) => void
   updateLiveOverrides: (partial: Partial<LiveOverrides>) => void
@@ -201,10 +200,6 @@ export function useLayeredSettings(initialSettings: Partial<DetectorSettings> = 
     }))
   }, [updateSession])
 
-  const setMicProfile = useCallback((profile: MicCalibrationProfile) => {
-    updateSession(prev => ({ ...prev, micCalibrationProfile: profile }))
-  }, [updateSession])
-
   const updateDisplay = useCallback((partial: Partial<DisplayPrefs>) => {
     updateDisplayState(prev => ({ ...prev, ...partial }))
   }, [updateDisplayState])
@@ -248,9 +243,8 @@ export function useLayeredSettings(initialSettings: Partial<DetectorSettings> = 
       session.liveOverrides,
       display,
       session.diagnostics,
-      session.micCalibrationProfile,
     ),
-  [baseline, session.environment, session.liveOverrides, display, session.diagnostics, session.micCalibrationProfile],
+  [baseline, session.environment, session.liveOverrides, display, session.diagnostics],
   )
 
   return {
@@ -264,7 +258,6 @@ export function useLayeredSettings(initialSettings: Partial<DetectorSettings> = 
     setAutoGain,
     setFocusRange,
     setEqStyle,
-    setMicProfile,
     updateDisplay,
     updateDiagnostics,
     updateLiveOverrides,

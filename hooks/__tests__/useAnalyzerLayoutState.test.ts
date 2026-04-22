@@ -46,11 +46,6 @@ function makeSessionWithDiagnostics(
       peakMergeCents: 35,
       ...diagnostics,
     },
-    micCalibrationProfile: {
-      profileId: 'flat',
-      label: 'Flat',
-      corrections: [],
-    },
   } as unknown as DwaSessionState
 }
 

@@ -18,7 +18,7 @@ import type { CalibrationTabProps } from './CalibrationTab'
 
 interface SetupTabProps {
   settings: DetectorSettings
-  calibration?: Omit<CalibrationTabProps, 'settings'>
+  calibration?: CalibrationTabProps
   customPresets: { id: string; name: string }[]
   canSavePreset: boolean
   showSaveInput: boolean
@@ -155,7 +155,7 @@ export const SetupTab = memo(function SetupTab({
 
       {calibration && (
         <ChannelSection title="Calibration">
-          <CalibrationTab settings={settings} {...calibration} />
+          <CalibrationTab {...calibration} />
         </ChannelSection>
       )}
 

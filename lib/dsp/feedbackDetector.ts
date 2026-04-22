@@ -12,7 +12,7 @@ import type { DetectedPeak, AnalysisConfig, DetectorSettings, AlgorithmMode, Con
 import { DEFAULT_CONFIG } from '@/types/advisory'
 import type { CombPatternResult } from './advancedDetection'
 import { MSDPool } from './msdPool'
-import { computeAWeightingTable, computeMicCalibrationTable, computeAnalysisDbBounds, aWeightingDb } from './calibrationTables'
+import { computeAWeightingTable, computeAnalysisDbBounds, aWeightingDb } from './calibrationTables'
 import { estimateQ as estimateQFn, calculatePHPR as calculatePHPRFn } from './frequencyAnalysis'
 import { PersistenceTracker } from './persistenceScoring'
 import { computeEffectiveThreshold, getMsdMinFramesForMode, classifyMsdResult, detectHarmonicRelationship, computeAdaptiveSustainMs } from './detectorUtils'
@@ -121,11 +121,6 @@ export class FeedbackDetector {
   private aWeightingTable: Float32Array | null = null
   private aWeightingMinDb: number = 0
   private aWeightingMaxDb: number = 0
-
-  // Mic calibration compensation (ECM8000)
-  private micCalibrationTable: Float32Array | null = null
-  private micCalMinDb: number = 0
-  private micCalMaxDb: number = 0
 
   // Analysis bounds
   private startBin: number = 1
@@ -416,10 +411,7 @@ export class FeedbackDetector {
       this.resetHistory()
     }
 
-    if (config.aWeightingEnabled !== undefined || config.micCalibrationProfile !== undefined) {
-      if (config.micCalibrationProfile !== undefined) {
-        this.computeMicCalibrationTable()
-      }
+    if (config.aWeightingEnabled !== undefined) {
       this.recomputeAnalysisDbBounds()
       this.noiseFloorDb = null
       this.resetHistory()
@@ -549,13 +541,6 @@ export class FeedbackDetector {
       mappedConfig.ignoreWhistle = settings.ignoreWhistle
     }
 
-    // Mic calibration profile — compensates for microphone frequency response.
-    // Without this mapping, CalibrationTab and mobile auto-MEMS profile changes
-    // would not propagate to the detector via the normal updateSettings() path.
-    if (settings.micCalibrationProfile !== undefined) {
-      mappedConfig.micCalibrationProfile = settings.micCalibrationProfile
-    }
-
     if (Object.keys(mappedConfig).length > 0) {
       this.updateConfig(mappedConfig)
     }
@@ -659,7 +644,6 @@ export class FeedbackDetector {
       this.activeBins = new Uint32Array(n)
       this.activeBinPos = new Int32Array(n)
       this.aWeightingTable = new Float32Array(n)
-      this.micCalibrationTable = new Float32Array(n)
       this._persistenceTracker = new PersistenceTracker(n)
       this._msdPool = new MSDPool(MSD_SETTINGS.POOL_SIZE, MSD_SETTINGS.HISTORY_SIZE)
     } else {
@@ -682,7 +666,6 @@ export class FeedbackDetector {
     this.activeCount = 0
 
     this.computeAWeightingTable()
-    this.computeMicCalibrationTable()
     this.recomputeAnalysisDbBounds()
 
     this._fastConfirmCounts = new Map()
@@ -727,19 +710,10 @@ export class FeedbackDetector {
     return aWeightingDb(fHz)
   }
 
-  private computeMicCalibrationTable(): void {
-    const result = computeMicCalibrationTable(this.config.fftSize, this.getSampleRate(), this.config.micCalibrationProfile)
-    if (this.micCalibrationTable) this.micCalibrationTable.set(result.table)
-    this.micCalMinDb = result.minDb
-    this.micCalMaxDb = result.maxDb
-  }
-
   private recomputeAnalysisDbBounds(): void {
     const bounds = computeAnalysisDbBounds(
       this.config.aWeightingEnabled,
       this.aWeightingMinDb, this.aWeightingMaxDb,
-      this.config.micCalibrationProfile,
-      this.micCalMinDb, this.micCalMaxDb,
     )
     this.analysisMinDb = bounds.analysisMinDb
     this.analysisMaxDb = bounds.analysisMaxDb
@@ -978,8 +952,6 @@ export class FeedbackDetector {
 
     const useAWeighting = this.config.aWeightingEnabled && !!this.aWeightingTable
     const aTable = this.aWeightingTable
-    const useMicCalibration = this.config.micCalibrationProfile !== 'none' && !!this.micCalibrationTable
-    const micCalTable = this.micCalibrationTable
 
     // Use auto-gain when enabled, otherwise manual setting
     const inputGain = this._autoGainEnabled
@@ -1009,7 +981,6 @@ export class FeedbackDetector {
       // and mic cal extremes. LUT bounds guard (line below) handles any
       // resulting values outside [-100, 0].
       if (useAWeighting && aTable) db += aTable[i]
-      if (useMicCalibration && micCalTable) db += micCalTable[i]
       if (db < analysisMinDb) db = analysisMinDb
       else if (db > analysisMaxDb) db = analysisMaxDb
 

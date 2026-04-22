@@ -10,7 +10,6 @@ import {
   DEFAULT_ENVIRONMENT,
   FRESH_START_SENSITIVITY_OFFSET_DB,
   DEFAULT_LIVE_OVERRIDES,
-  DEFAULT_MIC_PROFILE,
 } from '@/lib/settings/defaults'
 import { deriveDetectorSettings } from '@/lib/settings/deriveSettings'
 import { MODE_BASELINES } from '@/lib/settings/modeBaselines'
@@ -26,7 +25,6 @@ describe('deriveDefaultDetectorSettings', () => {
       },
       DEFAULT_DISPLAY_PREFS,
       DEFAULT_DIAGNOSTICS,
-      DEFAULT_MIC_PROFILE,
     )
 
     expect(deriveDefaultDetectorSettings('speech')).toEqual(expected)
@@ -44,7 +42,6 @@ describe('deriveDefaultDetectorSettings', () => {
       },
       DEFAULT_DISPLAY_PREFS,
       DEFAULT_DIAGNOSTICS,
-      DEFAULT_MIC_PROFILE,
     )
 
     expect(deriveFreshStartDetectorSettings()).toEqual(expected)

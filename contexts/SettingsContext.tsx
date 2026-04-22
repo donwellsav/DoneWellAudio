@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext } from 'react'
-import type { DetectorSettings, MicCalibrationProfile, OperationMode } from '@/types/advisory'
+import type { DetectorSettings, OperationMode } from '@/types/advisory'
 import type {
   DiagnosticsProfile,
   DisplayPrefs,
@@ -46,8 +46,6 @@ export interface SettingsContextValue {
   setFocusRange: (range: FocusRange) => void
   /** Set EQ recommendation style */
   setEqStyle: (style: LiveOverrides['eqStyle']) => void
-  /** Set mic calibration profile */
-  setMicProfile: (profile: MicCalibrationProfile) => void
   /** Update display preferences (partial merge) */
   updateDisplay: (partial: Partial<DisplayPrefs>) => void
   /** Update diagnostics profile (partial merge) */

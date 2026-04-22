@@ -397,20 +397,6 @@ export const AlgorithmsTab = memo(function AlgorithmsTab() {
             </div>
 
             <div className="bg-background/80 px-3 py-2 rounded font-mono text-sm border border-border/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)] space-y-0.5">
-              <p className="text-foreground font-semibold">Measurement Mic Calibration Compensation</p>
-              <p>Supported profiles: Behringer ECM8000, dbx RTA-M, Smartphone MEMS (select in Calibrate tab)</p>
-              <p className="mt-1 text-foreground font-medium">ECM8000 (CSL calibration #746)</p>
-              <p>38-point 1/3-octave curve | Max deviation: +4.7 dB @ 16 kHz</p>
-              <p className="mt-1 text-foreground font-medium">dbx RTA-M (digitized from cut sheet)</p>
-              <p>31-point curve | Max deviation: ±1.5 dB (near-flat response mic)</p>
-              <p className="mt-1 text-foreground font-medium">Smartphone (Generic MEMS)</p>
-              <p>31-point curve | Compensates −12 dB LF roll-off + 3.8 dB presence peak (8–10 kHz)</p>
-              <p className="mt-1">Compensation: negate the curve → flatten mic response → true SPL</p>
-              <p className="text-muted-foreground">Applied in DSP hot loop alongside A-weighting. Both offsets stack additively per FFT bin.</p>
-              <p className="text-muted-foreground">Calibration export v1.1 includes per-event flags and the full curve for reversal.</p>
-            </div>
-
-            <div className="bg-background/80 px-3 py-2 rounded font-mono text-sm border border-border/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)] space-y-0.5">
               <p className="text-foreground font-semibold">MIDI Note Number</p>
               <p>midi = 12 · log₂(f / 440) + 69</p>
               <p>f = 440 · 2<sup>((midi - 69) / 12)</sup></p>

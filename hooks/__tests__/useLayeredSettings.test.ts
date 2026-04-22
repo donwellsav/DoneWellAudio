@@ -341,7 +341,6 @@ describe('useLayeredSettings — storage backfill', () => {
         harmonicToleranceCents: 200,
         peakMergeCents: 100,
       },
-      micCalibrationProfile: 'none',
     }
     localStorage.setItem('dwa-v2-session', JSON.stringify(oldSession))
 

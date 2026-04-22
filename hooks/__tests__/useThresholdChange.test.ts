@@ -42,11 +42,6 @@ function makeSession(
       showPeakMarkers: false,
       verboseLogging: false,
     },
-    micCalibrationProfile: {
-      profileId: 'flat',
-      label: 'Flat',
-      corrections: [],
-    },
   } as unknown as DwaSessionState
 }
 

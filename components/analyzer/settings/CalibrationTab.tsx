@@ -2,7 +2,7 @@
 
 import { memo } from 'react'
 import type { RefObject } from 'react'
-import type { DetectorSettings, MicCalibrationProfile, SpectrumData } from '@/types/advisory'
+import type { SpectrumData } from '@/types/advisory'
 import type {
   AmbientCapture,
   CalibrationStats,
@@ -14,8 +14,6 @@ import { CalibrationRoomProfileSection } from './calibration/CalibrationRoomProf
 import { CalibrationSessionSection } from './calibration/CalibrationSessionSection'
 
 export interface CalibrationTabProps {
-  settings: DetectorSettings
-  setMicProfile: (profile: MicCalibrationProfile) => void
   room: RoomProfile
   updateRoom: (partial: Partial<RoomProfile>) => void
   clearRoom: () => void
@@ -31,8 +29,6 @@ export interface CalibrationTabProps {
 }
 
 export const CalibrationTab = memo(function CalibrationTab({
-  settings,
-  setMicProfile,
   room,
   updateRoom,
   clearRoom,
@@ -72,8 +68,6 @@ export const CalibrationTab = memo(function CalibrationTab({
       />
 
       <CalibrationAmbientSection
-        settings={settings}
-        setMicProfile={setMicProfile}
         ambientCapture={ambientCapture}
         isCapturingAmbient={isCapturingAmbient}
         handleCaptureAmbient={handleCaptureAmbient}
@@ -85,7 +79,6 @@ export const CalibrationTab = memo(function CalibrationTab({
         isRecording={isRecording}
         stats={stats}
         elapsed={elapsed}
-        micCalibrationProfile={settings.micCalibrationProfile}
         onExport={onExport}
       />
     </div>

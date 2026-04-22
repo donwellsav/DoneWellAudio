@@ -10,7 +10,6 @@
  * @see types/settings.ts for interface definitions
  */
 
-import type { MicCalibrationProfile } from '@/types/advisory'
 import type {
   DiagnosticsProfile,
   DisplayPrefs,
@@ -83,9 +82,6 @@ export const DEFAULT_DIAGNOSTICS: DiagnosticsProfile = {
   peakMergeCents: 200,
 }
 
-/** Default mic calibration profile */
-export const DEFAULT_MIC_PROFILE: MicCalibrationProfile = 'none'
-
 /**
  * Fresh-start startup threshold that preserves the legacy 25 dB Speech-session
  * behavior without changing the actual speech mode baseline.
@@ -107,7 +103,6 @@ export const DEFAULT_SESSION_STATE: DwaSessionState = {
   environment: DEFAULT_ENVIRONMENT,
   liveOverrides: DEFAULT_LIVE_OVERRIDES,
   diagnostics: DEFAULT_DIAGNOSTICS,
-  micCalibrationProfile: DEFAULT_MIC_PROFILE,
 }
 
 /**

@@ -11,13 +11,12 @@
  *   3. LiveOverrides     — operator adjustments during a show
  *   4. DisplayPrefs      — rendering / visibility / ergonomics
  *   5. DiagnosticsProfile — opt-in expert DSP controls
- *   6. Calibration       — mic profile (separate lifecycle)
  *
  * @see lib/settings/deriveSettings.ts for the derivation function
  * @see docs/CONTROLS_SETTINGS_REBUILD_SPEC_2026-03-25.md for design rationale
  */
 
-import type { Algorithm, MicCalibrationProfile, OperationMode } from '@/types/advisory'
+import type { Algorithm, OperationMode } from '@/types/advisory'
 
 // ─── Mode Baseline ────────────────────────────────────────────────────────────
 
@@ -238,7 +237,6 @@ export interface DwaSessionState {
   environment: EnvironmentSelection
   liveOverrides: LiveOverrides
   diagnostics: DiagnosticsProfile
-  micCalibrationProfile: MicCalibrationProfile
 }
 
 // ─── Startup Preference ───────────────────────────────────────────────────────

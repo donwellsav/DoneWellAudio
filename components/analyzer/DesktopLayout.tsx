@@ -25,7 +25,7 @@ interface DesktopLayoutProps {
   closeIssuesPanel: () => void
   closeIssuesPanelToIssues: () => void
   setIssuesPanelOpen: (open: boolean) => void
-  calibration?: Omit<CalibrationTabProps, 'settings'>
+  calibration?: CalibrationTabProps
   dataCollection?: DataCollectionTabProps
   isWizardActive?: boolean
   onStartWizard?: () => void

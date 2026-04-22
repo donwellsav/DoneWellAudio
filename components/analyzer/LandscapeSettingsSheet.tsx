@@ -15,7 +15,7 @@ import type { CalibrationTabProps } from './settings/CalibrationTab'
 
 interface LandscapeSettingsSheetProps {
   settings: DetectorSettings
-  calibration?: Omit<CalibrationTabProps, 'settings'>
+  calibration?: CalibrationTabProps
   dataCollection?: DataCollectionTabProps
 }
 

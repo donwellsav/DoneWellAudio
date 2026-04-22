@@ -37,7 +37,6 @@ type LayeredContextActions = Pick<
   | 'setAutoGain'
   | 'setFocusRange'
   | 'setEqStyle'
-  | 'setMicProfile'
   | 'updateDisplay'
   | 'updateDiagnostics'
   | 'updateLiveOverrides'
@@ -103,7 +102,6 @@ export function createSettingsContextValue(state: SettingsContextStateFields): S
     setAutoGain: state.layered.setAutoGain,
     setFocusRange: state.layered.setFocusRange,
     setEqStyle: state.layered.setEqStyle,
-    setMicProfile: state.layered.setMicProfile,
     updateDisplay: state.layered.updateDisplay,
     updateDiagnostics: state.layered.updateDiagnostics,
     updateLiveOverrides: state.layered.updateLiveOverrides,

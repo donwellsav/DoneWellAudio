@@ -17,7 +17,7 @@ import type { DataCollectionTabProps } from '@/components/analyzer/settings/Sett
 
 export function useAudioAnalyzerViewState(dataCollection: DataCollectionHandle) {
   const { isRunning, error, workerError, start, dspWorker } = useEngine()
-  const { settings, handleModeChange, setMicProfile } = useSettings()
+  const { settings, handleModeChange } = useSettings()
   const { spectrumRef, sampleRate, fftSize } = useMetering()
   const { advisories } = useDetection()
 
@@ -48,7 +48,6 @@ export function useAudioAnalyzerViewState(dataCollection: DataCollectionHandle) 
     onSettingsChange: calibration.onSettingsChange,
     spectrumRef,
     settings,
-    setMicProfile,
   })
 
   const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0'
@@ -56,7 +55,7 @@ export function useAudioAnalyzerViewState(dataCollection: DataCollectionHandle) 
     calibration.exportSession(settings, appVersion)
   }, [appVersion, calibration, settings])
 
-  const calibrationTabProps = useMemo<Omit<CalibrationTabProps, 'settings'>>(
+  const calibrationTabProps = useMemo<CalibrationTabProps>(
     () => ({
       room: calibration.room,
       updateRoom: calibration.updateRoom,
@@ -70,9 +69,8 @@ export function useAudioAnalyzerViewState(dataCollection: DataCollectionHandle) 
       spectrumRef,
       stats: calibration.stats,
       onExport: handleCalibrationExport,
-      setMicProfile,
     }),
-    [calibration, handleCalibrationExport, setMicProfile, spectrumRef],
+    [calibration, handleCalibrationExport, spectrumRef],
   )
 
   const dataCollectionTabProps = useMemo<DataCollectionTabProps>(

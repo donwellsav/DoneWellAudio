@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { PillToggle } from '@/components/ui/pill-toggle'
 import { Section, SectionGroup } from '@/components/analyzer/settings/SettingsShared'
 import type { CalibrationStats } from '@/types/calibration'
-import type { MicCalibrationProfile } from '@/types/advisory'
 
 interface CalibrationSessionSectionProps {
   calibrationEnabled: boolean
@@ -14,7 +13,6 @@ interface CalibrationSessionSectionProps {
   isRecording: boolean
   stats: CalibrationStats
   elapsed: string
-  micCalibrationProfile: MicCalibrationProfile
   onExport: () => void
 }
 
@@ -24,7 +22,6 @@ export const CalibrationSessionSection = memo(function CalibrationSessionSection
   isRecording,
   stats,
   elapsed,
-  micCalibrationProfile,
   onExport,
 }: CalibrationSessionSectionProps) {
   return (
@@ -78,18 +75,6 @@ export const CalibrationSessionSection = memo(function CalibrationSessionSection
                   <span className="text-muted-foreground">Snapshots</span>
                   <span className="text-foreground">{stats.snapshotCount}</span>
                 </div>
-                {micCalibrationProfile !== 'none' ? (
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Mic Cal</span>
-                    <span className="text-emerald-400 text-xs font-mono">
-                      {micCalibrationProfile === 'ecm8000'
-                        ? 'ECM8000'
-                        : micCalibrationProfile === 'smartphone'
-                          ? 'MEMS'
-                          : 'RTA-M'} compensated
-                    </span>
-                  </div>
-                ) : null}
               </>
             ) : null}
           </div>
