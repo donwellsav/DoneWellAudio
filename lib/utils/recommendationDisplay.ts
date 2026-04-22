@@ -5,7 +5,7 @@ export function getRecommendationStrategyLabel(
   peq: PEQRecommendation | null | undefined,
 ): string | null {
   if (!peq) return null
-  return peq.strategy === 'broad-region' ? 'Broad Region' : 'Narrow Cut'
+  return peq.strategy === 'broad-region' ? 'Broad Region' : null
 }
 
 export function formatShelfRecommendationShort(

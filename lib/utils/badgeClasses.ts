@@ -13,8 +13,8 @@
 export type BadgeTone = 'success' | 'warning' | 'error' | 'info'
 export type BadgeSize = 'sm' | 'md'
 
-const BASE_MD = 'inline-flex items-center gap-0.5 text-[11px] font-bold px-1.5 py-0.5 rounded-sm leading-none border'
-const BASE_SM = 'inline-flex items-center text-[9px] px-1 py-0.5 rounded-sm leading-none border'
+const BASE_MD = 'inline-flex items-center gap-0.5 text-[10px] font-bold px-1 py-px rounded-sm leading-none border'
+const BASE_SM = 'inline-flex items-center text-[9px] px-0.5 py-px rounded-sm leading-none border'
 
 const TONES: Record<BadgeTone, string> = {
   success: 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30',

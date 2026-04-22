@@ -57,6 +57,19 @@ describe('IssueCard', () => {
     expect(screen.getByText('92%')).toBeDefined()
   })
 
+  it('does not render the internal advisory id', () => {
+    const { container } = render(
+      <IssueCard advisory={makeAdvisory({ id: 'adv-visible-id-123' })} occurrenceCount={1} />,
+    )
+
+    expect(container.textContent).not.toContain('adv-visible-id-123')
+  })
+
+  it('does not show the default narrow-cut strategy label', () => {
+    render(<IssueCard advisory={makeAdvisory()} occurrenceCount={1} />)
+    expect(screen.queryByText(/narrow cut/i)).toBeNull()
+  })
+
   it('renders repeat offender badge and guidance when occurrenceCount >= 3', () => {
     render(<IssueCard advisory={makeAdvisory()} occurrenceCount={5} />)
     const badge = screen.getByLabelText(/repeat offender: detected 5 times/i)
@@ -221,9 +234,14 @@ describe('IssueCard', () => {
       />,
     )
 
-    expect(screen.getByText(/merged 3 nearby peaks into one broad region/i)).toBeDefined()
-    expect(screen.getByText('Broad Region')).toBeDefined()
-    expect(screen.getByText(/q widened to cover the broader unstable region/i)).toBeDefined()
+    expect(screen.queryByText(/merged 3 nearby peaks into one broad region/i)).toBeNull()
+    expect(screen.queryByText(/q widened to cover the broader unstable region/i)).toBeNull()
+
+    const clusterBadge = screen.getByLabelText(/merged 3 nearby peaks into one broad region/i)
+    expect(clusterBadge.getAttribute('title')).toMatch(/adding more notches/i)
+
+    const broadRegion = screen.getByText('Broad Region')
+    expect(broadRegion.getAttribute('title')).toMatch(/q widened to cover the broader unstable region/i)
   })
 
   it('renders pure whistle advisories as warning-only without corrective PEQ copy', () => {
@@ -246,7 +264,10 @@ describe('IssueCard', () => {
     )
 
     expect(screen.getByText(/warning only · no eq cut/i)).toBeDefined()
-    expect(screen.getByText(/whistle alert only/i)).toBeDefined()
+    const warningOnly = screen.getByText(/warning only.*no eq cut/i)
+    expect(warningOnly).toBeDefined()
+    expect(warningOnly.getAttribute('title')).toMatch(/whistle alert only/i)
+    expect(screen.queryByText(/whistle alert only/i)).toBeNull()
     expect(screen.queryByText(/Q:/i)).toBeNull()
   })
 })

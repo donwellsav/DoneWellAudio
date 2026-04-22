@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, memo } from 'react'
+import { useEffect, useMemo, useState, memo } from 'react'
 import { useTheme } from 'next-themes'
+import { X } from 'lucide-react'
 import { getSeverityText, getSeverityColor } from '@/lib/utils/advisoryDisplay'
 import { summarizeShelfRecommendations } from '@/lib/utils/recommendationDisplay'
 import type { Advisory } from '@/types/advisory'
@@ -105,6 +106,25 @@ export const IssuesList = memo(function IssuesList({
     }
     return null
   }, [sortedEntries])
+  const [dismissedTonalSummary, setDismissedTonalSummary] = useState<string | null>(null)
+  const showTonalIssueSummary =
+    tonalIssueSummary !== null && dismissedTonalSummary !== tonalIssueSummary
+
+  useEffect(() => {
+    if (tonalIssueSummary === null) {
+      setDismissedTonalSummary(null)
+    }
+  }, [tonalIssueSummary])
+
+  useEffect(() => {
+    if (!showTonalIssueSummary || tonalIssueSummary === null) return
+
+    const timerId = setTimeout(() => {
+      setDismissedTonalSummary(tonalIssueSummary)
+    }, 10_000)
+
+    return () => clearTimeout(timerId)
+  }, [showTonalIssueSummary, tonalIssueSummary])
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -121,13 +141,27 @@ export const IssuesList = memo(function IssuesList({
         />
       ) : (
         <>
-          {tonalIssueSummary ? (
-            <div className="rounded border border-blue-500/20 bg-blue-500/5 px-3 py-2">
-              <div className="font-mono text-dwa-sm font-bold tracking-[0.15em] uppercase text-blue-400">
-                Broad Tonal Note
+          {showTonalIssueSummary && tonalIssueSummary ? (
+            <div className="rounded border border-blue-500/20 bg-blue-500/5 px-2.5 py-1.5">
+              <div className="flex items-center gap-2">
+                <div className="font-mono text-dwa-sm font-bold tracking-[0.15em] uppercase text-blue-400">
+                  Broad Tonal Note
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDismissedTonalSummary(tonalIssueSummary)}
+                  aria-label="Dismiss broad tonal note"
+                  title="Dismiss broad tonal note"
+                  className="ml-auto inline-flex h-6 w-6 items-center justify-center rounded text-blue-300/70 hover:text-blue-200 hover:bg-blue-500/10 transition-colors cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden />
+                </button>
               </div>
-              <p className="mt-1 text-dwa-sm font-mono text-blue-300/80 leading-relaxed">
-                Separate from the acute feedback cut: {tonalIssueSummary}
+              <p
+                className="mt-0.5 text-dwa-sm font-mono text-blue-300/80 leading-snug"
+                title={tonalIssueSummary}
+              >
+                {tonalIssueSummary}
               </p>
             </div>
           ) : null}

@@ -6,8 +6,8 @@
  * card rendering, and clear-all button.
  */
 
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { afterEach, describe, it, expect, vi } from 'vitest'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { IssuesList } from '../IssuesList'
 import type { Advisory, SeverityLevel } from '@/types/advisory'
 
@@ -50,6 +50,10 @@ vi.mock('@/contexts/SettingsContext', () => ({
   }),
 }))
 
+afterEach(() => {
+  vi.useRealTimers()
+})
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function makeAdvisory(id: string, severity: SeverityLevel = 'POSSIBLE_RING', overrides: Partial<Advisory> = {}): Advisory {
@@ -72,6 +76,21 @@ function makeAdvisory(id: string, severity: SeverityLevel = 'POSSIBLE_RING', ove
     isRunaway: false,
     ...overrides,
   } as Advisory
+}
+
+function makeTonalAdvisory(id: string, summary: string): Advisory {
+  return makeAdvisory(id, 'GROWING', {
+    advisory: {
+      geq: { bandIndex: 15, bandHz: 1000, suggestedDb: -6 },
+      peq: { type: 'notch', hz: 1000, q: 4.0, gainDb: -6, bandwidthHz: 250 },
+      shelves: [
+        { type: 'HPF', hz: 80, gainDb: 0, reason: 'Low-end rumble detected' },
+        { type: 'lowShelf', hz: 300, gainDb: -3, reason: 'Mud buildup detected' },
+      ],
+      tonalIssueSummary: summary,
+      pitch: { note: 'B', octave: 5, cents: 3, midi: 83 },
+    },
+  })
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────
@@ -143,23 +162,75 @@ describe('IssuesList', () => {
 
   it('renders broad tonal issues separately from acute feedback cards', () => {
     const advisories = [
-      makeAdvisory('a1', 'GROWING', {
-        advisory: {
-          geq: { bandIndex: 15, bandHz: 1000, suggestedDb: -6 },
-          peq: { type: 'notch', hz: 1000, q: 4.0, gainDb: -6, bandwidthHz: 250 },
-          shelves: [
-            { type: 'HPF', hz: 80, gainDb: 0, reason: 'Low-end rumble detected' },
-            { type: 'lowShelf', hz: 300, gainDb: -3, reason: 'Mud buildup detected' },
-          ],
-          tonalIssueSummary: 'HPF at 80Hz for rumble | Low shelf -3dB @ 300Hz',
-          pitch: { note: 'B', octave: 5, cents: 3, midi: 83 },
-        },
-      }),
+      makeTonalAdvisory('a1', 'HPF at 80Hz for rumble | Low shelf -3dB @ 300Hz'),
     ]
 
     render(<IssuesList advisories={advisories} isRunning />)
 
     expect(screen.getByText(/broad tonal note/i)).toBeDefined()
-    expect(screen.getByText(/separate from the acute feedback cut/i)).toBeDefined()
+    expect(screen.getByText(/hpf at 80hz for rumble/i)).toBeDefined()
+    expect(screen.queryByText(/separate from the acute feedback cut/i)).toBeNull()
+  })
+
+  it('dismisses the broad tonal note when requested', () => {
+    render(
+      <IssuesList
+        advisories={[makeTonalAdvisory('a1', 'HPF at 80Hz for rumble')]}
+        isRunning
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /dismiss broad tonal note/i }))
+
+    expect(screen.queryByText(/broad tonal note/i)).toBeNull()
+  })
+
+  it('auto-hides the broad tonal note after 10 seconds', () => {
+    vi.useFakeTimers()
+    render(
+      <IssuesList
+        advisories={[makeTonalAdvisory('a1', 'HPF at 80Hz for rumble')]}
+        isRunning
+      />,
+    )
+
+    expect(screen.getByText(/broad tonal note/i)).toBeDefined()
+
+    act(() => {
+      vi.advanceTimersByTime(10_000)
+    })
+
+    expect(screen.queryByText(/broad tonal note/i)).toBeNull()
+  })
+
+  it('shows the broad tonal note again when the summary changes', () => {
+    vi.useFakeTimers()
+    const { rerender } = render(
+      <IssuesList
+        advisories={[makeTonalAdvisory('a1', 'HPF at 80Hz for rumble')]}
+        isRunning
+      />,
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(0)
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /dismiss broad tonal note/i }))
+    expect(screen.queryByText(/broad tonal note/i)).toBeNull()
+
+    rerender(
+      <IssuesList
+        advisories={[makeTonalAdvisory('a1', 'High shelf -2dB @ 4kHz')]}
+        isRunning
+      />,
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(0)
+    })
+
+    expect(screen.getByText(/broad tonal note/i)).toBeDefined()
+    expect(screen.getByText(/high shelf -2db @ 4khz/i)).toBeDefined()
   })
 })
