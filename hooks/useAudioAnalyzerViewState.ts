@@ -48,7 +48,6 @@ export function useAudioAnalyzerViewState(dataCollection: DataCollectionHandle) 
     onSettingsChange: calibration.onSettingsChange,
     spectrumRef,
     settings,
-    setMicProfile,
   })
 
   const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0'

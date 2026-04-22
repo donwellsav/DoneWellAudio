@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { useAdvisoryLogging } from '@/hooks/useAdvisoryLogging'
 import { useCompanionModeSync } from '@/hooks/useCompanionModeSync'
-import { useIsMobile } from '@/hooks/use-mobile'
 import type { DataCollectionHandle } from '@/hooks/useDataCollection'
 import type { UseCalibrationSessionReturn } from '@/hooks/useCalibrationSession'
 import type { DSPWorkerHandle } from '@/hooks/useDSPWorker'
@@ -11,7 +10,7 @@ import {
   getFeedbackHotspotSummaries,
   whenFeedbackHistoryReady,
 } from '@/lib/dsp/feedbackHistory'
-import type { Advisory, DetectorSettings, MicCalibrationProfile, SpectrumData } from '@/types/advisory'
+import type { Advisory, DetectorSettings, SpectrumData } from '@/types/advisory'
 
 function assignSettingDelta<K extends keyof DetectorSettings>(
   delta: Partial<DetectorSettings>,
@@ -33,7 +32,6 @@ interface UseAnalyzerSessionEffectsParams {
   onSettingsChange: UseCalibrationSessionReturn['onSettingsChange']
   spectrumRef: React.RefObject<SpectrumData | null>
   settings: DetectorSettings
-  setMicProfile: (profile: MicCalibrationProfile) => void
 }
 
 export function useAnalyzerSessionEffects({
@@ -48,9 +46,7 @@ export function useAnalyzerSessionEffects({
   onSettingsChange,
   spectrumRef,
   settings,
-  setMicProfile,
 }: UseAnalyzerSessionEffectsParams): void {
-  const isMobile = useIsMobile()
   useCompanionModeSync(settings.mode)
   const syncFeedbackHistory = useCallback(() => {
     dspWorker.syncFeedbackHistory(getFeedbackHotspotSummaries())
@@ -116,12 +112,4 @@ export function useAnalyzerSessionEffects({
 
     return () => clearTimeout(timer)
   }, [onSettingsChange, settings])
-
-  const mobileCalAppliedRef = useRef(false)
-  useEffect(() => {
-    if (isMobile && !mobileCalAppliedRef.current && settings.micCalibrationProfile === 'none') {
-      mobileCalAppliedRef.current = true
-      setMicProfile('smartphone')
-    }
-  }, [isMobile, setMicProfile, settings.micCalibrationProfile])
 }

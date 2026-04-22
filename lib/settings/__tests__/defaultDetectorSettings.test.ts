@@ -50,6 +50,8 @@ describe('deriveDefaultDetectorSettings', () => {
     expect(deriveFreshStartDetectorSettings()).toEqual(expected)
     expect(DEFAULT_SETTINGS).toEqual(expected)
     expect(DEFAULT_SETTINGS.feedbackThresholdDb).toBe(25)
+    expect(DEFAULT_MIC_PROFILE).toBe('none')
+    expect(DEFAULT_SETTINGS.micCalibrationProfile).toBe('none')
   })
 
   it('keeps mode-owned defaults aligned for non-Speech modes', () => {
