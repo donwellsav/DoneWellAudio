@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.113.0',
+    date: '2026-04-22',
+    changes: [
+      { type: 'feat', description: 'Remove the mobile-only auto-selection of the Smartphone calibration profile' },
+      { type: 'feat', description: 'Keep fresh-start calibration mic defaults pinned to None' },
+      { type: 'feat', description: 'Update tests/comments to reflect the new default behavior' },
+      { type: 'feat', description: 'npx tsc --noEmit' },
+      { type: 'feat', description: 'pnpm test' },
+    ],
+  },
+  {
     version: '0.109.0',
     date: '2026-04-21',
     changes: [
