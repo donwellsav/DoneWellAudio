@@ -70,6 +70,29 @@ describe('IssueCard', () => {
     expect(screen.queryByText(/narrow cut/i)).toBeNull()
   })
 
+  it('keeps mobile action icons compact without padded touch boxes', () => {
+    const { container } = render(
+      <IssueCard
+        advisory={makeAdvisory()}
+        occurrenceCount={1}
+        touchFriendly
+        onFalsePositive={vi.fn()}
+        onConfirmFeedback={vi.fn()}
+        onDismiss={vi.fn()}
+        onSendToMixer={vi.fn()}
+      />,
+    )
+
+    const buttons = Array.from(container.querySelectorAll('button'))
+    expect(buttons.length).toBeGreaterThanOrEqual(5)
+
+    for (const button of buttons) {
+      expect(button.className).toContain('p-0')
+      expect(button.className).not.toContain('[44px]')
+      expect(button.className).not.toMatch(/\bh-8\b|\bw-8\b/)
+    }
+  })
+
   it('renders repeat offender badge and guidance when occurrenceCount >= 3', () => {
     render(<IssueCard advisory={makeAdvisory()} occurrenceCount={5} />)
     const badge = screen.getByLabelText(/repeat offender: detected 5 times/i)
