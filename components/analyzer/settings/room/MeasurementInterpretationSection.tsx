@@ -64,7 +64,7 @@ export const MeasurementInterpretationSection = memo(function MeasurementInterpr
             <p className="text-xs font-mono uppercase tracking-wide text-[var(--console-green)]">Room Resonance</p>
             <p className="mt-1 text-sm text-muted-foreground">
               Recurring low peaks below {modalBoundary} or near predicted room modes are more likely room-driven
-              and position-sensitive. Recheck placement before stacking more narrow cuts.
+              and position-sensitive. Recheck placement before adding more notches.
             </p>
           </div>
 

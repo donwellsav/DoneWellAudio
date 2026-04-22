@@ -98,7 +98,7 @@ export const RingOutListeningPhase = memo(function RingOutListeningPhase({
           </ul>
           <p className="font-mono text-dwa-sm text-muted-foreground/80 leading-relaxed">
             Ring-out is a pre-show baseline. During the show, fix placement or broad
-            EQ first; narrow cuts only after that.
+            EQ first; notches only after that.
           </p>
         </div>
 
@@ -226,7 +226,7 @@ export const RingOutDetectedPhase = memo(function RingOutDetectedPhase({
         <div className="glass-card rounded-lg p-2.5 border-blue-500/30 bg-blue-500/5">
           <p className="font-mono text-dwa-sm text-blue-400 text-center leading-relaxed">
             {isMergedRegion
-              ? `This detection merged ${advisory.clusterCount} nearby peaks. If the region feels broad or keeps shifting, check placement, reflections, or broad EQ before stacking more narrow cuts.`
+              ? `This detection merged ${advisory.clusterCount} nearby peaks. If the region feels broad or keeps shifting, check placement, reflections, or broad EQ before adding more notches.`
               : `This band already needed ${nearbyAcceptedCuts.length} accepted ${nearbyAcceptedCuts.length === 1 ? 'cut' : 'cuts'} during ring-out. Recheck mic and speaker geometry before adding more notches in the same region.`}
           </p>
         </div>

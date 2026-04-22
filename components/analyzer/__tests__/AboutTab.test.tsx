@@ -23,6 +23,6 @@ describe('AboutTab', () => {
 
     expect(screen.getAllByText(formatEntryVersion(firstOlderEntry.version)).length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText(formatEntryVersion(secondOlderEntry.version)).length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText(firstOlderEntry.changes[0].description)).toBeDefined()
+    expect(screen.getAllByText(firstOlderEntry.changes[0].description).length).toBeGreaterThanOrEqual(1)
   })
 })

@@ -92,12 +92,10 @@ export const IssueCard = memo(function IssueCard({
     ? null
     : getRecommendationStrategyLabel(advisory.advisory?.peq)
   const strategyReason = isNonCorrectiveWhistle ? null : advisory.advisory?.peq?.reason
-  const operatorNote =
-    isNonCorrectiveWhistle
-      ? 'Whistle alert only — verify mic and speaker placement first. No EQ cut recommended.'
-      : isClustered
-        ? `Merged ${advisory.clusterCount} nearby peaks into one broad region. If it keeps returning, check placement or broad EQ before stacking more narrow cuts.`
-        : null
+  const whistleNote = 'Whistle alert only - verify mic and speaker placement first. No EQ cut recommended.'
+  const clusterNote = isClustered
+    ? `Merged ${advisory.clusterCount} nearby peaks into one broad region. If it keeps returning, check placement or broad EQ before adding more notches.`
+    : null
 
   return (
     <div
@@ -189,7 +187,7 @@ export const IssueCard = memo(function IssueCard({
       />
 
       <div
-        className={`flex flex-col relative z-10 @container pl-3 pr-1 pt-0.5${swipeLabeling && peekSwipe && !swiping ? ' animate-swipe-peek' : ''}`}
+        className={`flex flex-col relative z-10 @container pl-2.5 pr-1 py-0.5${swipeLabeling && peekSwipe && !swiping ? ' animate-swipe-peek' : ''}`}
         style={
           swipeLabeling && swiping
             ? {
@@ -199,7 +197,7 @@ export const IssueCard = memo(function IssueCard({
             : undefined
         }
       >
-        <div className="flex items-baseline gap-1.5">
+        <div className="flex items-baseline gap-1">
           {SeverityIconEl ? (
             <span
               className="flex-shrink-0 inline-flex items-center justify-center self-center"
@@ -238,7 +236,7 @@ export const IssueCard = memo(function IssueCard({
             </span>
           ) : null}
 
-          <div className="ml-auto flex items-center gap-1 flex-shrink-0 self-center">
+          <div className="ml-auto flex items-center gap-0.5 flex-shrink-0 self-center">
             {companionState?.applied ? (
               <span
                 className={badgeClass('success')}
@@ -292,8 +290,8 @@ export const IssueCard = memo(function IssueCard({
             {occurrenceCount >= 3 ? (
               <span
                 className={badgeClass('warning')}
-                aria-label={`Repeat offender: detected ${occurrenceCount} times. Check mic/speaker geometry or broad EQ before stacking more narrow cuts.`}
-                title={`Repeat offender: detected ${occurrenceCount} times.\nCheck mic/speaker geometry or broad EQ before stacking more narrow cuts.`}
+                aria-label={`Repeat offender: detected ${occurrenceCount} times. Check mic/speaker geometry or broad EQ before adding more notches.`}
+                title={`Repeat offender: detected ${occurrenceCount} times.\nCheck mic/speaker geometry or broad EQ before adding more notches.`}
               >
                 <TrendingUp className="w-2.5 h-2.5" />
                 {occurrenceCount}×
@@ -302,7 +300,8 @@ export const IssueCard = memo(function IssueCard({
             {isClustered ? (
               <span
                 className={badgeClass('info', 'sm')}
-                title={`Merged cluster - Q widened. Center: ${exactFreqStr}`}
+                aria-label={clusterNote ?? undefined}
+                title={clusterNote ?? `Merged cluster - Q widened. Center: ${exactFreqStr}`}
               >
                 {advisory.clusterCount}pk
               </span>
@@ -348,15 +347,23 @@ export const IssueCard = memo(function IssueCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 text-sm font-mono leading-none">
+        <div className="flex items-center gap-1 text-sm font-mono leading-none">
           {advisory.advisory?.peq ? (
             isNonCorrectiveWhistle ? (
-              <span className="text-dwa-sm font-bold uppercase tracking-[0.16em] text-amber-300/80">
+              <span
+                className="text-dwa-sm font-bold uppercase tracking-[0.16em] text-amber-300/80"
+                aria-label={whistleNote}
+                title={whistleNote}
+              >
                 warning only · no EQ cut
               </span>
             ) : (
               <>
-                <span style={{ color: severityColor, opacity: 0.8 }}>
+                <span
+                  style={{ color: severityColor, opacity: 0.8 }}
+                  aria-label={strategyReason ? `PEQ cut ${advisory.advisory.peq.gainDb} dB, Q ${Math.round(advisory.advisory.peq.q)}. ${strategyReason}` : undefined}
+                  title={strategyReason ?? undefined}
+                >
                   <span className="font-bold">{advisory.advisory.peq.gainDb}dB</span> Q:{Math.round(advisory.advisory.peq.q)}
                 </span>
                 {strategyLabel ? (
@@ -364,7 +371,10 @@ export const IssueCard = memo(function IssueCard({
                     advisory.advisory.peq.strategy === 'broad-region'
                       ? 'text-blue-300/70'
                       : 'text-muted-foreground/45'
-                  }`}>
+                  }`}
+                    aria-label={strategyReason ? `${strategyLabel}. ${strategyReason}` : strategyLabel}
+                    title={strategyReason ?? undefined}
+                  >
                     {strategyLabel}
                   </span>
                 ) : null}
@@ -416,12 +426,6 @@ export const IssueCard = memo(function IssueCard({
           </div>
         ) : null}
 
-        {showPeqDetails && isNonCorrectiveWhistle ? (
-          <p className="text-dwa-xs font-mono text-amber-300/70 leading-relaxed">
-            Whistle advisory only | no corrective EQ recommendation
-          </p>
-        ) : null}
-
         {showPeqDetails && advisory.advisory?.peq && peqNotchSvgPath && !isNonCorrectiveWhistle ? (
           <div className="flex items-center gap-1.5">
             <svg width="40" height="14" viewBox="0 0 40 14" aria-hidden className="flex-shrink-0">
@@ -432,18 +436,6 @@ export const IssueCard = memo(function IssueCard({
               {advisory.advisory.peq.bandwidthHz != null ? ` | BW:${advisory.advisory.peq.bandwidthHz.toFixed(0)}Hz` : ''}
             </span>
           </div>
-        ) : null}
-
-        {strategyReason ? (
-          <p className="text-dwa-xs font-mono text-blue-300/70 leading-relaxed">
-            {strategyReason}
-          </p>
-        ) : null}
-
-        {operatorNote ? (
-          <p className="text-dwa-xs font-mono text-muted-foreground/55 leading-relaxed">
-            {operatorNote}
-          </p>
         ) : null}
 
         {actionsLayout === 'mobile' ? (
