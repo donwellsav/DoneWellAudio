@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.115.0',
+    date: '2026-04-22',
+    changes: [
+      { type: 'feat', description: 'Remove reserved mobile touch-box sizing from issue-card action icons' },
+      { type: 'feat', description: 'Collapse mobile action/icon cluster gaps to zero' },
+      { type: 'feat', description: 'Add a regression test preventing padded mobile issue action buttons from returning' },
+      { type: 'feat', description: 'npx tsc --noEmit' },
+      { type: 'feat', description: 'pnpm test' },
+    ],
+  },
+  {
     version: '0.114.0',
     date: '2026-04-22',
     changes: [
