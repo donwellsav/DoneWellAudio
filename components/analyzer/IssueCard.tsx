@@ -236,7 +236,7 @@ export const IssueCard = memo(function IssueCard({
             </span>
           ) : null}
 
-          <div className="ml-auto flex items-center gap-0.5 flex-shrink-0 self-center">
+          <div className="ml-auto flex items-center gap-0 flex-shrink-0 self-center">
             {companionState?.applied ? (
               <span
                 className={badgeClass('success')}
@@ -308,7 +308,7 @@ export const IssueCard = memo(function IssueCard({
             ) : null}
             {advisory.confidence != null ? (
               <span
-                className="inline-flex items-center gap-0.5 text-dwa-xs font-mono leading-none"
+                className="inline-flex items-center gap-0 text-dwa-xs font-mono leading-none"
                 role="img"
                 aria-label={`${Math.round(advisory.confidence * 100)}% confidence`}
                 title={`${Math.round(advisory.confidence * 100)}% confidence`}
@@ -382,7 +382,7 @@ export const IssueCard = memo(function IssueCard({
             )
           ) : null}
           {velocity > 0 && !isResolved ? (
-            <span className={`flex items-center gap-0.5 ${
+            <span className={`flex items-center gap-0 ${
               isRunaway ? 'text-red-400' : isWarning ? 'text-amber-400' : 'text-muted-foreground/40'
             }`}
             >

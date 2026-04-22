@@ -4,9 +4,9 @@ import { memo } from 'react'
 import { Check, Copy, ThumbsDown, ThumbsUp, X } from 'lucide-react'
 
 const ACTION_BTN_DESKTOP = 'rounded text-dwa-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-6 min-w-8'
-const ACTION_BTN_MOBILE = 'rounded text-xs font-mono font-bold tracking-wider transition-colors flex items-center justify-center px-1 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 min-h-[44px] min-w-[44px]'
+const ACTION_BTN_MOBILE = 'rounded-sm text-[9px] font-mono font-bold tracking-wider leading-none transition-colors inline-flex items-center justify-center p-0 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 min-w-0'
 const LABEL_BTN_DESKTOP = 'rounded transition-colors flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 h-6 w-6'
-const LABEL_BTN_MOBILE = 'rounded transition-colors flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 min-h-[44px] min-w-[44px]'
+const LABEL_BTN_MOBILE = 'rounded-sm transition-colors inline-flex items-center justify-center p-0 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50'
 const COPY_BTN = 'rounded btn-glow flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50'
 
 // FALSE+/CONFIRM are ML training labels, not primary operator actions — they
@@ -66,7 +66,7 @@ export const IssueCardActions = memo(function IssueCardActions({
 
   if (layout === 'desktop') {
     return (
-      <div className="flex items-center gap-0.5 flex-shrink-0 flex-wrap">
+      <div className="flex items-center gap-0 flex-shrink-0 flex-wrap">
         {onFalsePositive ? (
           <button
             onClick={() => onFalsePositive(advisoryId)}
@@ -122,7 +122,7 @@ export const IssueCardActions = memo(function IssueCardActions({
   }
 
   return (
-    <div className="flex items-center justify-end gap-0.5 flex-wrap">
+    <div className="flex items-center justify-end gap-0 flex-nowrap leading-none">
       {onFalsePositive ? (
         <button
           onClick={() => onFalsePositive(advisoryId)}
@@ -130,7 +130,7 @@ export const IssueCardActions = memo(function IssueCardActions({
           title={isFalsePositive ? 'Unflag as false positive' : 'Mark as false positive — training label'}
           className={`${LABEL_BTN_MOBILE} ${isFalsePositive ? FP_ACTIVE : FP_INACTIVE}`}
         >
-          <ThumbsDown className="w-3.5 h-3.5" aria-hidden />
+          <ThumbsDown className="w-3 h-3" aria-hidden />
         </button>
       ) : null}
       {onConfirmFeedback ? (
@@ -140,28 +140,28 @@ export const IssueCardActions = memo(function IssueCardActions({
           title={isConfirmed ? 'Unconfirm feedback' : 'Confirm as real feedback — training label'}
           className={`${LABEL_BTN_MOBILE} ${isConfirmed ? CONFIRM_ACTIVE : CONFIRM_INACTIVE}`}
         >
-          <ThumbsUp className="w-3.5 h-3.5" aria-hidden />
+          <ThumbsUp className="w-3 h-3" aria-hidden />
         </button>
       ) : null}
       {onDismiss ? (
         <button
           onClick={() => onDismiss(advisoryId)}
           aria-label={`Dismiss ${exactFreqStr}`}
-          className="rounded flex items-center justify-center cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 text-muted-foreground/55 hover:text-muted-foreground hover:bg-muted/60 transition-colors min-h-[44px] min-w-[44px]"
+          className="rounded-sm inline-flex items-center justify-center p-0 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 text-muted-foreground/55 hover:text-muted-foreground hover:bg-muted/60 transition-colors"
         >
-          <X className="w-3.5 h-3.5" />
+          <X className="w-3 h-3" />
         </button>
       ) : null}
       <button
         onClick={onCopy}
         aria-label={`Copy ${exactFreqStr}`}
-        className={`${COPY_BTN} min-w-[44px] min-h-[44px] ${
+        className={`${COPY_BTN} p-0 ${
           copied
             ? 'text-[var(--console-amber)]'
             : 'text-muted-foreground/70 hover:text-muted-foreground hover:bg-muted/60'
         }`}
       >
-        {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+        {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
       </button>
       {onSendToMixer ? (
         <button
