@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.114.0',
+    date: '2026-04-22',
+    changes: [
+      { type: 'feat', description: 'Compact issue cards by moving explanatory note rows into title/aria tooltip text' },
+      { type: 'feat', description: 'Remove user-facing narrow-cut wording while preserving Broad Region strategy labels' },
+      { type: 'feat', description: 'Make Broad Tonal Note dismissible, auto-hiding, and reset when the tonal summary changes' },
+      { type: 'feat', description: 'Harden AboutTab changelog test for repeated Dependabot descriptions in current release history' },
+      { type: 'feat', description: 'npx tsc --noEmit' },
+      { type: 'feat', description: 'pnpm test' },
+    ],
+  },
+  {
     version: '0.113.0',
     date: '2026-04-22',
     changes: [
